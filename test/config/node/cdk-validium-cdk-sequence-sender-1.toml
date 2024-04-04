@@ -1,0 +1,35 @@
+[Log]
+Environment = "development" # "production" or "development"
+Level = "info"
+Outputs = ["stderr"]
+
+[SequenceSender]
+WaitPeriodSendSequence = "1s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "2s"
+MaxTxSizeForL1 = 131072
+L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
+SequencesTxFileName = "sequencesender.json"
+WaitPeriodPurgeTxFile = "60m"
+MaxPendingTx = 1
+MaxBatchesForL1 = 1
+	[SequenceSender.StreamClient]
+		Server = "cdk-validium-node-1:6900"
+	[SequenceSender.EthTxManager]
+		FrequencyToMonitorTxs = "1s"
+		WaitTxToBeMined = "2m"
+		ConsolidationL1ConfirmationBlocks = 2
+		FinalizationL1ConfirmationBlocks = 3
+		WaitReceiptToBeGenerated = "8s"
+		PrivateKeys = [
+			{Path = "/pk/sequencer.keystore", Password = "testonly"},
+		]
+		ForcedGas = 0
+		GasPriceMarginFactor = 1
+		MaxGasPriceLimit = 0
+		PersistenceFilename = "ethtxmanager.json"
+			[SequenceSender.EthTxManager.Etherman]
+				URL = "http://cdk-l1:8545"
+				MultiGasProvider = false
+				L1ChainID = 1337
+				HTTPHeaders = []
