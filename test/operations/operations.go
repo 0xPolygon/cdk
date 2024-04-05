@@ -54,7 +54,7 @@ var (
 	preconfiguredCDKStacks = map[string]CDKStack{
 		DefaultCDKStack: {
 			Node:           "cdk-validium-node-1",
-			SequenceSender: "cdk-validium-cdk-sequence-sender-1",
+			SequenceSender: "cdk-validium-hermez-sequence-sender-1",
 			RPC:            "cdk-validium-hermez-rpc-1",
 			L1:             "cdk-l1",
 			Prover:         "cdk-prover-1",
@@ -84,7 +84,7 @@ var (
 		},
 		{
 			CDKStackKey:      "L1",
-			envVar:           RPCENV,
+			envVar:           L1ENV,
 			supportedOptions: []string{"cdk-l1"},
 		},
 		{
