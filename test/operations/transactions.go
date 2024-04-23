@@ -32,7 +32,7 @@ func WaitTxToBeMined(hash ethgo.Hash, level ConfirmationLevel, client *jsonrpc.C
 				time.Sleep(time.Second)
 				continue
 			}
-			fmt.Printf("tx %s included in the trusted state at the L2 blcok %d\n", hash.String(), receipt.BlockNumber)
+			fmt.Printf("tx %s included in the trusted state at the L2 block %d\n", hash.String(), receipt.BlockNumber)
 			if level == Trusted {
 				return nil
 			}
