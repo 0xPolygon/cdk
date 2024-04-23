@@ -178,6 +178,8 @@ services:
     depends_on:
       cdk-validium-node-1:
         condition: service_started
+      cdk-postgres:
+        condition: service_healthy
     networks:
       - cdk-localnet
 
