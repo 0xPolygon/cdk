@@ -1,13 +1,13 @@
-package main
+package cmd
 
 import (
 	"os"
 
-	zkevm "github.com/0xPolygon/cdk"
+	"github.com/0xPolygon/cdk/version"
 	"github.com/urfave/cli/v2"
 )
 
-func versionCmd(*cli.Context) error {
-	zkevm.PrintVersion(os.Stdout)
+func VersionCmd(*cli.Context) error {
+	version.PrintVersion(os.Stdout)
 	return nil
 }
