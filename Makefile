@@ -10,9 +10,9 @@ else
 	endif
 endif
 GOBASE := $(shell pwd)
-GOBIN := $(GOBASE)/dist
+GOBIN := $(GOBASE)/target
 GOENVVARS := GOBIN=$(GOBIN) CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH)
-GOBINARY := cdk
+GOBINARY := cdk-node
 GOCMD := $(GOBASE)/cmd
 
 LDFLAGS += -X 'github.com/0xPolygon/cdk.Version=$(VERSION)'
