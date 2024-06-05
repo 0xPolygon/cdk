@@ -22,7 +22,8 @@ func NewErigonDriver(path string) *ErigonDriver {
 
 // Start starts the Erigon client
 func (e *ErigonDriver) Start(ctx context.Context) error {
-	cmd := exec.Command(e.Path)
+	args := []string{"--help"}
+	cmd := exec.Command(e.Path, args...)
 
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
