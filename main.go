@@ -17,7 +17,7 @@ var (
 		Name:     config.FlagCfg,
 		Aliases:  []string{"c"},
 		Usage:    "Configuration `FILE`",
-		Required: true,
+		Required: false,
 	}
 )
 
