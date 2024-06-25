@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/0xPolygonHermez/zkevm-sequence-sender"
+	zkevm "github.com/0xPolygon/cdk"
 	"github.com/hermeznetwork/tracerr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

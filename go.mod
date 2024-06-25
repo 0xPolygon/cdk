@@ -7,7 +7,6 @@ require (
 	github.com/0xPolygon/cdk-rpc v0.0.0-20240419104226-c0a62ba0f49d
 	github.com/0xPolygonHermez/zkevm-data-streamer v0.2.2
 	github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.9
-	github.com/0xPolygonHermez/zkevm-sequence-sender v0.1.3
 	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.1
 	github.com/ethereum/go-ethereum v1.14.5
 	github.com/gobuffalo/packr/v2 v2.8.3
@@ -104,6 +103,7 @@ require (
 	github.com/mitchellh/pointerstructure v1.2.0 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
+	github.com/onsi/gomega v1.27.10 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
