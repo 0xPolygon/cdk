@@ -1,0 +1,11 @@
+[workspace]
+
+members = [
+    "cdk-erigon",
+]
+
+[workspace.package]
+name = "cdk-erigon"
+version = "0.1.0"
+edition = "2021"
+
