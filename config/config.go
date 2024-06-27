@@ -20,9 +20,7 @@ const (
 	FlagYes = "yes"
 	// FlagCfg is the flag for cfg.
 	FlagCfg = "cfg"
-	// FlagNetwork is the flag for the network name. Valid values: ["testnet", "mainnet", "custom"].
-	FlagNetwork = "network"
-	// FlagCustomNetwork is the flag for the custom network file. This is required if --network=custom
+	// FlagCustomNetwork is the flag for the custom network file.
 	FlagCustomNetwork = "custom-network-file"
 	// FlagAmount is the flag for amount.
 	FlagAmount = "amount"

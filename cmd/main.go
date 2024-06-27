@@ -30,12 +30,6 @@ var (
 		Usage:    "Configuration `FILE`",
 		Required: true,
 	}
-	networkFlag = cli.StringFlag{
-		Name:     config.FlagNetwork,
-		Aliases:  []string{"net"},
-		Usage:    "Load default network configuration. Supported values: [`mainnet`, `testnet`, `custom`]",
-		Required: true,
-	}
 	customNetworkFlag = cli.StringFlag{
 		Name:     config.FlagCustomNetwork,
 		Aliases:  []string{"net-file"},
@@ -78,7 +72,7 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Run the cdk client",
 			Action:  start,
-			Flags:   append(flags, &networkFlag, &customNetworkFlag),
+			Flags:   append(flags, &customNetworkFlag),
 		},
 	}
 

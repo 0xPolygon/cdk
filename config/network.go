@@ -26,9 +26,7 @@ type network string
 type leafType uint8
 
 const (
-	mainnet network = "mainnet"
-	testnet network = "testnet"
-	custom  network = "custom"
+	custom network = "custom"
 	// LeafTypeBalance specifies that leaf stores Balance
 	LeafTypeBalance leafType = 0
 	// LeafTypeNonce specifies that leaf stores Nonce
@@ -69,22 +67,12 @@ type genesisAccountFromJSON struct {
 }
 
 func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
-	var networkJSON string
-	switch ctx.String(FlagNetwork) {
-	case string(mainnet):
-		networkJSON = MainnetNetworkConfigJSON
-	case string(testnet):
-		networkJSON = TestnetNetworkConfigJSON
-	case string(custom):
-		var err error
-		cfgPath := ctx.String(FlagCustomNetwork)
-		networkJSON, err = LoadGenesisFileAsString(cfgPath)
-		if err != nil {
-			panic(err.Error())
-		}
-	default:
-		log.Fatalf("unsupported --network value. Must be one of: [%s, %s, %s]", mainnet, testnet, custom)
+	cfgPath := ctx.String(FlagCustomNetwork)
+	networkJSON, err := LoadGenesisFileAsString(cfgPath)
+	if err != nil {
+		panic(err.Error())
 	}
+
 	config, err := LoadGenesisFromJSONString(networkJSON)
 	if err != nil {
 		panic(fmt.Errorf("failed to load genesis configuration from file. Error: %v", err))
