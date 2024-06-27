@@ -1508,11 +1508,6 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		return nil, err
 	}
 
-	// Check Witness length
-	if len(witness) > 100*1204 && !a.cfg.UseFullWitness { // nolint: gomnd
-		log.Warnf("Witness length is %d bytes. Check full witness configuration on %s", len(witness), a.cfg.WitnessURL)
-	}
-
 	// Get Old Acc Input Hash
 	oldBatch, _, err := a.state.GetBatch(ctx, batchToVerify.BatchNumber-1, nil)
 	if err != nil {
