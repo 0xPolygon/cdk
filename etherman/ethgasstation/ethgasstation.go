@@ -7,8 +7,11 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+)
 
-	"github.com/0xPolygon/cdk/encoding"
+const (
+	// Gwei represents 1000000000 wei
+	Gwei = 1000000000
 )
 
 type ethGasStationResponse struct {
@@ -60,5 +63,5 @@ func (e *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 		return big.NewInt(0), fmt.Errorf("Reading body failed: %w", err)
 	}
 	fgp := big.NewInt(0).SetUint64(resBody.GasPrice.Instant)
-	return new(big.Int).Mul(fgp, big.NewInt(encoding.Gwei)), nil
+	return new(big.Int).Mul(fgp, big.NewInt(Gwei)), nil
 }

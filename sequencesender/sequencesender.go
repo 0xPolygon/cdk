@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xPolygon/cdk/aggregator/types"
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/etherman"
-	"github.com/0xPolygon/cdk/etherman/types"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/datastream"

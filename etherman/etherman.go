@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	ethmanTypes "github.com/0xPolygon/cdk/aggregator/types"
 	"github.com/0xPolygon/cdk/etherman/etherscan"
 	"github.com/0xPolygon/cdk/etherman/ethgasstation"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/dataavailabilityprotocol"
@@ -21,7 +22,6 @@ import (
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygonzkevmglobalexitroot"
-	ethmanTypes "github.com/0xPolygon/cdk/etherman/types"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"

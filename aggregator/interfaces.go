@@ -5,7 +5,7 @@ import (
 	"math/big"
 
 	"github.com/0xPolygon/cdk/aggregator/prover"
-	ethmanTypes "github.com/0xPolygon/cdk/etherman/types"
+	ethmanTypes "github.com/0xPolygon/cdk/aggregator/types"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

@@ -7,8 +7,13 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+)
 
-	"github.com/0xPolygon/cdk/encoding"
+const (
+	// Base10 decimal base
+	Base10 = 10
+	// Gwei represents 1000000000 wei
+	Gwei = 1000000000
 )
 
 type etherscanResponse struct {
@@ -72,6 +77,6 @@ func (e *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 	if err != nil {
 		return big.NewInt(0), fmt.Errorf("Reading body failed: %w", err)
 	}
-	fgp, _ := big.NewInt(0).SetString(resBody.Result.FastGasPrice, encoding.Base10)
-	return new(big.Int).Mul(fgp, big.NewInt(encoding.Gwei)), nil
+	fgp, _ := big.NewInt(0).SetString(resBody.Result.FastGasPrice, Base10)
+	return new(big.Int).Mul(fgp, big.NewInt(Gwei)), nil
 }

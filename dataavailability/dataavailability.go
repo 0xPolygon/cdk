@@ -3,7 +3,7 @@ package dataavailability
 import (
 	"context"
 
-	"github.com/0xPolygon/cdk/etherman/types"
+	"github.com/0xPolygon/cdk/aggregator/types"
 )
 
 // DataAvailability implements an abstract data availability integration

@@ -2,13 +2,13 @@ package etherman
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
 	"strings"
 
-	"github.com/0xPolygon/cdk/encoding"
-	ethmanTypes "github.com/0xPolygon/cdk/etherman/types"
+	ethmanTypes "github.com/0xPolygon/cdk/aggregator/types"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -101,7 +101,7 @@ func convertProof(p string) ([24][32]byte, error) {
 	proof := [24][32]byte{}
 	for i := 0; i < 24; i++ {
 		data := p[i*64 : (i+1)*64]
-		p, err := encoding.DecodeBytes(&data)
+		p, err := DecodeBytes(&data)
 		if err != nil {
 			return [24][32]byte{}, fmt.Errorf("failed to decode proof, err: %w", err)
 		}
@@ -110,4 +110,12 @@ func convertProof(p string) ([24][32]byte, error) {
 		proof[i] = aux
 	}
 	return proof, nil
+}
+
+// DecodeBytes decodes a hex string into a []byte
+func DecodeBytes(val *string) ([]byte, error) {
+	if val == nil {
+		return []byte{}, nil
+	}
+	return hex.DecodeString(strings.TrimPrefix(*val, "0x"))
 }

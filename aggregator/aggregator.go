@@ -17,10 +17,9 @@ import (
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	cdkTypes "github.com/0xPolygon/cdk-rpc/types"
-	"github.com/0xPolygon/cdk/aggregator/metrics"
 	"github.com/0xPolygon/cdk/aggregator/prover"
+	ethmanTypes "github.com/0xPolygon/cdk/aggregator/types"
 	"github.com/0xPolygon/cdk/config/types"
-	ethmanTypes "github.com/0xPolygon/cdk/etherman/types"
 	"github.com/0xPolygon/cdk/l1infotree"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/state"
@@ -419,8 +418,6 @@ func (a *Aggregator) Start(ctx context.Context) error {
 	a.ctx = ctx
 	a.exit = cancel
 
-	metrics.Register()
-
 	address := fmt.Sprintf("%s:%d", a.cfg.Host, a.cfg.Port)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
@@ -530,9 +527,6 @@ func (a *Aggregator) Stop() {
 // Channel implements the bi-directional communication channel between the
 // Prover client and the Aggregator server.
 func (a *Aggregator) Channel(stream prover.AggregatorService_ChannelServer) error {
-	metrics.ConnectedProver()
-	defer metrics.DisconnectedProver()
-
 	ctx := stream.Context()
 	var proverAddr net.Addr
 	p, ok := peer.FromContext(ctx)

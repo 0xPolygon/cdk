@@ -9,7 +9,6 @@ import (
 
 	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/db"
-	"github.com/0xPolygon/cdk/encoding"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	syncronizerConfig "github.com/0xPolygonHermez/zkevm-synchronizer-l1/config"
@@ -25,6 +24,9 @@ const (
 
 	// L1 settlement backend
 	L1 SettlementBackend = "l1"
+
+	// TenToThePowerOf18 represents 1000000000000000000
+	TenToThePowerOf18 = 1000000000000000000
 )
 
 // TokenAmountWithDecimals is a wrapper type that parses token amount with decimals to big int
@@ -38,7 +40,7 @@ func (t *TokenAmountWithDecimals) UnmarshalText(data []byte) error {
 	if !ok {
 		return fmt.Errorf("failed to unmarshal string to float")
 	}
-	coin := new(big.Float).SetInt(big.NewInt(encoding.TenToThePowerOf18))
+	coin := new(big.Float).SetInt(big.NewInt(TenToThePowerOf18))
 	bigval := new(big.Float).Mul(amount, coin)
 	result := new(big.Int)
 	bigval.Int(result)
