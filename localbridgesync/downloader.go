@@ -19,12 +19,13 @@ var (
 )
 
 type downloader struct {
-	downloadedCh     chan batch
-	bridgeAddr       common.Address
-	bridgeContractV2 *polygonzkevmbridgev2.Polygonzkevmbridgev2
-	bridgeContractV1 *polygonzkevmbridge.Polygonzkevmbridge
-	ethClient        ethereum.LogFilterer
-	batchToBlocks    map[uint64]struct{ from, to uint64 }
+	downloadedCh       chan batch
+	bridgeAddr         common.Address
+	bridgeContractV2   *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	bridgeContractV1   *polygonzkevmbridge.Polygonzkevmbridge
+	ethClient          ethereum.LogFilterer
+	batchToBlocks      map[uint64]struct{ from, to uint64 }
+	syncBlockChunkSize uint64
 }
 
 func newDownloader() (*downloader, error) {
@@ -32,34 +33,28 @@ func newDownloader() (*downloader, error) {
 }
 
 func (d *downloader) download(ctx context.Context, fromBatchNum uint64) {
-	// how to get first blokc associated to batch num??? --> zkevm_getBatchByNumber
-	/*
-			"result": {
-		            "name": "Batch",
-		            "value": {
-		              "number": "0x1",
-		              "coinbase": "0x0000000000000000000000000000000000000001",
-		              "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000001",
-		              "globalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000002",
-		              "mainnetExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000003",
-		              "rollupExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000004",
-		              "localExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000005",
-		              "accInputHash": "0x0000000000000000000000000000000000000000000000000000000000000006",
-		              "timestamp": "0x642af31f",
-		              "sendSequencesTxHash": "0x0000000000000000000000000000000000000000000000000000000000000007",
-		              "verifyBatchTxHash": "0x0000000000000000000000000000000000000000000000000000000000000008",
-		              "transactions": [
-		                "0x0000000000000000000000000000000000000000000000000000000000000009",
-		                "0x0000000000000000000000000000000000000000000000000000000000000010",
-		                "0x0000000000000000000000000000000000000000000000000000000000000011"
-		              ]
-		            }
-		          }
-
-				  flacky flacky double checky
-	*/
+	fromBlock, err := d.getFirstBlockOfBatch(fromBatchNum)
+	if err != nil {
+		// TODO: handle error
+		return
+	}
+	currentBatch := batch{
+		BatchNum: fromBatchNum,
+	}
 	for {
-		// zkevm_batchNumberByBlockNumber
+		// get last block
+		// to block = min(currentBlock+d.syncBlockChunkSize, last block)
+		toBlock := fromBlock + d.syncBlockChunkSize
+		blocks, err := d.getEventsByBlockRange(ctx, fromBlock, toBlock)
+		if err != nil {
+			// TODO: handle error
+			return
+		}
+
+		// get batch num using: zkevm_batchNumberByBlockNumber
+		// if batch is greater than currentBatch.BatchNum:
+		// send currentBatch over downloadedCh, then create new current batch
+		fromBlock = toBlock
 	}
 }
 
@@ -144,4 +139,34 @@ func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlo
 	}
 
 	return blocks, nil
+}
+
+func (d *downloader) getFirstBlockOfBatch(batchNum uint64) (uint64, error) {
+	// how to get first blokc associated to batch num??? --> zkevm_getBatchByNumber
+	/*
+			"result": {
+		            "name": "Batch",
+		            "value": {
+		              "number": "0x1",
+		              "coinbase": "0x0000000000000000000000000000000000000001",
+		              "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000001",
+		              "globalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000002",
+		              "mainnetExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000003",
+		              "rollupExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000004",
+		              "localExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000005",
+		              "accInputHash": "0x0000000000000000000000000000000000000000000000000000000000000006",
+		              "timestamp": "0x642af31f",
+		              "sendSequencesTxHash": "0x0000000000000000000000000000000000000000000000000000000000000007",
+		              "verifyBatchTxHash": "0x0000000000000000000000000000000000000000000000000000000000000008",
+		              "transactions": [
+		                "0x0000000000000000000000000000000000000000000000000000000000000009",
+		                "0x0000000000000000000000000000000000000000000000000000000000000010",
+		                "0x0000000000000000000000000000000000000000000000000000000000000011"
+		              ]
+		            }
+		          }
+
+				  flacky flacky double checky
+	*/
+	return 0, errors.New("not implemented")
 }
