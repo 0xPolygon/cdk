@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"strings"
 
-	ethmanTypes "github.com/0xPolygon/cdk/aggregator/types"
+	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"

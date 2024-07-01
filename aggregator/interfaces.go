@@ -4,8 +4,8 @@ import (
 	"context"
 	"math/big"
 
+	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/aggregator/prover"
-	ethmanTypes "github.com/0xPolygon/cdk/aggregator/types"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

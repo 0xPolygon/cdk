@@ -1,4 +1,4 @@
-package types
+package ethmantypes
 
 import "github.com/0xPolygon/cdk/aggregator/prover"
 

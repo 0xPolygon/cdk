@@ -3,7 +3,7 @@ package dataavailability
 import (
 	"context"
 
-	"github.com/0xPolygon/cdk/aggregator/types"
+	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 )
 
 // DataAvailability implements an abstract data availability integration
@@ -22,7 +22,7 @@ func New(backend DABackender) (*DataAvailability, error) {
 
 // PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
 // as expected by the contract
-func (d *DataAvailability) PostSequence(ctx context.Context, sequences []types.Sequence) ([]byte, error) {
+func (d *DataAvailability) PostSequence(ctx context.Context, sequences []ethmanTypes.Sequence) ([]byte, error) {
 	batchesData := [][]byte{}
 	for _, batch := range sequences {
 		// Do not send to the DA backend data that will be stored to L1

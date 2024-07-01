@@ -17,8 +17,8 @@ import (
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	cdkTypes "github.com/0xPolygon/cdk-rpc/types"
+	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/aggregator/prover"
-	ethmanTypes "github.com/0xPolygon/cdk/aggregator/types"
 	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/l1infotree"
 	"github.com/0xPolygon/cdk/log"

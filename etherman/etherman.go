@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	ethmanTypes "github.com/0xPolygon/cdk/aggregator/types"
+	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/etherman/etherscan"
 	"github.com/0xPolygon/cdk/etherman/ethgasstation"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/dataavailabilityprotocol"

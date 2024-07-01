@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0xPolygon/cdk/aggregator/types"
+	"github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
@@ -57,7 +57,7 @@ type SequenceSender struct {
 
 type sequenceData struct {
 	batchClosed bool
-	batch       *types.Sequence
+	batch       *ethmantypes.Sequence
 	batchRaw    *state.BatchRawV2
 }
 
@@ -625,12 +625,12 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 }
 
 // getSequencesToSend generates sequences to be sent to L1. Empty array means there are no sequences to send or it's not worth sending
-func (s *SequenceSender) getSequencesToSend() ([]types.Sequence, error) {
+func (s *SequenceSender) getSequencesToSend() ([]ethmantypes.Sequence, error) {
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	s.mutexSequence.Lock()
 	defer s.mutexSequence.Unlock()
 	var prevCoinbase common.Address
-	sequences := []types.Sequence{}
+	sequences := []ethmantypes.Sequence{}
 	for i := 0; i < len(s.sequenceList); i++ {
 		batchNumber := s.sequenceList[i]
 		if batchNumber <= s.latestVirtualBatch || batchNumber <= s.latestSentToL1Batch {
@@ -717,7 +717,7 @@ func (s *SequenceSender) getSequencesToSend() ([]types.Sequence, error) {
 }
 
 // handleEstimateGasSendSequenceErr handles an error on the estimate gas. Results: (nil,nil)=requires waiting, (nil,error)=no handled gracefully, (seq,nil) handled gracefully
-func (s *SequenceSender) handleEstimateGasSendSequenceErr(sequences []types.Sequence, currentBatchNumToSequence uint64, err error) ([]types.Sequence, error) {
+func (s *SequenceSender) handleEstimateGasSendSequenceErr(sequences []ethmantypes.Sequence, currentBatchNumToSequence uint64, err error) ([]ethmantypes.Sequence, error) {
 	// Insufficient allowance
 	if errors.Is(err, etherman.ErrInsufficientAllowance) {
 		return nil, err
@@ -945,7 +945,7 @@ func (s *SequenceSender) addNewSequenceBatch(l2Block *datastream.L2Block) {
 	}
 
 	// Create sequence
-	sequence := types.Sequence{
+	sequence := ethmantypes.Sequence{
 		GlobalExitRoot:       common.BytesToHash(l2Block.GlobalExitRoot),
 		LastL2BLockTimestamp: l2Block.Timestamp,
 		BatchNumber:          l2Block.BatchNumber,
@@ -1140,7 +1140,7 @@ func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
 }
 
 // printSequences prints data from slice of type sequences
-func printSequences(sequences []types.Sequence) {
+func printSequences(sequences []ethmantypes.Sequence) {
 	for i, seq := range sequences {
 		log.Debugf("[SeqSender] // sequence(%d): batch: %d, ts: %v, lenData: %d, GER: %x..", i, seq.BatchNumber, seq.LastL2BLockTimestamp, len(seq.BatchL2Data), seq.GlobalExitRoot[:8])
 	}

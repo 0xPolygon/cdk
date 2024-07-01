@@ -1,4 +1,4 @@
-package types
+package ethmantypes
 
 import (
 	"reflect"
