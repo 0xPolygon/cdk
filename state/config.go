@@ -1,7 +1,7 @@
 package state
 
 import (
-	"github.com/0xPolygon/cdk/db"
+	"github.com/0xPolygon/cdk/aggregator/db"
 )
 
 // Config is state config

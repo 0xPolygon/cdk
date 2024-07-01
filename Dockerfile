@@ -8,7 +8,7 @@ RUN cd /src && go mod download
 
 # BUILD BINARY
 COPY . /src
-RUN cd /src/db && packr2
+RUN cd /src/aggregator/db && packr2
 RUN cd /src && make build
 
 # CONTAINER FOR RUNNING BINARY

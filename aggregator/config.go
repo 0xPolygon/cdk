@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/0xPolygon/cdk/aggregator/db"
 	"github.com/0xPolygon/cdk/config/types"
-	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	syncronizerConfig "github.com/0xPolygonHermez/zkevm-synchronizer-l1/config"
