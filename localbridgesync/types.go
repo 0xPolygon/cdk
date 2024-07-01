@@ -31,7 +31,12 @@ type bridgeEvents struct {
 	Claims  []Claim
 }
 
-type batch struct {
-	BatchNum uint64
-	Events   bridgeEvents
+type block struct {
+	blockHeader
+	Events bridgeEvents
+}
+
+type blockHeader struct {
+	Num  uint64
+	Hash common.Hash
 }
