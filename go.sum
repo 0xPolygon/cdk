@@ -37,6 +37,8 @@ cloud.google.com/go/storage v1.6.0/go.mod h1:N7U0C8pVQ/+NIKOBQyamJIeKQKkZ+mxpohl
 cloud.google.com/go/storage v1.8.0/go.mod h1:Wv1Oy7z6Yz3DshWRJFhqM/UCfaWIRTdp0RXyy7KQOVs=
 cloud.google.com/go/storage v1.10.0/go.mod h1:FLPqc6j+Ki4BU591ie1oL6qBQGu2Bl/tZ9ullr3+Kg0=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
+github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240625104650-50c81927fa4f h1:zc5ysKlHZmmFu9qrQvLK3dQ5Bw9OqS/ehChTJuuA5Io=
+github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240625104650-50c81927fa4f/go.mod h1:mFlcEjsm2YBBsu8atHJ3zyVnwM+Z/fMXpVmIJge+WVU=
 github.com/0xPolygon/cdk-data-availability v0.0.7 h1:i5v2I8uEgHSZ5BjnJs3Dsy1XpKdSvfZbON9D16gSCUg=
 github.com/0xPolygon/cdk-data-availability v0.0.7/go.mod h1:qF+xt2gYwBab8XPh3fr6pnNUMEJq/32rmJN0D630hmY=
 github.com/0xPolygon/cdk-rpc v0.0.0-20240419104226-c0a62ba0f49d h1:sxh6hZ2jF/sxxj2jd5o1vuNNCZjYmn4aRG9SRlVaEFs=

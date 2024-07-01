@@ -16,12 +16,14 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/etherman/types"
 	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
 	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -53,6 +55,7 @@ type SequenceSender struct {
 	seqSendingStopped   bool                       // If there is a critical error
 	streamClient        *datastreamer.StreamClient
 	da                  *dataavailability.DataAvailability
+	txBuilder           txbuilder.TxBuilder
 }
 
 type sequenceData struct {
@@ -82,6 +85,12 @@ type ethTxAdditionalData struct {
 
 // New inits sequence sender
 func New(cfg Config, etherman *etherman.Client, da *dataavailability.DataAvailability) (*SequenceSender, error) {
+	txBuilder := txbuilder.NewTxBuilderSelector(txbuilder.NewSelectorPerForkID())
+	if cfg.IsValidiumMode{
+		txBuilder.Register("elderberry", txbuilder.NewBuildSequenceBatchesTxValidium(da, 
+			)		
+	}
+
 	// Create sequencesender
 	s := SequenceSender{
 		cfg:               cfg,
@@ -93,6 +102,7 @@ func New(cfg Config, etherman *etherman.Client, da *dataavailability.DataAvailab
 		latestStreamBatch: 0,
 		seqSendingStopped: false,
 		da:                da,
+		txBuilder:         txBuilder,
 	}
 
 	// Restore pending sent sequences
@@ -525,19 +535,9 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	printSequences(sequences)
 
 	// Post sequences to DA backend
-	var dataAvailabilityMessage []byte
-	if s.cfg.IsValidiumMode {
-		dataAvailabilityMessage, err = s.da.PostSequence(ctx, sequences)
-		if err != nil {
-			log.Error("error posting sequences to the data availability protocol: ", err)
-			return
-		}
-	}
-
 	// Build sequence data
-	tx, err := s.etherman.BuildSequenceBatchesTx(s.cfg.SenderAddress, sequences, lastSequence.LastL2BLockTimestamp, firstSequence.BatchNumber-1, s.cfg.L2Coinbase, dataAvailabilityMessage)
+	tx, err := s.buildSendTx(ctx, sequences, lastSequence, firstSequence)
 	if err != nil {
-		log.Errorf("[SeqSender] error estimating new sequenceBatches to add to ethtxmanager: ", err)
 		return
 	}
 
@@ -550,6 +550,11 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Purge sequences data from memory
 	s.purgeSequences()
 }
+func (s *SequenceSender) buildSendTx(ctx context.Context, sequences []types.Sequence, lastSequence types.Sequence, firstSequence types.Sequence) (*ethtypes.Transaction, error) {
+	return s.txBuilder.BuildSequenceBatchesTx(ctx, sequences, lastSequence, firstSequence)
+}
+
+
 
 // sendTx adds transaction to the ethTxManager to send it to L1
 func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *common.Hash, to *common.Address, fromBatch uint64, toBatch uint64, data []byte) error {
@@ -675,7 +680,8 @@ func (s *SequenceSender) getSequencesToSend() ([]types.Sequence, error) {
 			lastSequence := sequences[len(sequences)-1]
 
 			// Check if can be sent
-			tx, err := s.etherman.BuildSequenceBatchesTx(s.cfg.SenderAddress, sequences, lastSequence.LastL2BLockTimestamp, firstSequence.BatchNumber-1, s.cfg.L2Coinbase, nil)
+			//tx, err := s.etherman.BuildSequenceBatchesTx(s.cfg.SenderAddress, sequences, lastSequence.LastL2BLockTimestamp, firstSequence.BatchNumber-1, s.cfg.L2Coinbase, nil)
+			tx, err := s.buildSendTx(s.ctx, s.cfg.SenderAddress, sequences, lastSequence.LastL2BLockTimestamp, firstSequence.BatchNumber-1, s.cfg.L2Coinbase, nil)
 			if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
 				log.Infof("[SeqSender] oversized Data on TX oldHash %s (txSize %d > %d)", tx.Hash(), tx.Size(), s.cfg.MaxTxSizeForL1)
 				err = ErrOversizedData
@@ -687,7 +693,8 @@ func (s *SequenceSender) getSequencesToSend() ([]types.Sequence, error) {
 				if sequences != nil {
 					// Handling the error gracefully, re-processing the sequence as a sanity check
 					lastSequence = sequences[len(sequences)-1]
-					_, err = s.etherman.BuildSequenceBatchesTx(s.cfg.SenderAddress, sequences, lastSequence.LastL2BLockTimestamp, firstSequence.BatchNumber-1, s.cfg.L2Coinbase, nil)
+					//_, err = s.etherman.BuildSequenceBatchesTx(s.cfg.SenderAddress, sequences, lastSequence.LastL2BLockTimestamp, firstSequence.BatchNumber-1, s.cfg.L2Coinbase, nil)
+					_, err= s.buildSendTx(s.ctx, s.cfg.SenderAddress, sequences, lastSequence.LastL2BLockTimestamp, firstSequence.BatchNumber-1, s.cfg.L2Coinbase, nil)
 					return sequences, err
 				}
 				return sequences, err
