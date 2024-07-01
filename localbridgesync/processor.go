@@ -5,16 +5,13 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"time"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 type processor struct {
-	processCh chan batch
-	db        *leveldb.DB
+	db *leveldb.DB
 }
 
 func newProcessor() (*processor, error) {
@@ -22,54 +19,45 @@ func newProcessor() (*processor, error) {
 }
 
 func (p *processor) GetClaimsAndBridges(
-	ctx context.Context, fromBatchNum, toBatchNum uint64,
+	ctx context.Context, fromBlock, toBlock uint64,
 ) ([]Claim, []Bridge, error) {
-	// TODO: if toBatchNum is not yet synced, return error
+	// TODO: if toBlock is not yet synced, return error, however we do not store blocks if they have no events :(?
 	claims := []Claim{}
 	bridges := []Bridge{}
 	from := []byte{}
 	to := []byte{}
-	binary.LittleEndian.PutUint64(from, fromBatchNum)
-	binary.LittleEndian.PutUint64(to, toBatchNum)
+	binary.LittleEndian.PutUint64(from, fromBlock)
+	binary.LittleEndian.PutUint64(to, toBlock)
 	iter := p.db.NewIterator(&util.Range{Start: from, Limit: to}, nil)
 	for iter.Next() {
 		v := iter.Value()
-		batch := bridgeEvents{}
-		err := json.Unmarshal(v, &batch)
+		block := bridgeEvents{}
+		err := json.Unmarshal(v, &block)
 		if err != nil {
 			iter.Release()
 			return nil, nil, err
 		}
-		bridges = append(bridges, batch.Bridges...)
-		claims = append(claims, batch.Claims...)
+		bridges = append(bridges, block.Bridges...)
+		claims = append(claims, block.Claims...)
 	}
 	iter.Release()
 	return claims, bridges, iter.Error()
 }
 
-func (p *processor) process() {
-	for {
-		batch := <-p.processCh
-		err := p.storeBridgeEvents(batch.BatchNum, batch.Events)
-		for err != nil {
-			// TODO: replace with log.Errorf once the repo have it
-			fmt.Println(err)
-			time.Sleep(time.Second)
-			err = p.storeBridgeEvents(batch.BatchNum, batch.Events)
-		}
-	}
+func (p *processor) getLastProcessedBlock(ctx context.Context) (uint64, error) {
+	return 0, errors.New("not implemented")
 }
 
-func (p *processor) reorg(lastValidBatch uint64) error {
+func (p *processor) reorg(lastValidBlock uint64) error {
 	return errors.New("not implemented")
 }
 
-func (p *processor) storeBridgeEvents(batchNum uint64, batch bridgeEvents) error {
-	value, err := json.Marshal(batch)
+func (p *processor) storeBridgeEvents(blockNum uint64, block bridgeEvents) error {
+	value, err := json.Marshal(block)
 	if err != nil {
 		return err
 	}
 	key := []byte{}
-	binary.LittleEndian.PutUint64(key, batchNum)
+	binary.LittleEndian.PutUint64(key, blockNum)
 	return p.db.Put(key, value, nil)
 }

@@ -7,5 +7,6 @@ type LocalBridgeSync struct {
 }
 
 func New() (*LocalBridgeSync, error) {
+	// init driver, processor and downloader
 	return &LocalBridgeSync{}, errors.New("not implemented")
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
@@ -18,13 +19,19 @@ var (
 	claimEventSignaturePreEtrog = crypto.Keccak256Hash([]byte("ClaimEvent(uint32,uint32,address,address,uint256)"))
 )
 
+type EthClienter interface {
+	ethereum.LogFilterer
+	ethereum.BlockNumberReader
+	ethereum.ChainReader
+}
+
 type downloader struct {
-	downloadedCh       chan batch
+	downloadedCh       chan block
 	bridgeAddr         common.Address
 	bridgeContractV2   *polygonzkevmbridgev2.Polygonzkevmbridgev2
 	bridgeContractV1   *polygonzkevmbridge.Polygonzkevmbridge
-	ethClient          ethereum.LogFilterer
-	batchToBlocks      map[uint64]struct{ from, to uint64 }
+	ethClient          EthClienter
+	blockToBlocks      map[uint64]struct{ from, to uint64 }
 	syncBlockChunkSize uint64
 }
 
@@ -32,37 +39,38 @@ func newDownloader() (*downloader, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (d *downloader) download(ctx context.Context, fromBatchNum uint64) {
-	fromBlock, err := d.getFirstBlockOfBatch(fromBatchNum)
-	if err != nil {
-		// TODO: handle error
-		return
-	}
-	currentBatch := batch{
-		BatchNum: fromBatchNum,
-	}
+func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedCh chan block) {
+	d.downloadedCh = downloadedCh
 	for {
-		// get last block
-		// to block = min(currentBlock+d.syncBlockChunkSize, last block)
+		select {
+		case <-ctx.Done():
+			close(downloadedCh)
+			return
+		default:
+		}
+		lastBlock, err := d.ethClient.BlockNumber(ctx)
+		if err != nil {
+			// TODO: handle error
+			return
+		}
 		toBlock := fromBlock + d.syncBlockChunkSize
+		if toBlock > lastBlock {
+			toBlock = lastBlock
+		}
+		if fromBlock == toBlock {
+			time.Sleep(time.Millisecond * 100) // sleep 100ms for the L2 to produce more blocks
+			continue
+		}
 		blocks, err := d.getEventsByBlockRange(ctx, fromBlock, toBlock)
 		if err != nil {
 			// TODO: handle error
 			return
 		}
-
-		// get batch num using: zkevm_batchNumberByBlockNumber
-		// if batch is greater than currentBatch.BatchNum:
-		// send currentBatch over downloadedCh, then create new current batch
+		for _, b := range blocks {
+			d.downloadedCh <- b
+		}
 		fromBlock = toBlock
 	}
-}
-
-type block struct {
-	num     uint64
-	hash    common.Hash
-	bridges []Bridge
-	claims  []Claim
 }
 
 func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) ([]block, error) {
@@ -84,12 +92,16 @@ func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlo
 	}
 	for _, l := range logs {
 		lastBlock := blocks[len(blocks)-1]
-		if lastBlock.num < l.BlockNumber {
+		if lastBlock.Num < l.BlockNumber {
 			blocks = append(blocks, block{
-				num:     l.BlockNumber,
-				hash:    l.BlockHash,
-				claims:  []Claim{},
-				bridges: []Bridge{},
+				blockHeader: blockHeader{
+					Num:  l.BlockNumber,
+					Hash: l.BlockHash,
+				},
+				Events: bridgeEvents{
+					Claims:  []Claim{},
+					Bridges: []Bridge{},
+				},
 			})
 		}
 		switch l.Topics[0] {
@@ -98,7 +110,7 @@ func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlo
 			if err != nil {
 				return nil, err
 			}
-			blocks[len(blocks)-1].bridges = append(blocks[len(blocks)-1].bridges, Bridge{
+			blocks[len(blocks)-1].Events.Bridges = append(blocks[len(blocks)-1].Events.Bridges, Bridge{
 				LeafType:           bridge.LeafType,
 				OriginNetwork:      bridge.OriginNetwork,
 				OriginAddress:      bridge.OriginAddress,
@@ -113,7 +125,7 @@ func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlo
 			if err != nil {
 				return nil, err
 			}
-			blocks[len(blocks)-1].claims = append(blocks[len(blocks)-1].claims, Claim{
+			blocks[len(blocks)-1].Events.Claims = append(blocks[len(blocks)-1].Events.Claims, Claim{
 				GlobalIndex:        claim.GlobalIndex,
 				OriginNetwork:      claim.OriginNetwork,
 				OriginAddress:      claim.OriginAddress,
@@ -125,8 +137,9 @@ func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlo
 			if err != nil {
 				return nil, err
 			}
-			blocks[len(blocks)-1].claims = append(blocks[len(blocks)-1].claims, Claim{
+			blocks[len(blocks)-1].Events.Claims = append(blocks[len(blocks)-1].Events.Claims, Claim{
 				// WARNING: is it safe to convert Index --> GlobalIndex???
+				// according to Jesus, yes!
 				GlobalIndex:        big.NewInt(int64(claim.Index)),
 				OriginNetwork:      claim.OriginNetwork,
 				OriginAddress:      claim.OriginAddress,
@@ -141,32 +154,14 @@ func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlo
 	return blocks, nil
 }
 
-func (d *downloader) getFirstBlockOfBatch(batchNum uint64) (uint64, error) {
-	// how to get first blokc associated to batch num??? --> zkevm_getBatchByNumber
-	/*
-			"result": {
-		            "name": "Batch",
-		            "value": {
-		              "number": "0x1",
-		              "coinbase": "0x0000000000000000000000000000000000000001",
-		              "stateRoot": "0x0000000000000000000000000000000000000000000000000000000000000001",
-		              "globalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000002",
-		              "mainnetExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000003",
-		              "rollupExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000004",
-		              "localExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000005",
-		              "accInputHash": "0x0000000000000000000000000000000000000000000000000000000000000006",
-		              "timestamp": "0x642af31f",
-		              "sendSequencesTxHash": "0x0000000000000000000000000000000000000000000000000000000000000007",
-		              "verifyBatchTxHash": "0x0000000000000000000000000000000000000000000000000000000000000008",
-		              "transactions": [
-		                "0x0000000000000000000000000000000000000000000000000000000000000009",
-		                "0x0000000000000000000000000000000000000000000000000000000000000010",
-		                "0x0000000000000000000000000000000000000000000000000000000000000011"
-		              ]
-		            }
-		          }
-
-				  flacky flacky double checky
-	*/
-	return 0, errors.New("not implemented")
+func (d *downloader) getBlockHeader(ctx context.Context, blockNum uint64) (blockHeader, error) {
+	bn := big.NewInt(int64(blockNum))
+	block, err := d.ethClient.BlockByNumber(ctx, bn)
+	if err != nil {
+		return blockHeader{}, err
+	}
+	return blockHeader{
+		Num:  block.NumberU64(),
+		Hash: block.Hash(),
+	}, nil
 }
