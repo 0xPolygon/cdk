@@ -40,38 +40,48 @@ func (d *driver) Sync(ctx context.Context) {
 		go d.detectReorg(cancellableCtx, reorgCh)
 
 		for {
-			select {
-			case b := <-downloadCh: // new block from downloader
-				err = d.storeBlockToReorgTracker(b.blockHeader)
-				if err != nil {
-					// TODO: handle error
-					return
-				}
-				err = d.p.storeBridgeEvents(b.Num, b.Events)
-				if err != nil {
-					// TODO: handle error
-					return
-				}
-			case lastValidBlock := <-reorgCh: // reorg detected
-				// stop downloader
-				cancel()
-				// wait until downloader closes channel
-				_, ok := <-downloadCh
-				for ok {
-					_, ok = <-downloadCh
-				}
-				// handle reorg
-				err = d.p.reorg(lastValidBlock)
-				if err != nil {
-					// TODO: handle error
-					return
-				}
-
-				// restart syncing
+			if shouldRestartSync := d.syncIteration(cancel, downloadCh, reorgCh); shouldRestartSync {
 				break
 			}
 		}
 	}
+}
+
+func (d *driver) syncIteration(
+	cancel context.CancelFunc, downloadCh chan block, reorgCh chan uint64,
+) (shouldRestartSync bool) {
+	shouldRestartSync = false
+	select {
+	case b := <-downloadCh: // new block from downloader
+		err := d.storeBlockToReorgTracker(b.blockHeader)
+		if err != nil {
+			// TODO: handle error
+			return
+		}
+		err = d.p.storeBridgeEvents(b.Num, b.Events)
+		if err != nil {
+			// TODO: handle error
+			return
+		}
+	case lastValidBlock := <-reorgCh: // reorg detected
+		// stop downloader
+		cancel()
+		// wait until downloader closes channel
+		_, ok := <-downloadCh
+		for ok {
+			_, ok = <-downloadCh
+		}
+		// handle reorg
+		err := d.p.reorg(lastValidBlock)
+		if err != nil {
+			// TODO: handle error
+			return
+		}
+
+		// restart syncing
+		shouldRestartSync = true
+	}
+	return
 }
 
 // IMO we could make a package "reorg detector" that could be reused by all the syncers
