@@ -34,7 +34,7 @@ on:
       bake_time:
         description: bake time (minutes)
         required: false
-        default: 30
+        default: '30'
 
 jobs:
   regression_tests:
@@ -53,3 +53,7 @@ jobs:
           kurtosis_cli: ${{ github.event.inputs.kurtosis_cli }}
           kurtosis_cdk: ${{ github.event.inputs.kurtosis_cdk }}
           bake_time: ${{ github.event.inputs.bake_time }}
+      - name: Run Integration Tests
+        run: |
+          echo "Running Integration Tests"
+          make -f ./tests/Makefile run-tests
