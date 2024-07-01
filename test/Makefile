@@ -1,0 +1,3 @@
+.PHONY: run-tests
+run-tests: ## Runs all tests within the workspace
+	go test -v -race ./...
