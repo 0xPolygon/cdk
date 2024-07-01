@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
+	"github.com/0xPolygon/polygon-edge/types"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -89,8 +90,7 @@ func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlo
 		return nil, err
 	}
 	for _, l := range logs {
-		lastBlock := blocks[len(blocks)-1]
-		if lastBlock.Num < l.BlockNumber {
+		if blocks[len(blocks)-1].Num < l.BlockNumber {
 			blocks = append(blocks, block{
 				blockHeader: blockHeader{
 					Num:  l.BlockNumber,
@@ -102,54 +102,59 @@ func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlo
 				},
 			})
 		}
-		switch l.Topics[0] {
-		case bridgeEventSignature:
-			bridge, err := d.bridgeContractV2.ParseBridgeEvent(l)
-			if err != nil {
-				return nil, err
-			}
-			blocks[len(blocks)-1].Events.Bridges = append(blocks[len(blocks)-1].Events.Bridges, Bridge{
-				LeafType:           bridge.LeafType,
-				OriginNetwork:      bridge.OriginNetwork,
-				OriginAddress:      bridge.OriginAddress,
-				DestinationNetwork: bridge.DestinationNetwork,
-				DestinationAddress: bridge.DestinationAddress,
-				Amount:             bridge.Amount,
-				Metadata:           bridge.Metadata,
-				DepositCount:       bridge.DepositCount,
-			})
-		case claimEventSignature:
-			claim, err := d.bridgeContractV2.ParseClaimEvent(l)
-			if err != nil {
-				return nil, err
-			}
-			blocks[len(blocks)-1].Events.Claims = append(blocks[len(blocks)-1].Events.Claims, Claim{
-				GlobalIndex:        claim.GlobalIndex,
-				OriginNetwork:      claim.OriginNetwork,
-				OriginAddress:      claim.OriginAddress,
-				DestinationAddress: claim.DestinationAddress,
-				Amount:             claim.Amount,
-			})
-		case claimEventSignaturePreEtrog:
-			claim, err := d.bridgeContractV1.ParseClaimEvent(l)
-			if err != nil {
-				return nil, err
-			}
-			blocks[len(blocks)-1].Events.Claims = append(blocks[len(blocks)-1].Events.Claims, Claim{
-				// WARNING: is it safe to convert Index --> GlobalIndex???
-				// according to Jesus, yes!
-				GlobalIndex:        big.NewInt(int64(claim.Index)),
-				OriginNetwork:      claim.OriginNetwork,
-				OriginAddress:      claim.OriginAddress,
-				DestinationAddress: claim.DestinationAddress,
-				Amount:             claim.Amount,
-			})
-		default:
-			return nil, errors.New("unexpected topic")
-		}
+		d.appendLog(&blocks[len(blocks)-1], l)
 	}
 
 	return blocks, nil
+}
+
+func (d *downloader) appendLog(b *block, l types.Log) error {
+	switch l.Topics[0] {
+	case bridgeEventSignature:
+		bridge, err := d.bridgeContractV2.ParseBridgeEvent(l)
+		if err != nil {
+			return err
+		}
+		b.Events.Bridges = append(b.Events.Bridges, Bridge{
+			LeafType:           bridge.LeafType,
+			OriginNetwork:      bridge.OriginNetwork,
+			OriginAddress:      bridge.OriginAddress,
+			DestinationNetwork: bridge.DestinationNetwork,
+			DestinationAddress: bridge.DestinationAddress,
+			Amount:             bridge.Amount,
+			Metadata:           bridge.Metadata,
+			DepositCount:       bridge.DepositCount,
+		})
+	case claimEventSignature:
+		claim, err := d.bridgeContractV2.ParseClaimEvent(l)
+		if err != nil {
+			return err
+		}
+		b.Events.Claims = append(b.Events.Claims, Claim{
+			GlobalIndex:        claim.GlobalIndex,
+			OriginNetwork:      claim.OriginNetwork,
+			OriginAddress:      claim.OriginAddress,
+			DestinationAddress: claim.DestinationAddress,
+			Amount:             claim.Amount,
+		})
+	case claimEventSignaturePreEtrog:
+		claim, err := d.bridgeContractV1.ParseClaimEvent(l)
+		if err != nil {
+			return err
+		}
+		b.Events.Claims = append(b.Events.Claims, Claim{
+			// WARNING: is it safe to convert Index --> GlobalIndex???
+			// according to Jesus, yes!
+			GlobalIndex:        big.NewInt(int64(claim.Index)),
+			OriginNetwork:      claim.OriginNetwork,
+			OriginAddress:      claim.OriginAddress,
+			DestinationAddress: claim.DestinationAddress,
+			Amount:             claim.Amount,
+		})
+	default:
+		return errors.New("unexpected topic")
+	}
+	return nil
 }
 
 func (d *downloader) getBlockHeader(ctx context.Context, blockNum uint64) (blockHeader, error) {
