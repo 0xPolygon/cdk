@@ -26,7 +26,6 @@ type EthClienter interface {
 }
 
 type downloader struct {
-	downloadedCh       chan block
 	bridgeAddr         common.Address
 	bridgeContractV2   *polygonzkevmbridgev2.Polygonzkevmbridgev2
 	bridgeContractV1   *polygonzkevmbridge.Polygonzkevmbridge
@@ -40,7 +39,6 @@ func newDownloader() (*downloader, error) {
 }
 
 func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedCh chan block) {
-	d.downloadedCh = downloadedCh
 	for {
 		select {
 		case <-ctx.Done():
@@ -67,7 +65,7 @@ func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedC
 			return
 		}
 		for _, b := range blocks {
-			d.downloadedCh <- b
+			downloadedCh <- b
 		}
 		fromBlock = toBlock
 	}
