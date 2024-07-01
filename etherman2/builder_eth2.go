@@ -9,8 +9,8 @@ import (
 )
 
 type etherman2Impl struct {
-	*internal.Etherman2AuthStore
-	*internal.Etherman2ChainReader
+	Etherman2ChainReader
+	Etherman2AuthStorerRW
 }
 
 /*
@@ -31,6 +31,7 @@ type Etherman2Builder struct {
 		enabled       bool
 		forcedChainID *uint64
 	}
+
 	result etherman2Impl
 }
 
@@ -63,6 +64,7 @@ func (e *Etherman2Builder) Build(ctx context.Context) (*etherman2Impl, error) {
 			return nil, err
 		}
 	}
+
 	return &e.result, nil
 }
 
@@ -89,7 +91,7 @@ func (e *Etherman2Builder) newChainReader() error {
 func (e *Etherman2Builder) newAuthStore(ctx context.Context) error {
 	if e.authStore.enabled {
 		chainID, err := e.getChainID(ctx)
-		e.result.Etherman2AuthStore, err = internal.NewEtherman2L1Auth(chainID)
+		e.result.Etherman2AuthStorerRW, err = internal.NewEtherman2L1Auth(chainID)
 		if err != nil {
 			return err
 		}

@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/etherman/types"
 	"github.com/0xPolygon/cdk/log"
@@ -54,7 +53,6 @@ type SequenceSender struct {
 	latestStreamBatch   uint64                     // Latest batch received by the streaming
 	seqSendingStopped   bool                       // If there is a critical error
 	streamClient        *datastreamer.StreamClient
-	da                  *dataavailability.DataAvailability
 	txBuilder           txbuilder.TxBuilder
 }
 
@@ -84,12 +82,7 @@ type ethTxAdditionalData struct {
 }
 
 // New inits sequence sender
-func New(cfg Config, etherman *etherman.Client, da *dataavailability.DataAvailability) (*SequenceSender, error) {
-	txBuilder := txbuilder.NewTxBuilderSelector(txbuilder.NewSelectorPerForkID())
-	if cfg.IsValidiumMode{
-		txBuilder.Register("elderberry", txbuilder.NewBuildSequenceBatchesTxValidium(da, 
-			)		
-	}
+func New(cfg Config, etherman *etherman.Client, txBuilder txbuilder.TxBuilder) (*SequenceSender, error) {
 
 	// Create sequencesender
 	s := SequenceSender{
@@ -101,8 +94,8 @@ func New(cfg Config, etherman *etherman.Client, da *dataavailability.DataAvailab
 		validStream:       false,
 		latestStreamBatch: 0,
 		seqSendingStopped: false,
-		da:                da,
-		txBuilder:         txBuilder,
+
+		txBuilder: txBuilder,
 	}
 
 	// Restore pending sent sequences
@@ -554,8 +547,6 @@ func (s *SequenceSender) buildSendTx(ctx context.Context, sequences []types.Sequ
 	return s.txBuilder.BuildSequenceBatchesTx(ctx, sequences, lastSequence, firstSequence)
 }
 
-
-
 // sendTx adds transaction to the ethTxManager to send it to L1
 func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *common.Hash, to *common.Address, fromBatch uint64, toBatch uint64, data []byte) error {
 	// Params if new tx to send or resend a previous tx
@@ -631,6 +622,7 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 
 // getSequencesToSend generates sequences to be sent to L1. Empty array means there are no sequences to send or it's not worth sending
 func (s *SequenceSender) getSequencesToSend() ([]types.Sequence, error) {
+	ctx := context.Background()
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	s.mutexSequence.Lock()
 	defer s.mutexSequence.Unlock()
@@ -681,7 +673,7 @@ func (s *SequenceSender) getSequencesToSend() ([]types.Sequence, error) {
 
 			// Check if can be sent
 			//tx, err := s.etherman.BuildSequenceBatchesTx(s.cfg.SenderAddress, sequences, lastSequence.LastL2BLockTimestamp, firstSequence.BatchNumber-1, s.cfg.L2Coinbase, nil)
-			tx, err := s.buildSendTx(s.ctx, s.cfg.SenderAddress, sequences, lastSequence.LastL2BLockTimestamp, firstSequence.BatchNumber-1, s.cfg.L2Coinbase, nil)
+			tx, err := s.buildSendTx(ctx, sequences, lastSequence, firstSequence)
 			if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
 				log.Infof("[SeqSender] oversized Data on TX oldHash %s (txSize %d > %d)", tx.Hash(), tx.Size(), s.cfg.MaxTxSizeForL1)
 				err = ErrOversizedData
@@ -694,7 +686,7 @@ func (s *SequenceSender) getSequencesToSend() ([]types.Sequence, error) {
 					// Handling the error gracefully, re-processing the sequence as a sanity check
 					lastSequence = sequences[len(sequences)-1]
 					//_, err = s.etherman.BuildSequenceBatchesTx(s.cfg.SenderAddress, sequences, lastSequence.LastL2BLockTimestamp, firstSequence.BatchNumber-1, s.cfg.L2Coinbase, nil)
-					_, err= s.buildSendTx(s.ctx, s.cfg.SenderAddress, sequences, lastSequence.LastL2BLockTimestamp, firstSequence.BatchNumber-1, s.cfg.L2Coinbase, nil)
+					_, err = s.buildSendTx(ctx, sequences, lastSequence, firstSequence)
 					return sequences, err
 				}
 				return sequences, err

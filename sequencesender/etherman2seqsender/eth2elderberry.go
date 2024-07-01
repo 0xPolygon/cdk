@@ -11,22 +11,13 @@ import (
 )
 
 type Eth2Elderberry struct {
-	ZkEVM *polygonvalidiumetrog.Polygonvalidiumetrog
+	ZkEVM etherman2.Etherman2ContractRollupElderberry
 }
 
-func NewEth2Elderberry(zkEVM *polygonvalidiumetrog.Polygonvalidiumetrog) *Eth2Elderberry {
+func NewEth2Elderberry(zkEVM etherman2.Etherman2ContractRollupElderberry) *Eth2Elderberry {
 	return &Eth2Elderberry{
 		ZkEVM: zkEVM,
 	}
-}
-
-func (etherMan *Eth2Elderberry) LoadContract(address common.Address, backend bind.ContractBackend) error {
-	var err error
-	etherMan.ZkEVM, err = polygonvalidiumetrog.NewPolygonvalidiumetrog(address, backend)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // func (etherMan *Eth2Elderberry) BuildSequenceBatchesTxZKEVM(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address) (*types.Transaction, error) {
@@ -45,8 +36,8 @@ func (etherMan *Eth2Elderberry) BuildSequenceBatchesTxZKEVM(opts *bind.TransactO
 			ForcedBlockHashL1:    seq.PrevBlockHash,
 		}
 	}
-
-	tx, err := etherMan.ZkEVM.SequenceBatches(opts, batches, params.MaxSequenceTimestamp, params.LastSequencedBatchNumber, params.L2Coinbase)
+	ZkEVM := etherMan.ZkEVM.GetContract()
+	tx, err := ZkEVM.SequenceBatches(opts, batches, params.MaxSequenceTimestamp, params.LastSequencedBatchNumber, params.L2Coinbase)
 	if err != nil {
 		etherMan.warningMessage(batches, params.L2Coinbase, opts)
 		if parsedErr, ok := etherman2.TryParseError(err); ok {
@@ -72,8 +63,8 @@ func (etherMan *Eth2Elderberry) BuildSequenceBatchesTxValidium(opts *bind.Transa
 			ForcedBlockHashL1:    seq.PrevBlockHash,
 		}
 	}
-
-	tx, err := etherMan.ZkEVM.SequenceBatchesValidium(opts, batches, params.MaxSequenceTimestamp,
+	ZkEVM := etherMan.ZkEVM.GetContract()
+	tx, err := ZkEVM.SequenceBatchesValidium(opts, batches, params.MaxSequenceTimestamp,
 		params.LastSequencedBatchNumber, params.L2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		if parsedErr, ok := etherman2.TryParseError(err); ok {

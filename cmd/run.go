@@ -25,6 +25,7 @@ import (
 	"github.com/0xPolygon/cdk/state/pgstatestorage"
 	ethtxman "github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman/etherscan"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
 )
@@ -113,6 +114,18 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 	return aggregator
 }
 
+func registerValidium(selector *txbuilder.TxBuilderRouter, cfg config.Config,
+	ethman *etherman.Client, contracts *etherman2.Contracts,
+	sender *bind.TransactOpts) {
+	da, err := newDataAvailability(cfg, ethman)
+	if err != nil {
+		log.Fatal(err)
+	}
+	eth2elderberry := etherman2seqsender.NewEth2Elderberry(contracts.RollupElderberry)
+	txbuilder := txbuilder.NewBuildSequenceBatchesTxValidium(da, eth2elderberry, cfg.SequenceSender.L2Coinbase, sender)
+	selector.Register("elderberry", txbuilder)
+}
+
 func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 	ethman, err := etherman.NewClient(etherman.Config{
 		EthermanConfig: ethtxman.Config{
@@ -135,35 +148,30 @@ func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	eth2, err := etherman2.NewEtherman2Builder().
-		ChainReader(cfg.Etherman.URL).
-		AuthStore(nil).
-		Build(context.Background())
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = eth2.AddOrReplaceAuth(*auth)
-	if err != nil {
-		log.Fatal(err)
-	}
 	cfg.SequenceSender.SenderAddress = auth.From
-
-	da, err := newDataAvailability(cfg, ethman)
-	if err != nil {
-		log.Fatal(err)
-	}
-	txBuilder := txbuilder.NewTxBuilderSelector(txbuilder.NewSelectorPerForkID())
-	if cfg.SequenceSender.IsValidiumMode {
-		eth2c := etherman2seqsender.NewEth2Elderberry(nil)
-		err := eth2c.LoadContract(cfg.NetworkConfig.L1Config.ZkEVMAddr, ethman.EthClient)
+	/*
+		This code is just an example, but not needed
+		eth2, err := etherman2.NewEtherman2Builder().
+			ChainReader(cfg.Etherman.URL).
+			AuthStore(nil).
+			Build(context.Background())
 		if err != nil {
 			log.Fatal(err)
 		}
-		txBV := txbuilder.NewBuildSequenceBatchesTxValidium(da, eth2c, cfg.SequenceSender.L2Coinbase, auth)
-		txBuilder.Register("elderberry", txBV)
+	*/
+	contracts, err := etherman2.NewEtherman2ContractBuilder(cfg.Etherman.URL).
+		AddRollupElderberry(cfg.NetworkConfig.L1Config.ZkEVMAddr).
+		Build()
+	if err != nil {
+		log.Fatal(err)
 	}
-	seqSender, err := sequencesender.New(cfg.SequenceSender, ethman, da)
+
+	txBuilderSelector := txbuilder.NewTxBuilderSelector(txbuilder.NewSelectorPerForkID())
+	if cfg.SequenceSender.IsValidiumMode {
+		registerValidium(txBuilderSelector, cfg, ethman, contracts, auth)
+	}
+
+	seqSender, err := sequencesender.New(cfg.SequenceSender, ethman, txBuilderSelector)
 	if err != nil {
 		log.Fatal(err)
 	}

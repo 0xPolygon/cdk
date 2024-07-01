@@ -24,11 +24,7 @@ type Etherman2AuthStorerRW interface {
 	AddOrReplaceAuth(auth bind.TransactOpts) error
 }
 
-type Etherman2ContractLoader[T any] interface {
-	LoadContract(address common.Address, backend bind.ContractBackend, funcConstructor func(common.Address, bind.ContractBackend) (T, error)) (T, error)
-}
-
-type Etherman2 interface {
+type Etherman2Composite interface {
 	Etherman2ChainReader
 	Etherman2AuthStorerRW
 }
