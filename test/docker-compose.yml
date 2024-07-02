@@ -1,0 +1,91 @@
+networks:
+  default:
+    name: cdk
+    
+services:
+  cdk-sequence-sender:
+    container_name: cdk-sequence-sender
+    restart: no
+    image: cdk
+    build: .
+    volumes:
+      - ./config/test.config.toml:/app/config.toml
+      - ./config/test.genesis.json:/app/genesis.json
+      - ./sequencer.keystore:/app/keystore/sequencer.keystore
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/cdk run --cfg /app/config.toml --network custom --custom-network-file /app/genesis.json --components sequence-sender"
+
+  zkevm-prover:
+    container_name: zkevm-prover
+    restart: unless-stopped
+    image: hermeznetwork/zkevm-prover:v6.0.3-RC16
+    volumes:
+      - ./config/test.prover.config.json:/usr/src/app/config.json
+      - ~/stateless-aggregator/prover/config:/app/config
+    command: >
+      zkProver -c /usr/src/app/config.json
+
+  cdk-aggregator:
+    container_name: cdk-aggregator
+    image: cdk
+    ports:
+      - 50081:50081
+      - 9093:9091 # needed if metrics enabled
+    environment:
+      - CDK_AGGREGATOR_DB_HOST=cdk-aggregator-db
+      - CDK_AGGREGATOR_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+    volumes:
+      - ./config/test.config.toml:/app/config.toml
+      - ./config/test.genesis.json:/app/genesis.json
+      - ./aggregator.keystore:/pk/aggregator.keystore
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/cdk run --cfg /app/config.toml --network custom --custom-network-file /app/genesis.json  --components aggregator"
+    depends_on:
+      cdk-aggregator-db:
+        condition: service_started
+      cdk-l1-sync-db:
+        condition: service_started
+
+  cdk-aggregator-db:
+    container_name: cdk-aggregator-db
+    image: postgres:15
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    ports:
+      - 5434:5432
+    environment:
+      - POSTGRES_USER=aggregator_user
+      - POSTGRES_PASSWORD=aggregator_password
+      - POSTGRES_DB=aggregator_db
+    command:
+      - "postgres"
+      - "-N"
+      - "500"
+
+  cdk-l1-sync-db:
+    container_name: cdk-l1-sync-db
+    image: postgres:15
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    ports:
+      - 5436:5432
+    environment:
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_DB=sync
+    command:
+      - "postgres"
+      - "-N"
+      - "500"
