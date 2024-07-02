@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/dataavailabilityprotocol"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygonrollupmanager"
-	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -82,7 +82,7 @@ type L1Config struct {
 // Client is a simple implementation of EtherMan.
 type Client struct {
 	EthClient     ethereumClient
-	ZkEVM         *polygonzkevm.Polygonzkevm
+	ZkEVM         *polygonvalidiumetrog.Polygonvalidiumetrog
 	RollupManager *polygonrollupmanager.Polygonrollupmanager
 	DAProtocol    *dataavailabilityprotocol.Dataavailabilityprotocol
 	// Pol           *pol.Pol
@@ -105,7 +105,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	}
 
 	// Create smc clients
-	zkevm, err := polygonzkevm.NewPolygonzkevm(l1Config.ZkEVMAddr, ethClient)
+	zkevm, err := polygonvalidiumetrog.NewPolygonvalidiumetrog(l1Config.ZkEVMAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
@@ -196,14 +196,14 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethm
 }
 
 func (etherMan *Client) sequenceBatchesRollup(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address) (*types.Transaction, error) {
-	batches := make([]polygonzkevm.PolygonRollupBaseEtrogBatchData, len(sequences))
+	batches := make([]polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, len(sequences))
 	for i, seq := range sequences {
 		var ger common.Hash
 		if seq.ForcedBatchTimestamp > 0 {
 			ger = seq.GlobalExitRoot
 		}
 
-		batches[i] = polygonzkevm.PolygonRollupBaseEtrogBatchData{
+		batches[i] = polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData{
 			Transactions:         seq.BatchL2Data,
 			ForcedGlobalExitRoot: ger,
 			ForcedTimestamp:      uint64(seq.ForcedBatchTimestamp),
@@ -216,7 +216,7 @@ func (etherMan *Client) sequenceBatchesRollup(opts bind.TransactOpts, sequences 
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", l2Coinbase)
 		log.Debug("Sequencer address: ", opts.From)
-		a, err2 := polygonzkevm.PolygonzkevmMetaData.GetAbi()
+		a, err2 := polygonvalidiumetrog.PolygonvalidiumetrogMetaData.GetAbi()
 		if err2 != nil {
 			log.Error("error getting abi. Error: ", err2)
 		}
@@ -251,14 +251,14 @@ func (etherMan *Client) sequenceBatchesRollup(opts bind.TransactOpts, sequences 
 }
 
 func (etherMan *Client) sequenceBatchesValidium(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
-	batches := make([]polygonzkevm.PolygonValidiumEtrogValidiumBatchData, len(sequences))
+	batches := make([]polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, len(sequences))
 	for i, seq := range sequences {
 		var ger common.Hash
 		if seq.ForcedBatchTimestamp > 0 {
 			ger = seq.GlobalExitRoot
 		}
 
-		batches[i] = polygonzkevm.PolygonValidiumEtrogValidiumBatchData{
+		batches[i] = polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData{
 			TransactionsHash:     crypto.Keccak256Hash(seq.BatchL2Data),
 			ForcedGlobalExitRoot: ger,
 			ForcedTimestamp:      uint64(seq.ForcedBatchTimestamp),
@@ -271,7 +271,7 @@ func (etherMan *Client) sequenceBatchesValidium(opts bind.TransactOpts, sequence
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", l2Coinbase)
 		log.Debug("Sequencer address: ", opts.From)
-		a, err2 := polygonzkevm.PolygonzkevmMetaData.GetAbi()
+		a, err2 := polygonvalidiumetrog.PolygonvalidiumetrogMetaData.GetAbi()
 		if err2 != nil {
 			log.Error("error getting abi. Error: ", err2)
 		}
@@ -323,7 +323,7 @@ func (etherMan *Client) TrustedSequencer() (common.Address, error) {
 func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
-	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
+	smcAbi, err := abi.JSON(strings.NewReader(polygonvalidiumetrog.PolygonvalidiumetrogABI))
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +339,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	if err != nil {
 		return nil, err
 	}
-	var sequences []polygonzkevm.PolygonRollupBaseEtrogBatchData
+	var sequences []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData
 	bytedata, err := json.Marshal(data[0])
 	if err != nil {
 		return nil, err
@@ -408,7 +408,7 @@ func (etherMan *Client) verifyBatches(
 func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, block *types.Block, nonce uint64) ([]SequencedForceBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
-	abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
+	abi, err := abi.JSON(strings.NewReader(polygonvalidiumetrog.PolygonvalidiumetrogABI))
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +425,7 @@ func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequence
 		return nil, err
 	}
 
-	var forceBatches []polygonzkevm.PolygonRollupBaseEtrogBatchData
+	var forceBatches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData
 	bytedata, err := json.Marshal(data[0])
 	if err != nil {
 		return nil, err

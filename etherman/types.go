@@ -3,8 +3,8 @@ package etherman
 import (
 	"time"
 
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/oldpolygonzkevm"
-	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygonzkevm"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -44,7 +44,7 @@ type SequencedBatch struct {
 	// Struct used in preEtrog forks
 	*oldpolygonzkevm.PolygonZkEVMBatchData
 	// Struct used in Etrog
-	*polygonzkevm.PolygonRollupBaseEtrogBatchData
+	*polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData
 }
 
 // ForcedBatch represents a ForcedBatch
@@ -73,7 +73,7 @@ type SequencedForceBatch struct {
 	TxHash      common.Hash
 	Timestamp   time.Time
 	Nonce       uint64
-	polygonzkevm.PolygonRollupBaseEtrogBatchData
+	polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData
 }
 
 // ForkID is a sturct to track the ForkID event.
