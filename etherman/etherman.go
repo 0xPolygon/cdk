@@ -14,19 +14,15 @@ import (
 
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/dataavailabilityprotocol"
-	"github.com/0xPolygon/cdk/etherman/smartcontracts/oldpolygonzkevm"
-	"github.com/0xPolygon/cdk/etherman/smartcontracts/oldpolygonzkevmglobalexitroot"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/pol"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygonzkevm"
-	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -152,15 +148,12 @@ type L1Config struct {
 
 // Client is a simple implementation of EtherMan.
 type Client struct {
-	EthClient                ethereumClient
-	OldZkEVM                 *oldpolygonzkevm.Oldpolygonzkevm
-	ZkEVM                    *polygonzkevm.Polygonzkevm
-	RollupManager            *polygonrollupmanager.Polygonrollupmanager
-	DAProtocol               *dataavailabilityprotocol.Dataavailabilityprotocol
-	GlobalExitRootManager    *polygonzkevmglobalexitroot.Polygonzkevmglobalexitroot
-	OldGlobalExitRootManager *oldpolygonzkevmglobalexitroot.Oldpolygonzkevmglobalexitroot
-	Pol                      *pol.Pol
-	SCAddresses              []common.Address
+	EthClient     ethereumClient
+	ZkEVM         *polygonzkevm.Polygonzkevm
+	RollupManager *polygonrollupmanager.Polygonrollupmanager
+	DAProtocol    *dataavailabilityprotocol.Dataavailabilityprotocol
+	Pol           *pol.Pol
+	SCAddresses   []common.Address
 
 	RollupID uint32
 
@@ -184,17 +177,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		return nil, err
 	}
 
-	oldZkevm, err := oldpolygonzkevm.NewOldpolygonzkevm(l1Config.RollupManagerAddr, ethClient)
-	if err != nil {
-		return nil, err
-	}
-
 	rollupManager, err := polygonrollupmanager.NewPolygonrollupmanager(l1Config.RollupManagerAddr, ethClient)
-	if err != nil {
-		return nil, err
-	}
-
-	globalExitRoot, err := polygonzkevmglobalexitroot.NewPolygonzkevmglobalexitroot(l1Config.GlobalExitRootManagerAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
@@ -214,17 +197,15 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	log.Debug("rollupID: ", rollupID)
 
 	client := &Client{
-		EthClient:             ethClient,
-		ZkEVM:                 zkevm,
-		OldZkEVM:              oldZkevm,
-		RollupManager:         rollupManager,
-		Pol:                   pol,
-		GlobalExitRootManager: globalExitRoot,
-		SCAddresses:           scAddresses,
-		RollupID:              rollupID,
-		l1Cfg:                 l1Config,
-		cfg:                   cfg,
-		auth:                  map[common.Address]bind.TransactOpts{},
+		EthClient:     ethClient,
+		ZkEVM:         zkevm,
+		RollupManager: rollupManager,
+		Pol:           pol,
+		SCAddresses:   scAddresses,
+		RollupID:      rollupID,
+		l1Cfg:         l1Config,
+		cfg:           cfg,
+		auth:          map[common.Address]bind.TransactOpts{},
 	}
 
 	if cfg.IsValidiumMode {
@@ -242,457 +223,10 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	return client, nil
 }
 
-// VerifyGenBlockNumber verifies if the genesis Block Number is valid
-func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error) {
-	log.Info("Verifying genesis blockNumber: ", genBlockNumber)
-	// Filter query
-	genBlock := new(big.Int).SetUint64(genBlockNumber)
-	query := ethereum.FilterQuery{
-		FromBlock: genBlock,
-		ToBlock:   genBlock,
-		Addresses: etherMan.SCAddresses,
-		Topics:    [][]common.Hash{{updateZkEVMVersionSignatureHash, createNewRollupSignatureHash}},
-	}
-	logs, err := etherMan.EthClient.FilterLogs(ctx, query)
-	if err != nil {
-		return false, err
-	}
-	if len(logs) == 0 {
-		return false, fmt.Errorf("the specified genBlockNumber in config file does not contain any forkID event. Please use the proper blockNumber")
-	}
-	var zkevmVersion oldpolygonzkevm.OldpolygonzkevmUpdateZkEVMVersion
-	switch logs[0].Topics[0] {
-	case updateZkEVMVersionSignatureHash:
-		log.Debug("UpdateZkEVMVersion event detected during the Verification of the GenBlockNumber")
-		zkevmV, err := etherMan.OldZkEVM.ParseUpdateZkEVMVersion(logs[0])
-		if err != nil {
-			return false, err
-		}
-		if zkevmV != nil {
-			zkevmVersion = *zkevmV
-		}
-	case createNewRollupSignatureHash:
-		log.Debug("CreateNewRollup event detected during the Verification of the GenBlockNumber")
-		createNewRollupEvent, err := etherMan.RollupManager.ParseCreateNewRollup(logs[0])
-		if err != nil {
-			return false, err
-		}
-		// Query to get the forkID
-		rollupType, err := etherMan.RollupManager.RollupTypeMap(&bind.CallOpts{Pending: false}, createNewRollupEvent.RollupTypeID)
-		if err != nil {
-			log.Error(err)
-			return false, err
-		}
-		zkevmVersion.ForkID = rollupType.ForkID
-		zkevmVersion.NumBatch = 0
-	}
-	if zkevmVersion.NumBatch != 0 {
-		return false, fmt.Errorf("the specified genBlockNumber in config file does not contain the initial forkID event (BatchNum: %d). Please use the proper blockNumber", zkevmVersion.NumBatch)
-	}
-	return true, nil
-}
-
-// GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
-// from block x to block y.
-func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]Block, map[common.Hash][]Order, error) {
-	// Filter query
-	query := ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(fromBlock),
-		Addresses: etherMan.SCAddresses,
-	}
-	if toBlock != nil {
-		query.ToBlock = new(big.Int).SetUint64(*toBlock)
-	}
-	blocks, blocksOrder, err := etherMan.readEvents(ctx, query)
-	if err != nil {
-		return nil, nil, err
-	}
-	return blocks, blocksOrder, nil
-}
-
 // Order contains the event order to let the synchronizer store the information following this order.
 type Order struct {
 	Name EventOrder
 	Pos  int
-}
-
-func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]Block, map[common.Hash][]Order, error) {
-	logs, err := etherMan.EthClient.FilterLogs(ctx, query)
-	if err != nil {
-		return nil, nil, err
-	}
-	var blocks []Block
-	blocksOrder := make(map[common.Hash][]Order)
-	for _, vLog := range logs {
-		err := etherMan.processEvent(ctx, vLog, &blocks, &blocksOrder)
-		if err != nil {
-			log.Warnf("error processing event. Retrying... Error: %s. vLog: %+v", err.Error(), vLog)
-			return nil, nil, err
-		}
-	}
-	return blocks, blocksOrder, nil
-}
-
-func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	switch vLog.Topics[0] {
-	case sequenceBatchesSignatureHash:
-		return etherMan.sequencedBatchesEvent(ctx, vLog, blocks, blocksOrder)
-	case sequenceBatchesPreEtrogSignatureHash:
-		return etherMan.sequencedBatchesPreEtrogEvent(ctx, vLog, blocks, blocksOrder)
-	case updateGlobalExitRootSignatureHash:
-		return etherMan.updateGlobalExitRootEvent(ctx, vLog, blocks, blocksOrder)
-	case updateL1InfoTreeSignatureHash:
-		return etherMan.updateL1InfoTreeEvent(ctx, vLog, blocks, blocksOrder)
-	case forceBatchSignatureHash:
-		return etherMan.forcedBatchEvent(ctx, vLog, blocks, blocksOrder)
-	case initialSequenceBatchesSignatureHash:
-		return etherMan.initialSequenceBatches(ctx, vLog, blocks, blocksOrder)
-	case verifyBatchesTrustedAggregatorSignatureHash:
-		log.Debug("VerifyBatchesTrustedAggregator event detected. Ignoring...")
-		return nil
-	case rollupManagerVerifyBatchesSignatureHash:
-		log.Debug("RollupManagerVerifyBatches event detected. Ignoring...")
-		return nil
-	case oldVerifyBatchesTrustedAggregatorSignatureHash:
-		return etherMan.oldVerifyBatchesTrustedAggregatorEvent(ctx, vLog, blocks, blocksOrder)
-	case verifyBatchesSignatureHash:
-		return etherMan.verifyBatchesEvent(ctx, vLog, blocks, blocksOrder)
-	case sequenceForceBatchesSignatureHash:
-		return etherMan.forceSequencedBatchesEvent(ctx, vLog, blocks, blocksOrder)
-	case setTrustedSequencerURLSignatureHash:
-		log.Debug("SetTrustedSequencerURL event detected. Ignoring...")
-		return nil
-	case setTrustedSequencerSignatureHash:
-		log.Debug("SetTrustedSequencer event detected. Ignoring...")
-		return nil
-	case initializedSignatureHash:
-		log.Debug("Initialized event detected. Ignoring...")
-		return nil
-	case initializedProxySignatureHash:
-		log.Debug("InitializedProxy event detected. Ignoring...")
-		return nil
-	case adminChangedSignatureHash:
-		log.Debug("AdminChanged event detected. Ignoring...")
-		return nil
-	case beaconUpgradedSignatureHash:
-		log.Debug("BeaconUpgraded event detected. Ignoring...")
-		return nil
-	case upgradedSignatureHash:
-		log.Debug("Upgraded event detected. Ignoring...")
-		return nil
-	case transferOwnershipSignatureHash:
-		log.Debug("TransferOwnership event detected. Ignoring...")
-		return nil
-	case emergencyStateActivatedSignatureHash:
-		log.Debug("EmergencyStateActivated event detected. Ignoring...")
-		return nil
-	case emergencyStateDeactivatedSignatureHash:
-		log.Debug("EmergencyStateDeactivated event detected. Ignoring...")
-		return nil
-	case updateZkEVMVersionSignatureHash:
-		return etherMan.updateZkevmVersion(ctx, vLog, blocks, blocksOrder)
-	case consolidatePendingStateSignatureHash:
-		log.Debug("ConsolidatePendingState event detected. Ignoring...")
-		return nil
-	case oldConsolidatePendingStateSignatureHash:
-		log.Debug("OldConsolidatePendingState event detected. Ignoring...")
-		return nil
-	case setTrustedAggregatorTimeoutSignatureHash:
-		log.Debug("SetTrustedAggregatorTimeout event detected. Ignoring...")
-		return nil
-	case setTrustedAggregatorSignatureHash:
-		log.Debug("SetTrustedAggregator event detected. Ignoring...")
-		return nil
-	case setPendingStateTimeoutSignatureHash:
-		log.Debug("SetPendingStateTimeout event detected. Ignoring...")
-		return nil
-	case setMultiplierBatchFeeSignatureHash:
-		log.Debug("SetMultiplierBatchFee event detected. Ignoring...")
-		return nil
-	case setVerifyBatchTimeTargetSignatureHash:
-		log.Debug("SetVerifyBatchTimeTarget event detected. Ignoring...")
-		return nil
-	case setForceBatchTimeoutSignatureHash:
-		log.Debug("SetForceBatchTimeout event detected. Ignoring...")
-		return nil
-	case activateForceBatchesSignatureHash:
-		log.Debug("ActivateForceBatches event detected. Ignoring...")
-		return nil
-	case transferAdminRoleSignatureHash:
-		log.Debug("TransferAdminRole event detected. Ignoring...")
-		return nil
-	case acceptAdminRoleSignatureHash:
-		log.Debug("AcceptAdminRole event detected. Ignoring...")
-		return nil
-	case proveNonDeterministicPendingStateSignatureHash:
-		log.Debug("ProveNonDeterministicPendingState event detected. Ignoring...")
-		return nil
-	case overridePendingStateSignatureHash:
-		log.Debug("OverridePendingState event detected. Ignoring...")
-		return nil
-	case oldOverridePendingStateSignatureHash:
-		log.Debug("OldOverridePendingState event detected. Ignoring...")
-		return nil
-	case roleAdminChangedSignatureHash:
-		log.Debug("RoleAdminChanged event detected. Ignoring...")
-		return nil
-	case roleGrantedSignatureHash:
-		log.Debug("RoleGranted event detected. Ignoring...")
-		return nil
-	case roleRevokedSignatureHash:
-		log.Debug("RoleRevoked event detected. Ignoring...")
-		return nil
-	case onSequenceBatchesSignatureHash:
-		log.Debug("OnSequenceBatches event detected. Ignoring...")
-		return nil
-	case updateRollupSignatureHash:
-		return etherMan.updateRollup(ctx, vLog, blocks, blocksOrder)
-	case addExistingRollupSignatureHash:
-		return etherMan.addExistingRollup(ctx, vLog, blocks, blocksOrder)
-	case createNewRollupSignatureHash:
-		return etherMan.createNewRollup(ctx, vLog, blocks, blocksOrder)
-	case obsoleteRollupTypeSignatureHash:
-		log.Debug("ObsoleteRollupType event detected. Ignoring...")
-		return nil
-	case addNewRollupTypeSignatureHash:
-		log.Debug("addNewRollupType event detected but not implemented. Ignoring...")
-		return nil
-	case setBatchFeeSignatureHash:
-		log.Debug("SetBatchFee event detected. Ignoring...")
-		return nil
-	}
-	log.Warnf("Event not registered: %+v", vLog)
-	return nil
-}
-
-func (etherMan *Client) updateZkevmVersion(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("UpdateZkEVMVersion event detected")
-	zkevmVersion, err := etherMan.OldZkEVM.ParseUpdateZkEVMVersion(vLog)
-	if err != nil {
-		log.Error("error parsing UpdateZkEVMVersion event. Error: ", err)
-		return err
-	}
-	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, zkevmVersion.NumBatch, zkevmVersion.ForkID, zkevmVersion.Version)
-}
-
-func (etherMan *Client) updateRollup(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("UpdateRollup event detected")
-	updateRollup, err := etherMan.RollupManager.ParseUpdateRollup(vLog)
-	if err != nil {
-		log.Error("error parsing UpdateRollup event. Error: ", err)
-		return err
-	}
-	rollupType, err := etherMan.RollupManager.RollupTypeMap(&bind.CallOpts{Pending: false}, updateRollup.NewRollupTypeID)
-	if err != nil {
-		return err
-	}
-	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, updateRollup.LastVerifiedBatchBeforeUpgrade, rollupType.ForkID, "")
-}
-
-func (etherMan *Client) createNewRollup(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("createNewRollup event detected")
-	createRollup, err := etherMan.RollupManager.ParseCreateNewRollup(vLog)
-	if err != nil {
-		log.Error("error parsing createNewRollup event. Error: ", err)
-		return err
-	}
-	rollupType, err := etherMan.RollupManager.RollupTypeMap(&bind.CallOpts{Pending: false}, createRollup.RollupTypeID)
-	if err != nil {
-		return err
-	}
-	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, 0, rollupType.ForkID, "")
-}
-
-func (etherMan *Client) addExistingRollup(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("addExistingRollup event detected")
-	addExistingRollup, err := etherMan.RollupManager.ParseAddExistingRollup(vLog)
-	if err != nil {
-		log.Error("error parsing createNewRollup event. Error: ", err)
-		return err
-	}
-	if etherMan.RollupID != addExistingRollup.RollupID {
-		return nil
-	}
-	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, addExistingRollup.LastVerifiedBatchBeforeUpgrade, addExistingRollup.ForkID, "")
-}
-
-func (etherMan *Client) initialSequenceBatches(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("initialSequenceBatches event detected")
-	initialSequenceBatches, err := etherMan.ZkEVM.ParseInitialSequenceBatches(vLog)
-	if err != nil {
-		log.Error("error parsing createNewRollup event. Error: ", err)
-		return err
-	}
-
-	// Read the tx for this event.
-	tx, err := etherMan.EthClient.TransactionInBlock(ctx, vLog.BlockHash, vLog.TxIndex)
-	if err != nil {
-		return err
-	}
-	if tx.Hash() != vLog.TxHash {
-		return fmt.Errorf("error: tx hash mismatch. want: %s have: %s", vLog.TxHash, tx.Hash().String())
-	}
-	msg, err := core.TransactionToMessage(tx, types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
-	if err != nil {
-		return err
-	}
-	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
-	if err != nil {
-		return fmt.Errorf("error getting fullBlockInfo. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-	}
-
-	var sequences []SequencedBatch
-	log.Info("initial transaction sequence...")
-	sequences = append(sequences, SequencedBatch{
-		BatchNumber:   1,
-		SequencerAddr: initialSequenceBatches.Sequencer,
-		TxHash:        vLog.TxHash,
-		Nonce:         msg.Nonce,
-		PolygonRollupBaseEtrogBatchData: &polygonzkevm.PolygonRollupBaseEtrogBatchData{
-			Transactions:         initialSequenceBatches.Transactions,
-			ForcedGlobalExitRoot: initialSequenceBatches.LastGlobalExitRoot,
-			ForcedTimestamp:      fullBlock.Time(),
-			ForcedBlockHashL1:    fullBlock.ParentHash(),
-		},
-	})
-
-	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
-		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
-		block.SequencedBatches = append(block.SequencedBatches, sequences)
-		*blocks = append(*blocks, block)
-	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].SequencedBatches = append((*blocks)[len(*blocks)-1].SequencedBatches, sequences)
-	} else {
-		log.Error("Error processing SequencedBatches event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("error processing SequencedBatches event")
-	}
-	or := Order{
-		Name: SequenceBatchesOrder,
-		Pos:  len((*blocks)[len(*blocks)-1].SequencedBatches) - 1,
-	}
-	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
-	return nil
-}
-func (etherMan *Client) updateForkId(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order, batchNum, forkID uint64, version string) error {
-	fork := ForkID{
-		BatchNumber: batchNum,
-		ForkID:      forkID,
-		Version:     version,
-	}
-	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
-		fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
-		if err != nil {
-			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-		}
-		t := time.Unix(int64(fullBlock.Time()), 0)
-		block := prepareBlock(vLog, t, fullBlock)
-		block.ForkIDs = append(block.ForkIDs, fork)
-		*blocks = append(*blocks, block)
-	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].ForkIDs = append((*blocks)[len(*blocks)-1].ForkIDs, fork)
-	} else {
-		log.Error("Error processing updateZkevmVersion event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("error processing updateZkevmVersion event")
-	}
-	or := Order{
-		Name: ForkIDsOrder,
-		Pos:  len((*blocks)[len(*blocks)-1].ForkIDs) - 1,
-	}
-	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
-	return nil
-}
-
-func (etherMan *Client) updateL1InfoTreeEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("UpdateL1InfoTree event detected")
-	globalExitRootL1InfoTree, err := etherMan.GlobalExitRootManager.ParseUpdateL1InfoTree(vLog)
-	if err != nil {
-		return err
-	}
-
-	var gExitRoot GlobalExitRoot
-	gExitRoot.MainnetExitRoot = globalExitRootL1InfoTree.MainnetExitRoot
-	gExitRoot.RollupExitRoot = globalExitRootL1InfoTree.RollupExitRoot
-	gExitRoot.BlockNumber = vLog.BlockNumber
-	gExitRoot.GlobalExitRoot = hash(globalExitRootL1InfoTree.MainnetExitRoot, globalExitRootL1InfoTree.RollupExitRoot)
-	var block *Block
-	if !isheadBlockInArray(blocks, vLog.BlockHash, vLog.BlockNumber) {
-		// Need to add the block, doesnt mind if inside the blocks because I have to respect the order so insert at end
-		block, err = etherMan.retrieveFullBlockForEvent(ctx, vLog)
-		if err != nil {
-			return err
-		}
-		*blocks = append(*blocks, *block)
-	}
-	// Get the block in the HEAD of the array that contain the current block
-	block = &(*blocks)[len(*blocks)-1]
-	gExitRoot.PreviousBlockHash = block.ParentHash
-	gExitRoot.Timestamp = block.ReceivedAt
-	// Add the event to the block
-	block.L1InfoTree = append(block.L1InfoTree, gExitRoot)
-	order := Order{
-		Name: L1InfoTreeOrder,
-		Pos:  len(block.L1InfoTree) - 1,
-	}
-	(*blocksOrder)[block.BlockHash] = append((*blocksOrder)[block.BlockHash], order)
-	return nil
-}
-
-func (etherMan *Client) retrieveFullBlockForEvent(ctx context.Context, vLog types.Log) (*Block, error) {
-	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
-	if err != nil {
-		return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-	}
-	t := time.Unix(int64(fullBlock.Time()), 0)
-	block := prepareBlock(vLog, t, fullBlock)
-	return &block, nil
-}
-
-// Check if head block in blocks array is the same as blockHash / blockNumber
-func isheadBlockInArray(blocks *[]Block, blockHash common.Hash, blockNumber uint64) bool {
-	// Check last item on array blocks if match Hash and Number
-	headBlockIsNotExpected := len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != blockHash || (*blocks)[len(*blocks)-1].BlockNumber != blockNumber)
-	return !headBlockIsNotExpected
-}
-
-func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("UpdateGlobalExitRoot event detected")
-	oldglobalExitRoot, err := etherMan.OldGlobalExitRootManager.ParseUpdateGlobalExitRoot(vLog)
-	if err != nil {
-		return err
-	}
-	return etherMan.processUpdateGlobalExitRootEvent(ctx, oldglobalExitRoot.MainnetExitRoot, oldglobalExitRoot.RollupExitRoot, vLog, blocks, blocksOrder)
-}
-
-func (etherMan *Client) processUpdateGlobalExitRootEvent(ctx context.Context, mainnetExitRoot, rollupExitRoot common.Hash, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	var gExitRoot GlobalExitRoot
-	gExitRoot.MainnetExitRoot = mainnetExitRoot
-	gExitRoot.RollupExitRoot = rollupExitRoot
-	gExitRoot.BlockNumber = vLog.BlockNumber
-	gExitRoot.GlobalExitRoot = hash(mainnetExitRoot, rollupExitRoot)
-
-	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
-	if err != nil {
-		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-	}
-	t := time.Unix(int64(fullBlock.Time()), 0)
-	gExitRoot.Timestamp = t
-
-	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
-		block := prepareBlock(vLog, t, fullBlock)
-		block.GlobalExitRoots = append(block.GlobalExitRoots, gExitRoot)
-		*blocks = append(*blocks, block)
-	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].GlobalExitRoots = append((*blocks)[len(*blocks)-1].GlobalExitRoots, gExitRoot)
-	} else {
-		log.Error("Error processing UpdateGlobalExitRoot event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("error processing UpdateGlobalExitRoot event")
-	}
-	or := Order{
-		Name: GlobalExitRootsOrder,
-		Pos:  len((*blocks)[len(*blocks)-1].GlobalExitRoots) - 1,
-	}
-	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
-	return nil
 }
 
 // WaitTxToBeMined waits for an L1 tx to be mined. It will return error if the tx is reverted or timeout is exceeded
@@ -857,185 +391,6 @@ func (etherMan *Client) TrustedSequencer() (common.Address, error) {
 	return etherMan.ZkEVM.TrustedSequencer(&bind.CallOpts{Pending: false})
 }
 
-func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("ForceBatch event detected")
-	fb, err := etherMan.ZkEVM.ParseForceBatch(vLog)
-	if err != nil {
-		return err
-	}
-	var forcedBatch ForcedBatch
-	forcedBatch.BlockNumber = vLog.BlockNumber
-	forcedBatch.ForcedBatchNumber = fb.ForceBatchNum
-	forcedBatch.GlobalExitRoot = fb.LastGlobalExitRoot
-
-	// Read the tx for this batch.
-	tx, err := etherMan.EthClient.TransactionInBlock(ctx, vLog.BlockHash, vLog.TxIndex)
-	if err != nil {
-		return err
-	}
-	if tx.Hash() != vLog.TxHash {
-		return fmt.Errorf("error: tx hash mismatch. want: %s have: %s", vLog.TxHash, tx.Hash().String())
-	}
-
-	msg, err := core.TransactionToMessage(tx, types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
-	if err != nil {
-		return err
-	}
-	if fb.Sequencer == msg.From {
-		txData := tx.Data()
-		// Extract coded txs.
-		// Load contract ABI
-		abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
-		if err != nil {
-			return err
-		}
-
-		// Recover Method from signature and ABI
-		method, err := abi.MethodById(txData[:4])
-		if err != nil {
-			return err
-		}
-
-		// Unpack method inputs
-		data, err := method.Inputs.Unpack(txData[4:])
-		if err != nil {
-			return err
-		}
-		bytedata := data[0].([]byte)
-		forcedBatch.RawTxsData = bytedata
-	} else {
-		forcedBatch.RawTxsData = fb.Transactions
-	}
-	forcedBatch.Sequencer = fb.Sequencer
-	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
-	if err != nil {
-		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-	}
-	t := time.Unix(int64(fullBlock.Time()), 0)
-	forcedBatch.ForcedAt = t
-	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
-		block := prepareBlock(vLog, t, fullBlock)
-		block.ForcedBatches = append(block.ForcedBatches, forcedBatch)
-		*blocks = append(*blocks, block)
-	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].ForcedBatches = append((*blocks)[len(*blocks)-1].ForcedBatches, forcedBatch)
-	} else {
-		log.Error("Error processing ForceBatch event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("error processing ForceBatch event")
-	}
-	or := Order{
-		Name: ForcedBatchesOrder,
-		Pos:  len((*blocks)[len(*blocks)-1].ForcedBatches) - 1,
-	}
-	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
-	return nil
-}
-
-func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("SequenceBatches event detected")
-	sb, err := etherMan.ZkEVM.ParseSequenceBatches(vLog)
-	if err != nil {
-		return err
-	}
-
-	// Read the tx for this event.
-	tx, err := etherMan.EthClient.TransactionInBlock(ctx, vLog.BlockHash, vLog.TxIndex)
-	if err != nil {
-		return err
-	}
-	if tx.Hash() != vLog.TxHash {
-		return fmt.Errorf("error: tx hash mismatch. want: %s have: %s", vLog.TxHash, tx.Hash().String())
-	}
-	msg, err := core.TransactionToMessage(tx, types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
-	if err != nil {
-		return err
-	}
-
-	var sequences []SequencedBatch
-	if sb.NumBatch != 1 {
-		sequences, err = decodeSequences(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot)
-		if err != nil {
-			return fmt.Errorf("error decoding the sequences: %v", err)
-		}
-	} else {
-		log.Info("initial transaction sequence...")
-		sequences = append(sequences, SequencedBatch{
-			BatchNumber:   1,
-			SequencerAddr: msg.From,
-			TxHash:        vLog.TxHash,
-			Nonce:         msg.Nonce,
-		})
-	}
-
-	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
-		fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
-		if err != nil {
-			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-		}
-		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
-		block.SequencedBatches = append(block.SequencedBatches, sequences)
-		*blocks = append(*blocks, block)
-	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].SequencedBatches = append((*blocks)[len(*blocks)-1].SequencedBatches, sequences)
-	} else {
-		log.Error("Error processing SequencedBatches event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("error processing SequencedBatches event")
-	}
-	or := Order{
-		Name: SequenceBatchesOrder,
-		Pos:  len((*blocks)[len(*blocks)-1].SequencedBatches) - 1,
-	}
-	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
-	return nil
-}
-
-func (etherMan *Client) sequencedBatchesPreEtrogEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("Pre etrog SequenceBatches event detected")
-	sb, err := etherMan.OldZkEVM.ParseSequenceBatches(vLog)
-	if err != nil {
-		return err
-	}
-
-	// Read the tx for this event.
-	tx, err := etherMan.EthClient.TransactionInBlock(ctx, vLog.BlockHash, vLog.TxIndex)
-	if err != nil {
-		return err
-	}
-	if tx.Hash() != vLog.TxHash {
-		return fmt.Errorf("error: tx hash mismatch. want: %s have: %s", vLog.TxHash, tx.Hash().String())
-	}
-	msg, err := core.TransactionToMessage(tx, types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
-	if err != nil {
-		return err
-	}
-
-	sequences, err := decodeSequencesPreEtrog(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce)
-	if err != nil {
-		return fmt.Errorf("error decoding the sequences: %v", err)
-	}
-
-	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
-		fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
-		if err != nil {
-			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-		}
-		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
-		block.SequencedBatches = append(block.SequencedBatches, sequences)
-		*blocks = append(*blocks, block)
-	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].SequencedBatches = append((*blocks)[len(*blocks)-1].SequencedBatches, sequences)
-	} else {
-		log.Error("Error processing SequencedBatches event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("error processing SequencedBatches event")
-	}
-	or := Order{
-		Name: SequenceBatchesOrder,
-		Pos:  len((*blocks)[len(*blocks)-1].SequencedBatches) - 1,
-	}
-	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
-	return nil
-}
-
 func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
@@ -1083,72 +438,6 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	return sequencedBatches, nil
 }
 
-func decodeSequencesPreEtrog(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64) ([]SequencedBatch, error) {
-	// Extract coded txs.
-	// Load contract ABI
-	smcAbi, err := abi.JSON(strings.NewReader(oldpolygonzkevm.OldpolygonzkevmABI))
-	if err != nil {
-		return nil, err
-	}
-
-	// Recover Method from signature and ABI
-	method, err := smcAbi.MethodById(txData[:4])
-	if err != nil {
-		return nil, err
-	}
-
-	// Unpack method inputs
-	data, err := method.Inputs.Unpack(txData[4:])
-	if err != nil {
-		return nil, err
-	}
-	var sequences []oldpolygonzkevm.PolygonZkEVMBatchData
-	bytedata, err := json.Marshal(data[0])
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(bytedata, &sequences)
-	if err != nil {
-		return nil, err
-	}
-	coinbase := (data[1]).(common.Address)
-	sequencedBatches := make([]SequencedBatch, len(sequences))
-	for i, seq := range sequences {
-		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
-		s := seq
-		sequencedBatches[i] = SequencedBatch{
-			BatchNumber:           bn,
-			SequencerAddr:         sequencer,
-			TxHash:                txHash,
-			Nonce:                 nonce,
-			Coinbase:              coinbase,
-			PolygonZkEVMBatchData: &s,
-		}
-	}
-
-	return sequencedBatches, nil
-}
-
-func (etherMan *Client) oldVerifyBatchesTrustedAggregatorEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("TrustedVerifyBatches event detected")
-	var vb *oldpolygonzkevm.OldpolygonzkevmVerifyBatchesTrustedAggregator
-	vb, err := etherMan.OldZkEVM.ParseVerifyBatchesTrustedAggregator(vLog)
-	if err != nil {
-		log.Error("error parsing TrustedVerifyBatches event. Error: ", err)
-		return err
-	}
-	return etherMan.verifyBatches(ctx, vLog, blocks, blocksOrder, vb.NumBatch, vb.StateRoot, vb.Aggregator, TrustedVerifyBatchOrder)
-}
-
-func (etherMan *Client) verifyBatchesEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("VerifyBatches event detected")
-	vb, err := etherMan.ZkEVM.ParseVerifyBatches(vLog)
-	if err != nil {
-		log.Error("error parsing VerifyBatches event. Error: ", err)
-		return err
-	}
-	return etherMan.verifyBatches(ctx, vLog, blocks, blocksOrder, vb.NumBatch, vb.StateRoot, vb.Aggregator, VerifyBatchOrder)
-}
 func (etherMan *Client) verifyBatches(
 	ctx context.Context,
 	vLog types.Log,
@@ -1184,54 +473,6 @@ func (etherMan *Client) verifyBatches(
 		Pos:  len((*blocks)[len(*blocks)-1].VerifiedBatches) - 1,
 	}
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
-	return nil
-}
-
-func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("SequenceForceBatches event detect")
-	fsb, err := etherMan.ZkEVM.ParseSequenceForceBatches(vLog)
-	if err != nil {
-		return err
-	}
-	// TODO completar los datos de forcedBlockHas, forcedGer y forcedTimestamp
-
-	// Read the tx for this batch.
-	tx, err := etherMan.EthClient.TransactionInBlock(ctx, vLog.BlockHash, vLog.TxIndex)
-	if err != nil {
-		return err
-	}
-	if tx.Hash() != vLog.TxHash {
-		return fmt.Errorf("error: tx hash mismatch. want: %s have: %s", vLog.TxHash, tx.Hash().String())
-	}
-	msg, err := core.TransactionToMessage(tx, types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
-	if err != nil {
-		return err
-	}
-	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
-	if err != nil {
-		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-	}
-	sequencedForceBatch, err := decodeSequencedForceBatches(tx.Data(), fsb.NumBatch, msg.From, vLog.TxHash, fullBlock, msg.Nonce)
-	if err != nil {
-		return err
-	}
-
-	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
-		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
-		block.SequencedForceBatches = append(block.SequencedForceBatches, sequencedForceBatch)
-		*blocks = append(*blocks, block)
-	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].SequencedForceBatches = append((*blocks)[len(*blocks)-1].SequencedForceBatches, sequencedForceBatch)
-	} else {
-		log.Error("Error processing ForceSequencedBatches event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("error processing ForceSequencedBatches event")
-	}
-	or := Order{
-		Name: SequenceForceBatchesOrder,
-		Pos:  len((*blocks)[len(*blocks)-1].SequencedForceBatches) - 1,
-	}
-	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
-
 	return nil
 }
 
@@ -1402,21 +643,15 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 
 // GetL2ChainID returns L2 Chain ID
 func (etherMan *Client) GetL2ChainID() (uint64, error) {
-	chainID, err := etherMan.OldZkEVM.ChainID(&bind.CallOpts{Pending: false})
-	log.Debug("chainID read from oldZkevm: ", chainID)
-	if err != nil || chainID == 0 {
-		log.Debug("error from oldZkevm: ", err)
-		rollupData, err := etherMan.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
-		log.Debug("chainID read from rollupManager: ", rollupData.ChainID)
-		if err != nil {
-			log.Debug("error from rollupManager: ", err)
-			return 0, err
-		} else if rollupData.ChainID == 0 {
-			return rollupData.ChainID, fmt.Errorf("error: chainID received is 0")
-		}
-		return rollupData.ChainID, nil
+	rollupData, err := etherMan.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
+	log.Debug("chainID read from rollupManager: ", rollupData.ChainID)
+	if err != nil {
+		log.Debug("error from rollupManager: ", err)
+		return 0, err
+	} else if rollupData.ChainID == 0 {
+		return rollupData.ChainID, fmt.Errorf("error: chainID received is 0")
 	}
-	return chainID, nil
+	return rollupData.ChainID, nil
 }
 
 // SendTx sends a tx to L1
