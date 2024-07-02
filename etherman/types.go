@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
-	"github.com/0xPolygon/cdk/etherman/smartcontracts/oldpolygonzkevm"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -33,6 +32,14 @@ type GlobalExitRoot struct {
 	PreviousBlockHash common.Hash
 }
 
+// PolygonZkEVMBatchData represents PolygonZkEVMBatchData
+type PolygonZkEVMBatchData struct {
+	Transactions       []byte
+	GlobalExitRoot     [32]byte
+	Timestamp          uint64
+	MinForcedTimestamp uint64
+}
+
 // SequencedBatch represents virtual batch
 type SequencedBatch struct {
 	BatchNumber   uint64
@@ -42,7 +49,7 @@ type SequencedBatch struct {
 	Nonce         uint64
 	Coinbase      common.Address
 	// Struct used in preEtrog forks
-	*oldpolygonzkevm.PolygonZkEVMBatchData
+	*PolygonZkEVMBatchData
 	// Struct used in Etrog
 	*polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData
 }

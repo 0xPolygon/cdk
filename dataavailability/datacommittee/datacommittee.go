@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygondatacommittee"
 	"github.com/0xPolygon/cdk-data-availability/client"
 	daTypes "github.com/0xPolygon/cdk-data-availability/types"
-	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygondatacommittee"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"

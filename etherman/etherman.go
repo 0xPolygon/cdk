@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/idataavailabilityprotocol"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonrollupmanager"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
-	"github.com/0xPolygon/cdk/etherman/smartcontracts/dataavailabilityprotocol"
-	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -84,7 +84,7 @@ type Client struct {
 	EthClient     ethereumClient
 	ZkEVM         *polygonvalidiumetrog.Polygonvalidiumetrog
 	RollupManager *polygonrollupmanager.Polygonrollupmanager
-	DAProtocol    *dataavailabilityprotocol.Dataavailabilityprotocol
+	DAProtocol    *idataavailabilityprotocol.Idataavailabilityprotocol
 	// Pol           *pol.Pol
 	SCAddresses []common.Address
 
@@ -129,12 +129,11 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		EthClient:     ethClient,
 		ZkEVM:         zkevm,
 		RollupManager: rollupManager,
-		// Pol:           pol,
-		SCAddresses: scAddresses,
-		RollupID:    rollupID,
-		l1Cfg:       l1Config,
-		cfg:         cfg,
-		auth:        map[common.Address]bind.TransactOpts{},
+		SCAddresses:   scAddresses,
+		RollupID:      rollupID,
+		l1Cfg:         l1Config,
+		cfg:           cfg,
+		auth:          map[common.Address]bind.TransactOpts{},
 	}
 
 	if cfg.IsValidiumMode {
@@ -143,7 +142,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 			return nil, err
 		}
 
-		client.DAProtocol, err = dataavailabilityprotocol.NewDataavailabilityprotocol(dapAddr, ethClient)
+		client.DAProtocol, err = idataavailabilityprotocol.NewIdataavailabilityprotocol(dapAddr, ethClient)
 		if err != nil {
 			return nil, err
 		}
