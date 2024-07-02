@@ -14,7 +14,6 @@ import (
 
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/dataavailabilityprotocol"
-	"github.com/0xPolygon/cdk/etherman/smartcontracts/pol"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygon/cdk/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygon/cdk/log"
@@ -152,8 +151,8 @@ type Client struct {
 	ZkEVM         *polygonzkevm.Polygonzkevm
 	RollupManager *polygonrollupmanager.Polygonrollupmanager
 	DAProtocol    *dataavailabilityprotocol.Dataavailabilityprotocol
-	Pol           *pol.Pol
-	SCAddresses   []common.Address
+	// Pol           *pol.Pol
+	SCAddresses []common.Address
 
 	RollupID uint32
 
@@ -182,10 +181,6 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		return nil, err
 	}
 
-	pol, err := pol.NewPol(l1Config.PolAddr, ethClient)
-	if err != nil {
-		return nil, err
-	}
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, l1Config.ZkEVMAddr, l1Config.RollupManagerAddr, l1Config.GlobalExitRootManagerAddr)
 
@@ -200,12 +195,12 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		EthClient:     ethClient,
 		ZkEVM:         zkevm,
 		RollupManager: rollupManager,
-		Pol:           pol,
-		SCAddresses:   scAddresses,
-		RollupID:      rollupID,
-		l1Cfg:         l1Config,
-		cfg:           cfg,
-		auth:          map[common.Address]bind.TransactOpts{},
+		// Pol:           pol,
+		SCAddresses: scAddresses,
+		RollupID:    rollupID,
+		l1Cfg:       l1Config,
+		cfg:         cfg,
+		auth:        map[common.Address]bind.TransactOpts{},
 	}
 
 	if cfg.IsValidiumMode {
@@ -617,23 +612,6 @@ func (etherMan *Client) GetTx(ctx context.Context, txHash common.Hash) (*types.T
 // GetTxReceipt function gets ethereum tx receipt
 func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	return etherMan.EthClient.TransactionReceipt(ctx, txHash)
-}
-
-// ApprovePol function allow to approve tokens in pol smc
-func (etherMan *Client) ApprovePol(ctx context.Context, account common.Address, polAmount *big.Int, to common.Address) (*types.Transaction, error) {
-	opts, err := etherMan.getAuthByAddress(account)
-	if err == ErrNotFound {
-		return nil, errors.New("can't find account private key to sign tx")
-	}
-	tx, err := etherMan.Pol.Approve(&opts, etherMan.l1Cfg.ZkEVMAddr, polAmount)
-	if err != nil {
-		if parsedErr, ok := tryParseError(err); ok {
-			err = parsedErr
-		}
-		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
-	}
-
-	return tx, nil
 }
 
 // GetTrustedSequencerURL Gets the trusted sequencer url from rollup smc
