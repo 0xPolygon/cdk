@@ -1,11 +1,11 @@
 [workspace]
 
 members = [
-    "cdk-erigon",
+    "cdk",
 ]
 
 [workspace.package]
-name = "cdk-erigon"
+name = "cdk"
 version = "0.1.0"
 edition = "2021"
 
