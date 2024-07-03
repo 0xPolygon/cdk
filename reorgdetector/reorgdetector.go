@@ -25,7 +25,7 @@ var (
 	ErrInavlidBlockHash = errors.New("the block hash does not match with the expected block hash")
 )
 
-type subscription struct {
+type Subscription struct {
 	FirstReorgedBlock          chan uint64
 	ReorgProcessed             chan bool
 	mu                         sync.Mutex
@@ -38,7 +38,7 @@ type ReorgDetector struct {
 	unfinalisedBlocks map[uint64]common.Hash
 	trackedBlocks     map[string]map[uint64]common.Hash // TODO: needs persistance! needs to be able to iterate in order!
 	// the channel is used to notify first invalid block
-	subscriptions map[string]*subscription
+	subscriptions map[string]*Subscription
 }
 
 func New(ctx context.Context) (*ReorgDetector, error) {
@@ -63,11 +63,11 @@ func (r *ReorgDetector) Start(ctx context.Context) {
 	go r.addUnfinalisedBlocks(ctx, lastFinalisedBlock+1)
 }
 
-func (r *ReorgDetector) Subscribe(id string) *subscription {
+func (r *ReorgDetector) Subscribe(id string) *Subscription {
 	if sub, ok := r.subscriptions[id]; ok {
 		return sub
 	}
-	sub := &subscription{
+	sub := &Subscription{
 		FirstReorgedBlock: make(chan uint64),
 		ReorgProcessed:    make(chan bool),
 	}
@@ -112,7 +112,7 @@ func (r *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, blockNum
 
 func (r *ReorgDetector) cleanStoredSubsBeforeStart(ctx context.Context, latestFinalisedBlock uint64) error {
 	for id := range r.trackedBlocks {
-		sub := &subscription{
+		sub := &Subscription{
 			FirstReorgedBlock: make(chan uint64),
 			ReorgProcessed:    make(chan bool),
 		}
