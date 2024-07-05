@@ -2,7 +2,6 @@ package localbridgesync
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/0xPolygon/cdk/reorgdetector"
@@ -17,18 +16,27 @@ const (
 type driver struct {
 	reorgDetector *reorgdetector.ReorgDetector
 	reorgSub      *reorgdetector.Subscription
-	p             *processor
-	d             *downloader
+	processor     *processor
+	downloader    *downloader
 }
 
-func newDriver(r *reorgdetector.ReorgDetector) (*driver, error) {
-	r.Subscribe(reorgDetectorID)
-	return nil, errors.New("not implemented")
+func newDriver(
+	reorgDetector *reorgdetector.ReorgDetector,
+	processor *processor,
+	downloader *downloader,
+) (*driver, error) {
+	reorgSub := reorgDetector.Subscribe(reorgDetectorID)
+	return &driver{
+		reorgDetector: reorgDetector,
+		reorgSub:      reorgSub,
+		processor:     processor,
+		downloader:    downloader,
+	}, nil
 }
 
 func (d *driver) Sync(ctx context.Context) {
 	for {
-		lastProcessedBlock, err := d.p.getLastProcessedBlock(ctx)
+		lastProcessedBlock, err := d.processor.getLastProcessedBlock(ctx)
 		if err != nil {
 			// TODO: handle error
 			return
@@ -38,7 +46,7 @@ func (d *driver) Sync(ctx context.Context) {
 
 		// start downloading
 		downloadCh := make(chan block, downloadBufferSize)
-		go d.d.download(cancellableCtx, lastProcessedBlock, downloadCh)
+		go d.downloader.download(cancellableCtx, lastProcessedBlock, downloadCh)
 
 		for {
 			if shouldRestartSync := d.syncIteration(ctx, cancel, downloadCh); shouldRestartSync {
@@ -59,7 +67,7 @@ func (d *driver) syncIteration(
 			// TODO: handle error
 			return
 		}
-		err = d.p.storeBridgeEvents(b.Num, b.Events)
+		err = d.processor.storeBridgeEvents(b.Num, b.Events)
 		if err != nil {
 			// TODO: handle error
 			return
@@ -73,7 +81,7 @@ func (d *driver) syncIteration(
 			_, ok = <-downloadCh
 		}
 		// handle reorg
-		err := d.p.reorg(lastValidBlock)
+		err := d.processor.reorg(lastValidBlock)
 		if err != nil {
 			// TODO: handle error
 			return
