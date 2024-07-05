@@ -1,6 +1,13 @@
 package localbridgesync
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
+
+const (
+	retryAfterErrorPeriod = time.Second * 10
+)
 
 type LocalBridgeSync struct {
 	*processor
