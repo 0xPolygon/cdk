@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 )
 
 const (
-	checkReorgInterval = time.Second * 10
 	downloadBufferSize = 100
 	reorgDetectorID    = "localbridgesync"
 )
@@ -38,8 +38,9 @@ func (d *driver) Sync(ctx context.Context) {
 	for {
 		lastProcessedBlock, err := d.processor.getLastProcessedBlock(ctx)
 		if err != nil {
-			// TODO: handle error
-			return
+			log.Error("error geting last processed block: ", err)
+			time.Sleep(retryAfterErrorPeriod)
+			continue
 		}
 		cancellableCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -49,47 +50,59 @@ func (d *driver) Sync(ctx context.Context) {
 		go d.downloader.download(cancellableCtx, lastProcessedBlock, downloadCh)
 
 		for {
-			if shouldRestartSync := d.syncIteration(ctx, cancel, downloadCh); shouldRestartSync {
+			select {
+			case b := <-downloadCh:
+				d.handleNewBlock(ctx, b)
+			case firstReorgedBlock := <-d.reorgSub.FirstReorgedBlock:
+				d.handleReorg(cancel, downloadCh, firstReorgedBlock)
 				break
 			}
 		}
 	}
 }
 
-func (d *driver) syncIteration(
-	ctx context.Context, cancel context.CancelFunc, downloadCh chan block,
-) (shouldRestartSync bool) {
-	shouldRestartSync = false
-	select {
-	case b := <-downloadCh: // new block from downloader
+func (d *driver) handleNewBlock(ctx context.Context, b block) {
+	for {
 		err := d.reorgDetector.AddBlockToTrack(ctx, reorgDetectorID, b.Num, b.Hash)
 		if err != nil {
-			// TODO: handle error
-			return
+			log.Errorf("error adding block %d to tracker: %v", b.Num, err)
+			time.Sleep(retryAfterErrorPeriod)
+			continue
 		}
-		err = d.processor.storeBridgeEvents(b.Num, b.Events)
-		if err != nil {
-			// TODO: handle error
-			return
-		}
-	case lastValidBlock := <-d.reorgSub.FirstReorgedBlock: // reorg detected
-		// stop downloader
-		cancel()
-		// wait until downloader closes channel
-		_, ok := <-downloadCh
-		for ok {
-			_, ok = <-downloadCh
-		}
-		// handle reorg
-		err := d.processor.reorg(lastValidBlock)
-		if err != nil {
-			// TODO: handle error
-			return
-		}
-		d.reorgSub.ReorgProcessed <- true
-
-		// restart syncing
-		shouldRestartSync = true
+		break
 	}
-	return
+	for {
+		err := d.processor.storeBridgeEvents(b.Num, b.Events)
+		if err != nil {
+			log.Errorf("error processing events for blcok %d, err: ", b.Num, err)
+			time.Sleep(retryAfterErrorPeriod)
+			continue
+		}
+		break
+	}
+}
+
+func (d *driver) handleReorg(
+	cancel context.CancelFunc, downloadCh chan block, firstReorgedBlock uint64,
+) {
+	// stop downloader
+	cancel()
+	_, ok := <-downloadCh
+	for ok {
+		_, ok = <-downloadCh
+	}
+	// handle reorg
+	for {
+		err := d.processor.reorg(firstReorgedBlock)
+		if err != nil {
+			log.Errorf(
+				"error processing reorg, last valid block %d, err: %v",
+				firstReorgedBlock, err,
+			)
+			time.Sleep(retryAfterErrorPeriod)
+			continue
+		}
+		break
+	}
+	d.reorgSub.ReorgProcessed <- true
 }

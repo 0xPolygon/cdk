@@ -2,16 +2,21 @@ package localbridgesync
 
 import (
 	"context"
-	"errors"
 	"math/big"
 	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+)
+
+const (
+	waitForNewBlocksPeriod = time.Millisecond * 100
 )
 
 var (
@@ -24,22 +29,41 @@ type EthClienter interface {
 	ethereum.LogFilterer
 	ethereum.BlockNumberReader
 	ethereum.ChainReader
+	bind.ContractBackend
 }
 
 type downloader struct {
 	bridgeAddr         common.Address
-	bridgeContractV2   *polygonzkevmbridgev2.Polygonzkevmbridgev2
 	bridgeContractV1   *polygonzkevmbridge.Polygonzkevmbridge
+	bridgeContractV2   *polygonzkevmbridgev2.Polygonzkevmbridgev2
 	ethClient          EthClienter
-	blockToBlocks      map[uint64]struct{ from, to uint64 }
 	syncBlockChunkSize uint64
 }
 
-func newDownloader() (*downloader, error) {
-	return nil, errors.New("not implemented")
+func newDownloader(
+	bridgeAddr common.Address,
+	syncBlockChunkSize uint64,
+	ethClient EthClienter,
+) (*downloader, error) {
+	bridgeContractV1, err := polygonzkevmbridge.NewPolygonzkevmbridge(bridgeAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
+	bridgeContractV2, err := polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
+	return &downloader{
+		bridgeAddr:         bridgeAddr,
+		bridgeContractV1:   bridgeContractV1,
+		bridgeContractV2:   bridgeContractV2,
+		ethClient:          ethClient,
+		syncBlockChunkSize: syncBlockChunkSize,
+	}, nil
 }
 
 func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedCh chan block) {
+	lastBlock := d.waitForNewBlocks(ctx, 0)
 	for {
 		select {
 		case <-ctx.Done():
@@ -47,24 +71,15 @@ func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedC
 			return
 		default:
 		}
-		lastBlock, err := d.ethClient.BlockNumber(ctx)
-		if err != nil {
-			// TODO: handle error
-			return
-		}
 		toBlock := fromBlock + d.syncBlockChunkSize
 		if toBlock > lastBlock {
 			toBlock = lastBlock
 		}
 		if fromBlock == toBlock {
-			time.Sleep(time.Millisecond * 100) // sleep 100ms for the L2 to produce more blocks
+			lastBlock = d.waitForNewBlocks(ctx, 0)
 			continue
 		}
-		blocks, err := d.getEventsByBlockRange(ctx, fromBlock, toBlock)
-		if err != nil {
-			// TODO: handle error
-			return
-		}
+		blocks := d.getEventsByBlockRange(ctx, fromBlock, toBlock)
 		for _, b := range blocks {
 			downloadedCh <- b
 		}
@@ -72,23 +87,24 @@ func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedC
 	}
 }
 
-func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) ([]block, error) {
-	blocks := []block{}
-	query := ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(fromBlock),
-		Addresses: []common.Address{d.bridgeAddr},
-		Topics: [][]common.Hash{
-			{bridgeEventSignature},
-			{claimEventSignature},
-			{claimEventSignaturePreEtrog},
-		},
-		ToBlock: new(big.Int).SetUint64(toBlock),
+func (d *downloader) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64) {
+	for {
+		lastBlock, err := d.ethClient.BlockNumber(ctx)
+		if err != nil {
+			log.Error("error geting last block num from eth client: ", err)
+			time.Sleep(retryAfterErrorPeriod)
+			continue
+		}
+		if lastBlock > lastBlockSeen {
+			return lastBlockSeen
+		}
+		time.Sleep(waitForNewBlocksPeriod)
 	}
+}
 
-	logs, err := d.ethClient.FilterLogs(ctx, query)
-	if err != nil {
-		return nil, err
-	}
+func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) []block {
+	blocks := []block{}
+	logs := d.getLogs(ctx, fromBlock, toBlock)
 	for _, l := range logs {
 		if blocks[len(blocks)-1].Num < l.BlockNumber {
 			blocks = append(blocks, block{
@@ -105,15 +121,39 @@ func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlo
 		d.appendLog(&blocks[len(blocks)-1], l)
 	}
 
-	return blocks, nil
+	return blocks
 }
 
-func (d *downloader) appendLog(b *block, l types.Log) error {
+func (d *downloader) getLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log {
+	query := ethereum.FilterQuery{
+		FromBlock: new(big.Int).SetUint64(fromBlock),
+		Addresses: []common.Address{d.bridgeAddr},
+		Topics: [][]common.Hash{
+			{bridgeEventSignature},
+			{claimEventSignature},
+			{claimEventSignaturePreEtrog},
+		},
+		ToBlock: new(big.Int).SetUint64(toBlock),
+	}
+	for {
+		logs, err := d.ethClient.FilterLogs(ctx, query)
+		if err != nil {
+			log.Error("error calling FilterLogs to eth client: ", err)
+			continue
+		}
+		return logs
+	}
+}
+
+func (d *downloader) appendLog(b *block, l types.Log) {
 	switch l.Topics[0] {
 	case bridgeEventSignature:
 		bridge, err := d.bridgeContractV2.ParseBridgeEvent(l)
 		if err != nil {
-			return err
+			log.Fatalf(
+				"error parsing log %+v using d.bridgeContractV2.ParseBridgeEvent: %v",
+				l, err,
+			)
 		}
 		b.Events.Bridges = append(b.Events.Bridges, Bridge{
 			LeafType:           bridge.LeafType,
@@ -127,9 +167,10 @@ func (d *downloader) appendLog(b *block, l types.Log) error {
 		})
 	case claimEventSignature:
 		claim, err := d.bridgeContractV2.ParseClaimEvent(l)
-		if err != nil {
-			return err
-		}
+		log.Fatalf(
+			"error parsing log %+v using d.bridgeContractV2.ParseClaimEvent: %v",
+			l, err,
+		)
 		b.Events.Claims = append(b.Events.Claims, Claim{
 			GlobalIndex:        claim.GlobalIndex,
 			OriginNetwork:      claim.OriginNetwork,
@@ -139,12 +180,11 @@ func (d *downloader) appendLog(b *block, l types.Log) error {
 		})
 	case claimEventSignaturePreEtrog:
 		claim, err := d.bridgeContractV1.ParseClaimEvent(l)
-		if err != nil {
-			return err
-		}
+		log.Fatalf(
+			"error parsing log %+v using d.bridgeContractV1.ParseClaimEvent: %v",
+			l, err,
+		)
 		b.Events.Claims = append(b.Events.Claims, Claim{
-			// WARNING: is it safe to convert Index --> GlobalIndex???
-			// according to Jesus, yes!
 			GlobalIndex:        big.NewInt(int64(claim.Index)),
 			OriginNetwork:      claim.OriginNetwork,
 			OriginAddress:      claim.OriginAddress,
@@ -152,19 +192,6 @@ func (d *downloader) appendLog(b *block, l types.Log) error {
 			Amount:             claim.Amount,
 		})
 	default:
-		return errors.New("unexpected topic")
+		log.Fatalf("unexpected log %+v", l)
 	}
-	return nil
-}
-
-func (d *downloader) getBlockHeader(ctx context.Context, blockNum uint64) (blockHeader, error) {
-	bn := big.NewInt(int64(blockNum))
-	block, err := d.ethClient.BlockByNumber(ctx, bn)
-	if err != nil {
-		return blockHeader{}, err
-	}
-	return blockHeader{
-		Num:  block.NumberU64(),
-		Hash: block.Hash(),
-	}, nil
 }
