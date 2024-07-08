@@ -83,6 +83,12 @@ func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedC
 		for _, b := range blocks {
 			downloadedCh <- b
 		}
+		if len(blocks) == 0 || blocks[len(blocks)-1].Num < toBlock {
+			// Indicate the last downloaded block if there are not events on it
+			downloadedCh <- block{
+				blockHeader: d.getBlockHeader(ctx, toBlock),
+			}
+		}
 		fromBlock = toBlock
 	}
 }
@@ -193,5 +199,20 @@ func (d *downloader) appendLog(b *block, l types.Log) {
 		})
 	default:
 		log.Fatalf("unexpected log %+v", l)
+	}
+}
+
+func (d *downloader) getBlockHeader(ctx context.Context, blokcNum uint64) blockHeader {
+	for {
+		header, err := d.ethClient.HeaderByNumber(ctx, big.NewInt(int64(blokcNum)))
+		if err != nil {
+			log.Errorf("error getting block header for block %d, err: %v", blokcNum, err)
+			time.Sleep(retryAfterErrorPeriod)
+			continue
+		}
+		return blockHeader{
+			Num:  header.Number.Uint64(),
+			Hash: header.Hash(),
+		}
 	}
 }
