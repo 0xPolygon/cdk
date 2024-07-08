@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	downloadBufferSize = 100
+	downloadBufferSize = 1000
 	reorgDetectorID    = "localbridgesync"
 )
 
