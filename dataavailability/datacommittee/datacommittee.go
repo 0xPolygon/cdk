@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygondatacommittee"
 	"github.com/0xPolygon/cdk-data-availability/client"
 	daTypes "github.com/0xPolygon/cdk-data-availability/types"
+	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -152,21 +153,32 @@ type signatureMsg struct {
 	err       error
 }
 
-// PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
-// as expected by the contract
-func (s *Backend) PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error) {
+func (s *Backend) PostSequence(ctx context.Context, sequence ethmanTypes.SequenceBanana) ([]byte, error) {
 	// Get current committee
 	committee, err := s.getCurrentDataCommittee()
 	if err != nil {
 		return nil, err
 	}
 
-	// Authenticate as trusted sequencer by signing the sequence
-	sequence := make(daTypes.Sequence, 0, len(batchesData))
-	for _, batchData := range batchesData {
-		sequence = append(sequence, batchData)
+	sequenceBatches := make([]daTypes.Batch, 0, len(sequence.Batches))
+	for _, batch := range sequence.Batches {
+		sequenceBatches = append(sequenceBatches, daTypes.Batch{
+			L2Data:            batch.L2Data,
+			Coinbase:          batch.LastCoinbase,
+			ForcedBlockHashL1: batch.ForcedBlockHashL1,
+			ForcedGER:         batch.ForcedGlobalExitRoot,
+			ForcedTimestamp:   daTypes.ArgUint64(batch.ForcedBatchTimestamp),
+		})
 	}
-	signedSequence, err := sequence.Sign(s.privKey)
+
+	sequenceBanana := daTypes.SequenceBanana{
+		Batches:              sequenceBatches,
+		OldAccInputHash:      sequence.AccInputHash,
+		L1InfoRoot:           sequence.L1InfoRoot,
+		MaxSequenceTimestamp: daTypes.ArgUint64(sequence.MaxSequenceTimestamp),
+	}
+
+	signature, err := sequenceBanana.Sign(s.privKey)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +187,10 @@ func (s *Backend) PostSequence(ctx context.Context, batchesData [][]byte) ([]byt
 	ch := make(chan signatureMsg, len(committee.Members))
 	signatureCtx, cancelSignatureCollection := context.WithCancel(ctx)
 	for _, member := range committee.Members {
-		go requestSignatureFromMember(signatureCtx, *signedSequence, member, ch)
+		go requestSignatureFromMember(signatureCtx, daTypes.SignedSequenceBanana{
+			Sequence:  sequenceBanana,
+			Signature: signature,
+		}, member, ch)
 	}
 
 	// Collect signatures
@@ -206,7 +221,7 @@ func (s *Backend) PostSequence(ctx context.Context, batchesData [][]byte) ([]byt
 	return buildSignaturesAndAddrs(msgs, committee.Members), nil
 }
 
-func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.SignedSequence, member DataCommitteeMember, ch chan signatureMsg) {
+func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.SignedSequenceBanana, member DataCommitteeMember, ch chan signatureMsg) {
 	select {
 	case <-ctx.Done():
 		return
@@ -216,7 +231,7 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 	// request
 	c := client.New(member.URL)
 	log.Infof("sending request to sign the sequence to %s at %s", member.Addr.Hex(), member.URL)
-	signature, err := c.SignSequence(signedSequence)
+	signature, err := c.SignSequenceBanana(ctx, signedSequence)
 	if err != nil {
 		ch <- signatureMsg{
 			addr: member.Addr,

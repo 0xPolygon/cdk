@@ -3,22 +3,20 @@ package etherman
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/idataavailabilityprotocol"
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonrollupmanager"
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/idataavailabilityprotocol"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonrollupmanager"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonvalidiumetrog"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonzkevmglobalexitrootv2"
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	"golang.org/x/crypto/sha3"
 )
 
 // EventOrder is the type used to identify the events order
@@ -81,10 +78,11 @@ type L1Config struct {
 
 // Client is a simple implementation of EtherMan.
 type Client struct {
-	EthClient     ethereumClient
-	ZkEVM         *polygonvalidiumetrog.Polygonvalidiumetrog
-	RollupManager *polygonrollupmanager.Polygonrollupmanager
-	DAProtocol    *idataavailabilityprotocol.Idataavailabilityprotocol
+	EthClient      ethereumClient
+	ZkEVM          *polygonvalidiumetrog.Polygonvalidiumetrog
+	RollupManager  *polygonrollupmanager.Polygonrollupmanager
+	DAProtocol     *idataavailabilityprotocol.Idataavailabilityprotocol
+	GlobalExitRoot *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
 	// Pol           *pol.Pol
 	SCAddresses []common.Address
 
@@ -115,6 +113,11 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		return nil, err
 	}
 
+	globalExitRoot, err := polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2(l1Config.GlobalExitRootManagerAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
+
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, l1Config.ZkEVMAddr, l1Config.RollupManagerAddr, l1Config.GlobalExitRootManagerAddr)
 
@@ -126,14 +129,15 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	log.Debug("rollupID: ", rollupID)
 
 	client := &Client{
-		EthClient:     ethClient,
-		ZkEVM:         zkevm,
-		RollupManager: rollupManager,
-		SCAddresses:   scAddresses,
-		RollupID:      rollupID,
-		l1Cfg:         l1Config,
-		cfg:           cfg,
-		auth:          map[common.Address]bind.TransactOpts{},
+		EthClient:      ethClient,
+		ZkEVM:          zkevm,
+		RollupManager:  rollupManager,
+		GlobalExitRoot: globalExitRoot,
+		SCAddresses:    scAddresses,
+		RollupID:       rollupID,
+		l1Cfg:          l1Config,
+		cfg:            cfg,
+		auth:           map[common.Address]bind.TransactOpts{},
 	}
 
 	if cfg.IsValidiumMode {
@@ -170,7 +174,7 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 }
 
 // BuildSequenceBatchesTx builds a tx to be sent to the PoE SC method SequenceBatches.
-func (etherMan *Client) BuildSequenceBatchesTx(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
+func (etherMan *Client) BuildSequenceBatchesTx(sender common.Address, sequence ethmanTypes.SequenceBanana, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	opts, err := etherMan.getAuthByAddress(sender)
 	if err == ErrNotFound {
 		return nil, fmt.Errorf("failed to build sequence batches, err: %w", ErrPrivateKeyNotFound)
@@ -183,43 +187,43 @@ func (etherMan *Client) BuildSequenceBatchesTx(sender common.Address, sequences 
 	opts.GasLimit = uint64(1)
 	opts.GasPrice = big.NewInt(1)
 
-	return etherMan.sequenceBatches(opts, sequences, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, dataAvailabilityMessage)
+	return etherMan.sequenceBatches(opts, sequence, dataAvailabilityMessage)
 }
 
-func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (tx *types.Transaction, err error) {
+func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequence ethmanTypes.SequenceBanana, dataAvailabilityMessage []byte) (tx *types.Transaction, err error) {
 	if etherMan.cfg.IsValidiumMode {
-		return etherMan.sequenceBatchesValidium(opts, sequences, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, dataAvailabilityMessage)
+		return etherMan.sequenceBatchesValidium(opts, sequence, dataAvailabilityMessage)
 	}
 
-	return etherMan.sequenceBatchesRollup(opts, sequences, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase)
+	return etherMan.sequenceBatchesRollup(opts, sequence)
 }
 
-func (etherMan *Client) sequenceBatchesRollup(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address) (*types.Transaction, error) {
-	batches := make([]polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, len(sequences))
-	for i, seq := range sequences {
+func (etherMan *Client) sequenceBatchesRollup(opts bind.TransactOpts, sequence ethmanTypes.SequenceBanana) (*types.Transaction, error) {
+	batches := make([]polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, len(sequence.Batches))
+	for i, batch := range sequence.Batches {
 		var ger common.Hash
-		if seq.ForcedBatchTimestamp > 0 {
-			ger = seq.GlobalExitRoot
+		if batch.ForcedBatchTimestamp > 0 {
+			ger = batch.ForcedGlobalExitRoot
 		}
 
 		batches[i] = polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData{
-			Transactions:         seq.BatchL2Data,
+			Transactions:         batch.L2Data,
 			ForcedGlobalExitRoot: ger,
-			ForcedTimestamp:      uint64(seq.ForcedBatchTimestamp),
-			ForcedBlockHashL1:    seq.PrevBlockHash,
+			ForcedTimestamp:      batch.ForcedBatchTimestamp,
+			ForcedBlockHashL1:    batch.ForcedBlockHashL1,
 		}
 	}
 
-	tx, err := etherMan.ZkEVM.SequenceBatches(&opts, batches, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase)
+	tx, err := etherMan.ZkEVM.SequenceBatches(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
-		log.Debug("l2CoinBase: ", l2Coinbase)
+		log.Debug("l2CoinBase: ", sequence.L2Coinbase)
 		log.Debug("Sequencer address: ", opts.From)
 		a, err2 := polygonvalidiumetrog.PolygonvalidiumetrogMetaData.GetAbi()
 		if err2 != nil {
 			log.Error("error getting abi. Error: ", err2)
 		}
-		input, err3 := a.Pack("sequenceBatches", batches, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase)
+		input, err3 := a.Pack("sequenceBatches", batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase)
 		if err3 != nil {
 			log.Error("error packing call. Error: ", err3)
 		}
@@ -249,32 +253,32 @@ func (etherMan *Client) sequenceBatchesRollup(opts bind.TransactOpts, sequences 
 	return tx, err
 }
 
-func (etherMan *Client) sequenceBatchesValidium(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
-	batches := make([]polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, len(sequences))
-	for i, seq := range sequences {
+func (etherMan *Client) sequenceBatchesValidium(opts bind.TransactOpts, sequence ethmanTypes.SequenceBanana, dataAvailabilityMessage []byte) (*types.Transaction, error) {
+	batches := make([]polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, len(sequence.Batches))
+	for i, batch := range sequence.Batches {
 		var ger common.Hash
-		if seq.ForcedBatchTimestamp > 0 {
-			ger = seq.GlobalExitRoot
+		if batch.ForcedBatchTimestamp > 0 {
+			ger = batch.ForcedGlobalExitRoot
 		}
 
 		batches[i] = polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData{
-			TransactionsHash:     crypto.Keccak256Hash(seq.BatchL2Data),
+			TransactionsHash:     crypto.Keccak256Hash(batch.L2Data),
 			ForcedGlobalExitRoot: ger,
-			ForcedTimestamp:      uint64(seq.ForcedBatchTimestamp),
-			ForcedBlockHashL1:    seq.PrevBlockHash,
+			ForcedTimestamp:      batch.ForcedBatchTimestamp,
+			ForcedBlockHashL1:    batch.ForcedBlockHashL1,
 		}
 	}
 
-	tx, err := etherMan.ZkEVM.SequenceBatchesValidium(&opts, batches, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, dataAvailabilityMessage)
+	tx, err := etherMan.ZkEVM.SequenceBatchesValidium(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
-		log.Debug("l2CoinBase: ", l2Coinbase)
+		log.Debug("l2CoinBase: ", sequence.L2Coinbase)
 		log.Debug("Sequencer address: ", opts.From)
 		a, err2 := polygonvalidiumetrog.PolygonvalidiumetrogMetaData.GetAbi()
 		if err2 != nil {
 			log.Error("error getting abi. Error: ", err2)
 		}
-		input, err3 := a.Pack("sequenceBatchesValidium", batches, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, dataAvailabilityMessage)
+		input, err3 := a.Pack("sequenceBatchesValidium", batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase, dataAvailabilityMessage)
 		if err3 != nil {
 			log.Error("error packing call. Error: ", err3)
 		}
@@ -317,155 +321,6 @@ func (etherMan *Client) GetSendSequenceFee(numBatches uint64) (*big.Int, error) 
 // TrustedSequencer gets trusted sequencer address
 func (etherMan *Client) TrustedSequencer() (common.Address, error) {
 	return etherMan.ZkEVM.TrustedSequencer(&bind.CallOpts{Pending: false})
-}
-
-func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash) ([]SequencedBatch, error) {
-	// Extract coded txs.
-	// Load contract ABI
-	smcAbi, err := abi.JSON(strings.NewReader(polygonvalidiumetrog.PolygonvalidiumetrogABI))
-	if err != nil {
-		return nil, err
-	}
-
-	// Recover Method from signature and ABI
-	method, err := smcAbi.MethodById(txData[:4])
-	if err != nil {
-		return nil, err
-	}
-
-	// Unpack method inputs
-	data, err := method.Inputs.Unpack(txData[4:])
-	if err != nil {
-		return nil, err
-	}
-	var sequences []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData
-	bytedata, err := json.Marshal(data[0])
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(bytedata, &sequences)
-	if err != nil {
-		return nil, err
-	}
-	coinbase := (data[1]).(common.Address)
-	sequencedBatches := make([]SequencedBatch, len(sequences))
-	for i, seq := range sequences {
-		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
-		s := seq
-		sequencedBatches[i] = SequencedBatch{
-			BatchNumber:                     bn,
-			L1InfoRoot:                      &l1InfoRoot,
-			SequencerAddr:                   sequencer,
-			TxHash:                          txHash,
-			Nonce:                           nonce,
-			Coinbase:                        coinbase,
-			PolygonRollupBaseEtrogBatchData: &s,
-		}
-	}
-
-	return sequencedBatches, nil
-}
-
-func (etherMan *Client) verifyBatches(
-	ctx context.Context,
-	vLog types.Log,
-	blocks *[]Block,
-	blocksOrder *map[common.Hash][]Order,
-	numBatch uint64,
-	stateRoot common.Hash,
-	aggregator common.Address,
-	orderName EventOrder) error {
-	var verifyBatch VerifiedBatch
-	verifyBatch.BlockNumber = vLog.BlockNumber
-	verifyBatch.BatchNumber = numBatch
-	verifyBatch.TxHash = vLog.TxHash
-	verifyBatch.StateRoot = stateRoot
-	verifyBatch.Aggregator = aggregator
-
-	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
-		fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
-		if err != nil {
-			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-		}
-		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
-		block.VerifiedBatches = append(block.VerifiedBatches, verifyBatch)
-		*blocks = append(*blocks, block)
-	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].VerifiedBatches = append((*blocks)[len(*blocks)-1].VerifiedBatches, verifyBatch)
-	} else {
-		log.Error("Error processing verifyBatch event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("error processing verifyBatch event")
-	}
-	or := Order{
-		Name: orderName,
-		Pos:  len((*blocks)[len(*blocks)-1].VerifiedBatches) - 1,
-	}
-	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
-	return nil
-}
-
-func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, block *types.Block, nonce uint64) ([]SequencedForceBatch, error) {
-	// Extract coded txs.
-	// Load contract ABI
-	abi, err := abi.JSON(strings.NewReader(polygonvalidiumetrog.PolygonvalidiumetrogABI))
-	if err != nil {
-		return nil, err
-	}
-
-	// Recover Method from signature and ABI
-	method, err := abi.MethodById(txData[:4])
-	if err != nil {
-		return nil, err
-	}
-
-	// Unpack method inputs
-	data, err := method.Inputs.Unpack(txData[4:])
-	if err != nil {
-		return nil, err
-	}
-
-	var forceBatches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData
-	bytedata, err := json.Marshal(data[0])
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(bytedata, &forceBatches)
-	if err != nil {
-		return nil, err
-	}
-
-	sequencedForcedBatches := make([]SequencedForceBatch, len(forceBatches))
-	for i, force := range forceBatches {
-		bn := lastBatchNumber - uint64(len(forceBatches)-(i+1))
-		sequencedForcedBatches[i] = SequencedForceBatch{
-			BatchNumber:                     bn,
-			Coinbase:                        sequencer,
-			TxHash:                          txHash,
-			Timestamp:                       time.Unix(int64(block.Time()), 0),
-			Nonce:                           nonce,
-			PolygonRollupBaseEtrogBatchData: force,
-		}
-	}
-	return sequencedForcedBatches, nil
-}
-
-func prepareBlock(vLog types.Log, t time.Time, fullBlock *types.Block) Block {
-	var block Block
-	block.BlockNumber = vLog.BlockNumber
-	block.BlockHash = vLog.BlockHash
-	block.ParentHash = fullBlock.ParentHash()
-	block.ReceivedAt = t
-	return block
-}
-
-func hash(data ...[32]byte) [32]byte {
-	var res [32]byte
-	hash := sha3.NewLegacyKeccak256()
-	for _, d := range data {
-		hash.Write(d[:]) //nolint:errcheck,gosec
-	}
-	copy(res[:], hash.Sum(nil))
-	return res
 }
 
 // HeaderByNumber returns a block header from the current canonical chain. If number is
@@ -710,4 +565,27 @@ func (etherMan *Client) GetDAProtocolAddr() (common.Address, error) {
 // GetDAProtocolName returns the name of the data availability protocol
 func (etherMan *Client) GetDAProtocolName() (string, error) {
 	return etherMan.DAProtocol.GetProcotolName(&bind.CallOpts{Pending: false})
+}
+
+// LastAccInputHash gets the last acc input hash from the SC
+func (etherMan *Client) LastAccInputHash() (common.Hash, error) {
+	return etherMan.ZkEVM.LastAccInputHash(&bind.CallOpts{Pending: false})
+}
+
+// GetL1InfoRoot gets the L1 info root from the SC
+func (etherMan *Client) GetL1InfoRoot(indexL1InfoRoot uint32) (common.Hash, error) {
+	// Get lastL1InfoTreeRoot (if index==0 then root=0, no call is needed)
+	var (
+		lastL1InfoTreeRoot common.Hash
+		err                error
+	)
+
+	if indexL1InfoRoot > 0 {
+		lastL1InfoTreeRoot, err = etherMan.GlobalExitRoot.L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
+		if err != nil {
+			log.Errorf("error calling SC globalexitroot L1InfoLeafMap: %v", err)
+		}
+	}
+
+	return lastL1InfoTreeRoot, err
 }
