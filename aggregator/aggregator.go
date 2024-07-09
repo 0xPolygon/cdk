@@ -296,7 +296,7 @@ func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, cli
 						log.Warnf("L1 BatchL2Data:%v", common.Bytes2Hex(virtualBatch.BatchL2Data))
 					}
 
-					// Ger L1InfoRoot
+					// Get L1InfoRoot
 					sequence, err := a.l1Syncr.GetSequenceByBatchNumber(ctx, a.currentStreamBatch.BatchNumber)
 					if err != nil {
 						log.Errorf("Error getting sequence: %v", err)
@@ -335,7 +335,7 @@ func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, cli
 						a.currentStreamBatch.L1InfoRoot = a.currentStreamBatch.GlobalExitRoot
 					}
 
-					accInputHash, err := calculateAccInputHash(oldBatch.AccInputHash, a.currentStreamBatch.BatchL2Data, a.currentStreamBatch.L1InfoRoot, uint64(a.currentStreamBatch.Timestamp.Unix()), a.currentStreamBatch.Coinbase, forcedBlockhashL1)
+					accInputHash, err := CalculateAccInputHash(oldBatch.AccInputHash, a.currentStreamBatch.BatchL2Data, a.currentStreamBatch.L1InfoRoot, uint64(a.currentStreamBatch.Timestamp.Unix()), a.currentStreamBatch.Coinbase, forcedBlockhashL1)
 					if err != nil {
 						log.Errorf("Error calculating acc input hash: %v", err)
 						return err
@@ -1529,7 +1529,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 	return inputProver, nil
 }
 
-func calculateAccInputHash(oldAccInputHash common.Hash, batchData []byte, l1InfoRoot common.Hash, timestampLimit uint64, sequencerAddr common.Address, forcedBlockhashL1 common.Hash) (common.Hash, error) {
+func CalculateAccInputHash(oldAccInputHash common.Hash, batchData []byte, l1InfoRoot common.Hash, timestampLimit uint64, sequencerAddr common.Address, forcedBlockhashL1 common.Hash) (common.Hash, error) {
 	v1 := oldAccInputHash.Bytes()
 	v2 := batchData
 	v3 := l1InfoRoot.Bytes()
