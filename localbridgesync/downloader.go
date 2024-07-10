@@ -76,7 +76,7 @@ func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedC
 			toBlock = lastBlock
 		}
 		if fromBlock == toBlock {
-			lastBlock = d.waitForNewBlocks(ctx, 0)
+			lastBlock = d.waitForNewBlocks(ctx, toBlock)
 			continue
 		}
 		blocks := d.getEventsByBlockRange(ctx, fromBlock, toBlock)
@@ -112,7 +112,7 @@ func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlo
 	blocks := []block{}
 	logs := d.getLogs(ctx, fromBlock, toBlock)
 	for _, l := range logs {
-		if blocks[len(blocks)-1].Num < l.BlockNumber {
+		if len(blocks) == 0 || blocks[len(blocks)-1].Num < l.BlockNumber {
 			blocks = append(blocks, block{
 				blockHeader: blockHeader{
 					Num:  l.BlockNumber,
