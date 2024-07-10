@@ -1165,6 +1165,8 @@ func (s *SequenceSender) newSequenceBanana(batches []ethmantypes.Batch, coinbase
 		return nil, err
 	}
 
+	oldAccInputHash := common.BytesToHash(accInputHash.Bytes()) //copy it
+
 	for _, batch := range sequence.Batches {
 		infoRootHash := sequence.L1InfoRoot
 		timestamp := sequence.MaxSequenceTimestamp
@@ -1182,6 +1184,7 @@ func (s *SequenceSender) newSequenceBanana(batches []ethmantypes.Batch, coinbase
 		}
 	}
 
+	sequence.OldAccInputHash = oldAccInputHash
 	sequence.AccInputHash = accInputHash
 
 	return sequence, nil

@@ -173,7 +173,7 @@ func (s *Backend) PostSequence(ctx context.Context, sequence ethmanTypes.Sequenc
 
 	sequenceBanana := daTypes.SequenceBanana{
 		Batches:              sequenceBatches,
-		OldAccInputHash:      sequence.AccInputHash,
+		OldAccInputHash:      sequence.OldAccInputHash,
 		L1InfoRoot:           sequence.L1InfoRoot,
 		MaxSequenceTimestamp: daTypes.ArgUint64(sequence.MaxSequenceTimestamp),
 	}
