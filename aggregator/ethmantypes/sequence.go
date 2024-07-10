@@ -39,6 +39,7 @@ type Batch struct {
 
 type SequenceBanana struct {
 	Batches              []Batch
+	OldAccInputHash      common.Hash
 	AccInputHash         common.Hash
 	L1InfoRoot           common.Hash
 	MaxSequenceTimestamp uint64
