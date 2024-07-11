@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
@@ -22,37 +24,64 @@ const (
 )
 
 func TestGetEventsByBlockRange(t *testing.T) {
+	type testCase struct {
+		inputLogs          []types.Log
+		fromBlock, toBlock uint64
+		expectedBlocks     []block
+	}
+	testCases := []testCase{}
 	clientMock := NewL2Mock(t)
 	ctx := context.Background()
 	d, err := newDownloader(contractAddr, syncBlockChunck, clientMock)
 	require.NoError(t, err)
-	log, bridge := generateRandomBridge(t)
+
+	// case 1
+	log, bridge := generateBridge(t, 1)
 	logs := []types.Log{
 		*log,
 	}
-	clientMock.
-		On("FilterLogs", mock.Anything, mock.Anything).
-		Return(logs, nil)
+	blocks := []block{
+		{
+			blockHeader: blockHeader{
+				Num:  log.BlockNumber,
+				Hash: log.BlockHash,
+			},
+			Events: bridgeEvents{
+				Bridges: []Bridge{bridge},
+				Claims:  []Claim{},
+			},
+		},
+	}
+	case1 := testCase{
+		inputLogs:      logs,
+		fromBlock:      0,
+		toBlock:        1,
+		expectedBlocks: blocks,
+	}
+	testCases = append(testCases, case1)
 
-	blocks := d.getEventsByBlockRange(ctx, 0, 1)
-	b := blocks[0]
-	assert.Equal(t, log.BlockHash, b.Hash)
-	assert.Equal(t, log.BlockNumber, b.Num)
-	assert.Equal(t, bridge, b.Events.Bridges[0])
+	for _, tc := range testCases {
+		clientMock.
+			On("FilterLogs", mock.Anything, mock.Anything).
+			Return(tc.inputLogs, nil)
+
+		actualBlocks := d.getEventsByBlockRange(ctx, 0, 1)
+		assert.Equal(t, tc.expectedBlocks, actualBlocks)
+	}
 }
 
-func generateRandomBridge(t *testing.T) (*types.Log, Bridge) {
+func generateBridge(t *testing.T, blockNum uint32) (*types.Log, Bridge) {
 	b := Bridge{
 		LeafType:           1,
-		OriginNetwork:      1,
+		OriginNetwork:      blockNum,
 		OriginAddress:      contractAddr,
-		DestinationNetwork: 1,
+		DestinationNetwork: blockNum,
 		DestinationAddress: contractAddr,
-		Amount:             big.NewInt(1),
+		Amount:             big.NewInt(int64(blockNum)),
 		Metadata:           common.Hex2Bytes("01"),
-		DepositCount:       1,
+		DepositCount:       blockNum,
 	}
-	abi, err := polygonzkevmbridge.PolygonzkevmbridgeMetaData.GetAbi()
+	abi, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
 	require.NoError(t, err)
 	event, err := abi.EventByID(bridgeEventSignature)
 	require.NoError(t, err)
@@ -69,10 +98,52 @@ func generateRandomBridge(t *testing.T) (*types.Log, Bridge) {
 	require.NoError(t, err)
 	log := &types.Log{
 		Address:     contractAddr,
-		BlockNumber: 1,
-		BlockHash:   common.HexToHash("01"),
+		BlockNumber: uint64(blockNum),
+		BlockHash:   common.BytesToHash(blockNum2Bytes(uint64(blockNum))),
 		Topics:      []common.Hash{bridgeEventSignature},
 		Data:        data,
 	}
 	return log, b
+}
+
+func generateClaimV1(t *testing.T, blockNum uint32) (*types.Log, Claim) {
+	abi, err := polygonzkevmbridge.PolygonzkevmbridgeMetaData.GetAbi()
+	require.NoError(t, err)
+	event, err := abi.EventByID(claimEventSignaturePreEtrog)
+	require.NoError(t, err)
+	return generateClaim(t, blockNum, event)
+}
+
+func generateClaimV2(t *testing.T, blockNum uint32) (*types.Log, Claim) {
+	abi, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
+	require.NoError(t, err)
+	event, err := abi.EventByID(claimEventSignature)
+	require.NoError(t, err)
+	return generateClaim(t, blockNum, event)
+}
+
+func generateClaim(t *testing.T, blockNum uint32, event *abi.Event) (*types.Log, Claim) {
+	c := Claim{
+		GlobalIndex:        big.NewInt(int64(blockNum)),
+		OriginNetwork:      blockNum,
+		OriginAddress:      contractAddr,
+		DestinationAddress: contractAddr,
+		Amount:             big.NewInt(int64(blockNum)),
+	}
+	data, err := event.Inputs.Pack(
+		c.GlobalIndex,
+		c.OriginNetwork,
+		c.OriginAddress,
+		c.DestinationAddress,
+		c.Amount,
+	)
+	require.NoError(t, err)
+	log := &types.Log{
+		Address:     contractAddr,
+		BlockNumber: uint64(blockNum),
+		BlockHash:   common.BytesToHash(blockNum2Bytes(uint64(blockNum))),
+		Topics:      []common.Hash{bridgeEventSignature},
+		Data:        data,
+	}
+	return log, c
 }
