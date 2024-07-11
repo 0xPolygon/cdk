@@ -32,17 +32,23 @@ type EthClienter interface {
 	bind.ContractBackend
 }
 
+type downloaderInterface interface {
+	waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64)
+	getEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) []block
+	getLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log
+	appendLog(b *block, l types.Log)
+	getBlockHeader(ctx context.Context, blockNum uint64) blockHeader
+}
+
 type downloader struct {
-	bridgeAddr         common.Address
-	bridgeContractV1   *polygonzkevmbridge.Polygonzkevmbridge
-	bridgeContractV2   *polygonzkevmbridgev2.Polygonzkevmbridgev2
-	ethClient          EthClienter
-	syncBlockChunkSize uint64
+	bridgeAddr       common.Address
+	bridgeContractV1 *polygonzkevmbridge.Polygonzkevmbridge
+	bridgeContractV2 *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	ethClient        EthClienter
 }
 
 func newDownloader(
 	bridgeAddr common.Address,
-	syncBlockChunkSize uint64,
 	ethClient EthClienter,
 ) (*downloader, error) {
 	bridgeContractV1, err := polygonzkevmbridge.NewPolygonzkevmbridge(bridgeAddr, ethClient)
@@ -54,15 +60,14 @@ func newDownloader(
 		return nil, err
 	}
 	return &downloader{
-		bridgeAddr:         bridgeAddr,
-		bridgeContractV1:   bridgeContractV1,
-		bridgeContractV2:   bridgeContractV2,
-		ethClient:          ethClient,
-		syncBlockChunkSize: syncBlockChunkSize,
+		bridgeAddr:       bridgeAddr,
+		bridgeContractV1: bridgeContractV1,
+		bridgeContractV2: bridgeContractV2,
+		ethClient:        ethClient,
 	}, nil
 }
 
-func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedCh chan block) {
+func download(ctx context.Context, d downloaderInterface, fromBlock, syncBlockChunkSize uint64, downloadedCh chan block) {
 	lastBlock := d.waitForNewBlocks(ctx, 0)
 	for {
 		select {
@@ -71,7 +76,7 @@ func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedC
 			return
 		default:
 		}
-		toBlock := fromBlock + d.syncBlockChunkSize
+		toBlock := fromBlock + syncBlockChunkSize
 		if toBlock > lastBlock {
 			toBlock = lastBlock
 		}
@@ -89,7 +94,7 @@ func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedC
 				blockHeader: d.getBlockHeader(ctx, toBlock),
 			}
 		}
-		fromBlock = toBlock
+		fromBlock = toBlock + 1
 	}
 }
 
@@ -104,7 +109,7 @@ func (d *downloader) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64)
 			continue
 		}
 		if lastBlock > lastBlockSeen {
-			return lastBlockSeen
+			return lastBlock
 		}
 		time.Sleep(waitForNewBlocksPeriod)
 	}
@@ -178,10 +183,12 @@ func (d *downloader) appendLog(b *block, l types.Log) {
 		})
 	case claimEventSignature:
 		claim, err := d.bridgeContractV2.ParseClaimEvent(l)
-		log.Fatalf(
-			"error parsing log %+v using d.bridgeContractV2.ParseClaimEvent: %v",
-			l, err,
-		)
+		if err != nil {
+			log.Fatalf(
+				"error parsing log %+v using d.bridgeContractV2.ParseClaimEvent: %v",
+				l, err,
+			)
+		}
 		b.Events.Claims = append(b.Events.Claims, Claim{
 			GlobalIndex:        claim.GlobalIndex,
 			OriginNetwork:      claim.OriginNetwork,
@@ -191,10 +198,12 @@ func (d *downloader) appendLog(b *block, l types.Log) {
 		})
 	case claimEventSignaturePreEtrog:
 		claim, err := d.bridgeContractV1.ParseClaimEvent(l)
-		log.Fatalf(
-			"error parsing log %+v using d.bridgeContractV1.ParseClaimEvent: %v",
-			l, err,
-		)
+		if err != nil {
+			log.Fatalf(
+				"error parsing log %+v using d.bridgeContractV1.ParseClaimEvent: %v",
+				l, err,
+			)
+		}
 		b.Events.Claims = append(b.Events.Claims, Claim{
 			GlobalIndex:        big.NewInt(int64(claim.Index)),
 			OriginNetwork:      claim.OriginNetwork,
