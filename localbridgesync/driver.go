@@ -49,7 +49,7 @@ func (d *driver) Sync(ctx context.Context) {
 
 		// start downloading
 		downloadCh := make(chan block, downloadBufferSize)
-		go d.downloader.download(cancellableCtx, lastProcessedBlock, downloadCh)
+		go download(cancellableCtx, d.downloader, lastProcessedBlock, 100, downloadCh) // TODO: 100 should come from config
 
 		for {
 			select {
