@@ -94,11 +94,13 @@ func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedC
 }
 
 func (d *downloader) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64) {
+	attempts := 0
 	for {
 		lastBlock, err := d.ethClient.BlockNumber(ctx)
 		if err != nil {
+			attempts++
 			log.Error("error geting last block num from eth client: ", err)
-			time.Sleep(retryAfterErrorPeriod)
+			retryHandler("waitForNewBlocks", attempts)
 			continue
 		}
 		if lastBlock > lastBlockSeen {
@@ -141,10 +143,13 @@ func (d *downloader) getLogs(ctx context.Context, fromBlock, toBlock uint64) []t
 		},
 		ToBlock: new(big.Int).SetUint64(toBlock),
 	}
+	attempts := 0
 	for {
 		logs, err := d.ethClient.FilterLogs(ctx, query)
 		if err != nil {
+			attempts++
 			log.Error("error calling FilterLogs to eth client: ", err)
+			retryHandler("getLogs", attempts)
 			continue
 		}
 		return logs
@@ -202,12 +207,14 @@ func (d *downloader) appendLog(b *block, l types.Log) {
 	}
 }
 
-func (d *downloader) getBlockHeader(ctx context.Context, blokcNum uint64) blockHeader {
+func (d *downloader) getBlockHeader(ctx context.Context, blockNum uint64) blockHeader {
+	attempts := 0
 	for {
-		header, err := d.ethClient.HeaderByNumber(ctx, big.NewInt(int64(blokcNum)))
+		header, err := d.ethClient.HeaderByNumber(ctx, big.NewInt(int64(blockNum)))
 		if err != nil {
-			log.Errorf("error getting block header for block %d, err: %v", blokcNum, err)
-			time.Sleep(retryAfterErrorPeriod)
+			attempts++
+			log.Errorf("error getting block header for block %d, err: %v", blockNum, err)
+			retryHandler("getBlockHeader", attempts)
 			continue
 		}
 		return blockHeader{

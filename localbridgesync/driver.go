@@ -2,7 +2,6 @@ package localbridgesync
 
 import (
 	"context"
-	"time"
 
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
@@ -35,13 +34,16 @@ func newDriver(
 }
 
 func (d *driver) Sync(ctx context.Context) {
+	attempts := 0
 	for {
 		lastProcessedBlock, err := d.processor.getLastProcessedBlock(ctx)
 		if err != nil {
+			attempts++
 			log.Error("error geting last processed block: ", err)
-			time.Sleep(retryAfterErrorPeriod)
+			retryHandler("Sync", attempts)
 			continue
 		}
+		attempts = 0
 		cancellableCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
@@ -62,20 +64,24 @@ func (d *driver) Sync(ctx context.Context) {
 }
 
 func (d *driver) handleNewBlock(ctx context.Context, b block) {
+	attempts := 0
 	for {
 		err := d.reorgDetector.AddBlockToTrack(ctx, reorgDetectorID, b.Num, b.Hash)
 		if err != nil {
+			attempts++
 			log.Errorf("error adding block %d to tracker: %v", b.Num, err)
-			time.Sleep(retryAfterErrorPeriod)
+			retryHandler("handleNewBlock", attempts)
 			continue
 		}
 		break
 	}
+	attempts = 0
 	for {
 		err := d.processor.storeBridgeEvents(b.Num, b.Events)
 		if err != nil {
+			attempts++
 			log.Errorf("error processing events for blcok %d, err: ", b.Num, err)
-			time.Sleep(retryAfterErrorPeriod)
+			retryHandler("handleNewBlock", attempts)
 			continue
 		}
 		break
@@ -92,14 +98,16 @@ func (d *driver) handleReorg(
 		_, ok = <-downloadCh
 	}
 	// handle reorg
+	attempts := 0
 	for {
 		err := d.processor.reorg(firstReorgedBlock)
 		if err != nil {
+			attempts++
 			log.Errorf(
 				"error processing reorg, last valid block %d, err: %v",
 				firstReorgedBlock, err,
 			)
-			time.Sleep(retryAfterErrorPeriod)
+			retryHandler("handleReorg", attempts)
 			continue
 		}
 		break
