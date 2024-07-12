@@ -43,6 +43,8 @@ github.com/0xPolygon/cdk-data-availability v0.0.7 h1:i5v2I8uEgHSZ5BjnJs3Dsy1XpKd
 github.com/0xPolygon/cdk-data-availability v0.0.7/go.mod h1:qF+xt2gYwBab8XPh3fr6pnNUMEJq/32rmJN0D630hmY=
 github.com/0xPolygon/cdk-data-availability v0.0.8-0.20240620143831-55a2ce665c77 h1:ijHKNgkzyaepqknBEVGJy9GADTUimoR/wagvEP134l8=
 github.com/0xPolygon/cdk-data-availability v0.0.8-0.20240620143831-55a2ce665c77/go.mod h1:3XkZ0zn0GsvAT01MPQMmukF534CVSFmtrcoK3F/BK6Q=
+github.com/0xPolygon/cdk-data-availability v0.0.8-0.20240712072318-72ae67613cbf h1:VWxVYeDhDURGp8pHR4kq3jwoXRazVHsQLMMIqYsO+Fw=
+github.com/0xPolygon/cdk-data-availability v0.0.8-0.20240712072318-72ae67613cbf/go.mod h1:3XkZ0zn0GsvAT01MPQMmukF534CVSFmtrcoK3F/BK6Q=
 github.com/0xPolygon/cdk-rpc v0.0.0-20240419104226-c0a62ba0f49d h1:sxh6hZ2jF/sxxj2jd5o1vuNNCZjYmn4aRG9SRlVaEFs=
 github.com/0xPolygon/cdk-rpc v0.0.0-20240419104226-c0a62ba0f49d/go.mod h1:2scWqMMufrQXu7TikDgQ3BsyaKoX8qP26D6E262vSOg=
 github.com/0xPolygonHermez/zkevm-data-streamer v0.2.2 h1:XRMTk+W6vtJVGVjuEznfWyNt7HkRkkuSmlN5Y6p60Sc=
@@ -51,6 +53,10 @@ github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.9 h1:vrAezzwTNke6NroDAltGh1k
 github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.9/go.mod h1:pRqfLQVM3nbzdhy3buqjAgcVyNDKAXOHqTSgkwiKpic=
 github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.1 h1:pf0lvUJNl5/3AnpnFPvgaYTUoOydVUaqI0hyZGglI2E=
 github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.1/go.mod h1:3L6m4ZYs2tTTNhxMtq1KHSclxr7RmlZ3eWtOe8lsYsM=
+github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.3-0.20240712073237-fa4202239a02 h1:ordyO43rufvsseuo2Ossb3bDx6oApFzCOmduWWmzWLs=
+github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.3-0.20240712073237-fa4202239a02/go.mod h1:/LHf8jPQeBYKABM1xUmN1dKaFVIJc9jMQDSGBDJ7CS0=
+github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.3-0.20240712085301-0310358abb59 h1:Qwh92vFEXnpmDggQaZA3648viEQfLdMnAw/WFSY+2i8=
+github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.3-0.20240712085301-0310358abb59/go.mod h1:/LHf8jPQeBYKABM1xUmN1dKaFVIJc9jMQDSGBDJ7CS0=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DATA-DOG/go-sqlmock v1.5.1 h1:FK6RCIUSfmbnI/imIICmboyQBkOckutaa6R5YYlLZyo=

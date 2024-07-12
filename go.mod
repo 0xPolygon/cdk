@@ -4,11 +4,11 @@ go 1.22.4
 
 require (
 	github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240627125553-80db9d8a41b5
-	github.com/0xPolygon/cdk-data-availability v0.0.8-0.20240620143831-55a2ce665c77
+	github.com/0xPolygon/cdk-data-availability v0.0.8-0.20240712072318-72ae67613cbf
 	github.com/0xPolygon/cdk-rpc v0.0.0-20240419104226-c0a62ba0f49d
 	github.com/0xPolygonHermez/zkevm-data-streamer v0.2.2
 	github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.9
-	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.1
+	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.3-0.20240712085301-0310358abb59
 	github.com/ethereum/go-ethereum v1.14.5
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/hermeznetwork/tracerr v0.3.2
