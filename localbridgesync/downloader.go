@@ -70,30 +70,41 @@ func newDownloader(
 func download(ctx context.Context, d downloaderInterface, fromBlock, syncBlockChunkSize uint64, downloadedCh chan block) {
 	lastBlock := d.waitForNewBlocks(ctx, 0)
 	for {
+		log.Debug("select")
 		select {
 		case <-ctx.Done():
+			log.Debug("closing channel")
 			close(downloadedCh)
 			return
 		default:
 		}
+		log.Debug("default")
 		toBlock := fromBlock + syncBlockChunkSize
 		if toBlock > lastBlock {
 			toBlock = lastBlock
 		}
-		if fromBlock == toBlock {
+		log.Debug("1")
+		if fromBlock >= toBlock {
+			log.Debug("waitForNewBlocks")
 			lastBlock = d.waitForNewBlocks(ctx, toBlock)
+			log.Debug("out waitForNewBlocks")
 			continue
 		}
+		log.Debug("2", fromBlock, toBlock)
 		blocks := d.getEventsByBlockRange(ctx, fromBlock, toBlock)
 		for _, b := range blocks {
+			log.Debug("sending block with events")
 			downloadedCh <- b
 		}
+		log.Debug("3")
 		if len(blocks) == 0 || blocks[len(blocks)-1].Num < toBlock {
 			// Indicate the last downloaded block if there are not events on it
+			log.Debug("sending block without events")
 			downloadedCh <- block{
 				blockHeader: d.getBlockHeader(ctx, toBlock),
 			}
 		}
+		log.Debug("4")
 		fromBlock = toBlock + 1
 	}
 }
