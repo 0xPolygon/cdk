@@ -75,7 +75,7 @@ func TestSync(t *testing.T) {
 		Return(nil)
 	pm.On("storeBridgeEvents", expectedBlock2.Num, expectedBlock2.Events).
 		Return(nil)
-	go driver.sync(ctx, syncBlockChunck, mockDownload)
+	go driver.Sync(ctx, syncBlockChunck, mockDownload)
 	time.Sleep(time.Millisecond * 200) // time to download expectedBlock1
 
 	// Trigger reorg 1

@@ -14,7 +14,7 @@ const (
 )
 
 type driver struct {
-	reorgDetector reorgDetectorInterface
+	reorgDetector ReorgDetectorInterface
 	reorgSub      *reorgdetector.Subscription
 	processor     processorInterface
 	downloader    downloaderInterface
@@ -26,7 +26,7 @@ type processorInterface interface {
 	reorg(firstReorgedBlock uint64) error
 }
 
-type reorgDetectorInterface interface {
+type ReorgDetectorInterface interface {
 	Subscribe(id string) *reorgdetector.Subscription
 	AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error
 }
@@ -34,7 +34,7 @@ type reorgDetectorInterface interface {
 type downloadFn func(ctx context.Context, d downloaderInterface, fromBlock, syncBlockChunkSize uint64, downloadedCh chan block)
 
 func newDriver(
-	reorgDetector reorgDetectorInterface,
+	reorgDetector ReorgDetectorInterface,
 	processor processorInterface,
 	downloader downloaderInterface,
 ) (*driver, error) {
@@ -47,7 +47,7 @@ func newDriver(
 	}, nil
 }
 
-func (d *driver) sync(ctx context.Context, syncBlockChunkSize uint64, download downloadFn) {
+func (d *driver) Sync(ctx context.Context, syncBlockChunkSize uint64, download downloadFn) {
 reset:
 	var (
 		lastProcessedBlock uint64
