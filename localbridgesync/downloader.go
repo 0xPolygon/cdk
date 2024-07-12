@@ -70,7 +70,6 @@ func newDownloader(
 func download(ctx context.Context, d downloaderInterface, fromBlock, syncBlockChunkSize uint64, downloadedCh chan block) {
 	lastBlock := d.waitForNewBlocks(ctx, 0)
 	for {
-		log.Debug("select")
 		select {
 		case <-ctx.Done():
 			log.Debug("closing channel")
@@ -78,33 +77,28 @@ func download(ctx context.Context, d downloaderInterface, fromBlock, syncBlockCh
 			return
 		default:
 		}
-		log.Debug("default")
 		toBlock := fromBlock + syncBlockChunkSize
 		if toBlock > lastBlock {
 			toBlock = lastBlock
 		}
-		log.Debug("1")
-		if fromBlock >= toBlock {
-			log.Debug("waitForNewBlocks")
+		if fromBlock > toBlock {
+			log.Debug("waiting for new blocks, last block ", toBlock)
 			lastBlock = d.waitForNewBlocks(ctx, toBlock)
-			log.Debug("out waitForNewBlocks")
 			continue
 		}
-		log.Debug("2", fromBlock, toBlock)
+		log.Debugf("getting events from blocks %d to  %d", fromBlock, toBlock)
 		blocks := d.getEventsByBlockRange(ctx, fromBlock, toBlock)
 		for _, b := range blocks {
-			log.Debug("sending block with events")
+			log.Debugf("sending block %d to the driver (with events)", b.Num)
 			downloadedCh <- b
 		}
-		log.Debug("3")
 		if len(blocks) == 0 || blocks[len(blocks)-1].Num < toBlock {
 			// Indicate the last downloaded block if there are not events on it
-			log.Debug("sending block without events")
+			log.Debugf("sending block %d to the driver (without evvents)", toBlock)
 			downloadedCh <- block{
 				blockHeader: d.getBlockHeader(ctx, toBlock),
 			}
 		}
-		log.Debug("4")
 		fromBlock = toBlock + 1
 	}
 }
