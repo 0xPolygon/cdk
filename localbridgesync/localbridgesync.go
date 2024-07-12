@@ -7,7 +7,7 @@ import (
 	"github.com/0xPolygon/cdk/log"
 )
 
-const (
+var (
 	retryAfterErrorPeriod      = time.Second * 10
 	maxRetryAttemptsAfterError = 5
 )
