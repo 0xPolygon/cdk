@@ -403,6 +403,7 @@ func TestDownload(t *testing.T) {
 }
 
 func TestWaitForNewBlocks(t *testing.T) {
+	retryAfterErrorPeriod = time.Millisecond * 100
 	clientMock := NewL2Mock(t)
 	ctx := context.Background()
 	d, err := newDownloader(contractAddr, clientMock)
@@ -429,6 +430,7 @@ func TestWaitForNewBlocks(t *testing.T) {
 }
 
 func TestGetBlockHeader(t *testing.T) {
+	retryAfterErrorPeriod = time.Millisecond * 100
 	clientMock := NewL2Mock(t)
 	ctx := context.Background()
 	d, err := newDownloader(contractAddr, clientMock)

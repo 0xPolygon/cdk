@@ -5,6 +5,7 @@ import (
 
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -13,16 +14,29 @@ const (
 )
 
 type driver struct {
-	reorgDetector *reorgdetector.ReorgDetector
+	reorgDetector reorgDetectorInterface
 	reorgSub      *reorgdetector.Subscription
-	processor     *processor
-	downloader    *downloader
+	processor     processorInterface
+	downloader    downloaderInterface
 }
 
+type processorInterface interface {
+	getLastProcessedBlock(ctx context.Context) (uint64, error)
+	storeBridgeEvents(blockNum uint64, block bridgeEvents) error
+	reorg(firstReorgedBlock uint64) error
+}
+
+type reorgDetectorInterface interface {
+	Subscribe(id string) *reorgdetector.Subscription
+	AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error
+}
+
+type downloadFn func(ctx context.Context, d downloaderInterface, fromBlock, syncBlockChunkSize uint64, downloadedCh chan block)
+
 func newDriver(
-	reorgDetector *reorgdetector.ReorgDetector,
-	processor *processor,
-	downloader *downloader,
+	reorgDetector reorgDetectorInterface,
+	processor processorInterface,
+	downloader downloaderInterface,
 ) (*driver, error) {
 	reorgSub := reorgDetector.Subscribe(reorgDetectorID)
 	return &driver{
@@ -33,32 +47,39 @@ func newDriver(
 	}, nil
 }
 
-func (d *driver) Sync(ctx context.Context) {
-	attempts := 0
+func (d *driver) sync(ctx context.Context, syncBlockChunkSize uint64, download downloadFn) {
+reset:
+	var (
+		lastProcessedBlock uint64
+		attempts           int
+		err                error
+	)
 	for {
-		lastProcessedBlock, err := d.processor.getLastProcessedBlock(ctx)
+		lastProcessedBlock, err = d.processor.getLastProcessedBlock(ctx)
 		if err != nil {
 			attempts++
 			log.Error("error geting last processed block: ", err)
 			retryHandler("Sync", attempts)
 			continue
 		}
-		attempts = 0
-		cancellableCtx, cancel := context.WithCancel(ctx)
-		defer cancel()
+		break
+	}
+	cancellableCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-		// start downloading
-		downloadCh := make(chan block, downloadBufferSize)
-		go download(cancellableCtx, d.downloader, lastProcessedBlock, 100, downloadCh) // TODO: 100 should come from config
+	// start downloading
+	downloadCh := make(chan block, downloadBufferSize)
+	go download(cancellableCtx, d.downloader, lastProcessedBlock, syncBlockChunkSize, downloadCh)
 
-		for {
-			select {
-			case b := <-downloadCh:
-				d.handleNewBlock(ctx, b)
-			case firstReorgedBlock := <-d.reorgSub.FirstReorgedBlock:
-				d.handleReorg(cancel, downloadCh, firstReorgedBlock)
-				break
-			}
+	for {
+		select {
+		case b := <-downloadCh:
+			log.Debug("handleNewBlock")
+			d.handleNewBlock(ctx, b)
+		case firstReorgedBlock := <-d.reorgSub.FirstReorgedBlock:
+			log.Debug("handleReorg")
+			d.handleReorg(cancel, downloadCh, firstReorgedBlock)
+			goto reset
 		}
 	}
 }
