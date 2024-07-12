@@ -264,16 +264,20 @@ func generateClaim(t *testing.T, blockNum uint32, event *abi.Event, isV1 bool) (
 }
 
 func TestDownload(t *testing.T) {
+	/*
+		NOTE: due to the concurrent nature of this test (the function being tested runs through a goroutine)
+		if the mock doesn't match, the goroutine will get stuck and the test will timeout
+	*/
 	d := NewDownloaderMock(t)
-	downloadCh := make(chan block)
+	downloadCh := make(chan block, 1)
 	ctx := context.Background()
 	ctx1, cancel := context.WithCancel(ctx)
 	expectedBlocks := []block{}
 
-	// iteratiion 1:
-	// last block is 1, download that block (no events and wait)
 	d.On("waitForNewBlocks", mock.Anything, uint64(0)).
-		Return(uint64(1)).Once()
+		Return(uint64(1))
+	// iteratiion 0:
+	// last block is 1, download that block (no events and wait)
 	b1 := block{
 		blockHeader: blockHeader{
 			Num:  1,
@@ -286,12 +290,12 @@ func TestDownload(t *testing.T) {
 	d.On("getBlockHeader", mock.Anything, uint64(1)).
 		Return(b1.blockHeader)
 
-	// iteration 2: wait for next block to be created
+	// iteration 1: wait for next block to be created
 	d.On("waitForNewBlocks", mock.Anything, uint64(1)).
-		// After(time.Millisecond * 100).
+		After(time.Millisecond * 100).
 		Return(uint64(2)).Once()
 
-	// iteration 3: block 2 has events
+	// iteration 2: block 2 has events
 	b2 := block{
 		blockHeader: blockHeader{
 			Num:  2,
@@ -302,10 +306,87 @@ func TestDownload(t *testing.T) {
 	d.On("getEventsByBlockRange", mock.Anything, uint64(2), uint64(2)).
 		Return([]block{b2})
 
-	// iteration 4: wait for next block to be created
+	// iteration 3: wait for next block to be created (jump to block 8)
 	d.On("waitForNewBlocks", mock.Anything, uint64(2)).
 		After(time.Millisecond * 100).
-		Return(uint64(3)).Once()
+		Return(uint64(8)).Once()
+
+	// iteration 4: blocks 6 and 7 have events
+	b6 := block{
+		blockHeader: blockHeader{
+			Num:  6,
+			Hash: common.HexToHash("06"),
+		},
+		Events: bridgeEvents{
+			Claims: []Claim{
+				{OriginNetwork: 6},
+			},
+			Bridges: []Bridge{},
+		},
+	}
+	b7 := block{
+		blockHeader: blockHeader{
+			Num:  7,
+			Hash: common.HexToHash("07"),
+		},
+		Events: bridgeEvents{
+			Claims: []Claim{},
+			Bridges: []Bridge{
+				{DestinationNetwork: 7},
+			},
+		},
+	}
+	b8 := block{
+		blockHeader: blockHeader{
+			Num:  8,
+			Hash: common.HexToHash("08"),
+		},
+	}
+	expectedBlocks = append(expectedBlocks, b6, b7, b8)
+	d.On("getEventsByBlockRange", mock.Anything, uint64(3), uint64(8)).
+		Return([]block{b6, b7})
+	d.On("getBlockHeader", mock.Anything, uint64(8)).
+		Return(b8.blockHeader)
+
+	// iteration 5: wait for next block to be created (jump to block 30)
+	d.On("waitForNewBlocks", mock.Anything, uint64(8)).
+		After(time.Millisecond * 100).
+		Return(uint64(30)).Once()
+
+	// iteration 6: from block 9 to 19, no events
+	b19 := block{
+		blockHeader: blockHeader{
+			Num:  19,
+			Hash: common.HexToHash("19"),
+		},
+	}
+	expectedBlocks = append(expectedBlocks, b19)
+	d.On("getEventsByBlockRange", mock.Anything, uint64(9), uint64(19)).
+		Return([]block{})
+	d.On("getBlockHeader", mock.Anything, uint64(19)).
+		Return(b19.blockHeader)
+
+	// iteration 7: from block 20 to 30, events on last block
+	b30 := block{
+		blockHeader: blockHeader{
+			Num:  30,
+			Hash: common.HexToHash("30"),
+		},
+		Events: bridgeEvents{
+			Claims: []Claim{},
+			Bridges: []Bridge{
+				{DestinationNetwork: 30},
+			},
+		},
+	}
+	expectedBlocks = append(expectedBlocks, b30)
+	d.On("getEventsByBlockRange", mock.Anything, uint64(20), uint64(30)).
+		Return([]block{b30})
+
+	// iteration 8: wait for next block to be created (jump to block 35)
+	d.On("waitForNewBlocks", mock.Anything, uint64(30)).
+		After(time.Millisecond * 100).
+		Return(uint64(35)).Once()
 
 	go download(ctx1, d, 0, syncBlockChunck, downloadCh)
 	for _, expectedBlock := range expectedBlocks {

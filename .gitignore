@@ -3,3 +3,4 @@
 .env
 /dist/
 cmd/__debug_bin
+**__debug**
