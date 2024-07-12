@@ -2,6 +2,7 @@ package localbridgesync
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -400,12 +402,56 @@ func TestDownload(t *testing.T) {
 	require.False(t, ok)
 }
 
-// func TestWaitForNewBlocks(t *testing.T) {
-// 	clientMock := NewL2Mock(t)
-// 	clientMock.Mock.
-// }
+func TestWaitForNewBlocks(t *testing.T) {
+	clientMock := NewL2Mock(t)
+	ctx := context.Background()
+	d, err := newDownloader(contractAddr, clientMock)
+	require.NoError(t, err)
 
-// func TestGetBlockHeader(t *testing.T) {
-// 	clientMock := NewL2Mock(t)
-// 	clientMock.Mock.
-// }
+	// at first attempt
+	currentBlock := uint64(5)
+	expectedBlock := uint64(6)
+	clientMock.On("BlockNumber", ctx).Return(expectedBlock, nil).Once()
+	actualBlock := d.waitForNewBlocks(ctx, currentBlock)
+	assert.Equal(t, expectedBlock, actualBlock)
+
+	// 2 iterations
+	clientMock.On("BlockNumber", ctx).Return(currentBlock, nil).Once()
+	clientMock.On("BlockNumber", ctx).Return(expectedBlock, nil).Once()
+	actualBlock = d.waitForNewBlocks(ctx, currentBlock)
+	assert.Equal(t, expectedBlock, actualBlock)
+
+	// after error from client
+	clientMock.On("BlockNumber", ctx).Return(uint64(0), errors.New("foo")).Once()
+	clientMock.On("BlockNumber", ctx).Return(expectedBlock, nil).Once()
+	actualBlock = d.waitForNewBlocks(ctx, currentBlock)
+	assert.Equal(t, expectedBlock, actualBlock)
+}
+
+func TestGetBlockHeader(t *testing.T) {
+	clientMock := NewL2Mock(t)
+	ctx := context.Background()
+	d, err := newDownloader(contractAddr, clientMock)
+	require.NoError(t, err)
+
+	blockNum := uint64(5)
+	blockNumBig := big.NewInt(5)
+	returnedBlock := &types.Header{
+		Number: blockNumBig,
+	}
+	expectedBlock := blockHeader{
+		Num:  5,
+		Hash: returnedBlock.Hash(),
+	}
+
+	// at first attempt
+	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(returnedBlock, nil).Once()
+	actualBlock := d.getBlockHeader(ctx, blockNum)
+	assert.Equal(t, expectedBlock, actualBlock)
+
+	// after error from client
+	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(nil, errors.New("foo")).Once()
+	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(returnedBlock, nil).Once()
+	actualBlock = d.getBlockHeader(ctx, blockNum)
+	assert.Equal(t, expectedBlock, actualBlock)
+}
