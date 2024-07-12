@@ -4,9 +4,11 @@ import (
 	"context"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -262,19 +264,56 @@ func generateClaim(t *testing.T, blockNum uint32, event *abi.Event, isV1 bool) (
 }
 
 func TestDownload(t *testing.T) {
-	downloaderMock := NewDownloaderMock(t)
+	d := NewDownloaderMock(t)
 	downloadCh := make(chan block)
 	ctx := context.Background()
 	ctx1, cancel := context.WithCancel(ctx)
-
-	// TODO: populate mock and iterations
 	expectedBlocks := []block{}
 
-	go download(ctx1, downloaderMock, 0, syncBlockChunck, downloadCh)
+	// iteratiion 1:
+	// last block is 1, download that block (no events and wait)
+	d.On("waitForNewBlocks", mock.Anything, uint64(0)).
+		Return(uint64(1)).Once()
+	b1 := block{
+		blockHeader: blockHeader{
+			Num:  1,
+			Hash: common.HexToHash("01"),
+		},
+	}
+	expectedBlocks = append(expectedBlocks, b1)
+	d.On("getEventsByBlockRange", mock.Anything, uint64(0), uint64(1)).
+		Return([]block{})
+	d.On("getBlockHeader", mock.Anything, uint64(1)).
+		Return(b1.blockHeader)
+
+	// iteration 2: wait for next block to be created
+	d.On("waitForNewBlocks", mock.Anything, uint64(1)).
+		// After(time.Millisecond * 100).
+		Return(uint64(2)).Once()
+
+	// iteration 3: block 2 has events
+	b2 := block{
+		blockHeader: blockHeader{
+			Num:  2,
+			Hash: common.HexToHash("02"),
+		},
+	}
+	expectedBlocks = append(expectedBlocks, b2)
+	d.On("getEventsByBlockRange", mock.Anything, uint64(2), uint64(2)).
+		Return([]block{b2})
+
+	// iteration 4: wait for next block to be created
+	d.On("waitForNewBlocks", mock.Anything, uint64(2)).
+		After(time.Millisecond * 100).
+		Return(uint64(3)).Once()
+
+	go download(ctx1, d, 0, syncBlockChunck, downloadCh)
 	for _, expectedBlock := range expectedBlocks {
 		actualBlock := <-downloadCh
+		log.Debugf("block %d received!", actualBlock.Num)
 		require.Equal(t, expectedBlock, actualBlock)
 	}
+	log.Debug("canceling")
 	cancel()
 	_, ok := <-downloadCh
 	require.False(t, ok)
