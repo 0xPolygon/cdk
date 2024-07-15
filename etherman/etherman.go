@@ -14,7 +14,6 @@ import (
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonrollupmanager"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonzkevmglobalexitrootv2"
-	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -174,7 +173,8 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 }
 
 // BuildSequenceBatchesTx builds a tx to be sent to the PoE SC method SequenceBatches.
-func (etherMan *Client) BuildSequenceBatchesTx(sender common.Address, sequence ethmanTypes.SequenceBanana, dataAvailabilityMessage []byte) (*types.Transaction, error) {
+func (etherMan *Client) BuildSequenceBatchesTx(sender common.Address, sequence SequenceBanana,
+	dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	opts, err := etherMan.getAuthByAddress(sender)
 	if err == ErrNotFound {
 		return nil, fmt.Errorf("failed to build sequence batches, err: %w", ErrPrivateKeyNotFound)
@@ -190,7 +190,7 @@ func (etherMan *Client) BuildSequenceBatchesTx(sender common.Address, sequence e
 	return etherMan.sequenceBatches(opts, sequence, dataAvailabilityMessage)
 }
 
-func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequence ethmanTypes.SequenceBanana, dataAvailabilityMessage []byte) (tx *types.Transaction, err error) {
+func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequence SequenceBanana, dataAvailabilityMessage []byte) (tx *types.Transaction, err error) {
 	if etherMan.cfg.IsValidiumMode {
 		return etherMan.sequenceBatchesValidium(opts, sequence, dataAvailabilityMessage)
 	}
@@ -198,7 +198,7 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequence ethmanT
 	return etherMan.sequenceBatchesRollup(opts, sequence)
 }
 
-func (etherMan *Client) sequenceBatchesRollup(opts bind.TransactOpts, sequence ethmanTypes.SequenceBanana) (*types.Transaction, error) {
+func (etherMan *Client) sequenceBatchesRollup(opts bind.TransactOpts, sequence SequenceBanana) (*types.Transaction, error) {
 	batches := make([]polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, len(sequence.Batches))
 	for i, batch := range sequence.Batches {
 		var ger common.Hash
@@ -253,7 +253,7 @@ func (etherMan *Client) sequenceBatchesRollup(opts bind.TransactOpts, sequence e
 	return tx, err
 }
 
-func (etherMan *Client) sequenceBatchesValidium(opts bind.TransactOpts, sequence ethmanTypes.SequenceBanana, dataAvailabilityMessage []byte) (*types.Transaction, error) {
+func (etherMan *Client) sequenceBatchesValidium(opts bind.TransactOpts, sequence SequenceBanana, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	batches := make([]polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, len(sequence.Batches))
 	for i, batch := range sequence.Batches {
 		var ger common.Hash

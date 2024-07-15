@@ -3,7 +3,7 @@ package dataavailability
 import (
 	"context"
 
-	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
+	"github.com/0xPolygon/cdk/etherman"
 )
 
 // DataAvailability implements an abstract data availability integration
@@ -20,6 +20,6 @@ func New(backend DABackender) (*DataAvailability, error) {
 	return da, da.backend.Init()
 }
 
-func (d *DataAvailability) PostSequence(ctx context.Context, sequenceBanana ethmanTypes.SequenceBanana) ([]byte, error) {
+func (d *DataAvailability) PostSequence(ctx context.Context, sequenceBanana etherman.SequenceBanana) ([]byte, error) {
 	return d.backend.PostSequence(ctx, sequenceBanana)
 }
