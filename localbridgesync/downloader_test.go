@@ -24,7 +24,7 @@ var (
 )
 
 const (
-	syncBlockChunck = 10
+	syncBlockChunck = uint64(10)
 )
 
 func TestGetEventsByBlockRange(t *testing.T) {
@@ -37,7 +37,7 @@ func TestGetEventsByBlockRange(t *testing.T) {
 	testCases := []testCase{}
 	clientMock := NewL2Mock(t)
 	ctx := context.Background()
-	d, err := newDownloader(contractAddr, clientMock)
+	d, err := newDownloader(contractAddr, clientMock, syncBlockChunck)
 	require.NoError(t, err)
 
 	// case 0: single block, no events
@@ -278,6 +278,7 @@ func TestDownload(t *testing.T) {
 
 	d.On("waitForNewBlocks", mock.Anything, uint64(0)).
 		Return(uint64(1))
+	d.On("syncBlockChunkSize").Return(syncBlockChunck)
 	// iteratiion 0:
 	// last block is 1, download that block (no events and wait)
 	b1 := block{
@@ -390,7 +391,7 @@ func TestDownload(t *testing.T) {
 		After(time.Millisecond * 100).
 		Return(uint64(35)).Once()
 
-	go download(ctx1, d, 0, syncBlockChunck, downloadCh)
+	go download(ctx1, d, 0, downloadCh)
 	for _, expectedBlock := range expectedBlocks {
 		actualBlock := <-downloadCh
 		log.Debugf("block %d received!", actualBlock.Num)
@@ -406,7 +407,7 @@ func TestWaitForNewBlocks(t *testing.T) {
 	retryAfterErrorPeriod = time.Millisecond * 100
 	clientMock := NewL2Mock(t)
 	ctx := context.Background()
-	d, err := newDownloader(contractAddr, clientMock)
+	d, err := newDownloader(contractAddr, clientMock, syncBlockChunck)
 	require.NoError(t, err)
 
 	// at first attempt
@@ -433,7 +434,7 @@ func TestGetBlockHeader(t *testing.T) {
 	retryAfterErrorPeriod = time.Millisecond * 100
 	clientMock := NewL2Mock(t)
 	ctx := context.Background()
-	d, err := newDownloader(contractAddr, clientMock)
+	d, err := newDownloader(contractAddr, clientMock, syncBlockChunck)
 	require.NoError(t, err)
 
 	blockNum := uint64(5)

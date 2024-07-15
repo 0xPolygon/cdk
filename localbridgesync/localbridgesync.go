@@ -20,14 +20,15 @@ type LocalBridgeSync struct {
 func New(
 	dbPath string,
 	bridge common.Address,
-	rd ReorgDetectorInterface,
+	syncBlockChunkSize uint64,
+	rd ReorgDetector,
 	l2Client EthClienter,
 ) (*LocalBridgeSync, error) {
 	p, err := newProcessor(dbPath)
 	if err != nil {
 		return nil, err
 	}
-	dwn, err := newDownloader(bridge, l2Client)
+	dwn, err := newDownloader(bridge, l2Client, syncBlockChunkSize)
 	if err != nil {
 		return nil, err
 	}

@@ -3,6 +3,7 @@ package localbridgesync
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -38,12 +39,16 @@ func TestSync(t *testing.T) {
 			Hash: common.HexToHash("09"),
 		},
 	}
-	reorg1Completed := false
+	type reorgSemaphore struct {
+		mu    sync.Mutex
+		green bool
+	}
+	reorg1Completed := reorgSemaphore{}
 
 	mockDownload := func(
 		ctx context.Context,
 		d downloaderInterface,
-		fromBlock, syncBlockChunkSize uint64,
+		fromBlock uint64,
 		downloadedCh chan block,
 	) {
 		log.Info("entering mock loop")
@@ -55,7 +60,10 @@ func TestSync(t *testing.T) {
 				return
 			default:
 			}
-			if reorg1Completed {
+			reorg1Completed.mu.Lock()
+			green := reorg1Completed.green
+			reorg1Completed.mu.Unlock()
+			if green {
 				downloadedCh <- expectedBlock2
 			} else {
 				downloadedCh <- expectedBlock1
@@ -75,7 +83,7 @@ func TestSync(t *testing.T) {
 		Return(nil)
 	pm.On("storeBridgeEvents", expectedBlock2.Num, expectedBlock2.Events).
 		Return(nil)
-	go driver.Sync(ctx, syncBlockChunck, mockDownload)
+	go driver.Sync(ctx, mockDownload)
 	time.Sleep(time.Millisecond * 200) // time to download expectedBlock1
 
 	// Trigger reorg 1
@@ -84,7 +92,9 @@ func TestSync(t *testing.T) {
 	firstReorgedBlock <- reorgedBlock1
 	ok := <-reorgProcessed
 	require.True(t, ok)
-	reorg1Completed = true
+	reorg1Completed.mu.Lock()
+	reorg1Completed.green = true
+	reorg1Completed.mu.Unlock()
 	time.Sleep(time.Millisecond * 200) // time to download expectedBlock2
 
 	// Trigger reorg 2: syncer restarts the porcess
