@@ -22,7 +22,7 @@ const (
 
 var (
 	ErrNotSubscribed    = errors.New("id not found in subscriptions")
-	ErrInavlidBlockHash = errors.New("the block hash does not match with the expected block hash")
+	ErrInvalidBlockHash = errors.New("the block hash does not match with the expected block hash")
 )
 
 type Subscription struct {
@@ -91,7 +91,7 @@ func (r *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, blockNum
 			r.trackedBlocks[id][blockNum] = blockHash
 			return nil
 		} else {
-			return ErrInavlidBlockHash
+			return ErrInvalidBlockHash
 		}
 	} else {
 		// block not found in local storage
