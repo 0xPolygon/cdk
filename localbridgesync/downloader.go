@@ -38,15 +38,11 @@ type downloaderInterface interface {
 	getLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log
 	appendLog(b *block, l types.Log)
 	getBlockHeader(ctx context.Context, blockNum uint64) blockHeader
-	syncBlockChunkSize() uint64
 }
 
 type downloader struct {
-	bridgeAddr       common.Address
-	bridgeContractV1 *polygonzkevmbridge.Polygonzkevmbridge
-	bridgeContractV2 *polygonzkevmbridgev2.Polygonzkevmbridgev2
-	ethClient        EthClienter
-	blockChunkSize   uint64
+	syncBlockChunkSize uint64
+	downloaderInterface
 }
 
 func newDownloader(
@@ -63,15 +59,17 @@ func newDownloader(
 		return nil, err
 	}
 	return &downloader{
-		bridgeAddr:       bridgeAddr,
-		bridgeContractV1: bridgeContractV1,
-		bridgeContractV2: bridgeContractV2,
-		ethClient:        ethClient,
-		blockChunkSize:   syncBlockChunkSize,
+		syncBlockChunkSize: syncBlockChunkSize,
+		downloaderInterface: &downloaderImplementation{
+			bridgeAddr:       bridgeAddr,
+			bridgeContractV1: bridgeContractV1,
+			bridgeContractV2: bridgeContractV2,
+			ethClient:        ethClient,
+		},
 	}, nil
 }
 
-func download(ctx context.Context, d downloaderInterface, fromBlock uint64, downloadedCh chan block) {
+func (d *downloader) download(ctx context.Context, fromBlock uint64, downloadedCh chan block) {
 	lastBlock := d.waitForNewBlocks(ctx, 0)
 	for {
 		select {
@@ -81,7 +79,7 @@ func download(ctx context.Context, d downloaderInterface, fromBlock uint64, down
 			return
 		default:
 		}
-		toBlock := fromBlock + d.syncBlockChunkSize()
+		toBlock := fromBlock + d.syncBlockChunkSize
 		if toBlock > lastBlock {
 			toBlock = lastBlock
 		}
@@ -107,7 +105,14 @@ func download(ctx context.Context, d downloaderInterface, fromBlock uint64, down
 	}
 }
 
-func (d *downloader) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64) {
+type downloaderImplementation struct {
+	bridgeAddr       common.Address
+	bridgeContractV1 *polygonzkevmbridge.Polygonzkevmbridge
+	bridgeContractV2 *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	ethClient        EthClienter
+}
+
+func (d *downloaderImplementation) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64) {
 	attempts := 0
 	for {
 		lastBlock, err := d.ethClient.BlockNumber(ctx)
@@ -124,7 +129,7 @@ func (d *downloader) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64)
 	}
 }
 
-func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) []block {
+func (d *downloaderImplementation) getEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) []block {
 	blocks := []block{}
 	logs := d.getLogs(ctx, fromBlock, toBlock)
 	for _, l := range logs {
@@ -146,7 +151,7 @@ func (d *downloader) getEventsByBlockRange(ctx context.Context, fromBlock, toBlo
 	return blocks
 }
 
-func (d *downloader) getLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log {
+func (d *downloaderImplementation) getLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log {
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
 		Addresses: []common.Address{d.bridgeAddr},
@@ -170,7 +175,7 @@ func (d *downloader) getLogs(ctx context.Context, fromBlock, toBlock uint64) []t
 	}
 }
 
-func (d *downloader) appendLog(b *block, l types.Log) {
+func (d *downloaderImplementation) appendLog(b *block, l types.Log) {
 	switch l.Topics[0] {
 	case bridgeEventSignature:
 		bridge, err := d.bridgeContractV2.ParseBridgeEvent(l)
@@ -225,7 +230,7 @@ func (d *downloader) appendLog(b *block, l types.Log) {
 	}
 }
 
-func (d *downloader) getBlockHeader(ctx context.Context, blockNum uint64) blockHeader {
+func (d *downloaderImplementation) getBlockHeader(ctx context.Context, blockNum uint64) blockHeader {
 	attempts := 0
 	for {
 		header, err := d.ethClient.HeaderByNumber(ctx, big.NewInt(int64(blockNum)))
@@ -240,8 +245,4 @@ func (d *downloader) getBlockHeader(ctx context.Context, blockNum uint64) blockH
 			Hash: header.Hash(),
 		}
 	}
-}
-
-func (d *downloader) syncBlockChunkSize() uint64 {
-	return d.blockChunkSize
 }
