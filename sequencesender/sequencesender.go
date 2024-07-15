@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0xPolygon/cdk/aggregator"
+	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
@@ -1177,7 +1177,7 @@ func (s *SequenceSender) newSequenceBanana(batches []etherman.Batch, coinbase co
 			blockHash = batch.ForcedBlockHashL1
 		}
 
-		accInputHash, err = aggregator.CalculateAccInputHash(accInputHash, batch.L2Data, infoRootHash, timestamp, batch.LastCoinbase, blockHash)
+		accInputHash, err = cdkcommon.CalculateAccInputHash(accInputHash, batch.L2Data, infoRootHash, timestamp, batch.LastCoinbase, blockHash)
 		if err != nil {
 			return nil, err
 		}
