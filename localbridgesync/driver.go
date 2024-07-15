@@ -13,11 +13,16 @@ const (
 	reorgDetectorID    = "localbridgesync"
 )
 
+type downloaderFull interface {
+	downloaderInterface
+	download(ctx context.Context, fromBlock uint64, downloadedCh chan block)
+}
+
 type driver struct {
 	reorgDetector ReorgDetector
 	reorgSub      *reorgdetector.Subscription
 	processor     processorInterface
-	downloader    downloaderInterface
+	downloader    downloaderFull
 }
 
 type processorInterface interface {
@@ -31,12 +36,10 @@ type ReorgDetector interface {
 	AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error
 }
 
-type downloadFn func(ctx context.Context, d downloaderInterface, fromBlock uint64, downloadedCh chan block)
-
 func newDriver(
 	reorgDetector ReorgDetector,
 	processor processorInterface,
-	downloader downloaderInterface,
+	downloader downloaderFull,
 ) (*driver, error) {
 	reorgSub := reorgDetector.Subscribe(reorgDetectorID)
 	return &driver{
@@ -47,7 +50,7 @@ func newDriver(
 	}, nil
 }
 
-func (d *driver) Sync(ctx context.Context, download downloadFn) {
+func (d *driver) Sync(ctx context.Context) {
 reset:
 	var (
 		lastProcessedBlock uint64
@@ -69,7 +72,7 @@ reset:
 
 	// start downloading
 	downloadCh := make(chan block, downloadBufferSize)
-	go download(cancellableCtx, d.downloader, lastProcessedBlock, downloadCh)
+	go d.downloader.download(cancellableCtx, lastProcessedBlock, downloadCh)
 
 	for {
 		select {

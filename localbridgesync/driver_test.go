@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,13 +45,9 @@ func TestSync(t *testing.T) {
 		green bool
 	}
 	reorg1Completed := reorgSemaphore{}
-
-	mockDownload := func(
-		ctx context.Context,
-		d downloaderInterface,
-		fromBlock uint64,
-		downloadedCh chan block,
-	) {
+	dm.On("download", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		ctx := args.Get(0).(context.Context)
+		downloadedCh := args.Get(2).(chan block)
 		log.Info("entering mock loop")
 		for {
 			select {
@@ -70,7 +67,7 @@ func TestSync(t *testing.T) {
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
-	}
+	})
 
 	// Mocking this actions, the driver should "store" all the blocks from the downloader
 	pm.On("getLastProcessedBlock", ctx).
@@ -83,7 +80,7 @@ func TestSync(t *testing.T) {
 		Return(nil)
 	pm.On("storeBridgeEvents", expectedBlock2.Num, expectedBlock2.Events).
 		Return(nil)
-	go driver.Sync(ctx, mockDownload)
+	go driver.Sync(ctx)
 	time.Sleep(time.Millisecond * 200) // time to download expectedBlock1
 
 	// Trigger reorg 1
