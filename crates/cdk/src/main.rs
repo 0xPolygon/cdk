@@ -2,11 +2,16 @@
 use cdk_config::Config;
 use clap::Parser;
 use cli::Cli;
+use execute::Execute;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::Arc;
 
 mod cli;
 mod logging;
+
+const CDK_CLIENT_PATH: &str = "cdk-client";
+const CDK_ERIGON_PATH: &str = "cdk-erigon";
 
 fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
@@ -31,6 +36,21 @@ fn main() -> anyhow::Result<()> {
 pub fn run(cfg: PathBuf) -> anyhow::Result<()> {
     // Load the configuration file
     let config: Arc<Config> = Arc::new(toml::from_str(&std::fs::read_to_string(cfg)?)?);
+
+    // Run the node passing the parsed config values as flags
+    let mut command = Command::new(CDK_CLIENT_PATH);
+
+    let output = command.execute_output().unwrap();
+
+    if let Some(exit_code) = output.status.code() {
+        if exit_code == 0 {
+            println!("Ok.");
+        } else {
+            eprintln!("Failed.");
+        }
+    } else {
+        eprintln!("Interrupted!");
+    }
 
     // Initialize the logger
     logging::tracing(&config.log);

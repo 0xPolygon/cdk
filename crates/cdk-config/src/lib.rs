@@ -3,15 +3,10 @@
 //! The agglayer is configured via its TOML configuration file, `agglayer.toml`
 //! by default, which is deserialized into the [`Config`] struct.
 
-use std::collections::HashMap;
-
 use auth::deserialize_auth;
 use outbound::OutboundConfig;
 use serde::Deserialize;
 use shutdown::ShutdownConfig;
-use url::Url;
-
-use self::{rpc::deserialize_rpc_map, telemetry::TelemetryConfig};
 
 pub(crate) const DEFAULT_IP: std::net::Ipv4Addr = std::net::Ipv4Addr::new(0, 0, 0, 0);
 
@@ -37,10 +32,6 @@ pub use rpc::RpcConfig;
 pub struct Config {
     /// A map of Zkevm node RPC endpoints for each rollup.
     ///
-    /// The key is the rollup ID, and the value is the URL of the associated RPC
-    /// endpoint.
-    #[serde(rename = "FullNodeRPCs", deserialize_with = "deserialize_rpc_map")]
-    pub full_node_rpcs: HashMap<u32, Url>,
     /// The log configuration.
     #[serde(rename = "Log")]
     pub log: Log,
@@ -56,10 +47,9 @@ pub struct Config {
     /// The authentication configuration.
     #[serde(alias = "EthTxManager", default, deserialize_with = "deserialize_auth")]
     pub auth: AuthConfig,
-    /// Telemetry configuration.
-    #[serde(rename = "Telemetry")]
-    pub telemetry: TelemetryConfig,
-
+    // /// Telemetry configuration.
+    // #[serde(rename = "Telemetry")]
+    // pub telemetry: TelemetryConfig,
     /// The Epoch configuration.
     #[serde(rename = "Epoch", default = "Epoch::default")]
     pub epoch: Epoch,

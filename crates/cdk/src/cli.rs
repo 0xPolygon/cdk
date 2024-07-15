@@ -14,7 +14,7 @@ pub(crate) struct Cli {
 pub(crate) enum Commands {
     Run {
         /// The path to the configuration file.
-        #[arg(long, short, value_hint = ValueHint::FilePath, default_value = "config/example-config.toml", env = "CONFIG_PATH")]
+        #[arg(long, short, value_hint = ValueHint::FilePath, default_value = "config/example-config.toml", env = "CDK_CONFIG_PATH")]
         cfg: PathBuf,
     },
 }
