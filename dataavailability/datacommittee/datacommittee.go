@@ -12,7 +12,7 @@ import (
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygondatacommittee"
 	"github.com/0xPolygon/cdk-data-availability/client"
 	daTypes "github.com/0xPolygon/cdk-data-availability/types"
-	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
+	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -153,7 +153,7 @@ type signatureMsg struct {
 	err       error
 }
 
-func (s *Backend) PostSequence(ctx context.Context, sequence ethmanTypes.SequenceBanana) ([]byte, error) {
+func (s *Backend) PostSequence(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
 	// Get current committee
 	committee, err := s.getCurrentDataCommittee()
 	if err != nil {
