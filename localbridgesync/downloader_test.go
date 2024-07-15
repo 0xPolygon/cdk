@@ -153,7 +153,7 @@ func TestGetEventsByBlockRange(t *testing.T) {
 	for _, tc := range testCases {
 		query := ethereum.FilterQuery{
 			FromBlock: new(big.Int).SetUint64(tc.fromBlock),
-			Addresses: []common.Address{d.bridgeAddr},
+			Addresses: []common.Address{contractAddr},
 			Topics: [][]common.Hash{
 				{bridgeEventSignature},
 				{claimEventSignature},
@@ -275,10 +275,13 @@ func TestDownload(t *testing.T) {
 	ctx := context.Background()
 	ctx1, cancel := context.WithCancel(ctx)
 	expectedBlocks := []block{}
+	clientMock := NewL2Mock(t)
+	dwnldr, err := newDownloader(contractAddr, clientMock, syncBlockChunck)
+	require.NoError(t, err)
+	dwnldr.downloaderInterface = d
 
 	d.On("waitForNewBlocks", mock.Anything, uint64(0)).
 		Return(uint64(1))
-	d.On("syncBlockChunkSize").Return(syncBlockChunck)
 	// iteratiion 0:
 	// last block is 1, download that block (no events and wait)
 	b1 := block{
@@ -391,7 +394,7 @@ func TestDownload(t *testing.T) {
 		After(time.Millisecond * 100).
 		Return(uint64(35)).Once()
 
-	go download(ctx1, d, 0, downloadCh)
+	go dwnldr.download(ctx1, 0, downloadCh)
 	for _, expectedBlock := range expectedBlocks {
 		actualBlock := <-downloadCh
 		log.Debugf("block %d received!", actualBlock.Num)
