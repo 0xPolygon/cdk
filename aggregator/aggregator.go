@@ -19,6 +19,7 @@ import (
 	cdkTypes "github.com/0xPolygon/cdk-rpc/types"
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/aggregator/prover"
+	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/l1infotree"
 	"github.com/0xPolygon/cdk/log"
@@ -32,7 +33,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/state/entities"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/iden3/go-iden3-crypto/keccak256"
 	"google.golang.org/grpc"
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/peer"
@@ -335,7 +335,7 @@ func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, cli
 						a.currentStreamBatch.L1InfoRoot = a.currentStreamBatch.GlobalExitRoot
 					}
 
-					accInputHash, err := CalculateAccInputHash(oldBatch.AccInputHash, a.currentStreamBatch.BatchL2Data, a.currentStreamBatch.L1InfoRoot, uint64(a.currentStreamBatch.Timestamp.Unix()), a.currentStreamBatch.Coinbase, forcedBlockhashL1)
+					accInputHash, err := cdkcommon.CalculateAccInputHash(oldBatch.AccInputHash, a.currentStreamBatch.BatchL2Data, a.currentStreamBatch.L1InfoRoot, uint64(a.currentStreamBatch.Timestamp.Unix()), a.currentStreamBatch.Coinbase, forcedBlockhashL1)
 					if err != nil {
 						log.Errorf("Error calculating acc input hash: %v", err)
 						return err
@@ -1527,43 +1527,6 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 
 	printInputProver(inputProver)
 	return inputProver, nil
-}
-
-func CalculateAccInputHash(oldAccInputHash common.Hash, batchData []byte, l1InfoRoot common.Hash, timestampLimit uint64, sequencerAddr common.Address, forcedBlockhashL1 common.Hash) (common.Hash, error) {
-	v1 := oldAccInputHash.Bytes()
-	v2 := batchData
-	v3 := l1InfoRoot.Bytes()
-	v4 := big.NewInt(0).SetUint64(timestampLimit).Bytes()
-	v5 := sequencerAddr.Bytes()
-	v6 := forcedBlockhashL1.Bytes()
-
-	// Add 0s to make values 32 bytes long
-	for len(v1) < 32 {
-		v1 = append([]byte{0}, v1...)
-	}
-	for len(v3) < 32 {
-		v3 = append([]byte{0}, v3...)
-	}
-	for len(v4) < 8 {
-		v4 = append([]byte{0}, v4...)
-	}
-	for len(v5) < 20 {
-		v5 = append([]byte{0}, v5...)
-	}
-	for len(v6) < 32 {
-		v6 = append([]byte{0}, v6...)
-	}
-
-	v2 = keccak256.Hash(v2)
-
-	log.Debugf("OldAccInputHash: %v", oldAccInputHash)
-	log.Debugf("BatchHashData: %v", common.Bytes2Hex(v2))
-	log.Debugf("L1InfoRoot: %v", l1InfoRoot)
-	log.Debugf("TimeStampLimit: %v", timestampLimit)
-	log.Debugf("Sequencer Address: %v", sequencerAddr)
-	log.Debugf("Forced BlockHashL1: %v", forcedBlockhashL1)
-
-	return common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6)), nil
 }
 
 func getWitness(batchNumber uint64, URL string, fullWitness bool) ([]byte, error) {
