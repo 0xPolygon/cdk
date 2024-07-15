@@ -12,7 +12,7 @@ endif
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/dist
 GOENVVARS := GOBIN=$(GOBIN) CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH)
-GOBINARY := cdk
+GOBINARY := cdk-client
 GOCMD := $(GOBASE)/cmd
 
 LDFLAGS += -X 'github.com/0xPolygon/cdk.Version=$(VERSION)'

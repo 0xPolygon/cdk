@@ -5,14 +5,17 @@ use std::process::Command;
 fn main() {
     // Determine the directory where the build script is located
     let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let build_path = PathBuf::from(dir + "../../");
+    let build_path = PathBuf::from(dir + "/../..");
+
+    println!("cargo:rerun-if-changed=build.rs");
 
     // Optionally, specify the directory where your Makefile is located
     // For this example, it's assumed to be the same as the build script's directory
     // If your Makefile is in a different directory, adjust `build_path` accordingly
 
     // Call the make command
-    let output = Command::new("make")
+    let output = Command::new("/bin/make")
+        .arg("build") // Create a new make command
         .current_dir(build_path) // Set the current directory for the command
         .output() // Execute the command and capture the output
         .expect("Failed to execute make command");
