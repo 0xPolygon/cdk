@@ -14,7 +14,7 @@ const (
 )
 
 type driver struct {
-	reorgDetector ReorgDetectorInterface
+	reorgDetector ReorgDetector
 	reorgSub      *reorgdetector.Subscription
 	processor     processorInterface
 	downloader    downloaderInterface
@@ -26,15 +26,15 @@ type processorInterface interface {
 	reorg(firstReorgedBlock uint64) error
 }
 
-type ReorgDetectorInterface interface {
+type ReorgDetector interface {
 	Subscribe(id string) *reorgdetector.Subscription
 	AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error
 }
 
-type downloadFn func(ctx context.Context, d downloaderInterface, fromBlock, syncBlockChunkSize uint64, downloadedCh chan block)
+type downloadFn func(ctx context.Context, d downloaderInterface, fromBlock uint64, downloadedCh chan block)
 
 func newDriver(
-	reorgDetector ReorgDetectorInterface,
+	reorgDetector ReorgDetector,
 	processor processorInterface,
 	downloader downloaderInterface,
 ) (*driver, error) {
@@ -47,7 +47,7 @@ func newDriver(
 	}, nil
 }
 
-func (d *driver) Sync(ctx context.Context, syncBlockChunkSize uint64, download downloadFn) {
+func (d *driver) Sync(ctx context.Context, download downloadFn) {
 reset:
 	var (
 		lastProcessedBlock uint64
@@ -69,7 +69,7 @@ reset:
 
 	// start downloading
 	downloadCh := make(chan block, downloadBufferSize)
-	go download(cancellableCtx, d.downloader, lastProcessedBlock, syncBlockChunkSize, downloadCh)
+	go download(cancellableCtx, d.downloader, lastProcessedBlock, downloadCh)
 
 	for {
 		select {

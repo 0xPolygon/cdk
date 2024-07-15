@@ -65,6 +65,20 @@ func (_m *DownloaderMock) getLogs(ctx context.Context, fromBlock uint64, toBlock
 	return r0
 }
 
+// syncBlockChunkSize provides a mock function with given fields:
+func (_m *DownloaderMock) syncBlockChunkSize() uint64 {
+	ret := _m.Called()
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func() uint64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	return r0
+}
+
 // waitForNewBlocks provides a mock function with given fields: ctx, lastBlockSeen
 func (_m *DownloaderMock) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) uint64 {
 	ret := _m.Called(ctx, lastBlockSeen)

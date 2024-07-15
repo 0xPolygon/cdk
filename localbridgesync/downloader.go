@@ -38,6 +38,7 @@ type downloaderInterface interface {
 	getLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log
 	appendLog(b *block, l types.Log)
 	getBlockHeader(ctx context.Context, blockNum uint64) blockHeader
+	syncBlockChunkSize() uint64
 }
 
 type downloader struct {
@@ -45,11 +46,13 @@ type downloader struct {
 	bridgeContractV1 *polygonzkevmbridge.Polygonzkevmbridge
 	bridgeContractV2 *polygonzkevmbridgev2.Polygonzkevmbridgev2
 	ethClient        EthClienter
+	blockChunkSize   uint64
 }
 
 func newDownloader(
 	bridgeAddr common.Address,
 	ethClient EthClienter,
+	syncBlockChunkSize uint64,
 ) (*downloader, error) {
 	bridgeContractV1, err := polygonzkevmbridge.NewPolygonzkevmbridge(bridgeAddr, ethClient)
 	if err != nil {
@@ -64,10 +67,11 @@ func newDownloader(
 		bridgeContractV1: bridgeContractV1,
 		bridgeContractV2: bridgeContractV2,
 		ethClient:        ethClient,
+		blockChunkSize:   syncBlockChunkSize,
 	}, nil
 }
 
-func download(ctx context.Context, d downloaderInterface, fromBlock, syncBlockChunkSize uint64, downloadedCh chan block) {
+func download(ctx context.Context, d downloaderInterface, fromBlock uint64, downloadedCh chan block) {
 	lastBlock := d.waitForNewBlocks(ctx, 0)
 	for {
 		select {
@@ -77,7 +81,7 @@ func download(ctx context.Context, d downloaderInterface, fromBlock, syncBlockCh
 			return
 		default:
 		}
-		toBlock := fromBlock + syncBlockChunkSize
+		toBlock := fromBlock + d.syncBlockChunkSize()
 		if toBlock > lastBlock {
 			toBlock = lastBlock
 		}
@@ -236,4 +240,8 @@ func (d *downloader) getBlockHeader(ctx context.Context, blockNum uint64) blockH
 			Hash: header.Hash(),
 		}
 	}
+}
+
+func (d *downloader) syncBlockChunkSize() uint64 {
+	return d.blockChunkSize
 }
