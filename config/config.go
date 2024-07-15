@@ -113,9 +113,6 @@ func Load(ctx *cli.Context, loadNetworkConfig bool) (*Config, error) {
 		} else {
 			log.Infof("error reading config file: ", err)
 			return nil, err
-			// 	log.Infof("config file not found %s", configFilePath)
-			// 	return nil, err
-			// } else {
 		}
 	}
 
