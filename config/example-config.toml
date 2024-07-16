@@ -1,4 +1,3 @@
-IsTrustedSequencer = false
 ForkUpgradeBatchNumber = 0
 ForkUpgradeNewForkId = 0
 
@@ -7,130 +6,108 @@ Environment = "development" # "production" or "development"
 Level = "info"
 Outputs = ["stderr"]
 
-[Pool]
-IntervalToRefreshBlockedAddresses = "5m"
-IntervalToRefreshGasPrices = "5s"
-MaxTxBytesSize=100132
-MaxTxDataBytesSize=100000
-DefaultMinGasPriceAllowed = 1000000000
-MinAllowedGasPriceInterval = "5m"
-PollMinAllowedGasPriceInterval = "15s"
-AccountQueue = 64
-GlobalQueue = 1024
-    [Pool.EffectiveGasPrice]
-	Enabled = false
-	L1GasPriceFactor = 0.25
-	ByteGasCost = 16
-	ZeroByteGasCost = 4
-	NetProfit = 1
-	BreakEvenFactor = 1.1	
-	FinalDeviationPct = 10
-	EthTransferGasPrice = 0
-	EthTransferL1GasPriceFactor = 0	
-	L2GasPriceSuggesterFactor = 0.5
-
-[Layer1]
-ChainID = 1337
-NodeURL = "http://localhost:8545"
-RollupManagerContract = "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e"
-ForkIDChunkSize = 20000
-
-[EthTxManager]
-FrequencyToMonitorTxs = "1s"
-WaitTxToBeMined = "2m"
-ForcedGas = 0
-GasPriceMarginFactor = 1
-MaxGasPriceLimit = 0
-
-[RPC]
-Host = "0.0.0.0"
-Port = 8545
-ReadTimeout = "60s"
-WriteTimeout = "60s"
-MaxRequestsPerIPAndSecond = 500
-SequencerNodeURI = ""
-EnableL2SuggestedGasPricePolling = true
-BatchRequestsEnabled = false
-BatchRequestsLimit = 20
-MaxLogsCount = 10000
-MaxLogsBlockRange = 10000
-MaxNativeBlockHashBlockRange = 60000
-EnableHttpLog = true
-	[RPC.WebSockets]
-		Enabled = true
-		Host = "0.0.0.0"
-		Port = 8546
-		ReadLimit = 104857600
-
-[Sequencer]
-Type = "zkevm"
-DeletePoolTxsL1BlockConfirmations = 100
-DeletePoolTxsCheckInterval = "12h"
-TxLifetimeCheckInterval = "10m"
-TxLifetimeMax = "3h"
-LoadPoolTxsCheckInterval = "500ms"
-StateConsistencyCheckInterval = "5s"
-	[Sequencer.Finalizer]
-		NewTxsWaitInterval = "100ms"
-		ForcedBatchesTimeout = "60s"
-		ForcedBatchesL1BlockConfirmations = 64
-		ForcedBatchesCheckInterval = "10s"
-		L1InfoTreeL1BlockConfirmations = 64
-		L1InfoTreeCheckInterval = "10s"
-		BatchMaxDeltaTimestamp = "10s"
-		L2BlockMaxDeltaTimestamp = "3s"
-		ResourceExhaustedMarginPct = 10
-		HaltOnBatchNumber = 0
-		SequentialBatchSanityCheck = false
-		SequentialProcessL2Block = true
-	[Sequencer.Finalizer.Metrics]
-		Interval = "60m"
-		EnableLog = true
-	[Sequencer.StreamServer]
-		Port = 0
-		Filename = ""
-		Version = 0
-		Enabled = false
-  [Sequencer.Metrics]
-    Host = "0.0.0.0"
-    Port = 9091
-    Enabled = false
-
 [SequenceSender]
-WaitPeriodSendSequence = "5s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
+IsValidiumMode = false
+WaitPeriodSendSequence = "15s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 L1BlockTimestampMargin = "30s"
 MaxTxSizeForL1 = 131072
-L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
+L2Coinbase = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
+PrivateKey = {Path = "./test/sequencer.keystore", Password = "testonly"}
+SequencesTxFileName = "sequencesender.json"
 GasOffset = 80000
-MaxBatchesForL1 = 300
-
+WaitPeriodPurgeTxFile = "15m"
+MaxPendingTx = 1
+	[SequenceSender.StreamClient]
+		Server = "127.0.0.1:6900"
+	[SequenceSender.EthTxManager]
+		FrequencyToMonitorTxs = "1s"
+		WaitTxToBeMined = "2m"
+		GetReceiptMaxTime = "250ms"
+		GetReceiptWaitInterval = "1s"
+		PrivateKeys = [
+			{Path = "./test/sequencer.keystore", Password = "testonly"},
+		]
+		ForcedGas = 0
+		GasPriceMarginFactor = 1
+		MaxGasPriceLimit = 0
+		PersistenceFilename = "ethtxmanager.json"
+		ReadPendingL1Txs = false
+		SafeStatusL1NumberOfBlocks = 0
+		FinalizedStatusL1NumberOfBlocks = 0
+			[SequenceSender.EthTxManager.Etherman]
+				URL = "http://127.0.0.1:8545"
+				MultiGasProvider = false
+				L1ChainID = 1337
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
 RetryTime = "5s"
-VerifyProofInterval = "90s"
+VerifyProofInterval = "10s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
+SenderAddress = ""
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
+ForkId = 9
 GasOffset = 0
-UpgradeEtrogBatchNumber = 0
-BatchProofL1BlockConfirmations = 2
-SettlementBackend = "agglayer"
+WitnessURL = "localhost:8123"
+UseL1BatchData = true
+UseFullWitness = false
+SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
-AggLayerURL = "http://zkevm-agglayer"
-SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
-
-[Executor]
-URI = "zkevm-prover:50071"
-MaxResourceExhaustedAttempts = 3
-WaitOnResourceExhaustion = "1s"
-MaxGRPCMessageSize = 100000000
-
-[Metrics]
-Host = "0.0.0.0"
-Port = 9091
-Enabled = false
+AggLayerURL = ""
+SequencerPrivateKey = {}
+	[Aggregator.DB]
+		Name = "aggregator_db"
+		User = "aggregator_user"
+		Password = "aggregator_password"
+		Host = "cdk-aggregator-db"
+		Port = "5432"
+		EnableLog = false	
+		MaxConns = 200
+	[Aggregator.Log]
+		Environment = "development" # "production" or "development"
+		Level = "info"
+		Outputs = ["stderr"]
+	[Aggregator.StreamClient]
+		Server = "localhost:6900"
+	[Aggregator.EthTxManager]
+		FrequencyToMonitorTxs = "1s"
+		WaitTxToBeMined = "2m"
+		GetReceiptMaxTime = "250ms"
+		GetReceiptWaitInterval = "1s"
+		PrivateKeys = [
+			{Path = "/pk/aggregator.keystore", Password = "testonly"},
+		]
+		ForcedGas = 0
+		GasPriceMarginFactor = 1
+		MaxGasPriceLimit = 0
+		PersistenceFilename = ""
+		ReadPendingL1Txs = false
+		SafeStatusL1NumberOfBlocks = 0
+		FinalizedStatusL1NumberOfBlocks = 0
+			[Aggregator.EthTxManager.Etherman]
+				URL = ""
+				L1ChainID = 11155111
+				HTTPHeaders = []
+	[Aggregator.Synchronizer]
+		[Aggregator.Synchronizer.DB]
+			Name = "sync_db"
+			User = "sync_user"
+			Password = "sync_password"
+			Host = "cdk-l1-sync-db"
+			Port = "5432"
+			EnableLog = false
+			MaxConns = 10
+		[Aggregator.Synchronizer.Synchronizer]
+			SyncInterval = "10s"
+			SyncChunkSize = 1000
+			GenesisBlockNumber = 5511080
+			SyncUpToBlock = "finalized"
+			BlockFinality = "finalized"
+			OverrideStorageCheck = false
+		[Aggregator.Synchronizer.Etherman]
+			[Aggregator.Synchronizer.Etherman.Validium]
+				Enabled = false

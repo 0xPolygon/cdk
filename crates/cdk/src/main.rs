@@ -1,6 +1,5 @@
 //! Command line interface.
 use cdk_config::Config;
-use clap::Args;
 use clap::Parser;
 use cli::Cli;
 use execute::Execute;
@@ -66,7 +65,7 @@ pub fn rollup(cfg: PathBuf) -> anyhow::Result<()> {
 /// This function starts everything needed to run an Erigon node.
 pub fn erigon(cfg: PathBuf) -> anyhow::Result<()> {
     // Load the configuration file
-    let config: Arc<Config> = Arc::new(toml::from_str(&std::fs::read_to_string(cfg.clone())?)?);
+    let _config: Arc<Config> = Arc::new(toml::from_str(&std::fs::read_to_string(cfg.clone())?)?);
 
     let mut command = Command::new(CDK_ERIGON_PATH);
 
