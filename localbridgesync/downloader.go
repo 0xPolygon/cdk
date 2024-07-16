@@ -139,10 +139,7 @@ func (d *downloaderImplementation) getEventsByBlockRange(ctx context.Context, fr
 					Num:  l.BlockNumber,
 					Hash: l.BlockHash,
 				},
-				Events: bridgeEvents{
-					Claims:  []Claim{},
-					Bridges: []Bridge{},
-				},
+				Events: []BridgeEvent{},
 			})
 		}
 		d.appendLog(&blocks[len(blocks)-1], l)
@@ -185,7 +182,7 @@ func (d *downloaderImplementation) appendLog(b *block, l types.Log) {
 				l, err,
 			)
 		}
-		b.Events.Bridges = append(b.Events.Bridges, Bridge{
+		b.Events = append(b.Events, BridgeEvent{Bridge: &Bridge{
 			LeafType:           bridge.LeafType,
 			OriginNetwork:      bridge.OriginNetwork,
 			OriginAddress:      bridge.OriginAddress,
@@ -194,7 +191,7 @@ func (d *downloaderImplementation) appendLog(b *block, l types.Log) {
 			Amount:             bridge.Amount,
 			Metadata:           bridge.Metadata,
 			DepositCount:       bridge.DepositCount,
-		})
+		}})
 	case claimEventSignature:
 		claim, err := d.bridgeContractV2.ParseClaimEvent(l)
 		if err != nil {
@@ -203,13 +200,13 @@ func (d *downloaderImplementation) appendLog(b *block, l types.Log) {
 				l, err,
 			)
 		}
-		b.Events.Claims = append(b.Events.Claims, Claim{
+		b.Events = append(b.Events, BridgeEvent{Claim: &Claim{
 			GlobalIndex:        claim.GlobalIndex,
 			OriginNetwork:      claim.OriginNetwork,
 			OriginAddress:      claim.OriginAddress,
 			DestinationAddress: claim.DestinationAddress,
 			Amount:             claim.Amount,
-		})
+		}})
 	case claimEventSignaturePreEtrog:
 		claim, err := d.bridgeContractV1.ParseClaimEvent(l)
 		if err != nil {
@@ -218,13 +215,13 @@ func (d *downloaderImplementation) appendLog(b *block, l types.Log) {
 				l, err,
 			)
 		}
-		b.Events.Claims = append(b.Events.Claims, Claim{
+		b.Events = append(b.Events, BridgeEvent{Claim: &Claim{
 			GlobalIndex:        big.NewInt(int64(claim.Index)),
 			OriginNetwork:      claim.OriginNetwork,
 			OriginAddress:      claim.OriginAddress,
 			DestinationAddress: claim.DestinationAddress,
 			Amount:             claim.Amount,
-		})
+		}})
 	default:
 		log.Fatalf("unexpected log %+v", l)
 	}

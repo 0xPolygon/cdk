@@ -26,14 +26,14 @@ type Claim struct {
 	Amount             *big.Int
 }
 
-type bridgeEvents struct {
-	Bridges []Bridge
-	Claims  []Claim
+type BridgeEvent struct {
+	Bridge *Bridge
+	Claim  *Claim
 }
 
 type block struct {
 	blockHeader
-	Events bridgeEvents
+	Events []BridgeEvent
 }
 
 type blockHeader struct {

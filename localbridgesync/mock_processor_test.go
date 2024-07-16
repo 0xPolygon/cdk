@@ -51,13 +51,13 @@ func (_m *ProcessorMock) reorg(firstReorgedBlock uint64) error {
 	return r0
 }
 
-// storeBridgeEvents provides a mock function with given fields: blockNum, block
-func (_m *ProcessorMock) storeBridgeEvents(blockNum uint64, block bridgeEvents) error {
-	ret := _m.Called(blockNum, block)
+// storeBridgeEvents provides a mock function with given fields: blockNum, events
+func (_m *ProcessorMock) storeBridgeEvents(blockNum uint64, events []BridgeEvent) error {
+	ret := _m.Called(blockNum, events)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(uint64, bridgeEvents) error); ok {
-		r0 = rf(blockNum, block)
+	if rf, ok := ret.Get(0).(func(uint64, []BridgeEvent) error); ok {
+		r0 = rf(blockNum, events)
 	} else {
 		r0 = ret.Error(0)
 	}
