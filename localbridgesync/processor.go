@@ -48,42 +48,40 @@ func newProcessor(dbPath string) (*processor, error) {
 // If toBlock has not been porcessed yet, ErrBlockNotProcessed will be returned
 func (p *processor) GetClaimsAndBridges(
 	ctx context.Context, fromBlock, toBlock uint64,
-) ([]Claim, []Bridge, error) {
-	claims := []Claim{}
-	bridges := []Bridge{}
+) ([]BridgeEvent, error) {
+	events := []BridgeEvent{}
 
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer tx.Rollback()
 	lpb, err := p.getLastProcessedBlockWithTx(tx)
 	if lpb < toBlock {
-		return nil, nil, ErrBlockNotProcessed
+		return nil, ErrBlockNotProcessed
 	}
 	c, err := tx.Cursor(eventsTable)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer c.Close()
 
 	for k, v, err := c.Seek(blockNum2Bytes(fromBlock)); k != nil; k, v, err = c.Next() {
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if bytes2BlockNum(k) > toBlock {
 			break
 		}
-		block := bridgeEvents{}
-		err := json.Unmarshal(v, &block)
+		blockEvents := []BridgeEvent{}
+		err := json.Unmarshal(v, &blockEvents)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		bridges = append(bridges, block.Bridges...)
-		claims = append(claims, block.Claims...)
+		events = append(events, blockEvents...)
 	}
 
-	return claims, bridges, nil
+	return events, nil
 }
 
 func (p *processor) getLastProcessedBlock(ctx context.Context) (uint64, error) {
@@ -133,13 +131,13 @@ func (p *processor) reorg(firstReorgedBlock uint64) error {
 	return tx.Commit()
 }
 
-func (p *processor) storeBridgeEvents(blockNum uint64, block bridgeEvents) error {
+func (p *processor) storeBridgeEvents(blockNum uint64, events []BridgeEvent) error {
 	tx, err := p.db.BeginRw(context.Background())
 	if err != nil {
 		return err
 	}
-	if len(block.Bridges) > 0 || len(block.Claims) > 0 {
-		value, err := json.Marshal(block)
+	if len(events) > 0 {
+		value, err := json.Marshal(events)
 		if err != nil {
 			tx.Rollback()
 			return err

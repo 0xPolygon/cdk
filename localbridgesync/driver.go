@@ -27,7 +27,7 @@ type driver struct {
 
 type processorInterface interface {
 	getLastProcessedBlock(ctx context.Context) (uint64, error)
-	storeBridgeEvents(blockNum uint64, block bridgeEvents) error
+	storeBridgeEvents(blockNum uint64, events []BridgeEvent) error
 	reorg(firstReorgedBlock uint64) error
 }
 

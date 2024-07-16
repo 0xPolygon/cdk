@@ -61,9 +61,10 @@ func TestGetEventsByBlockRange(t *testing.T) {
 				Num:  logC1.BlockNumber,
 				Hash: logC1.BlockHash,
 			},
-			Events: bridgeEvents{
-				Bridges: []Bridge{bridgeC1},
-				Claims:  []Claim{},
+			Events: []BridgeEvent{
+				{
+					Bridge: &bridgeC1,
+				},
 			},
 		},
 	}
@@ -93,9 +94,11 @@ func TestGetEventsByBlockRange(t *testing.T) {
 				Num:  logC2_1.BlockNumber,
 				Hash: logC2_1.BlockHash,
 			},
-			Events: bridgeEvents{
-				Bridges: []Bridge{bridgeC2_1, bridgeC2_2},
-				Claims:  []Claim{claimC2_1, claimC2_2},
+			Events: []BridgeEvent{
+				{Bridge: &bridgeC2_1},
+				{Bridge: &bridgeC2_2},
+				{Claim: &claimC2_1},
+				{Claim: &claimC2_2},
 			},
 		},
 	}
@@ -125,9 +128,9 @@ func TestGetEventsByBlockRange(t *testing.T) {
 				Num:  logC3_1.BlockNumber,
 				Hash: logC3_1.BlockHash,
 			},
-			Events: bridgeEvents{
-				Bridges: []Bridge{bridgeC3_1, bridgeC3_2},
-				Claims:  []Claim{},
+			Events: []BridgeEvent{
+				{Bridge: &bridgeC3_1},
+				{Bridge: &bridgeC3_2},
 			},
 		},
 		{
@@ -135,9 +138,9 @@ func TestGetEventsByBlockRange(t *testing.T) {
 				Num:  logC3_3.BlockNumber,
 				Hash: logC3_3.BlockHash,
 			},
-			Events: bridgeEvents{
-				Bridges: []Bridge{},
-				Claims:  []Claim{claimC3_1, claimC3_2},
+			Events: []BridgeEvent{
+				{Claim: &claimC3_1},
+				{Claim: &claimC3_2},
 			},
 		},
 	}
@@ -323,11 +326,8 @@ func TestDownload(t *testing.T) {
 			Num:  6,
 			Hash: common.HexToHash("06"),
 		},
-		Events: bridgeEvents{
-			Claims: []Claim{
-				{OriginNetwork: 6},
-			},
-			Bridges: []Bridge{},
+		Events: []BridgeEvent{
+			{Claim: &Claim{OriginNetwork: 6}},
 		},
 	}
 	b7 := block{
@@ -335,11 +335,8 @@ func TestDownload(t *testing.T) {
 			Num:  7,
 			Hash: common.HexToHash("07"),
 		},
-		Events: bridgeEvents{
-			Claims: []Claim{},
-			Bridges: []Bridge{
-				{DestinationNetwork: 7},
-			},
+		Events: []BridgeEvent{
+			{Bridge: &Bridge{DestinationNetwork: 7}},
 		},
 	}
 	b8 := block{
@@ -378,11 +375,8 @@ func TestDownload(t *testing.T) {
 			Num:  30,
 			Hash: common.HexToHash("30"),
 		},
-		Events: bridgeEvents{
-			Claims: []Claim{},
-			Bridges: []Bridge{
-				{DestinationNetwork: 30},
-			},
+		Events: []BridgeEvent{
+			{Bridge: &Bridge{DestinationNetwork: 30}},
 		},
 	}
 	expectedBlocks = append(expectedBlocks, b30)
