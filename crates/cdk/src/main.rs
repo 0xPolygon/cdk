@@ -1,5 +1,6 @@
 //! Command line interface.
 use cdk_config::Config;
+use clap::Args;
 use clap::Parser;
 use cli::Cli;
 use execute::Execute;
@@ -10,8 +11,8 @@ use std::sync::Arc;
 mod cli;
 mod logging;
 
-const CDK_CLIENT_PATH: &str = "dist/cdk-client";
-const CDK_ERIGON_PATH: &str = "cdk-erigon";
+const CDK_CLIENT_PATH: &str = "target/cdk-client";
+const CDK_ERIGON_PATH: &str = "target/cdk-erigon";
 
 fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
@@ -19,7 +20,8 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.cmd {
-        cli::Commands::Run { cfg } => run(cfg)?,
+        cli::Commands::Run {} => run(cli.cfg)?,
+        // _ => forward()?,
     }
 
     Ok(())
@@ -35,10 +37,11 @@ fn main() -> anyhow::Result<()> {
 /// completed.
 pub fn run(cfg: PathBuf) -> anyhow::Result<()> {
     // Load the configuration file
-    let config: Arc<Config> = Arc::new(toml::from_str(&std::fs::read_to_string(cfg)?)?);
+    let config: Arc<Config> = Arc::new(toml::from_str(&std::fs::read_to_string(cfg.clone())?)?);
 
     // Run the node passing the parsed config values as flags
     let mut command = Command::new(CDK_CLIENT_PATH);
+    command.args(&["run", "-cfg", cfg.to_str().unwrap()]);
 
     let output = command.execute_output().unwrap();
 

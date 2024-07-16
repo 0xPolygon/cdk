@@ -10,7 +10,7 @@ else
 	endif
 endif
 GOBASE := $(shell pwd)
-GOBIN := $(GOBASE)/dist
+GOBIN := $(GOBASE)/target
 GOENVVARS := GOBIN=$(GOBIN) CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH)
 GOBINARY := cdk-client
 GOCMD := $(GOBASE)/cmd
