@@ -3,6 +3,7 @@ package localbridgesync
 import (
 	"time"
 
+	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -21,6 +22,7 @@ func New(
 	dbPath string,
 	bridge common.Address,
 	syncBlockChunkSize uint64,
+	blockFinalityType etherman.BlockNumberFinality,
 	rd ReorgDetector,
 	l2Client EthClienter,
 ) (*LocalBridgeSync, error) {
@@ -28,7 +30,7 @@ func New(
 	if err != nil {
 		return nil, err
 	}
-	dwn, err := newDownloader(bridge, l2Client, syncBlockChunkSize)
+	dwn, err := newDownloader(bridge, l2Client, syncBlockChunkSize, blockFinalityType)
 	if err != nil {
 		return nil, err
 	}

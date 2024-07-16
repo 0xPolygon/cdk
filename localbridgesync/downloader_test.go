@@ -9,6 +9,7 @@ import (
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -37,7 +38,7 @@ func TestGetEventsByBlockRange(t *testing.T) {
 	testCases := []testCase{}
 	clientMock := NewL2Mock(t)
 	ctx := context.Background()
-	d, err := newDownloader(contractAddr, clientMock, syncBlockChunck)
+	d, err := newDownloader(contractAddr, clientMock, syncBlockChunck, etherman.LatestBlock)
 	require.NoError(t, err)
 
 	// case 0: single block, no events
@@ -279,7 +280,7 @@ func TestDownload(t *testing.T) {
 	ctx1, cancel := context.WithCancel(ctx)
 	expectedBlocks := []block{}
 	clientMock := NewL2Mock(t)
-	dwnldr, err := newDownloader(contractAddr, clientMock, syncBlockChunck)
+	dwnldr, err := newDownloader(contractAddr, clientMock, syncBlockChunck, etherman.LatestBlock)
 	require.NoError(t, err)
 	dwnldr.downloaderInterface = d
 
@@ -404,25 +405,33 @@ func TestWaitForNewBlocks(t *testing.T) {
 	retryAfterErrorPeriod = time.Millisecond * 100
 	clientMock := NewL2Mock(t)
 	ctx := context.Background()
-	d, err := newDownloader(contractAddr, clientMock, syncBlockChunck)
+	d, err := newDownloader(contractAddr, clientMock, syncBlockChunck, etherman.LatestBlock)
 	require.NoError(t, err)
 
 	// at first attempt
 	currentBlock := uint64(5)
 	expectedBlock := uint64(6)
-	clientMock.On("BlockNumber", ctx).Return(expectedBlock, nil).Once()
+	clientMock.On("HeaderByNumber", ctx, mock.Anything).Return(&types.Header{
+		Number: big.NewInt(6),
+	}, nil).Once()
 	actualBlock := d.waitForNewBlocks(ctx, currentBlock)
 	assert.Equal(t, expectedBlock, actualBlock)
 
 	// 2 iterations
-	clientMock.On("BlockNumber", ctx).Return(currentBlock, nil).Once()
-	clientMock.On("BlockNumber", ctx).Return(expectedBlock, nil).Once()
+	clientMock.On("HeaderByNumber", ctx, mock.Anything).Return(&types.Header{
+		Number: big.NewInt(5),
+	}, nil).Once()
+	clientMock.On("HeaderByNumber", ctx, mock.Anything).Return(&types.Header{
+		Number: big.NewInt(6),
+	}, nil).Once()
 	actualBlock = d.waitForNewBlocks(ctx, currentBlock)
 	assert.Equal(t, expectedBlock, actualBlock)
 
 	// after error from client
-	clientMock.On("BlockNumber", ctx).Return(uint64(0), errors.New("foo")).Once()
-	clientMock.On("BlockNumber", ctx).Return(expectedBlock, nil).Once()
+	clientMock.On("HeaderByNumber", ctx, mock.Anything).Return(nil, errors.New("foo")).Once()
+	clientMock.On("HeaderByNumber", ctx, mock.Anything).Return(&types.Header{
+		Number: big.NewInt(6),
+	}, nil).Once()
 	actualBlock = d.waitForNewBlocks(ctx, currentBlock)
 	assert.Equal(t, expectedBlock, actualBlock)
 }
@@ -431,7 +440,7 @@ func TestGetBlockHeader(t *testing.T) {
 	retryAfterErrorPeriod = time.Millisecond * 100
 	clientMock := NewL2Mock(t)
 	ctx := context.Background()
-	d, err := newDownloader(contractAddr, clientMock, syncBlockChunck)
+	d, err := newDownloader(contractAddr, clientMock, syncBlockChunck, etherman.LatestBlock)
 	require.NoError(t, err)
 
 	blockNum := uint64(5)
