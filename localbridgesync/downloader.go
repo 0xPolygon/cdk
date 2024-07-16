@@ -7,6 +7,7 @@ import (
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -49,12 +50,17 @@ func newDownloader(
 	bridgeAddr common.Address,
 	ethClient EthClienter,
 	syncBlockChunkSize uint64,
+	blockFinalityType etherman.BlockNumberFinality,
 ) (*downloader, error) {
 	bridgeContractV1, err := polygonzkevmbridge.NewPolygonzkevmbridge(bridgeAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	bridgeContractV2, err := polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
+	finality, err := blockFinalityType.ToBlockNum()
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +71,7 @@ func newDownloader(
 			bridgeContractV1: bridgeContractV1,
 			bridgeContractV2: bridgeContractV2,
 			ethClient:        ethClient,
+			blockFinality:    finality,
 		},
 	}, nil
 }
@@ -110,20 +117,21 @@ type downloaderImplementation struct {
 	bridgeContractV1 *polygonzkevmbridge.Polygonzkevmbridge
 	bridgeContractV2 *polygonzkevmbridgev2.Polygonzkevmbridgev2
 	ethClient        EthClienter
+	blockFinality    *big.Int
 }
 
 func (d *downloaderImplementation) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64) {
 	attempts := 0
 	for {
-		lastBlock, err := d.ethClient.BlockNumber(ctx)
+		header, err := d.ethClient.HeaderByNumber(ctx, d.blockFinality)
 		if err != nil {
 			attempts++
 			log.Error("error geting last block num from eth client: ", err)
 			retryHandler("waitForNewBlocks", attempts)
 			continue
 		}
-		if lastBlock > lastBlockSeen {
-			return lastBlock
+		if header.Number.Uint64() > lastBlockSeen {
+			return header.Number.Uint64()
 		}
 		time.Sleep(waitForNewBlocksPeriod)
 	}
