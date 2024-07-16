@@ -20,7 +20,8 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.cmd {
-        cli::Commands::Run {} => run(cli.cfg)?,
+        cli::Commands::Rollup {} => rollup(cli.cfg)?,
+        cli::Commands::Erigon {} => erigon(cli.cfg)?,
         // _ => forward()?,
     }
 
@@ -35,7 +36,7 @@ fn main() -> anyhow::Result<()> {
 ///
 /// This function returns on fatal error or after graceful shutdown has
 /// completed.
-pub fn run(cfg: PathBuf) -> anyhow::Result<()> {
+pub fn rollup(cfg: PathBuf) -> anyhow::Result<()> {
     // Load the configuration file
     let config: Arc<Config> = Arc::new(toml::from_str(&std::fs::read_to_string(cfg.clone())?)?);
 
@@ -57,6 +58,32 @@ pub fn run(cfg: PathBuf) -> anyhow::Result<()> {
 
     // Initialize the logger
     logging::tracing(&config.log);
+
+    Ok(())
+}
+
+/// This is the main erigon entrypoint.
+/// This function starts everything needed to run an Erigon node.
+pub fn erigon(cfg: PathBuf) -> anyhow::Result<()> {
+    // Load the configuration file
+    let config: Arc<Config> = Arc::new(toml::from_str(&std::fs::read_to_string(cfg.clone())?)?);
+
+    let mut command = Command::new(CDK_ERIGON_PATH);
+
+    // Prepare erigon config files or flags
+    command.args(&["--config", cfg.to_str().unwrap()]);
+
+    let output = command.execute_output().unwrap();
+
+    if let Some(exit_code) = output.status.code() {
+        if exit_code == 0 {
+            println!("Ok.");
+        } else {
+            eprintln!("Failed.");
+        }
+    } else {
+        eprintln!("Interrupted!");
+    }
 
     Ok(())
 }
