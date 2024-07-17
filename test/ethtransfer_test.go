@@ -13,12 +13,7 @@ import (
 )
 
 func TestEthTransfer(t *testing.T) {
-	cmd := exec.Command("kurtosis", "port", "print", "cdk-v1", "zkevm-node-rpc-001", "http-rpc")
-	output, err := cmd.CombinedOutput()
-    if err != nil {
-        log.Fatalf("Failed to execute command: %s", err)
-    }
-	operations.L2RPCURL = strings.TrimSpace(string(output))
+	operations.L2RPCURL = operations.GetL2RPCURL()
 
 	const amountOfTxsToSend = 10
 	client, err := jsonrpc.NewClient(operations.L2RPCURL)

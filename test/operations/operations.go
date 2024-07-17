@@ -22,3 +22,13 @@ func GetL2Wallet() (*wallet.Key, error) {
 	}
 	return wallet.NewWalletFromPrivKey(prvKeyBytes)
 }
+
+func GetL2RPCURL() string {
+	cmd := exec.Command("kurtosis", "port", "print", "cdk-v1", "zkevm-node-rpc-001", "http-rpc")
+	output, err := cmd.CombinedOutput()
+    if err != nil {
+        log.Fatalf("Failed to execute command: %s", err)
+    }
+
+	return strings.TrimSpace(string(output))
+}
