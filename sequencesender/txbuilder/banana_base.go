@@ -1,9 +1,12 @@
 package txbuilder
 
 import (
+	"fmt"
+
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/etherman/contracts"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -17,9 +20,21 @@ type TxBuilderBananaBase struct {
 	SenderAddress          common.Address
 }
 
-func convertToSequenceBanana(sequences seqsendertypes.Sequence) etherman.SequenceBanana {
-	// TODO: Fill
-	return etherman.SequenceBanana{}
+func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.SequenceBanana, error) {
+	seqEth, ok := sequences.(*BananaSequence)
+	if !ok {
+		log.Error("sequences is not a BananaSequence")
+		return etherman.SequenceBanana{}, fmt.Errorf("sequences is not a BananaSequence")
+	}
+	seqEth.SequenceBanana.Batches = make([]etherman.Batch, len(sequences.Batches()))
+	for _, batch := range sequences.Batches() {
+		ethBatch, err := convertToEthermanBatch(batch)
+		if err != nil {
+			return etherman.SequenceBanana{}, err
+		}
+		seqEth.SequenceBanana.Batches = append(seqEth.SequenceBanana.Batches, ethBatch)
+	}
+	return seqEth.SequenceBanana, nil
 }
 
 func convertToEthermanBatch(batch seqsendertypes.Batch) (etherman.Batch, error) {

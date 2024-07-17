@@ -467,15 +467,11 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	}
 
 	// Send sequences to L1
-	//sequenceCount := sequence.Len()
-	//firstSequence := sequence.Batches[0]
 	firstSequence := sequence.FirstBatch()
-	//lastSequence := sequence.Batches[sequenceCount-1]
 	lastSequence := sequence.LastBatch()
 	lastL2BlockTimestamp := lastSequence.LastL2BLockTimestamp()
 
 	log.Infof("[SeqSender] sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber, lastSequence.BatchNumber)
-	//printSequenceBatches(sequence)
 	log.Infof(sequence.String())
 
 	// Wait until last L1 block timestamp is L1BlockTimestampMargin seconds above the timestamp of the last L2 block in the sequence
