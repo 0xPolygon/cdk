@@ -6,7 +6,7 @@ fn main() {
     // Determine the directory where the build script is located
     let dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let build_path = PathBuf::from(dir + "/../..");
-    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=*.go");
 
     // Optionally, specify the directory where your Makefile is located
     // For this example, it's assumed to be the same as the build script's directory

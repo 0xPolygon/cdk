@@ -10,7 +10,7 @@ use std::sync::Arc;
 mod cli;
 mod logging;
 
-const CDK_CLIENT_PATH: &str = "target/cdk-client";
+const CDK_CLIENT_PATH: &str = "target/cdk-rollup";
 const CDK_ERIGON_PATH: &str = "target/cdk-erigon";
 
 fn main() -> anyhow::Result<()> {
