@@ -1,6 +1,8 @@
 package etherman
 
 import (
+	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
@@ -89,3 +91,40 @@ type ForkID struct {
 	ForkID      uint64
 	Version     string
 }
+
+type BlockNumberFinality string
+
+const (
+	FinalizedBlock = BlockNumberFinality("FinalizedBlock")
+	SafeBlock      = BlockNumberFinality("SafeBlock")
+	PendingBlock   = BlockNumberFinality("PendingBlock")
+	LatestBlock    = BlockNumberFinality("LatestBlock")
+	EarliestBlock  = BlockNumberFinality("EarliestBlock")
+)
+
+func (b *BlockNumberFinality) ToBlockNum() (*big.Int, error) {
+	switch *b {
+	case FinalizedBlock:
+		return big.NewInt(int64(Finalized)), nil
+	case SafeBlock:
+		return big.NewInt(int64(Safe)), nil
+	case PendingBlock:
+		return big.NewInt(int64(Pending)), nil
+	case LatestBlock:
+		return big.NewInt(int64(Latest)), nil
+	case EarliestBlock:
+		return big.NewInt(int64(Earliest)), nil
+	default:
+		return nil, fmt.Errorf("invalid finality keyword: %s", string(*b))
+	}
+}
+
+type BlockNumber int64
+
+const (
+	Finalized = BlockNumber(-5)
+	Safe      = BlockNumber(-4)
+	Pending   = BlockNumber(-3)
+	Latest    = BlockNumber(-2)
+	Earliest  = BlockNumber(-1)
+)
