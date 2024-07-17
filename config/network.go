@@ -17,7 +17,7 @@ import (
 // NetworkConfig is the configuration struct for the different environments
 type NetworkConfig struct {
 	// L1: Configuration related to L1
-	L1Config etherman.L1Config `json:"l1Config"`
+	L1Config etherman.L1Config `mapstructure:"L1"`
 	// L1: Genesis of the rollup, first block number and root
 	Genesis state.Genesis
 }

@@ -41,7 +41,7 @@ pub fn rollup(cfg: PathBuf) -> anyhow::Result<()> {
 
     // Run the node passing the parsed config values as flags
     let mut command = Command::new(CDK_CLIENT_PATH);
-    command.args(&["run", "-cfg", cfg.to_str().unwrap()]);
+    command.args(&["run", "-cfg", cfg.canonicalize()?.to_str().unwrap()]);
 
     let output = command.execute_output().unwrap();
 

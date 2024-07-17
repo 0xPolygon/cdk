@@ -30,6 +30,9 @@ pub struct Config {
     /// The local RPC server configuration.
     #[serde(rename = "RPC")]
     pub rpc: RpcConfig,
+
+    #[serde(rename = "ForkUpgradeBatchNumber")]
+    pub fork_upgrade_batch_number: Option<u64>,
 }
 
 impl Config {

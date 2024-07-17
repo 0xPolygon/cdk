@@ -27,7 +27,7 @@ import (
 )
 
 func start(cliCtx *cli.Context) error {
-	c, err := config.Load(cliCtx, true)
+	c, err := config.Load(cliCtx)
 	if err != nil {
 		return err
 	}

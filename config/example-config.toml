@@ -111,3 +111,12 @@ SequencerPrivateKey = {}
 		[Aggregator.Synchronizer.Etherman]
 			[Aggregator.Synchronizer.Etherman.Validium]
 				Enabled = false
+
+[RPC]
+
+[NetworkConfig.L1]
+ChainID = 11155111
+PolAddr = "0x6a7c3F4B0651d6DA389AD1d11D962ea458cDCA70"
+ZkEVMAddr = "0x47193C28404c762E7E213A8099A8B3d72885cDdC"
+RollupManagerAddr = "0x32d33D5137a7cFFb54c5Bf8371172bcEc5f310ff"
+GlobalExitRootManagerAddr = "0xAd1490c248c5d3CbAE399Fd529b79B42984277DF"

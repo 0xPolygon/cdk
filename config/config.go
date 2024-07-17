@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -85,7 +86,7 @@ func Default() (*Config, error) {
 }
 
 // Load loads the configuration
-func Load(ctx *cli.Context, loadNetworkConfig bool) (*Config, error) {
+func Load(ctx *cli.Context) (*Config, error) {
 	cfg, err := Default()
 	if err != nil {
 		return nil, err
@@ -126,9 +127,7 @@ func Load(ctx *cli.Context, loadNetworkConfig bool) (*Config, error) {
 		return nil, err
 	}
 
-	if loadNetworkConfig {
-		// Load genesis parameters
-		cfg.loadNetworkConfig(ctx)
-	}
+	fmt.Println("cfg", cfg.NetworkConfig.L1Config)
+
 	return cfg, nil
 }
