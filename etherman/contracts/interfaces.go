@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -61,6 +62,10 @@ type RollupData struct {
 	LastVerifiedBatchBeforeUpgrade uint64
 	RollupTypeID                   uint64
 	RollupCompatibilityID          uint8
+}
+
+func (r *RollupData) String() string {
+	return fmt.Sprintf("RollupContract: %s, ChainID: %d, Verifier: %s, ForkID: %d, LastLocalExitRoot: %x, LastBatchSequenced: %d, LastVerifiedBatch: %d, LastPendingState: %d, LastPendingStateConsolidated: %d, LastVerifiedBatchBeforeUpgrade: %d, RollupTypeID: %d, RollupCompatibilityID: %d", r.RollupContract.String(), r.ChainID, r.Verifier.String(), r.ForkID, r.LastLocalExitRoot, r.LastBatchSequenced, r.LastVerifiedBatch, r.LastPendingState, r.LastPendingStateConsolidated, r.LastVerifiedBatchBeforeUpgrade, r.RollupTypeID, r.RollupCompatibilityID)
 }
 
 type StateVariablesSequencedBatchData struct {

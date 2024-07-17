@@ -38,7 +38,11 @@ func (t *TxBuilderBananaZKEVM) NewSequenceIfWorthToSend(ctx context.Context, seq
 
 func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
 	var err error
-	ethseq := convertToSequenceBanana(sequences)
+	ethseq, err := convertToSequenceBanana(sequences)
+	if err != nil {
+		log.Error("error converting sequences to etherman: ", err)
+		return nil, err
+	}
 	newopts := t.opts
 	newopts.NoSend = true
 
