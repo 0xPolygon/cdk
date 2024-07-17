@@ -16,8 +16,10 @@ import (
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/dataavailability/datacommittee"
 	"github.com/0xPolygon/cdk/etherman"
+	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender"
+	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/pgstatestorage"
 	ethtxman "github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
@@ -123,7 +125,7 @@ func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 			HTTPHeaders: cfg.SequenceSender.EthTxManager.Etherman.HTTPHeaders,
 		},
 		IsValidiumMode: cfg.SequenceSender.IsValidiumMode,
-	}, cfg.NetworkConfig.L1Config)
+	}, cfg.NetworkConfig.L1Config, cfg.Common)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -134,17 +136,48 @@ func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 	}
 	cfg.SequenceSender.SenderAddress = auth.From
 
-	da, err := newDataAvailability(cfg, ethman)
+	txBuilder, err := newTxBuilder(cfg, ethman)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	seqSender, err := sequencesender.New(cfg.SequenceSender, ethman, da)
+	seqSender, err := sequencesender.New(cfg.SequenceSender, ethman, txBuilder)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	return seqSender
+}
+
+func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuilder, error) {
+	auth, _, err := ethman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
+	if err != nil {
+		log.Fatal(err)
+	}
+	da, err := newDataAvailability(cfg, ethman)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var txBuilder txbuilder.TxBuilder
+
+	switch contracts.VersionType(cfg.Common.ContractVersions) {
+	case contracts.VersionBanana:
+		if cfg.Common.IsValidiumMode {
+			txBuilder = txbuilder.NewTxBuilderBananaValidium(*ethman.Contracts.Banana.ZkEVM, da, *auth, auth.From)
+		} else {
+			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(*ethman.Contracts.Banana.ZkEVM, *auth, auth.From)
+		}
+	case contracts.VersionElderberry:
+		if cfg.Common.IsValidiumMode {
+			err = fmt.Errorf("Elderberry+Validium not implemented yet")
+			//txBuilder = txbuilder.NewTxBuilderElderberryValidium(*ethman.Contracts.Elderberry.ZkEVM, da, *auth, auth.From)
+		} else {
+			txBuilder = txbuilder.NewTxBuilderElderberryZKEVM(*ethman.Contracts.Elderberry.ZkEVM, *auth, auth.From)
+		}
+	default:
+		err = fmt.Errorf("unknown contract version: %s", cfg.Common.ContractVersions)
+	}
+
+	return txBuilder, err
 }
 
 func newDataAvailability(c config.Config, etherman *etherman.Client) (*dataavailability.DataAvailability, error) {
@@ -212,7 +245,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	config := etherman.Config{
 		URL: c.Aggregator.EthTxManager.Etherman.URL,
 	}
-	return etherman.NewClient(config, c.NetworkConfig.L1Config)
+	return etherman.NewClient(config, c.NetworkConfig.L1Config, c.Common)
 }
 
 func logVersion() {

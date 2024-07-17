@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygon/cdk/aggregator"
+	"github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender"
@@ -66,6 +67,9 @@ type Config struct {
 	NetworkConfig NetworkConfig
 	// Configuration of the sequence sender service
 	SequenceSender sequencesender.Config
+
+	// Common Config that affects all the services
+	Common common.Config
 }
 
 // Default parses the default configuration values.

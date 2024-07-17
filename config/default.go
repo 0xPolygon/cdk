@@ -5,6 +5,10 @@ const DefaultValues = `
 ForkUpgradeBatchNumber = 0
 ForkUpgradeNewForkId = 0
 
+[Common]
+IsValidiumMode = false
+ContractVersions = "banana"
+
 [Log]
 Environment = "development" # "production" or "development"
 Level = "info"

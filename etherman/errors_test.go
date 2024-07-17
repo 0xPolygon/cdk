@@ -11,7 +11,7 @@ func TestTryParseWithExactMatch(t *testing.T) {
 	expected := ErrTimestampMustBeInsideRange
 	smartContractErr := expected
 
-	actualErr, ok := tryParseError(smartContractErr)
+	actualErr, ok := TryParseError(smartContractErr)
 
 	assert.ErrorIs(t, actualErr, expected)
 	assert.True(t, ok)
@@ -21,7 +21,7 @@ func TestTryParseWithContains(t *testing.T) {
 	expected := ErrTimestampMustBeInsideRange
 	smartContractErr := fmt.Errorf(" execution reverted: ProofOfEfficiency::sequenceBatches: %s", expected)
 
-	actualErr, ok := tryParseError(smartContractErr)
+	actualErr, ok := TryParseError(smartContractErr)
 
 	assert.ErrorIs(t, actualErr, expected)
 	assert.True(t, ok)
@@ -30,7 +30,7 @@ func TestTryParseWithContains(t *testing.T) {
 func TestTryParseWithNonExistingErr(t *testing.T) {
 	smartContractErr := fmt.Errorf("some non-existing err")
 
-	actualErr, ok := tryParseError(smartContractErr)
+	actualErr, ok := TryParseError(smartContractErr)
 
 	assert.Nil(t, actualErr)
 	assert.False(t, ok)

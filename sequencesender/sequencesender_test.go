@@ -63,3 +63,10 @@ func TestStreamTx(t *testing.T) {
 
 	printBatch(decodedBatch, true, true)
 }
+
+func TestKK(t *testing.T) {
+	sut := &SequenceSender{}
+	sequences, err := sut.getSequencesToSend()
+	require.NoError(t, err)
+	require.NotNil(t, sequences)
+}
