@@ -41,7 +41,7 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 
 	const pendStateNum = 0 // TODO hardcoded for now until we implement the pending state feature
 
-	tx, err := etherMan.RollupManager.VerifyBatchesTrustedAggregator(
+	tx, err := etherMan.Contracts.RollupManager(nil).VerifyBatchesTrustedAggregator(
 		&opts,
 		etherMan.RollupID,
 		pendStateNum,
@@ -53,7 +53,7 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 		proof,
 	)
 	if err != nil {
-		if parsedErr, ok := tryParseError(err); ok {
+		if parsedErr, ok := TryParseError(err); ok {
 			err = parsedErr
 		}
 		return nil, nil, err
@@ -64,7 +64,7 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 
 // GetBatchAccInputHash gets the batch accumulated input hash from the ethereum
 func (etherman *Client) GetBatchAccInputHash(ctx context.Context, batchNumber uint64) (common.Hash, error) {
-	rollupData, err := etherman.RollupManager.GetRollupSequencedBatches(&bind.CallOpts{Pending: false}, etherman.RollupID, batchNumber)
+	rollupData, err := etherman.Contracts.RollupManager(nil).GetRollupSequencedBatches(etherman.RollupID, batchNumber)
 	if err != nil {
 		return common.Hash{}, err
 	}
