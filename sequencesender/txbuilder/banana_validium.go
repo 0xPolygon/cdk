@@ -18,10 +18,11 @@ import (
 
 type TxBuilderBananaValidium struct {
 	TxBuilderBananaBase
-	da dataavailability.SequenceSender
+	da         dataavailability.SequenceSender
+	condNewSeq CondNewSequence
 }
 
-func NewTxBuilderBananaValidium(zkevm contracts.ContractRollupBanana, da dataavailability.SequenceSender, opts bind.TransactOpts, sender common.Address) *TxBuilderBananaValidium {
+func NewTxBuilderBananaValidium(zkevm contracts.ContractRollupBanana, da dataavailability.SequenceSender, opts bind.TransactOpts, sender common.Address, maxBatchesForL1 uint64) *TxBuilderBananaValidium {
 	return &TxBuilderBananaValidium{
 		TxBuilderBananaBase: TxBuilderBananaBase{
 			zkevm:         zkevm,
@@ -29,7 +30,14 @@ func NewTxBuilderBananaValidium(zkevm contracts.ContractRollupBanana, da dataava
 			SenderAddress: sender,
 		},
 		da: da,
+		condNewSeq: &NewSequenceConditionalNumBatches{
+			maxBatchesForL1: maxBatchesForL1,
+		},
 	}
+}
+
+func (t *TxBuilderBananaValidium) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.SenderAddress, l2Coinbase, batchNumber)
 }
 
 func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {

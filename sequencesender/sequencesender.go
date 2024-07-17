@@ -25,11 +25,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var (
-	// ErrOversizedData when transaction input data is greater than a limit (DOS protection)
-	ErrOversizedData = errors.New("oversized data")
-)
-
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
 	cfg                 Config
@@ -463,7 +458,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 
 	// Check if should send sequence to L1
 	log.Infof("[SeqSender] getting sequences to send")
-	sequence, err := s.getSequencesToSend()
+	sequence, err := s.getSequencesToSend(ctx)
 	if err != nil || sequence == nil || sequence.Len() == 0 {
 		if err != nil {
 			log.Errorf("[SeqSender] error getting sequences: %v", err)
@@ -526,27 +521,8 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 
 	// Send sequences to L1
 	log.Infof("[SeqSender] sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber, lastSequence.BatchNumber)
-	//printSequenceBatches(sequence)
 	log.Infof(sequence.String())
 
-	/*
-		// Post sequences to DA backend
-		var dataAvailabilityMessage []byte
-		if s.cfg.IsValidiumMode {
-			dataAvailabilityMessage, err = s.da.PostSequence(ctx, *sequence)
-			if err != nil {
-				log.Error("error posting sequences to the data availability protocol: ", err)
-				return
-			}
-		}
-
-		// Build sequence data
-		tx, err := s.etherman.BuildSequenceBatchesTx(s.cfg.SenderAddress, *sequence, dataAvailabilityMessage)
-		if err != nil {
-			log.Errorf("[SeqSender] error estimating new sequenceBatches to add to ethtxmanager: ", err)
-			return
-		}
-	*/
 	tx, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, s.cfg.SenderAddress, sequence)
 	if err != nil {
 		log.Errorf("[SeqSender] error building sequenceBatches tx: %v", err)
@@ -637,7 +613,7 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 }
 
 // getSequencesToSend generates sequences to be sent to L1. Empty array means there are no sequences to send or it's not worth sending
-func (s *SequenceSender) getSequencesToSend() (seqsendertypes.Sequence, error) {
+func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes.Sequence, error) {
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	s.mutexSequence.Lock()
 	defer s.mutexSequence.Unlock()
@@ -675,50 +651,12 @@ func (s *SequenceSender) getSequencesToSend() (seqsendertypes.Sequence, error) {
 		// Add new sequence batch
 		sequenceBatches = append(sequenceBatches, batch)
 
-		if s.cfg.IsValidiumMode {
-			if len(sequenceBatches) == int(s.cfg.MaxBatchesForL1) {
-				log.Infof(
-					"[SeqSender] sequence should be sent to L1, because MaxBatchesForL1 (%d) has been reached",
-					s.cfg.MaxBatchesForL1,
-				)
-
-				//return s.newSequenceBanana(sequenceBatches, s.cfg.L2Coinbase)
-				return s.TxBuilder.NewSequence(sequenceBatches, s.cfg.L2Coinbase)
-			}
-		} else {
-			//sequence, err := s.newSequenceBanana(sequenceBatches, s.cfg.L2Coinbase)
-			sequence, err := s.TxBuilder.NewSequence(sequenceBatches, s.cfg.L2Coinbase)
-			if err != nil {
-				return nil, err
-			}
-
-			// Check if can be sent
-			// TODO: pass real CTX
-			ctx := context.Background()
-			tx, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, s.cfg.SenderAddress, sequence)
-			if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
-				log.Infof("[SeqSender] oversized Data on TX oldHash %s (txSize %d > %d)", tx.Hash(), tx.Size(), s.cfg.MaxTxSizeForL1)
-				err = ErrOversizedData
-			}
-
-			if err != nil {
-				log.Infof("[SeqSender] handling estimate gas send sequence error: %v", err)
-				sequenceBatches, err = s.handleEstimateGasSendSequenceErr(sequence.Batches(), batchNumber, err)
-				if sequenceBatches != nil {
-					// Handling the error gracefully, re-processing the sequence as a sanity check
-					//sequence, err = s.newSequenceBanana(sequenceBatches, s.cfg.L2Coinbase)
-					sequence, err = s.TxBuilder.NewSequence(sequenceBatches, s.cfg.L2Coinbase)
-					if err != nil {
-						return nil, err
-					}
-
-					//_, err = s.etherman.BuildSequenceBatchesTx(s.cfg.SenderAddress, *sequence, nil)
-					_, err = s.TxBuilder.BuildSequenceBatchesTx(ctx, s.cfg.SenderAddress, sequence)
-					return sequence, err
-				}
-
-				return sequence, err
-			}
+		newSeq, err := s.TxBuilder.NewSequenceIfWorthToSend(ctx, sequenceBatches, s.cfg.L2Coinbase, batchNumber)
+		if err != nil {
+			return nil, err
+		}
+		if newSeq != nil {
+			return newSeq, nil
 		}
 
 		// Check if the current batch is the last before a change to a new forkid, in this case we need to close and send the sequence to L1
@@ -743,36 +681,6 @@ func (s *SequenceSender) getSequencesToSend() (seqsendertypes.Sequence, error) {
 
 	log.Infof("[SeqSender] not enough time has passed since last batch was virtualized and the sequence could be bigger")
 	return nil, nil
-}
-
-// handleEstimateGasSendSequenceErr handles an error on the estimate gas. Results: (nil,nil)=requires waiting, (nil,error)=no handled gracefully, (seq,nil) handled gracefully
-func (s *SequenceSender) handleEstimateGasSendSequenceErr(sequenceBatches []seqsendertypes.Batch, currentBatchNumToSequence uint64, err error) ([]seqsendertypes.Batch, error) {
-	// Insufficient allowance
-	if errors.Is(err, etherman.ErrInsufficientAllowance) {
-		return nil, err
-	}
-	if isDataForEthTxTooBig(err) {
-		// Remove the latest item and send the sequences
-		log.Infof("Done building sequences, selected batches to %d. Batch %d caused the L1 tx to be too big: %v", currentBatchNumToSequence-1, currentBatchNumToSequence, err)
-	} else {
-		// Remove the latest item and send the sequences
-		log.Infof("Done building sequences, selected batches to %d. Batch %d excluded due to unknown error: %v", currentBatchNumToSequence, currentBatchNumToSequence+1, err)
-	}
-
-	if len(sequenceBatches) > 1 {
-		sequenceBatches = sequenceBatches[:len(sequenceBatches)-1]
-	} else {
-		sequenceBatches = nil
-	}
-
-	return sequenceBatches, nil
-}
-
-// isDataForEthTxTooBig checks if tx oversize error
-func isDataForEthTxTooBig(err error) bool {
-	return errors.Is(err, etherman.ErrGasRequiredExceedsAllowance) ||
-		errors.Is(err, ErrOversizedData) ||
-		errors.Is(err, etherman.ErrContentLengthTooLarge)
 }
 
 // loadSentSequencesTransactions loads the file into the memory structure

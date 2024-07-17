@@ -16,16 +16,24 @@ import (
 
 type TxBuilderBananaZKEVM struct {
 	TxBuilderBananaBase
+	condNewSeq CondNewSequence
 }
 
-func NewTxBuilderBananaZKEVM(zkevm contracts.ContractRollupBanana, opts bind.TransactOpts, sender common.Address) *TxBuilderBananaZKEVM {
+func NewTxBuilderBananaZKEVM(zkevm contracts.ContractRollupBanana, opts bind.TransactOpts, sender common.Address, maxTxSizeForL1 uint64) *TxBuilderBananaZKEVM {
 	return &TxBuilderBananaZKEVM{
 		TxBuilderBananaBase: TxBuilderBananaBase{
 			zkevm:         zkevm,
 			opts:          opts,
 			SenderAddress: sender,
 		},
+		condNewSeq: &NewSequenceConditionalMaxSize{
+			maxTxSizeForL1: maxTxSizeForL1,
+		},
 	}
+}
+
+func (t *TxBuilderBananaZKEVM) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.SenderAddress, l2Coinbase, batchNumber)
 }
 
 func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {

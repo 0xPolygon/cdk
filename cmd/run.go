@@ -124,7 +124,6 @@ func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 			},
 			HTTPHeaders: cfg.SequenceSender.EthTxManager.Etherman.HTTPHeaders,
 		},
-		IsValidiumMode: cfg.SequenceSender.IsValidiumMode,
 	}, cfg.NetworkConfig.L1Config, cfg.Common)
 	if err != nil {
 		log.Fatal(err)
@@ -162,16 +161,16 @@ func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuild
 	switch contracts.VersionType(cfg.Common.ContractVersions) {
 	case contracts.VersionBanana:
 		if cfg.Common.IsValidiumMode {
-			txBuilder = txbuilder.NewTxBuilderBananaValidium(*ethman.Contracts.Banana.ZkEVM, da, *auth, auth.From)
+			txBuilder = txbuilder.NewTxBuilderBananaValidium(*ethman.Contracts.Banana.ZkEVM, da, *auth, auth.From, cfg.SequenceSender.MaxBatchesForL1)
 		} else {
-			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(*ethman.Contracts.Banana.ZkEVM, *auth, auth.From)
+			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(*ethman.Contracts.Banana.ZkEVM, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
 		}
 	case contracts.VersionElderberry:
 		if cfg.Common.IsValidiumMode {
 			err = fmt.Errorf("Elderberry+Validium not implemented yet")
 			//txBuilder = txbuilder.NewTxBuilderElderberryValidium(*ethman.Contracts.Elderberry.ZkEVM, da, *auth, auth.From)
 		} else {
-			txBuilder = txbuilder.NewTxBuilderElderberryZKEVM(*ethman.Contracts.Elderberry.ZkEVM, *auth, auth.From)
+			txBuilder = txbuilder.NewTxBuilderElderberryZKEVM(*ethman.Contracts.Elderberry.ZkEVM, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
 		}
 	default:
 		err = fmt.Errorf("unknown contract version: %s", cfg.Common.ContractVersions)
@@ -181,7 +180,7 @@ func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuild
 }
 
 func newDataAvailability(c config.Config, etherman *etherman.Client) (*dataavailability.DataAvailability, error) {
-	if !c.SequenceSender.IsValidiumMode {
+	if !c.Common.IsValidiumMode {
 		return nil, nil
 	}
 

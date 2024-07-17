@@ -9,8 +9,6 @@ import (
 
 // Config represents the configuration of a sequence sender
 type Config struct {
-	// IsValidiumMode has the value true if the sequence sender is running in validium mode.
-	IsValidiumMode bool `mapstructure:"IsValidiumMode"`
 	// WaitPeriodSendSequence is the time the sequencer waits until
 	// trying to send a sequence to L1
 	WaitPeriodSendSequence types.Duration `mapstructure:"WaitPeriodSendSequence"`

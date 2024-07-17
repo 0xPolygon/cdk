@@ -123,7 +123,6 @@ func NewClient(cfg Config, l1Config L1Config, commonConfig cdkcommon.Config) (*C
 		cfg:            cfg,
 		auth:           map[common.Address]bind.TransactOpts{},
 	}
-	cfg.IsValidiumMode = commonConfig.IsValidiumMode
 
 	if commonConfig.IsValidiumMode {
 		dapAddr, err := contracts.ZkEVM(nil).DataAvailabilityProtocol()

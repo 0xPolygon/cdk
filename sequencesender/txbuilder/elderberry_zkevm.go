@@ -17,14 +17,18 @@ import (
 )
 
 type TxBuilderElderberryZKEVM struct {
-	opts  bind.TransactOpts
-	zkevm contracts.ContractRollupElderberry
+	opts       bind.TransactOpts
+	zkevm      contracts.ContractRollupElderberry
+	condNewSeq CondNewSequence
 }
 
-func NewTxBuilderElderberryZKEVM(zkevm contracts.ContractRollupElderberry, opts bind.TransactOpts, sender common.Address) *TxBuilderElderberryZKEVM {
+func NewTxBuilderElderberryZKEVM(zkevm contracts.ContractRollupElderberry, opts bind.TransactOpts, sender common.Address, maxTxSizeForL1 uint64) *TxBuilderElderberryZKEVM {
 	return &TxBuilderElderberryZKEVM{
 		opts:  opts,
 		zkevm: zkevm,
+		condNewSeq: &NewSequenceConditionalMaxSize{
+			maxTxSizeForL1: maxTxSizeForL1,
+		},
 	}
 }
 
@@ -34,6 +38,10 @@ func (t *TxBuilderElderberryZKEVM) NewSequence(batches []seqsendertypes.Batch, c
 		batches:    batches,
 	}
 	return &seq, nil
+}
+
+func (t *TxBuilderElderberryZKEVM) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.opts.From, l2Coinbase, batchNumber)
 }
 
 func (t *TxBuilderElderberryZKEVM) NewBatchFromL2Block(l2Block *datastream.L2Block) seqsendertypes.Batch {
