@@ -2,10 +2,10 @@ package localbridgesync
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 
+	"github.com/0xPolygon/cdk/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 )
@@ -57,6 +57,9 @@ func (p *processor) GetClaimsAndBridges(
 	}
 	defer tx.Rollback()
 	lpb, err := p.getLastProcessedBlockWithTx(tx)
+	if err != nil {
+		return nil, err
+	}
 	if lpb < toBlock {
 		return nil, ErrBlockNotProcessed
 	}
@@ -66,11 +69,11 @@ func (p *processor) GetClaimsAndBridges(
 	}
 	defer c.Close()
 
-	for k, v, err := c.Seek(blockNum2Bytes(fromBlock)); k != nil; k, v, err = c.Next() {
+	for k, v, err := c.Seek(common.BlockNum2Bytes(fromBlock)); k != nil; k, v, err = c.Next() {
 		if err != nil {
 			return nil, err
 		}
-		if bytes2BlockNum(k) > toBlock {
+		if common.Bytes2BlockNum(k) > toBlock {
 			break
 		}
 		blockEvents := []BridgeEvent{}
@@ -99,7 +102,7 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	} else if blockNumBytes == nil {
 		return 0, nil
 	} else {
-		return bytes2BlockNum(blockNumBytes), nil
+		return common.Bytes2BlockNum(blockNumBytes), nil
 	}
 }
 
@@ -113,7 +116,7 @@ func (p *processor) reorg(firstReorgedBlock uint64) error {
 		return err
 	}
 	defer c.Close()
-	firstKey := blockNum2Bytes(firstReorgedBlock)
+	firstKey := common.BlockNum2Bytes(firstReorgedBlock)
 	for k, _, err := c.Seek(firstKey); k != nil; k, _, err = c.Next() {
 		if err != nil {
 			tx.Rollback()
@@ -142,7 +145,7 @@ func (p *processor) storeBridgeEvents(blockNum uint64, events []BridgeEvent) err
 			tx.Rollback()
 			return err
 		}
-		if err := tx.Put(eventsTable, blockNum2Bytes(blockNum), value); err != nil {
+		if err := tx.Put(eventsTable, common.BlockNum2Bytes(blockNum), value); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -155,16 +158,6 @@ func (p *processor) storeBridgeEvents(blockNum uint64, events []BridgeEvent) err
 }
 
 func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {
-	blockNumBytes := blockNum2Bytes(blockNum)
+	blockNumBytes := common.BlockNum2Bytes(blockNum)
 	return tx.Put(lastBlockTable, lastBlokcKey, blockNumBytes)
-}
-
-func blockNum2Bytes(blockNum uint64) []byte {
-	key := make([]byte, 8)
-	binary.LittleEndian.PutUint64(key, blockNum)
-	return key
-}
-
-func bytes2BlockNum(key []byte) uint64 {
-	return binary.LittleEndian.Uint64(key)
 }
