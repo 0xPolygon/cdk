@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/idataavailabilityprotocol"
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmglobalexitrootv2"
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/log"
@@ -76,9 +75,8 @@ type L1Config struct {
 
 // Client is a simple implementation of EtherMan.
 type Client struct {
-	EthClient      ethereumClient
-	DAProtocol     *idataavailabilityprotocol.Idataavailabilityprotocol
-	GlobalExitRoot *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
+	EthClient  ethereumClient
+	DAProtocol *idataavailabilityprotocol.Idataavailabilityprotocol
 
 	Contracts *Contracts
 	RollupID  uint32
@@ -97,16 +95,15 @@ func NewClient(cfg Config, l1Config L1Config, commonConfig cdkcommon.Config) (*C
 		return nil, err
 	}
 
-	globalExitRoot, err := polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2(l1Config.GlobalExitRootManagerAddr, ethClient)
+	contracts, err := NewContracts(l1Config, ethClient, contracts.VersionType(commonConfig.ContractVersions))
 	if err != nil {
 		return nil, err
 	}
-
-	contracts, err := NewContracts(l1Config, ethClient, contracts.VersionType(commonConfig.ContractVersions))
-
+	log.Info(contracts.String())
 	// Get RollupID
 	rollupID, err := contracts.RollupManager(nil).RollupAddressToID(l1Config.ZkEVMAddr)
 	if err != nil {
+		log.Errorf("error getting rollupID from %s : %+v", contracts.RollupManager(nil).String(), err)
 		return nil, err
 	}
 	if rollupID == 0 {
@@ -115,13 +112,13 @@ func NewClient(cfg Config, l1Config L1Config, commonConfig cdkcommon.Config) (*C
 	log.Debug("rollupID: ", rollupID)
 
 	client := &Client{
-		EthClient:      ethClient,
-		Contracts:      contracts,
-		GlobalExitRoot: globalExitRoot,
-		RollupID:       rollupID,
-		l1Cfg:          l1Config,
-		cfg:            cfg,
-		auth:           map[common.Address]bind.TransactOpts{},
+		EthClient: ethClient,
+		Contracts: contracts,
+
+		RollupID: rollupID,
+		l1Cfg:    l1Config,
+		cfg:      cfg,
+		auth:     map[common.Address]bind.TransactOpts{},
 	}
 
 	if commonConfig.IsValidiumMode {

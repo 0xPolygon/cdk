@@ -1,6 +1,7 @@
 package contracts
 
 import (
+	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -18,6 +19,7 @@ func NewContractBase[T any](constructor contractConstructorFunc[T], address comm
 	name NameType, version VersionType) (*ContractBase[T], error) {
 	contractBind, err := constructor(address, backend)
 	if err != nil {
+		log.Errorf("failed to bind contract %s at address %s. Err:%w", name, address.String(), err)
 		return nil, err
 	}
 
