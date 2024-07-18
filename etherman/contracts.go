@@ -13,6 +13,11 @@ type ContractsBanana struct {
 	ZkEVM          *contracts.ContractRollupBanana
 }
 
+func (c *ContractsBanana) String() string {
+	return "RollupManager: " + c.RollupManager.String() + "\nGlobalExitRoot: " + c.GlobalExitRoot.String() + "\nZkEVM: " + c.ZkEVM.String()
+
+}
+
 func newContractsBanana(cfg L1Config, backend bind.ContractBackend) (*ContractsBanana, error) {
 
 	globalExitRoot, err := contracts.NewContractGlobalExitRootBanana(cfg.GlobalExitRootManagerAddr, backend)
@@ -45,6 +50,11 @@ type ContractsElderberry struct {
 	ZkEVM          *contracts.ContractRollupElderberry
 }
 
+func (c *ContractsElderberry) String() string {
+	return "RollupManager: " + c.RollupManager.String() + "\nGlobalExitRoot: " + c.GlobalExitRoot.String() + "\nZkEVM: " + c.ZkEVM.String()
+
+}
+
 func newContractsElderberry(cfg L1Config, backend bind.ContractBackend) (*ContractsElderberry, error) {
 
 	globalExitRoot, err := contracts.NewContractGlobalExitRootElderberry(cfg.GlobalExitRootManagerAddr, backend)
@@ -72,6 +82,10 @@ type Contracts struct {
 	Banana          ContractsBanana
 	Elderberry      ContractsElderberry
 	contractVersion contracts.VersionType
+}
+
+func (c *Contracts) String() string {
+	return "default_contract_version: " + string(c.contractVersion) + "\n  Banana: \n" + c.Banana.String() + "\n Elderberry:\n" + c.Elderberry.String()
 }
 
 func NewContracts(cfg L1Config, backend bind.ContractBackend, defaultVersion contracts.VersionType) (*Contracts, error) {
