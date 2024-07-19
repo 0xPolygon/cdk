@@ -43,9 +43,9 @@ type GlobalExitRootContractor interface {
 }
 
 type BaseContractor interface {
-	GetName() string
-	GetVersion() string
-	GetAddress() common.Address
+	Name() string
+	Version() string
+	Address() common.Address
 	String() string
 }
 

@@ -7,7 +7,7 @@ import (
 
 	"github.com/0xPolygon/cdk/aggregator"
 	"github.com/0xPolygon/cdk/common"
-	"github.com/0xPolygon/cdk/etherman"
+	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
@@ -56,7 +56,7 @@ You could find some examples:
 */
 type Config struct {
 	// Configuration of the etherman (client for access L1)
-	Etherman etherman.Config
+	Etherman ethermanconfig.Config
 	// Configuration for ethereum transaction manager
 	EthTxManager ethtxmanager.Config
 	// Configuration of the aggregator

@@ -16,6 +16,7 @@ import (
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/dataavailability/datacommittee"
 	"github.com/0xPolygon/cdk/etherman"
+	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender"
@@ -113,7 +114,7 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 }
 
 func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
-	ethman, err := etherman.NewClient(etherman.Config{
+	ethman, err := etherman.NewClient(ethermanconfig.Config{
 		EthermanConfig: ethtxman.Config{
 			URL:              cfg.SequenceSender.EthTxManager.Etherman.URL,
 			MultiGasProvider: cfg.SequenceSender.EthTxManager.Etherman.MultiGasProvider,
@@ -161,16 +162,16 @@ func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuild
 	switch contracts.VersionType(cfg.Common.ContractVersions) {
 	case contracts.VersionBanana:
 		if cfg.Common.IsValidiumMode {
-			txBuilder = txbuilder.NewTxBuilderBananaValidium(*ethman.Contracts.Banana.ZkEVM, da, *auth, auth.From, cfg.SequenceSender.MaxBatchesForL1)
+			txBuilder = txbuilder.NewTxBuilderBananaValidium(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, da, *auth, auth.From, cfg.SequenceSender.MaxBatchesForL1)
 		} else {
-			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(*ethman.Contracts.Banana.ZkEVM, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
+			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
 		}
 	case contracts.VersionElderberry:
 		if cfg.Common.IsValidiumMode {
 			err = fmt.Errorf("Elderberry+Validium not implemented yet")
 			//txBuilder = txbuilder.NewTxBuilderElderberryValidium(*ethman.Contracts.Elderberry.ZkEVM, da, *auth, auth.From)
 		} else {
-			txBuilder = txbuilder.NewTxBuilderElderberryZKEVM(*ethman.Contracts.Elderberry.ZkEVM, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
+			txBuilder = txbuilder.NewTxBuilderElderberryZKEVM(ethman.Contracts.Elderberry.Rollup, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
 		}
 	default:
 		err = fmt.Errorf("unknown contract version: %s", cfg.Common.ContractVersions)
@@ -241,7 +242,7 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	config := etherman.Config{
+	config := ethermanconfig.Config{
 		URL: c.Aggregator.EthTxManager.Etherman.URL,
 	}
 	return etherman.NewClient(config, c.NetworkConfig.L1Config, c.Common)

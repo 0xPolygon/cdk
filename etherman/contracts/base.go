@@ -7,7 +7,7 @@ import (
 )
 
 type ContractBase[T any] struct {
-	contractBind *T
+	contract     *T
 	address      common.Address
 	contractName NameType
 	version      VersionType
@@ -24,29 +24,29 @@ func NewContractBase[T any](constructor contractConstructorFunc[T], address comm
 	}
 
 	return &ContractBase[T]{
-		contractBind: contractBind,
+		contract:     contractBind,
 		address:      address,
 		contractName: name,
 		version:      version,
 	}, nil
 }
 
-func (e *ContractBase[T]) GetContract() *T {
-	return e.contractBind
+func (e *ContractBase[T]) Contract() *T {
+	return e.contract
 }
 
-func (e *ContractBase[T]) GetAddress() common.Address {
+func (e *ContractBase[T]) Address() common.Address {
 	return e.address
 }
 
-func (e *ContractBase[T]) GetName() string {
+func (e *ContractBase[T]) Name() string {
 	return string(e.contractName)
 }
 
-func (e *ContractBase[T]) GetVersion() string {
+func (e *ContractBase[T]) Version() string {
 	return string(e.version)
 }
 
 func (e *ContractBase[T]) String() string {
-	return e.GetVersion() + "/" + e.GetName() + "@" + e.address.String()
+	return e.Version() + "/" + e.Name() + "@" + e.Address().String()
 }

@@ -22,14 +22,11 @@ type TxBuilderBananaValidium struct {
 	condNewSeq CondNewSequence
 }
 
-func NewTxBuilderBananaValidium(zkevm contracts.ContractRollupBanana, da dataavailability.SequenceSender, opts bind.TransactOpts, sender common.Address, maxBatchesForL1 uint64) *TxBuilderBananaValidium {
+func NewTxBuilderBananaValidium(rollupContract contracts.RollupBananaType, gerContract contracts.GlobalExitRootBananaType,
+	da dataavailability.SequenceSender, opts bind.TransactOpts, sender common.Address, maxBatchesForL1 uint64) *TxBuilderBananaValidium {
 	return &TxBuilderBananaValidium{
-		TxBuilderBananaBase: TxBuilderBananaBase{
-			zkevm:         zkevm,
-			opts:          opts,
-			SenderAddress: sender,
-		},
-		da: da,
+		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts, sender),
+		da:                  da,
 		condNewSeq: &NewSequenceConditionalNumBatches{
 			maxBatchesForL1: maxBatchesForL1,
 		},
@@ -96,7 +93,7 @@ func (t *TxBuilderBananaValidium) sequenceBatchesValidium(opts bind.TransactOpts
 		}
 	}
 
-	tx, err := t.zkevm.GetContract().SequenceBatchesValidium(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase, dataAvailabilityMessage)
+	tx, err := t.rollupContract.Contract().SequenceBatchesValidium(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", sequence.L2Coinbase)
