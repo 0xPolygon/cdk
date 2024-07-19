@@ -10,7 +10,7 @@ use std::sync::Arc;
 mod cli;
 mod logging;
 
-const CDK_CLIENT_PATH: &str = "target/cdk-rollup";
+const CDK_CLIENT_PATH: &str = "target/cdk-node";
 const CDK_ERIGON_PATH: &str = "target/cdk-erigon";
 
 fn main() -> anyhow::Result<()> {
@@ -19,8 +19,8 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.cmd {
-        cli::Commands::Rollup {} => rollup(cli.cfg)?,
-        cli::Commands::Erigon {} => erigon(cli.cfg)?,
+        cli::Commands::Node {} => node(cli.config)?,
+        cli::Commands::Erigon {} => erigon(cli.config)?,
         // _ => forward()?,
     }
 
@@ -35,13 +35,15 @@ fn main() -> anyhow::Result<()> {
 ///
 /// This function returns on fatal error or after graceful shutdown has
 /// completed.
-pub fn rollup(cfg: PathBuf) -> anyhow::Result<()> {
+pub fn node(config_path: PathBuf) -> anyhow::Result<()> {
     // Load the configuration file
-    let config: Arc<Config> = Arc::new(toml::from_str(&std::fs::read_to_string(cfg.clone())?)?);
+    let config: Arc<Config> = Arc::new(toml::from_str(&std::fs::read_to_string(
+        config_path.clone(),
+    )?)?);
 
     // Run the node passing the parsed config values as flags
     let mut command = Command::new(CDK_CLIENT_PATH);
-    command.args(&["run", "-cfg", cfg.canonicalize()?.to_str().unwrap()]);
+    command.args(&["run", "-cfg", config_path.canonicalize()?.to_str().unwrap()]);
 
     let output = command.execute_output().unwrap();
 
@@ -63,14 +65,17 @@ pub fn rollup(cfg: PathBuf) -> anyhow::Result<()> {
 
 /// This is the main erigon entrypoint.
 /// This function starts everything needed to run an Erigon node.
-pub fn erigon(cfg: PathBuf) -> anyhow::Result<()> {
+pub fn erigon(config_path: PathBuf) -> anyhow::Result<()> {
     // Load the configuration file
-    let _config: Arc<Config> = Arc::new(toml::from_str(&std::fs::read_to_string(cfg.clone())?)?);
+    let _config: Arc<Config> = Arc::new(toml::from_str(&std::fs::read_to_string(
+        config_path.clone(),
+    )?)?);
 
     let mut command = Command::new(CDK_ERIGON_PATH);
 
-    // Prepare erigon config files or flags
-    command.args(&["--config", cfg.to_str().unwrap()]);
+    // TODO: 1. Prepare erigon config files or flags
+
+    command.args(&["--config", config_path.to_str().unwrap()]);
 
     let output = command.execute_output().unwrap();
 
