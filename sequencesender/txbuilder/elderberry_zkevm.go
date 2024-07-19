@@ -17,15 +17,15 @@ import (
 )
 
 type TxBuilderElderberryZKEVM struct {
-	opts       bind.TransactOpts
-	zkevm      contracts.ContractRollupElderberry
-	condNewSeq CondNewSequence
+	opts           bind.TransactOpts
+	rollupContract contracts.RollupElderberryType
+	condNewSeq     CondNewSequence
 }
 
-func NewTxBuilderElderberryZKEVM(zkevm contracts.ContractRollupElderberry, opts bind.TransactOpts, sender common.Address, maxTxSizeForL1 uint64) *TxBuilderElderberryZKEVM {
+func NewTxBuilderElderberryZKEVM(zkevm contracts.RollupElderberryType, opts bind.TransactOpts, sender common.Address, maxTxSizeForL1 uint64) *TxBuilderElderberryZKEVM {
 	return &TxBuilderElderberryZKEVM{
-		opts:  opts,
-		zkevm: zkevm,
+		opts:           opts,
+		rollupContract: zkevm,
 		condNewSeq: &NewSequenceConditionalMaxSize{
 			maxTxSizeForL1: maxTxSizeForL1,
 		},
@@ -85,7 +85,7 @@ func (t *TxBuilderElderberryZKEVM) sequenceBatchesRollup(opts bind.TransactOpts,
 		}
 	}
 	lastSequencedBatchNumber := getLastSequencedBatchNumber(sequences)
-	ZkEVM := t.zkevm.GetContract()
+	ZkEVM := t.rollupContract.Contract()
 	tx, err := ZkEVM.SequenceBatches(&opts, batches, sequences.MaxSequenceTimestamp(), lastSequencedBatchNumber, sequences.L2Coinbase())
 	if err != nil {
 		t.warningMessage(batches, sequences.L2Coinbase(), &opts)

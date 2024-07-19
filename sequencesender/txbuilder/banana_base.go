@@ -14,10 +14,24 @@ import (
 )
 
 type TxBuilderBananaBase struct {
-	zkevm                  contracts.ContractRollupBanana
-	globalExitRootContract contracts.ContractGlobalExitRootBanana
-	opts                   bind.TransactOpts
-	SenderAddress          common.Address
+	rollupContract         contracts.RollupBananaType
+	globalExitRootContract contracts.GlobalExitRootBananaType
+
+	opts          bind.TransactOpts
+	SenderAddress common.Address
+}
+
+func NewTxBuilderBananaBase(rollupContract contracts.RollupBananaType,
+	gerContract contracts.GlobalExitRootBananaType,
+	opts bind.TransactOpts,
+	sender common.Address) *TxBuilderBananaBase {
+	return &TxBuilderBananaBase{
+		rollupContract:         rollupContract,
+		globalExitRootContract: gerContract,
+		opts:                   opts,
+		SenderAddress:          sender,
+	}
+
 }
 
 func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.SequenceBanana, error) {
@@ -88,19 +102,19 @@ func (t *TxBuilderBananaBase) NewSequence(batches []seqsendertypes.Batch, coinba
 	}
 	sequence := etherman.NewSequenceBanana(ethBatches, coinbase)
 
-	l1InfoRoot, err := t.globalExitRootContract.GetL1InfoRoot(sequence.IndexL1InfoRoot)
+	l1InfoRoot, err := t.getL1InfoRoot(sequence.IndexL1InfoRoot)
 	if err != nil {
 		return nil, err
 	}
 
 	sequence.L1InfoRoot = l1InfoRoot
 
-	accInputHash, err := t.zkevm.LastAccInputHash()
+	accInputHash, err := t.rollupContract.Contract().LastAccInputHash(&bind.CallOpts{Pending: false})
 	if err != nil {
 		return nil, err
 	}
 
-	oldAccInputHash := common.BytesToHash(accInputHash.Bytes()) //copy it
+	oldAccInputHash := common.BytesToHash(accInputHash[:]) //copy it
 
 	for _, batch := range sequence.Batches {
 		infoRootHash := sequence.L1InfoRoot
@@ -123,4 +137,21 @@ func (t *TxBuilderBananaBase) NewSequence(batches []seqsendertypes.Batch, coinba
 	sequence.AccInputHash = accInputHash
 	res := NewBananaSequence(*sequence)
 	return res, nil
+}
+
+func (t *TxBuilderBananaBase) getL1InfoRoot(indexL1InfoRoot uint32) (common.Hash, error) {
+	// Get lastL1InfoTreeRoot (if index==0 then root=0, no call is needed)
+	var (
+		lastL1InfoTreeRoot common.Hash
+		err                error
+	)
+
+	if indexL1InfoRoot > 0 {
+		lastL1InfoTreeRoot, err = t.globalExitRootContract.Contract().L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
+		if err != nil {
+			log.Errorf("error calling SC globalexitroot L1InfoLeafMap: %v", err)
+		}
+	}
+
+	return lastL1InfoTreeRoot, err
 }

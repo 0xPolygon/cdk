@@ -19,13 +19,9 @@ type TxBuilderBananaZKEVM struct {
 	condNewSeq CondNewSequence
 }
 
-func NewTxBuilderBananaZKEVM(zkevm contracts.ContractRollupBanana, opts bind.TransactOpts, sender common.Address, maxTxSizeForL1 uint64) *TxBuilderBananaZKEVM {
+func NewTxBuilderBananaZKEVM(rollupContract contracts.RollupBananaType, gerContract contracts.GlobalExitRootBananaType, opts bind.TransactOpts, sender common.Address, maxTxSizeForL1 uint64) *TxBuilderBananaZKEVM {
 	return &TxBuilderBananaZKEVM{
-		TxBuilderBananaBase: TxBuilderBananaBase{
-			zkevm:         zkevm,
-			opts:          opts,
-			SenderAddress: sender,
-		},
+		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts, sender),
 		condNewSeq: &NewSequenceConditionalMaxSize{
 			maxTxSizeForL1: maxTxSizeForL1,
 		},
@@ -75,7 +71,7 @@ func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, seq
 		}
 	}
 
-	tx, err := t.zkevm.GetContract().SequenceBatches(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase)
+	tx, err := t.rollupContract.Contract().SequenceBatches(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", sequence.L2Coinbase)
