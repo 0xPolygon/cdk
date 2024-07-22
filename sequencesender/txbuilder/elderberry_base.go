@@ -46,7 +46,3 @@ func getLastSequencedBatchNumber(sequences seqsendertypes.Sequence) uint64 {
 	}
 	return sequences.FirstBatch().BatchNumber() - 1
 }
-
-func (t *TxBuilderElderberryZKEVM) String() string {
-	return "Elderberry/ZKEVM"
-}
