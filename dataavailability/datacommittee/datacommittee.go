@@ -153,6 +153,37 @@ type signatureMsg struct {
 	err       error
 }
 
+func (s *Backend) PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error) {
+	// Get current committee
+	committee, err := s.getCurrentDataCommittee()
+	if err != nil {
+		return nil, err
+	}
+
+	// Authenticate as trusted sequencer by signing the sequence
+	sequence := make(daTypes.Sequence, 0, len(batchesData))
+	for _, batchData := range batchesData {
+		sequence = append(sequence, batchData)
+	}
+	signedSequence, err := sequence.Sign(s.privKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// Request signatures to all members in parallel
+	ch := make(chan signatureMsg, len(committee.Members))
+	signatureCtx, cancelSignatureCollection := context.WithCancel(ctx)
+	for _, member := range committee.Members {
+		signedSequenceElderberry := daTypes.SignedSequence{
+			Sequence:  sequence,
+			Signature: signedSequence,
+		}
+		go requestSignatureFromMember(signatureCtx, &signedSequenceElderberry,
+			func(c client.Client) ([]byte, error) { return c.SignSequence(ctx, signedSequenceElderberry) }, member, ch)
+	}
+	return s.collectSignatures(committee, ch, cancelSignatureCollection)
+}
+
 func (s *Backend) PostSequence(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
 	// Get current committee
 	committee, err := s.getCurrentDataCommittee()
@@ -187,13 +218,22 @@ func (s *Backend) PostSequence(ctx context.Context, sequence etherman.SequenceBa
 	ch := make(chan signatureMsg, len(committee.Members))
 	signatureCtx, cancelSignatureCollection := context.WithCancel(ctx)
 	for _, member := range committee.Members {
-		go requestSignatureFromMember(signatureCtx, daTypes.SignedSequenceBanana{
+		signedSequenceBanana := daTypes.SignedSequenceBanana{
 			Sequence:  sequenceBanana,
 			Signature: signature,
-		}, member, ch)
+		}
+		go requestSignatureFromMember(signatureCtx,
+			&signedSequenceBanana,
+			func(c client.Client) ([]byte, error) { return c.SignSequenceBanana(ctx, signedSequenceBanana) },
+			member, ch)
 	}
 
+	return s.collectSignatures(committee, ch, cancelSignatureCollection)
+}
+
+func (*Backend) collectSignatures(committee *DataCommittee, ch chan signatureMsg, cancelSignatureCollection context.CancelFunc) ([]byte, error) {
 	// Collect signatures
+	// Stop requesting as soon as we have N valid signatures
 	var (
 		msgs                = make(signatureMsgs, 0, len(committee.Members))
 		collectedSignatures uint64
@@ -215,13 +255,24 @@ func (s *Backend) PostSequence(ctx context.Context, sequence etherman.SequenceBa
 		msgs = append(msgs, msg)
 	}
 
-	// Stop requesting as soon as we have N valid signatures
 	cancelSignatureCollection()
 
 	return buildSignaturesAndAddrs(msgs, committee.Members), nil
 }
 
-func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.SignedSequenceBanana, member DataCommitteeMember, ch chan signatureMsg) {
+type funcSignType func(c client.Client) ([]byte, error)
+
+type SignedInterface interface {
+	SetSignature([]byte)
+	Signer() (common.Address, error)
+}
+
+// funcSetSignatureType: is not possible to define a SetSignature function because
+// the type daTypes.SequenceBanana and daTypes.Sequence belong to different packages
+// So a future refactor is define a common interface for both
+func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.SignedSequenceInterface,
+	funcSign funcSignType,
+	member DataCommitteeMember, ch chan signatureMsg) {
 	select {
 	case <-ctx.Done():
 		return
@@ -231,7 +282,9 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 	// request
 	c := client.New(member.URL)
 	log.Infof("sending request to sign the sequence to %s at %s", member.Addr.Hex(), member.URL)
-	signature, err := c.SignSequenceBanana(ctx, signedSequence)
+	//signature, err := c.SignSequenceBanana(ctx, signedSequence)
+	signature, err := funcSign(c)
+
 	if err != nil {
 		ch <- signatureMsg{
 			addr: member.Addr,
@@ -240,7 +293,7 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 		return
 	}
 	// verify returned signature
-	signedSequence.Signature = signature
+	signedSequence.SetSignature(signature)
 	signer, err := signedSequence.Signer()
 	if err != nil {
 		ch <- signatureMsg{

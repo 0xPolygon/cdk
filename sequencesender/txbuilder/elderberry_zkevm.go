@@ -9,7 +9,6 @@ import (
 	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
-	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -17,42 +16,19 @@ import (
 )
 
 type TxBuilderElderberryZKEVM struct {
-	opts           bind.TransactOpts
-	rollupContract contracts.RollupElderberryType
-	condNewSeq     CondNewSequence
+	TxBuilderElderberryBase
+	condNewSeq CondNewSequence
 }
 
 func NewTxBuilderElderberryZKEVM(zkevm contracts.RollupElderberryType, opts bind.TransactOpts, sender common.Address, maxTxSizeForL1 uint64) *TxBuilderElderberryZKEVM {
 	return &TxBuilderElderberryZKEVM{
-		opts:           opts,
-		rollupContract: zkevm,
+		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(
+			zkevm, opts,
+		),
 		condNewSeq: &NewSequenceConditionalMaxSize{
 			maxTxSizeForL1: maxTxSizeForL1,
 		},
 	}
-}
-
-func (t *TxBuilderElderberryZKEVM) NewSequence(batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
-	seq := ElderberrySequence{
-		l2Coinbase: coinbase,
-		batches:    batches,
-	}
-	return &seq, nil
-}
-
-func (t *TxBuilderElderberryZKEVM) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
-	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.opts.From, l2Coinbase, batchNumber)
-}
-
-func (t *TxBuilderElderberryZKEVM) NewBatchFromL2Block(l2Block *datastream.L2Block) seqsendertypes.Batch {
-	batch := &etherman.Batch{
-		LastL2BLockTimestamp: l2Block.Timestamp,
-		BatchNumber:          l2Block.BatchNumber,
-		L1InfoTreeIndex:      l2Block.L1InfotreeIndex,
-		LastCoinbase:         common.BytesToAddress(l2Block.Coinbase),
-		GlobalExitRoot:       common.BytesToHash(l2Block.GlobalExitRoot),
-	}
-	return NewBananaBatch(batch)
 }
 
 func (t *TxBuilderElderberryZKEVM) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {

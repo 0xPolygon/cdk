@@ -22,6 +22,12 @@ type SequenceSender interface {
 	PostSequence(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error)
 }
 
+type SequenceSenderElderberry interface {
+	// PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
+	// as expected by the contract
+	PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error)
+}
+
 // SequenceRetriever is used to retrieve batch data
 type SequenceRetriever interface {
 	// GetSequence retrieves the sequence data from the data availability backend
