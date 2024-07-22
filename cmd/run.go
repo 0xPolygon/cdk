@@ -23,6 +23,7 @@ import (
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/pgstatestorage"
+	"github.com/0xPolygon/cdk/translator"
 	ethtxman "github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman/etherscan"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -183,6 +184,9 @@ func newDataAvailability(c config.Config, etherman *etherman.Client) (*dataavail
 	if !c.Common.IsValidiumMode {
 		return nil, nil
 	}
+	translator := translator.NewTranslatorImpl()
+	log.Infof("Translator rules: %v", c.Common.Translator)
+	translator.AddConfigRules(c.Common.Translator)
 
 	// Backend specific config
 	daProtocolName, err := etherman.GetDAProtocolName()
@@ -210,6 +214,7 @@ func newDataAvailability(c config.Config, etherman *etherman.Client) (*dataavail
 			dacAddr,
 			pk,
 			dataCommitteeClient.NewFactory(),
+			translator,
 		)
 		if err != nil {
 			return nil, err
