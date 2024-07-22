@@ -168,8 +168,7 @@ func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuild
 		}
 	case contracts.VersionElderberry:
 		if cfg.Common.IsValidiumMode {
-			err = fmt.Errorf("Elderberry+Validium not implemented yet")
-			//txBuilder = txbuilder.NewTxBuilderElderberryValidium(*ethman.Contracts.Elderberry.ZkEVM, da, *auth, auth.From)
+			txBuilder = txbuilder.NewTxBuilderElderberryValidium(ethman.Contracts.Elderberry.Rollup, da, *auth, auth.From, cfg.SequenceSender.MaxBatchesForL1)
 		} else {
 			txBuilder = txbuilder.NewTxBuilderElderberryZKEVM(ethman.Contracts.Elderberry.Rollup, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
 		}

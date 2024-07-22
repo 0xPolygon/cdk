@@ -24,14 +24,14 @@ type TxBuilderElderberryValidium struct {
 
 func NewTxBuilderElderberryValidium(zkevm contracts.RollupElderberryType,
 	da dataavailability.SequenceSenderElderberry,
-	opts bind.TransactOpts, sender common.Address, maxTxSizeForL1 uint64) *TxBuilderElderberryValidium {
+	opts bind.TransactOpts, sender common.Address, maxBatchesForL1 uint64) *TxBuilderElderberryValidium {
 	return &TxBuilderElderberryValidium{
 		da: da,
 		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(
 			zkevm, opts,
 		),
-		condNewSeq: &NewSequenceConditionalMaxSize{
-			maxTxSizeForL1: maxTxSizeForL1,
+		condNewSeq: &NewSequenceConditionalNumBatches{
+			maxBatchesForL1: maxBatchesForL1,
 		},
 	}
 }

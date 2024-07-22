@@ -31,6 +31,10 @@ func NewTxBuilderElderberryZKEVM(zkevm contracts.RollupElderberryType, opts bind
 	}
 }
 
+func (t *TxBuilderElderberryZKEVM) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.opts.From, l2Coinbase, batchNumber)
+}
+
 func (t *TxBuilderElderberryZKEVM) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
 
 	newopts := t.opts
@@ -75,13 +79,6 @@ func (t *TxBuilderElderberryZKEVM) sequenceBatchesRollup(opts bind.TransactOpts,
 
 func (t *TxBuilderElderberryZKEVM) warningMessage(batches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, l2Coinbase common.Address, opts *bind.TransactOpts) {
 	log.Warnf("Sequencer address: ", opts.From, "l2CoinBase: ", l2Coinbase, " Batches to send: %+v", batches)
-}
-
-func getLastSequencedBatchNumber(sequences seqsendertypes.Sequence) uint64 {
-	if sequences.Len() == 0 {
-		return 0
-	}
-	return sequences.FirstBatch().BatchNumber() - 1
 }
 
 func (t *TxBuilderElderberryZKEVM) String() string {
