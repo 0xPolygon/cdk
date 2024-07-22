@@ -22,7 +22,8 @@ type TxBuilderBananaValidium struct {
 	condNewSeq CondNewSequence
 }
 
-func NewTxBuilderBananaValidium(rollupContract contracts.RollupBananaType, gerContract contracts.GlobalExitRootBananaType,
+func NewTxBuilderBananaValidium(rollupContract contracts.RollupBananaType,
+	gerContract contracts.GlobalExitRootBananaType,
 	da dataavailability.SequenceSender, opts bind.TransactOpts, sender common.Address, maxBatchesForL1 uint64) *TxBuilderBananaValidium {
 	return &TxBuilderBananaValidium{
 		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts, sender),

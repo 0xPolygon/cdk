@@ -14,6 +14,7 @@ import (
 	daTypes "github.com/0xPolygon/cdk-data-availability/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/translator"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -22,6 +23,7 @@ import (
 )
 
 const unexpectedHashTemplate = "missmatch on transaction data. Expected hash %s, actual hash: %s"
+const translateContextName = "dataCommittee"
 
 // DataCommitteeMember represents a member of the Data Committee
 type DataCommitteeMember struct {
@@ -45,6 +47,7 @@ type Backend struct {
 	committeeMembers        []DataCommitteeMember
 	selectedCommitteeMember int
 	ctx                     context.Context
+	Translator              translator.Translator
 }
 
 // New creates an instance of Backend
@@ -53,6 +56,7 @@ func New(
 	dataCommitteeAddr common.Address,
 	privKey *ecdsa.PrivateKey,
 	dataCommitteeClientFactory client.Factory,
+	translator translator.Translator,
 ) (*Backend, error) {
 	ethClient, err := ethclient.Dial(l1RPCURL)
 	if err != nil {
@@ -70,6 +74,7 @@ func New(
 		privKey:                    privKey,
 		dataCommitteeClientFactory: dataCommitteeClientFactory,
 		ctx:                        context.Background(),
+		Translator:                 translator,
 	}, nil
 }
 
@@ -376,6 +381,9 @@ func (d *Backend) getCurrentDataCommitteeMembers() ([]DataCommitteeMember, error
 		member, err := d.dataCommitteeContract.Members(&bind.CallOpts{Pending: false}, big.NewInt(i))
 		if err != nil {
 			return nil, fmt.Errorf("error getting Members %d from L1 SC: %w", i, err)
+		}
+		if d.Translator != nil {
+			member.Url = d.Translator.Translate(translateContextName, member.Url)
 		}
 		members = append(members, DataCommitteeMember{
 			Addr: member.Addr,
