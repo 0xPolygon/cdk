@@ -21,8 +21,8 @@ import (
 // the client will have at least as many blocks as it had before the reorg, however this may not be the case for L2
 
 const (
-	waitPeriodBlockRemover = time.Second * 20
-	waitPeriodBlockAdder   = time.Second * 2 // should be smaller than block time of the tracked chain
+	defaultWaitPeriodBlockRemover = time.Second * 20
+	defaultWaitPeriodBlockAdder   = time.Second * 2 // should be smaller than block time of the tracked chain
 
 	subscriberBlocks = "reorgdetector-subscriberBlocks"
 
@@ -94,7 +94,7 @@ func (bm blockMap) getFromBlockSorted(blockNum uint64) []block {
 
 		newBlocks := make([]block, 0, numOfBlocksToLeave)
 		for i := numOfBlocks - numOfBlocksToLeave; i < numOfBlocks; i++ {
-			if sortedBlocks[i].Num < lastBlock {
+			if sortedBlocks[i].Num < blockNum {
 				// skip blocks that are finalised
 				continue
 			}
@@ -145,6 +145,9 @@ type ReorgDetector struct {
 	trackedBlocks     map[string]blockMap
 
 	db kv.RwDB
+
+	waitPeriodBlockRemover time.Duration
+	waitPeriodBlockAdder   time.Duration
 }
 
 // New creates a new instance of ReorgDetector
@@ -162,10 +165,18 @@ func New(ctx context.Context, client EthClient, dbPath string) (*ReorgDetector, 
 
 // newReorgDetector creates a new instance of ReorgDetector
 func newReorgDetector(ctx context.Context, client EthClient, db kv.RwDB) (*ReorgDetector, error) {
+	return newReorgDetectorWithPeriods(ctx, client, db, defaultWaitPeriodBlockRemover, defaultWaitPeriodBlockAdder)
+}
+
+// newReorgDetectorWithPeriods creates a new instance of ReorgDetector with custom wait periods
+func newReorgDetectorWithPeriods(ctx context.Context, client EthClient, db kv.RwDB,
+	waitPeriodBlockRemover, waitPeriodBlockAdder time.Duration) (*ReorgDetector, error) {
 	r := &ReorgDetector{
-		ethClient:     client,
-		db:            db,
-		subscriptions: make(map[string]*Subscription, 0),
+		ethClient:              client,
+		db:                     db,
+		subscriptions:          make(map[string]*Subscription, 0),
+		waitPeriodBlockRemover: waitPeriodBlockRemover,
+		waitPeriodBlockAdder:   waitPeriodBlockAdder,
 	}
 
 	trackedBlocks, err := r.getTrackedBlocks(ctx)
@@ -299,7 +310,7 @@ func (r *ReorgDetector) cleanStoredSubsBeforeStart(ctx context.Context, latestFi
 }
 
 func (r *ReorgDetector) removeFinalisedBlocks(ctx context.Context) {
-	ticker := time.NewTicker(waitPeriodBlockRemover)
+	ticker := time.NewTicker(r.waitPeriodBlockRemover)
 
 	for {
 		select {
@@ -325,7 +336,7 @@ func (r *ReorgDetector) removeFinalisedBlocks(ctx context.Context) {
 func (r *ReorgDetector) addUnfinalisedBlocks(ctx context.Context) {
 	var (
 		lastUnfinalisedBlock uint64
-		ticker               = time.NewTicker(waitPeriodBlockAdder)
+		ticker               = time.NewTicker(r.waitPeriodBlockAdder)
 		unfinalisedBlocksMap = r.getUnfinalisedBlocksMap()
 	)
 
