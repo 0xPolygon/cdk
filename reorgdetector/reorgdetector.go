@@ -134,7 +134,7 @@ func (bm blockMap) removeRange(from, to uint64) {
 type Subscription struct {
 	FirstReorgedBlock          chan uint64
 	ReorgProcessed             chan bool
-	pendingReorgsToBeProcessed *sync.WaitGroup
+	pendingReorgsToBeProcessed sync.WaitGroup
 }
 
 type ReorgDetector struct {
@@ -266,7 +266,7 @@ func (r *ReorgDetector) cleanStoredSubsBeforeStart(ctx context.Context, latestFi
 		sortedBlocks := blocks.getSorted()
 		lastTrackedBlock = sortedBlocks[len(blocks)-1].Num
 
-		for _, block = range blocks {
+		for _, block = range sortedBlocks {
 			if actualBlockHash, ok = blocksGotten[block.Num]; !ok {
 				actualBlock, err := r.ethClient.HeaderByNumber(ctx, big.NewInt(int64(block.Num)))
 				if err != nil {
