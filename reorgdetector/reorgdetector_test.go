@@ -50,6 +50,8 @@ func newTestDB(tb testing.TB) kv.RwDB {
 }
 
 func TestBlockMap(t *testing.T) {
+	t.Parallel()
+
 	// Create a new block map
 	bm := newBlockMap(
 		block{Num: 1, Hash: common.HexToHash("0x123")},
@@ -57,32 +59,87 @@ func TestBlockMap(t *testing.T) {
 		block{Num: 3, Hash: common.HexToHash("0x789")},
 	)
 
-	// Test getSorted function
-	sortedBlocks := bm.getSorted()
-	expectedSortedBlocks := []block{
-		{Num: 1, Hash: common.HexToHash("0x123")},
-		{Num: 2, Hash: common.HexToHash("0x456")},
-		{Num: 3, Hash: common.HexToHash("0x789")},
-	}
-	if !reflect.DeepEqual(sortedBlocks, expectedSortedBlocks) {
-		t.Errorf("getSorted() returned incorrect result, expected: %v, got: %v", expectedSortedBlocks, sortedBlocks)
-	}
+	t.Run("getSorted", func(t *testing.T) {
+		t.Parallel()
 
-	// Test getFromBlockSorted function
-	fromBlockSorted := bm.getFromBlockSorted(2)
-	expectedFromBlockSorted := []block{
-		{Num: 3, Hash: common.HexToHash("0x789")},
-	}
-	if !reflect.DeepEqual(fromBlockSorted, expectedFromBlockSorted) {
-		t.Errorf("getFromBlockSorted() returned incorrect result, expected: %v, got: %v", expectedFromBlockSorted, fromBlockSorted)
-	}
+		sortedBlocks := bm.getSorted()
+		expectedSortedBlocks := []block{
+			{Num: 1, Hash: common.HexToHash("0x123")},
+			{Num: 2, Hash: common.HexToHash("0x456")},
+			{Num: 3, Hash: common.HexToHash("0x789")},
+		}
+		if !reflect.DeepEqual(sortedBlocks, expectedSortedBlocks) {
+			t.Errorf("getSorted() returned incorrect result, expected: %v, got: %v", expectedSortedBlocks, sortedBlocks)
+		}
+	})
 
-	// Test getFromBlockSorted function when blockNum is greater than the last block
-	fromBlockSorted = bm.getFromBlockSorted(4)
-	expectedFromBlockSorted = []block{}
-	if !reflect.DeepEqual(fromBlockSorted, expectedFromBlockSorted) {
-		t.Errorf("getFromBlockSorted() returned incorrect result, expected: %v, got: %v", expectedFromBlockSorted, fromBlockSorted)
-	}
+	t.Run("getFromBlockSorted", func(t *testing.T) {
+		t.Parallel()
+
+		fromBlockSorted := bm.getFromBlockSorted(2)
+		expectedFromBlockSorted := []block{
+			{Num: 3, Hash: common.HexToHash("0x789")},
+		}
+		if !reflect.DeepEqual(fromBlockSorted, expectedFromBlockSorted) {
+			t.Errorf("getFromBlockSorted() returned incorrect result, expected: %v, got: %v", expectedFromBlockSorted, fromBlockSorted)
+		}
+
+		// Test getFromBlockSorted function when blockNum is greater than the last block
+		fromBlockSorted = bm.getFromBlockSorted(4)
+		expectedFromBlockSorted = []block{}
+		if !reflect.DeepEqual(fromBlockSorted, expectedFromBlockSorted) {
+			t.Errorf("getFromBlockSorted() returned incorrect result, expected: %v, got: %v", expectedFromBlockSorted, fromBlockSorted)
+		}
+	})
+
+	t.Run("getClosestHigherBlock", func(t *testing.T) {
+		t.Parallel()
+
+		bm := newBlockMap(
+			block{Num: 1, Hash: common.HexToHash("0x123")},
+			block{Num: 2, Hash: common.HexToHash("0x456")},
+			block{Num: 3, Hash: common.HexToHash("0x789")},
+		)
+
+		// Test when the blockNum exists in the block map
+		b := bm.getClosestHigherBlock(2)
+		expectedBlock := block{Num: 2, Hash: common.HexToHash("0x456")}
+		if b != expectedBlock {
+			t.Errorf("getClosestHigherBlock() returned incorrect result, expected: %v, got: %v", expectedBlock, b)
+		}
+
+		// Test when the blockNum does not exist in the block map
+		b = bm.getClosestHigherBlock(4)
+		expectedBlock = block{Num: 0, Hash: common.Hash{}}
+		if b != expectedBlock {
+			t.Errorf("getClosestHigherBlock() returned incorrect result, expected: %v, got: %v", expectedBlock, b)
+		}
+	})
+
+	t.Run("removeRange", func(t *testing.T) {
+		t.Parallel()
+
+		bm := newBlockMap(
+			block{Num: 1, Hash: common.HexToHash("0x123")},
+			block{Num: 2, Hash: common.HexToHash("0x456")},
+			block{Num: 3, Hash: common.HexToHash("0x789")},
+			block{Num: 4, Hash: common.HexToHash("0xabc")},
+			block{Num: 5, Hash: common.HexToHash("0xdef")},
+		)
+
+		bm.removeRange(3, 5)
+
+		expectedBlocks := []block{
+			{Num: 1, Hash: common.HexToHash("0x123")},
+			{Num: 2, Hash: common.HexToHash("0x456")},
+		}
+
+		sortedBlocks := bm.getSorted()
+
+		if !reflect.DeepEqual(sortedBlocks, expectedBlocks) {
+			t.Errorf("removeRange() failed, expected: %v, got: %v", expectedBlocks, sortedBlocks)
+		}
+	})
 }
 
 func TestReorgDetector_New(t *testing.T) {
@@ -236,6 +293,109 @@ func TestReorgDetector_New(t *testing.T) {
 		// since subscriber had 5 blocks, 3 were finalized, and 2 were reorged but also finalized
 		subscriberBlocks := rd.trackedBlocks[testSubscriber]
 		require.Len(t, subscriberBlocks, 0)
+	})
+}
+
+func TestReorgDetector_AddBlockToTrack(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("no subscription", func(t *testing.T) {
+		t.Parallel()
+
+		client := NewEthClientMock(t)
+		db := newTestDB(t)
+
+		client.On("HeaderByNumber", ctx, big.NewInt(int64(rpc.FinalizedBlockNumber))).Return(
+			&types.Header{Number: big.NewInt(10)}, nil,
+		)
+
+		rd, err := newReorgDetector(ctx, client, db)
+		require.NoError(t, err)
+
+		err = rd.AddBlockToTrack(ctx, testSubscriber, 1, common.HexToHash("0x123"))
+		require.ErrorIs(t, err, ErrNotSubscribed)
+	})
+
+	t.Run("no unfinalised blocks - block already finalised", func(t *testing.T) {
+		t.Parallel()
+
+		client := NewEthClientMock(t)
+		db := newTestDB(t)
+
+		client.On("HeaderByNumber", ctx, big.NewInt(int64(rpc.FinalizedBlockNumber))).Return(
+			&types.Header{Number: big.NewInt(10)}, nil,
+		).Twice()
+
+		rd, err := newReorgDetector(ctx, client, db)
+		require.NoError(t, err)
+
+		_, err = rd.Subscribe(testSubscriber)
+		require.NoError(t, err)
+
+		err = rd.AddBlockToTrack(ctx, testSubscriber, 9, common.HexToHash("0x123")) // block already finalized
+		require.NoError(t, err)
+
+		subBlocks := rd.trackedBlocks[testSubscriber]
+		require.Len(t, subBlocks, 0) // since block to track is already finalized no need to track it
+	})
+
+	t.Run("no unfinalised blocks - block not finalised", func(t *testing.T) {
+		t.Parallel()
+
+		client := NewEthClientMock(t)
+		db := newTestDB(t)
+
+		client.On("HeaderByNumber", ctx, big.NewInt(int64(rpc.FinalizedBlockNumber))).Return(
+			&types.Header{Number: big.NewInt(10)}, nil,
+		).Twice()
+
+		rd, err := newReorgDetector(ctx, client, db)
+		require.NoError(t, err)
+
+		_, err = rd.Subscribe(testSubscriber)
+		require.NoError(t, err)
+
+		err = rd.AddBlockToTrack(ctx, testSubscriber, 11, common.HexToHash("0x123")) // block not finalized
+		require.NoError(t, err)
+
+		subBlocks := rd.trackedBlocks[testSubscriber]
+		require.Len(t, subBlocks, 1)
+		require.Equal(t, subBlocks[11].Hash, common.HexToHash("0x123"))
+	})
+
+	t.Run("have unfinalised blocks - block not finalized", func(t *testing.T) {
+		t.Parallel()
+
+		client := NewEthClientMock(t)
+		db := newTestDB(t)
+
+		unfinalisedBlocks := createTestBlocks(t, 11, 5)
+		insertTestData(t, ctx, db, unfinalisedBlocks, unfalisedBlocksID)
+
+		for _, block := range unfinalisedBlocks {
+			client.On("HeaderByNumber", ctx, block.Number).Return(
+				block, nil,
+			)
+		}
+
+		client.On("HeaderByNumber", ctx, big.NewInt(int64(rpc.FinalizedBlockNumber))).Return(
+			&types.Header{Number: big.NewInt(10)}, nil,
+		).Once()
+
+		rd, err := newReorgDetector(ctx, client, db)
+		require.NoError(t, err)
+
+		_, err = rd.Subscribe(testSubscriber)
+		require.NoError(t, err)
+
+		err = rd.AddBlockToTrack(ctx, testSubscriber, 11, unfinalisedBlocks[0].Hash()) // block not finalized
+		require.NoError(t, err)
+
+		subBlocks := rd.trackedBlocks[testSubscriber]
+		require.Len(t, subBlocks, 1)
+		require.Equal(t, subBlocks[11].Hash, unfinalisedBlocks[0].Hash())
 	})
 }
 
