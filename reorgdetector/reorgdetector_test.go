@@ -399,6 +399,61 @@ func TestReorgDetector_AddBlockToTrack(t *testing.T) {
 	})
 }
 
+func TestReorgDetector_removeFinalisedBlocks(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	client := NewEthClientMock(t)
+	db := newTestDB(t)
+
+	unfinalisedBlocks := createTestBlocks(t, 1, 10)
+	insertTestData(t, ctx, db, unfinalisedBlocks, unfalisedBlocksID)
+	insertTestData(t, ctx, db, unfinalisedBlocks, testSubscriber)
+
+	// call for removeFinalisedBlocks
+	client.On("HeaderByNumber", ctx, big.NewInt(int64(rpc.FinalizedBlockNumber))).Return(
+		&types.Header{Number: big.NewInt(5)}, nil,
+	)
+
+	rd := &ReorgDetector{
+		ethClient:              client,
+		db:                     db,
+		trackedBlocks:          make(map[string]blockMap),
+		waitPeriodBlockRemover: 100 * time.Millisecond,
+		waitPeriodBlockAdder:   100 * time.Millisecond,
+		subscriptions: map[string]*Subscription{
+			testSubscriber: {
+				FirstReorgedBlock: make(chan uint64),
+				ReorgProcessed:    make(chan bool),
+			},
+			unfalisedBlocksID: {
+				FirstReorgedBlock: make(chan uint64),
+				ReorgProcessed:    make(chan bool),
+			},
+		},
+	}
+
+	trackedBlocks, err := rd.getTrackedBlocks(ctx)
+	require.NoError(t, err)
+	require.Len(t, trackedBlocks, 2)
+
+	rd.trackedBlocks = trackedBlocks
+
+	// make sure we have all blocks in the tracked blocks before removing finalized blocks
+	require.Len(t, rd.trackedBlocks[unfalisedBlocksID], len(unfinalisedBlocks))
+	require.Len(t, rd.trackedBlocks[testSubscriber], len(unfinalisedBlocks))
+
+	// remove finalized blocks
+	go rd.removeFinalisedBlocks(ctx)
+
+	time.Sleep(3 * time.Second) // wait for the go routine to remove the finalized blocks
+	cancel()
+
+	// make sure all blocks are removed from the tracked blocks
+	require.Len(t, rd.trackedBlocks[unfalisedBlocksID], 5)
+	require.Len(t, rd.trackedBlocks[testSubscriber], 5)
+}
+
 func createTestBlocks(t *testing.T, startBlock uint64, count uint64) []*types.Header {
 	t.Helper()
 
