@@ -36,7 +36,7 @@ MaxPendingTx = 1
 		SafeStatusL1NumberOfBlocks = 0
 		FinalizedStatusL1NumberOfBlocks = 0
 			[SequenceSender.EthTxManager.Etherman]
-				URL = "http://127.0.0.1:8545"
+				URL = "http://127.0.0.1:32771"
 				MultiGasProvider = false
 				L1ChainID = 1337
 [Aggregator]
@@ -62,9 +62,9 @@ SequencerPrivateKey = {}
 	[Aggregator.DB]
 		Name = "aggregator_db"
 		User = "aggregator_user"
-		Password = "aggregator_password"
-		Host = "cdk-aggregator-db"
-		Port = "5432"
+		Password = "master_password"
+		Host = "localhost"
+		Port = "32780"
 		EnableLog = false	
 		MaxConns = 200
 	[Aggregator.Log]
@@ -116,7 +116,7 @@ SequencerPrivateKey = {}
 
 [NetworkConfig.L1]
 ChainID = 11155111
-PolAddr = "0x6a7c3F4B0651d6DA389AD1d11D962ea458cDCA70"
-ZkEVMAddr = "0x47193C28404c762E7E213A8099A8B3d72885cDdC"
-RollupManagerAddr = "0x32d33D5137a7cFFb54c5Bf8371172bcEc5f310ff"
-GlobalExitRootManagerAddr = "0xAd1490c248c5d3CbAE399Fd529b79B42984277DF"
+PolAddr = "0xEdE9cf798E0fE25D35469493f43E88FeA4a5da0E"
+ZkEVMAddr = "0x1Fe038B54aeBf558638CA51C91bC8cCa06609e91"
+RollupManagerAddr = "0x2F50ef6b8e8Ee4E579B17619A92dE3E2ffbD8AD2"
+GlobalExitRootManagerAddr = "0x1f7ad7caA53e35b4f0D138dC5CBF91aC108a2674"
