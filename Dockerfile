@@ -11,9 +11,38 @@ COPY . /src
 RUN cd /src/aggregator/db && packr2
 RUN cd /src && make build
 
+# BUILD RUST BIN
+FROM --platform=${BUILDPLATFORM} rust:slim-bullseye AS chef
+USER root
+RUN cargo install cargo-chef
+WORKDIR /app
+
+FROM chef AS planner
+
+COPY --link crates crates
+COPY --link Cargo.toml Cargo.toml
+COPY --link Cargo.lock Cargo.lock
+
+RUN cargo chef prepare --recipe-path recipe.json --bin cdk
+
+FROM chef AS builder
+
+COPY --from=planner /app/recipe.json recipe.json
+# Notice that we are specifying the --target flag!
+RUN cargo chef cook --release --recipe-path recipe.json
+
+COPY --link crates crates
+COPY --link Cargo.toml Cargo.toml
+COPY --link Cargo.lock Cargo.lock
+
+ENV BUILD_SCRIPT_DISABLED=1
+RUN cargo build --release --bin cdk
+
 # CONTAINER FOR RUNNING BINARY
-FROM alpine:3.18.4
-COPY --from=build /src/dist/cdk /app/cdk
-RUN apk update && apk add postgresql15-client
-EXPOSE 8123
-CMD ["/bin/sh", "-c", "/app/cdk run"]
+FROM --platform=${BUILDPLATFORM} debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y ca-certificates postgresql-client
+COPY --from=builder /app/target/release/cdk /usr/local/bin/
+COPY --from=build /src/target/cdk-node /usr/local/bin/
+
+CMD ["/bin/sh", "-c", "cdk"]
