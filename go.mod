@@ -10,7 +10,6 @@ require (
 	github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.9
 	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.1
 	github.com/ethereum/go-ethereum v1.14.5
-	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/hermeznetwork/tracerr v0.3.2
 	github.com/iden3/go-iden3-crypto v0.0.16
 	github.com/invopop/jsonschema v0.12.0
@@ -69,6 +68,7 @@ require (
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gobuffalo/logger v1.0.7 // indirect
 	github.com/gobuffalo/packd v1.0.2 // indirect
+	github.com/gobuffalo/packr/v2 v2.8.3 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
