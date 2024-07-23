@@ -28,22 +28,16 @@ func newTestDB(tb testing.TB) kv.RwDB {
 	dir := fmt.Sprintf("/tmp/reorgdetector-temp_%v", time.Now().UTC().Format(time.RFC3339Nano))
 	err := os.Mkdir(dir, 0775)
 
-	if err != nil {
-		tb.Fatal(err)
-	}
+	require.NoError(tb, err)
 
 	db, err := mdbx.NewMDBX(nil).
 		Path(dir).
 		WithTableCfg(tableCfgFunc).
 		Open()
-	if err != nil {
-		tb.Fatal(err)
-	}
+	require.NoError(tb, err)
 
 	tb.Cleanup(func() {
-		if err := os.RemoveAll(dir); err != nil {
-			tb.Fatal(err)
-		}
+		require.NoError(tb, os.RemoveAll(dir))
 	})
 
 	return db
