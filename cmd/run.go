@@ -128,7 +128,7 @@ func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 		},
 	}, cfg.NetworkConfig.L1Config, cfg.Common)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to connect create etherman. Err: %w, ", err)
 	}
 
 	auth, _, err := ethman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
