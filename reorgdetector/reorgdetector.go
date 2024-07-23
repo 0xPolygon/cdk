@@ -26,7 +26,7 @@ const (
 
 	subscriberBlocks = "reorgdetector-subscriberBlocks"
 
-	unfalisedBlocksID = "unfinalisedBlocks"
+	unfinalisedBlocksID = "unfinalisedBlocks"
 )
 
 var (
@@ -82,46 +82,34 @@ func (bm blockMap) getSorted() []block {
 // getFromBlockSorted returns blocks from blockNum in sorted order without including the blockNum
 func (bm blockMap) getFromBlockSorted(blockNum uint64) []block {
 	sortedBlocks := bm.getSorted()
-	numOfBlocks := len(sortedBlocks)
-	lastBlock := sortedBlocks[numOfBlocks-1].Num
 
-	if blockNum < lastBlock {
-		numOfBlocksToLeave := int(lastBlock - blockNum)
-
-		if numOfBlocksToLeave > numOfBlocks {
-			numOfBlocksToLeave %= numOfBlocks
+	index := -1
+	for i, b := range sortedBlocks {
+		if b.Num > blockNum {
+			index = i
+			break
 		}
-
-		newBlocks := make([]block, 0, numOfBlocksToLeave)
-		for i := numOfBlocks - numOfBlocksToLeave; i < numOfBlocks; i++ {
-			if sortedBlocks[i].Num < blockNum {
-				// skip blocks that are finalised
-				continue
-			}
-
-			newBlocks = append(newBlocks, sortedBlocks[i])
-		}
-
-		sortedBlocks = newBlocks
-	} else {
-		sortedBlocks = []block{}
 	}
 
-	return sortedBlocks
+	if index == -1 {
+		return []block{}
+	}
+
+	return sortedBlocks[index:]
 }
 
 // getClosestHigherBlock returns the closest higher block to the given blockNum
-func (bm blockMap) getClosestHigherBlock(blockNum uint64) block {
+func (bm blockMap) getClosestHigherBlock(blockNum uint64) (block, bool) {
 	if block, ok := bm[blockNum]; ok {
-		return block
+		return block, true
 	}
 
 	sorted := bm.getFromBlockSorted(blockNum)
 	if len(sorted) == 0 {
-		return block{}
+		return block{}, false
 	}
 
-	return sorted[0]
+	return sorted[0], true
 }
 
 // removeRange removes blocks from from to to
@@ -204,7 +192,7 @@ func (r *ReorgDetector) Start(ctx context.Context) {
 }
 
 func (r *ReorgDetector) Subscribe(id string) (*Subscription, error) {
-	if id == unfalisedBlocksID {
+	if id == unfinalisedBlocksID {
 		return nil, ErrIDReserverd
 	}
 
@@ -362,7 +350,7 @@ func (r *ReorgDetector) addUnfinalisedBlocks(ctx context.Context) {
 			unfinalisedBlocksMap = r.getUnfinalisedBlocksMap()
 			if len(unfinalisedBlocksMap) == 0 {
 				// no unfinalised blocks, just add this block to the map
-				if err := r.saveTrackedBlock(ctx, unfalisedBlocksID, block{
+				if err := r.saveTrackedBlock(ctx, unfinalisedBlocksID, block{
 					Num:  lastBlockFromClient.Number.Uint64(),
 					Hash: lastBlockFromClient.Hash(),
 				}); err != nil {
@@ -374,22 +362,32 @@ func (r *ReorgDetector) addUnfinalisedBlocks(ctx context.Context) {
 
 			startBlock := lastBlockFromClient
 			unfinalisedBlocksSorted := unfinalisedBlocksMap.getSorted()
-			lastReorgBlock := uint64(0)
+			reorgBlock := uint64(0)
 
 			for i := startBlock.Number.Uint64(); i > unfinalisedBlocksSorted[0].Num; i-- {
 				previousBlock, ok := unfinalisedBlocksMap[i-1]
-				if !ok || previousBlock.Hash == startBlock.ParentHash {
+				if !ok {
+					b, err := r.ethClient.HeaderByNumber(ctx, big.NewInt(int64(i-1)))
+					if err != nil {
+						log.Error("reorg detector - error getting previous block", "block", i-1, "err", err)
+						break // stop processing blocks, and we will try to detect it in the next iteration
+					}
+
+					previousBlock = block{Num: b.Number.Uint64(), Hash: b.Hash()}
+				}
+
+				if previousBlock.Hash == startBlock.ParentHash {
 					unfinalisedBlocksMap[i] = block{Num: startBlock.Number.Uint64(), Hash: startBlock.Hash()}
 				} else if previousBlock.Hash != startBlock.ParentHash {
 					// reorg happened, we will find out from where exactly and report this to subscribers
-					lastReorgBlock = i
+					reorgBlock = i
 				}
 			}
 
-			if lastReorgBlock > 0 {
-				r.notifyReorgToAllSubscriptions(lastReorgBlock)
+			if reorgBlock > 0 {
+				r.notifyReorgToAllSubscriptions(reorgBlock)
 			} else {
-				r.updateTrackedBlocks(ctx, unfalisedBlocksID, unfinalisedBlocksMap)
+				r.updateTrackedBlocks(ctx, unfinalisedBlocksID, unfinalisedBlocksMap)
 			}
 		case <-ctx.Done():
 			return
@@ -403,13 +401,25 @@ func (r *ReorgDetector) notifyReorgToAllSubscriptions(reorgBlock uint64) {
 		subscriberBlocks := r.trackedBlocks[id]
 		r.trackedBlocksLock.RUnlock()
 
-		go r.notifyReorgToSubscription(id, subscriberBlocks.getClosestHigherBlock(reorgBlock).Num)
+		closestBlock, exists := subscriberBlocks.getClosestHigherBlock(reorgBlock)
+
+		if exists {
+			go r.notifyReorgToSubscription(id, closestBlock.Num)
+
+			// remove reorged blocks from tracked blocks
+			sorted := subscriberBlocks.getSorted()
+			subscriberBlocks.removeRange(closestBlock.Num, sorted[len(sorted)-1].Num)
+			if err := r.updateTrackedBlocks(context.Background(), id, subscriberBlocks); err != nil {
+				log.Error("reorg detector - error updating tracked blocks", "err", err)
+			}
+		}
 	}
 }
 
 func (r *ReorgDetector) notifyReorgToSubscription(id string, reorgBlock uint64) {
-	if id == unfalisedBlocksID {
-		return // unfinalised blocks are not subscribers
+	if id == unfinalisedBlocksID {
+		// unfinalised blocks are not subscribers, and reorg block should be > 0
+		return
 	}
 
 	sub := r.subscriptions[id]
@@ -428,7 +438,7 @@ func (r *ReorgDetector) getUnfinalisedBlocksMap() blockMap {
 	r.trackedBlocksLock.RLock()
 	defer r.trackedBlocksLock.RUnlock()
 
-	return r.trackedBlocks[unfalisedBlocksID]
+	return r.trackedBlocks[unfinalisedBlocksID]
 }
 
 // getTrackedBlocks returns a list of tracked blocks for each subscriber from db
@@ -462,9 +472,9 @@ func (r *ReorgDetector) getTrackedBlocks(ctx context.Context) (map[string]blockM
 		trackedBlocks[string(k)] = newBlockMap(blocks...)
 	}
 
-	if _, ok := trackedBlocks[unfalisedBlocksID]; !ok {
+	if _, ok := trackedBlocks[unfinalisedBlocksID]; !ok {
 		// add unfinalised blocks to tracked blocks map if not present in db
-		trackedBlocks[unfalisedBlocksID] = newBlockMap()
+		trackedBlocks[unfinalisedBlocksID] = newBlockMap()
 	}
 
 	return trackedBlocks, nil
