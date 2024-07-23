@@ -102,14 +102,16 @@ func TestBlockMap(t *testing.T) {
 		)
 
 		// Test when the blockNum exists in the block map
-		b := bm.getClosestHigherBlock(2)
+		b, exists := bm.getClosestHigherBlock(2)
+		require.True(t, exists)
 		expectedBlock := block{Num: 2, Hash: common.HexToHash("0x456")}
 		if b != expectedBlock {
 			t.Errorf("getClosestHigherBlock() returned incorrect result, expected: %v, got: %v", expectedBlock, b)
 		}
 
 		// Test when the blockNum does not exist in the block map
-		b = bm.getClosestHigherBlock(4)
+		b, exists = bm.getClosestHigherBlock(4)
+		require.False(t, exists)
 		expectedBlock = block{Num: 0, Hash: common.Hash{}}
 		if b != expectedBlock {
 			t.Errorf("getClosestHigherBlock() returned incorrect result, expected: %v, got: %v", expectedBlock, b)
@@ -161,7 +163,7 @@ func TestReorgDetector_New(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, rd.trackedBlocks, 1)
 
-		unfinalisedBlocksMap, exists := rd.trackedBlocks[unfalisedBlocksID]
+		unfinalisedBlocksMap, exists := rd.trackedBlocks[unfinalisedBlocksID]
 		require.True(t, exists)
 		require.Empty(t, unfinalisedBlocksMap)
 	})
@@ -189,7 +191,7 @@ func TestReorgDetector_New(t *testing.T) {
 		unfinalisedBlocks := testBlocks[:5]
 		testSubscriberBlocks := testBlocks[:3]
 
-		insertTestData(t, ctx, db, unfinalisedBlocks, unfalisedBlocksID)
+		insertTestData(t, ctx, db, unfinalisedBlocks, unfinalisedBlocksID)
 		insertTestData(t, ctx, db, testSubscriberBlocks, testSubscriber)
 
 		for _, block := range unfinalisedBlocks {
@@ -206,7 +208,7 @@ func TestReorgDetector_New(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, rd.trackedBlocks, 2) // testSubscriber and unfinalisedBlocks
 
-		unfinalisedBlocksMap, exists := rd.trackedBlocks[unfalisedBlocksID]
+		unfinalisedBlocksMap, exists := rd.trackedBlocks[unfinalisedBlocksID]
 		require.True(t, exists)
 		require.Len(t, unfinalisedBlocksMap, 0) // since all blocks are finalized
 
@@ -225,7 +227,7 @@ func TestReorgDetector_New(t *testing.T) {
 		unfinalisedBlocks := testBlocks[:6]
 		testSubscriberBlocks := testBlocks[:4]
 
-		insertTestData(t, ctx, db, unfinalisedBlocks, unfalisedBlocksID)
+		insertTestData(t, ctx, db, unfinalisedBlocks, unfinalisedBlocksID)
 		insertTestData(t, ctx, db, testSubscriberBlocks, testSubscriber)
 
 		for _, block := range unfinalisedBlocks {
@@ -242,7 +244,7 @@ func TestReorgDetector_New(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, rd.trackedBlocks, 2) // testSubscriber and unfinalisedBlocks
 
-		unfinalisedBlocksMap, exists := rd.trackedBlocks[unfalisedBlocksID]
+		unfinalisedBlocksMap, exists := rd.trackedBlocks[unfinalisedBlocksID]
 		require.True(t, exists)
 		require.Len(t, unfinalisedBlocksMap, len(unfinalisedBlocks)-len(testSubscriberBlocks)) // since all blocks are finalized
 
@@ -260,7 +262,7 @@ func TestReorgDetector_New(t *testing.T) {
 		trackedBlocks := createTestBlocks(t, 1, 5)
 		testSubscriberBlocks := trackedBlocks[:5]
 
-		insertTestData(t, ctx, db, nil, unfalisedBlocksID) // no unfinalised blocks
+		insertTestData(t, ctx, db, nil, unfinalisedBlocksID) // no unfinalised blocks
 		insertTestData(t, ctx, db, testSubscriberBlocks, testSubscriber)
 
 		for _, block := range trackedBlocks[:3] {
@@ -372,7 +374,7 @@ func TestReorgDetector_AddBlockToTrack(t *testing.T) {
 		db := newTestDB(t)
 
 		unfinalisedBlocks := createTestBlocks(t, 11, 5)
-		insertTestData(t, ctx, db, unfinalisedBlocks, unfalisedBlocksID)
+		insertTestData(t, ctx, db, unfinalisedBlocks, unfinalisedBlocksID)
 
 		for _, block := range unfinalisedBlocks {
 			client.On("HeaderByNumber", ctx, block.Number).Return(
@@ -407,7 +409,7 @@ func TestReorgDetector_removeFinalisedBlocks(t *testing.T) {
 	db := newTestDB(t)
 
 	unfinalisedBlocks := createTestBlocks(t, 1, 10)
-	insertTestData(t, ctx, db, unfinalisedBlocks, unfalisedBlocksID)
+	insertTestData(t, ctx, db, unfinalisedBlocks, unfinalisedBlocksID)
 	insertTestData(t, ctx, db, unfinalisedBlocks, testSubscriber)
 
 	// call for removeFinalisedBlocks
@@ -426,7 +428,7 @@ func TestReorgDetector_removeFinalisedBlocks(t *testing.T) {
 				FirstReorgedBlock: make(chan uint64),
 				ReorgProcessed:    make(chan bool),
 			},
-			unfalisedBlocksID: {
+			unfinalisedBlocksID: {
 				FirstReorgedBlock: make(chan uint64),
 				ReorgProcessed:    make(chan bool),
 			},
@@ -440,7 +442,7 @@ func TestReorgDetector_removeFinalisedBlocks(t *testing.T) {
 	rd.trackedBlocks = trackedBlocks
 
 	// make sure we have all blocks in the tracked blocks before removing finalized blocks
-	require.Len(t, rd.trackedBlocks[unfalisedBlocksID], len(unfinalisedBlocks))
+	require.Len(t, rd.trackedBlocks[unfinalisedBlocksID], len(unfinalisedBlocks))
 	require.Len(t, rd.trackedBlocks[testSubscriber], len(unfinalisedBlocks))
 
 	// remove finalized blocks
@@ -450,7 +452,7 @@ func TestReorgDetector_removeFinalisedBlocks(t *testing.T) {
 	cancel()
 
 	// make sure all blocks are removed from the tracked blocks
-	require.Len(t, rd.trackedBlocks[unfalisedBlocksID], 5)
+	require.Len(t, rd.trackedBlocks[unfinalisedBlocksID], 5)
 	require.Len(t, rd.trackedBlocks[testSubscriber], 5)
 }
 
