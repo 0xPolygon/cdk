@@ -19,6 +19,7 @@ WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 L1BlockTimestampMargin = "30s"
 MaxTxSizeForL1 = 131072
+MaxBatchesForL1 = 2
 L2Coinbase = "${zkevm_l2_sequencer_address}"
 #PrivateKey = {Path = "../test/sequencer.keystore", Password = "testonly"}
 PrivateKey = {Path = "/tmp/seq_sender/sequencer.keystore", Password = "${zkevm_l2_keystore_password}"}
