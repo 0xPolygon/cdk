@@ -2,6 +2,7 @@
 generate-mocks: 
 	$(MAKE) generate-mocks-localbridgesync
 	$(MAKE) generate-mocks-reorgdetector
+	$(MAKE) generate-mocks-l1infotreesync
 
 .PHONY: generate-mocks-localbridgesync
 generate-mocks-localbridgesync: ## Generates mocks for localbridgesync, using mockery tool
@@ -37,3 +38,9 @@ help: ## Prints this help
 		@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| sort \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+.PHONY: generate-mocks-l1infotreesync
+generate-mocks-l1infotreesync: ## Generates mocks for l1infotreesync , using mockery tool
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthClienter --dir=../l1infotreesync --output=../l1infotreesync --outpkg=l1infotreesync --inpackage --structname=L2Mock --filename=mock_l2_test.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=downloaderFull --dir=../l1infotreesync --output=../l1infotreesync --outpkg=l1infotreesync --inpackage --structname=DownloaderMock --filename=mock_downloader_test.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=processorInterface --dir=../l1infotreesync --output=../l1infotreesync --outpkg=l1infotreesync --inpackage --structname=ProcessorMock --filename=mock_processor_test.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../l1infotreesync --output=../l1infotreesync --outpkg=l1infotreesync --inpackage --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
