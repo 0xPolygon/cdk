@@ -35,7 +35,7 @@ MaxPendingTx = 1
 		GetReceiptMaxTime = "250ms"
 		GetReceiptWaitInterval = "1s"
 		PrivateKeys = [
-			{Path = "../test/sequencer.keystore", Password = "testonly"},
+			{Path = "/tmp/seq_sender/sequencer.keystore", Password = "${zkevm_l2_keystore_password}"},
 		]
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
@@ -47,7 +47,7 @@ MaxPendingTx = 1
 			[SequenceSender.EthTxManager.Etherman]
 				URL = "http://127.0.0.1:${l1_rpc_port}"
 				MultiGasProvider = false
-				L1ChainID = 1337
+				L1ChainID = ${zkevm_l1_chain_id}
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081

@@ -2,6 +2,8 @@ package txbuilder
 
 import (
 	"context"
+	"encoding/hex"
+	"math/big"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk/dataavailability"
@@ -47,10 +49,18 @@ func (t *TxBuilderElderberryValidium) BuildSequenceBatchesTx(ctx context.Context
 		log.Error("error posting sequences to the data availability protocol: ", err)
 		return nil, err
 	}
-	return t.buildSequenceBatchesTxValidium(sequences, dataAvailabilityMessage)
+	newopts := t.opts
+	newopts.NoSend = true
+
+	// force nonce, gas limit and gas price to avoid querying it from the chain
+	newopts.Nonce = big.NewInt(1)
+	newopts.GasLimit = uint64(1)
+	newopts.GasPrice = big.NewInt(1)
+
+	return t.buildSequenceBatchesTxValidium(&newopts, sequences, dataAvailabilityMessage)
 }
 
-func (t *TxBuilderElderberryValidium) buildSequenceBatchesTxValidium(
+func (t *TxBuilderElderberryValidium) buildSequenceBatchesTxValidium(opts *bind.TransactOpts,
 	sequences seqsendertypes.Sequence, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	batches := make([]polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, sequences.Len())
 	for i, seq := range sequences.Batches() {
@@ -67,7 +77,9 @@ func (t *TxBuilderElderberryValidium) buildSequenceBatchesTxValidium(
 	}
 	lastSequencedBatchNumber := getLastSequencedBatchNumber(sequences)
 	ZkEVM := t.rollupContract.Contract()
-	tx, err := ZkEVM.SequenceBatchesValidium(&t.opts, batches, sequences.MaxSequenceTimestamp(),
+	log.Infof("SequenceBatchesValidium(from=%s, len(batches)=%d, MaxSequenceTimestamp=%d, lastSequencedBatchNumber=%d, L2Coinbase=%s, dataAvailabilityMessage=%s)",
+		t.opts.From.String(), len(batches), sequences.MaxSequenceTimestamp(), lastSequencedBatchNumber, sequences.L2Coinbase().String(), hex.EncodeToString(dataAvailabilityMessage))
+	tx, err := ZkEVM.SequenceBatchesValidium(opts, batches, sequences.MaxSequenceTimestamp(),
 		lastSequencedBatchNumber, sequences.L2Coinbase(), dataAvailabilityMessage)
 	if err != nil {
 		if parsedErr, ok := etherman.TryParseError(err); ok {

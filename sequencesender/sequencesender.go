@@ -104,6 +104,7 @@ func New(cfg Config, etherman *etherman.Client, txBuilder txbuilder.TxBuilder) (
 		Level:       cfg.Log.Level,
 		Outputs:     cfg.Log.Outputs,
 	}
+
 	s.ethTxManager, err = ethtxmanager.New(cfg.EthTxManager)
 	if err != nil {
 		log.Fatalf("[SeqSender] error creating ethtxmanager client: %v", err)
@@ -516,7 +517,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	}
 
 	// Send sequences to L1
-	log.Infof("[SeqSender] sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber, lastSequence.BatchNumber)
+	log.Infof("[SeqSender] sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber(), lastSequence.BatchNumber())
 	log.Infof(sequence.String())
 
 	tx, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, s.cfg.SenderAddress, sequence)
