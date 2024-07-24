@@ -1,7 +1,5 @@
 name: Test e2e
-on:
-  push:
-  pull_request:
+on: push
 
 jobs:
   test-e2e:
