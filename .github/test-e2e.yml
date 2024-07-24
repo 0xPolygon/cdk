@@ -1,12 +1,6 @@
 name: Test e2e
 on:
   push:
-    branches:
-      - main
-      - master
-      - develop
-      - update-external-dependencies
-      - 'release/**'
   pull_request:
 
 jobs:
