@@ -21,8 +21,7 @@ L1BlockTimestampMargin = "30s"
 MaxTxSizeForL1 = 131072
 MaxBatchesForL1 = 2
 L2Coinbase = "${zkevm_l2_sequencer_address}"
-#PrivateKey = {Path = "../test/sequencer.keystore", Password = "testonly"}
-PrivateKey = {Path = "/tmp/seq_sender/sequencer.keystore", Password = "${zkevm_l2_keystore_password}"}
+PrivateKey = {Path = "${sequencer_keystore_file}", Password = "${zkevm_l2_keystore_password}"}
 
 SequencesTxFileName = "sequencesender.json"
 GasOffset = 80000
@@ -36,7 +35,7 @@ MaxPendingTx = 1
 		GetReceiptMaxTime = "250ms"
 		GetReceiptWaitInterval = "1s"
 		PrivateKeys = [
-			{Path = "/tmp/seq_sender/sequencer.keystore", Password = "${zkevm_l2_keystore_password}"},
+			{Path = "${sequencer_keystore_file}", Password = "${zkevm_l2_keystore_password}"},
 		]
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
