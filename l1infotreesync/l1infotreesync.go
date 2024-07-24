@@ -26,14 +26,14 @@ func New(
 	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
 	rd ReorgDetector,
-	l2Client EthClienter,
+	l1Client EthClienter,
 	treeHeight uint8,
 ) (*L1InfoTreeSync, error) {
 	p, err := newProcessor(ctx, dbPath, treeHeight)
 	if err != nil {
 		return nil, err
 	}
-	dwn, err := newDownloader(globalExitRoot, l2Client, syncBlockChunkSize, blockFinalityType)
+	dwn, err := newDownloader(globalExitRoot, l1Client, syncBlockChunkSize, blockFinalityType)
 	if err != nil {
 		return nil, err
 	}

@@ -55,9 +55,9 @@ type storeLeaf struct {
 
 type blockWithLeafs struct {
 	// inclusive
-	firstIndex uint32
+	FirstIndex uint32
 	// not inclusive
-	lastIndex uint32
+	LastIndex uint32
 }
 
 func (l *storeLeaf) GlobalExitRoot() common.Hash {
@@ -111,7 +111,7 @@ func (p *processor) getAllLeavesHashed(ctx context.Context) ([][32]byte, error) 
 	defer tx.Rollback()
 
 	index, err := p.getLastIndex(tx)
-	if err == ErrNotFound {
+	if err == ErrNotFound || index == 0 {
 		return nil, nil
 	}
 	if err != nil {
@@ -204,7 +204,7 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 		if err := json.Unmarshal(v, &blk); err != nil {
 			return nil, err
 		}
-		hash, err := tx.GetOne(indexTable, uint32ToBytes(blk.lastIndex-1))
+		hash, err := tx.GetOne(indexTable, uint32ToBytes(blk.LastIndex-1))
 		if err != nil {
 			return nil, err
 		}
@@ -224,7 +224,7 @@ func (p *processor) GetInfoByIndex(ctx context.Context, index uint32) (*L1InfoTr
 }
 
 func (p *processor) getInfoByIndexWithTx(tx kv.Tx, index uint32) (*L1InfoTreeLeaf, error) {
-	hash, err := tx.GetOne(rootTable, uint32ToBytes(index))
+	hash, err := tx.GetOne(indexTable, uint32ToBytes(index))
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +309,7 @@ func (p *processor) reorg(firstReorgedBlock uint64) error {
 			tx.Rollback()
 			return err
 		}
-		for i := blk.firstIndex; i < blk.lastIndex; i++ {
+		for i := blk.FirstIndex; i < blk.LastIndex; i++ {
 			if err := p.deleteLeaf(tx, i); err != nil {
 				tx.Rollback()
 				return err
@@ -370,12 +370,16 @@ func (p *processor) processBlock(b block) error {
 		return err
 	}
 	if len(b.Events) > 0 {
+		var initialIndex uint32
 		lastIndex, err := p.getLastIndex(tx)
-		if err != nil {
+		if err == ErrNotFound {
+			initialIndex = 0
+		} else if err != nil {
 			tx.Rollback()
 			return err
+		} else {
+			initialIndex = lastIndex + 1
 		}
-		initialIndex := lastIndex + 1
 		for i, l := range b.Events {
 			leafToStore := storeLeaf{
 				Index:           initialIndex + uint32(i),
@@ -391,8 +395,8 @@ func (p *processor) processBlock(b block) error {
 			}
 		}
 		bwl := blockWithLeafs{
-			firstIndex: initialIndex,
-			lastIndex:  initialIndex + uint32(len(b.Events)),
+			FirstIndex: initialIndex,
+			LastIndex:  initialIndex + uint32(len(b.Events)),
 		}
 		blockValue, err := json.Marshal(bwl)
 		if err != nil {
@@ -416,6 +420,9 @@ func (p *processor) getLastIndex(tx kv.Tx) (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
+	if bNum == 0 {
+		return 0, nil
+	}
 	iter, err := tx.RangeDescend(blockTable, uint64ToBytes(bNum), uint64ToBytes(0), 1)
 	if err != nil {
 		return 0, err
@@ -431,7 +438,7 @@ func (p *processor) getLastIndex(tx kv.Tx) (uint32, error) {
 	if err := json.Unmarshal(blkBytes, &blk); err != nil {
 		return 0, err
 	}
-	return blk.lastIndex - 1, nil
+	return blk.LastIndex - 1, nil
 }
 
 func (p *processor) addLeaf(tx kv.RwTx, leaf storeLeaf) error {

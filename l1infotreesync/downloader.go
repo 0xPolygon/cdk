@@ -15,11 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-const (
-	waitForNewBlocksPeriod = time.Millisecond * 100
-)
-
 var (
+	waitForNewBlocksPeriod    = time.Millisecond * 100
 	updateL1InfoTreeSignature = crypto.Keccak256Hash([]byte("UpdateL1InfoTree(bytes32,bytes32)"))
 )
 
@@ -201,7 +198,7 @@ func (d *downloaderImplementation) appendLog(b *block, l types.Log) {
 		}
 		b.Events = append(b.Events, L1InfoTreeUpdate{
 			MainnetExitRoot: l1InfoTreeUpdate.MainnetExitRoot,
-			RollupExitRoot:  l1InfoTreeUpdate.MainnetExitRoot,
+			RollupExitRoot:  l1InfoTreeUpdate.RollupExitRoot,
 		})
 	default:
 		log.Fatalf("unexpected log %+v", l)

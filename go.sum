@@ -1,11 +1,11 @@
-github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240627125553-80db9d8a41b5 h1:bezOoVvpQvGvf4aCZQpMPFJGKXhhvktpApr+TsD8rdk=
-github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240627125553-80db9d8a41b5/go.mod h1:mFlcEjsm2YBBsu8atHJ3zyVnwM+Z/fMXpVmIJge+WVU=
-github.com/0xPolygon/cdk-data-availability v0.0.8 h1:bMmOYZ7Ei683y80ric3KzMPXtRGmchAmfjIRzghaHb4=
-github.com/0xPolygon/cdk-data-availability v0.0.8/go.mod h1:3XkZ0zn0GsvAT01MPQMmukF534CVSFmtrcoK3F/BK6Q=
+github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240724124854-785bb2a0e4a2 h1:vMRkvTf+sfCKtEDFRGlZ9saDzQIf+LR+ly2OiRyE/2Q=
+github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240724124854-785bb2a0e4a2/go.mod h1:mFlcEjsm2YBBsu8atHJ3zyVnwM+Z/fMXpVmIJge+WVU=
+github.com/0xPolygon/cdk-data-availability v0.0.8-0.20240712072318-72ae67613cbf h1:VWxVYeDhDURGp8pHR4kq3jwoXRazVHsQLMMIqYsO+Fw=
+github.com/0xPolygon/cdk-data-availability v0.0.8-0.20240712072318-72ae67613cbf/go.mod h1:3XkZ0zn0GsvAT01MPQMmukF534CVSFmtrcoK3F/BK6Q=
 github.com/0xPolygon/cdk-rpc v0.0.0-20240419104226-c0a62ba0f49d h1:sxh6hZ2jF/sxxj2jd5o1vuNNCZjYmn4aRG9SRlVaEFs=
 github.com/0xPolygon/cdk-rpc v0.0.0-20240419104226-c0a62ba0f49d/go.mod h1:2scWqMMufrQXu7TikDgQ3BsyaKoX8qP26D6E262vSOg=
-github.com/0xPolygonHermez/zkevm-data-streamer v0.2.2 h1:XRMTk+W6vtJVGVjuEznfWyNt7HkRkkuSmlN5Y6p60Sc=
-github.com/0xPolygonHermez/zkevm-data-streamer v0.2.2/go.mod h1:0QkAXcFa92mFJrCbN3UPUJGJYes851yEgYHLONnaosE=
+github.com/0xPolygonHermez/zkevm-data-streamer v0.2.3-RC4 h1:+4K+xSzv0ImbK30B/T9FauNTrTFUmWcNKYhIgwsE4C4=
+github.com/0xPolygonHermez/zkevm-data-streamer v0.2.3-RC4/go.mod h1:0QkAXcFa92mFJrCbN3UPUJGJYes851yEgYHLONnaosE=
 github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.9 h1:vrAezzwTNke6NroDAltGh1k2AJ6ibmZPBsG0bCltbRc=
 github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.9/go.mod h1:pRqfLQVM3nbzdhy3buqjAgcVyNDKAXOHqTSgkwiKpic=
 github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.3-0.20240712085301-0310358abb59 h1:Qwh92vFEXnpmDggQaZA3648viEQfLdMnAw/WFSY+2i8=
