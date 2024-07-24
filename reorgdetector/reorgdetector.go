@@ -326,6 +326,9 @@ func (r *ReorgDetector) addUnfinalisedBlocks(ctx context.Context) {
 		lastUnfinalisedBlock uint64
 		ticker               = time.NewTicker(r.waitPeriodBlockAdder)
 		unfinalisedBlocksMap = r.getUnfinalisedBlocksMap()
+		prevBlock            *types.Header
+		lastBlockFromClient  *types.Header
+		err                  error
 	)
 
 	if len(unfinalisedBlocksMap) > 0 {
@@ -335,7 +338,7 @@ func (r *ReorgDetector) addUnfinalisedBlocks(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			lastBlockFromClient, err := r.ethClient.HeaderByNumber(ctx, big.NewInt(int64(rpc.LatestBlockNumber)))
+			lastBlockFromClient, err = r.ethClient.HeaderByNumber(ctx, big.NewInt(int64(rpc.LatestBlockNumber)))
 			if err != nil {
 				log.Error("reorg detector - error getting last block from client", "err", err)
 				continue
@@ -367,27 +370,36 @@ func (r *ReorgDetector) addUnfinalisedBlocks(ctx context.Context) {
 			for i := startBlock.Number.Uint64(); i > unfinalisedBlocksSorted[0].Num; i-- {
 				previousBlock, ok := unfinalisedBlocksMap[i-1]
 				if !ok {
-					b, err := r.ethClient.HeaderByNumber(ctx, big.NewInt(int64(i-1)))
+					prevBlock, err = r.ethClient.HeaderByNumber(ctx, big.NewInt(int64(i-1)))
 					if err != nil {
 						log.Error("reorg detector - error getting previous block", "block", i-1, "err", err)
 						break // stop processing blocks, and we will try to detect it in the next iteration
 					}
 
-					previousBlock = block{Num: b.Number.Uint64(), Hash: b.Hash()}
+					previousBlock = block{Num: prevBlock.Number.Uint64(), Hash: prevBlock.Hash()}
 				}
 
-				if previousBlock.Hash == startBlock.ParentHash {
-					unfinalisedBlocksMap[i] = block{Num: startBlock.Number.Uint64(), Hash: startBlock.Hash()}
-				} else if previousBlock.Hash != startBlock.ParentHash {
+				if previousBlock.Hash == lastBlockFromClient.ParentHash {
+					unfinalisedBlocksMap[i] = block{Num: lastBlockFromClient.Number.Uint64(), Hash: lastBlockFromClient.Hash()}
+				} else if previousBlock.Hash != lastBlockFromClient.ParentHash {
 					// reorg happened, we will find out from where exactly and report this to subscribers
 					reorgBlock = i
 				}
+
+				lastBlockFromClient, err = r.ethClient.HeaderByNumber(ctx, big.NewInt(int64(i-1)))
+				if err != nil {
+					log.Error("reorg detector - error getting last block from client", "err", err)
+					break // stop processing blocks, and we will try to detect it in the next iteration
+				}
 			}
 
-			if reorgBlock > 0 {
-				r.notifyReorgToAllSubscriptions(reorgBlock)
-			} else {
-				r.updateTrackedBlocks(ctx, unfinalisedBlocksID, unfinalisedBlocksMap)
+			if err == nil {
+				// if we noticed an error, do not notify or update tracked blocks
+				if reorgBlock > 0 {
+					r.notifyReorgToAllSubscriptions(reorgBlock)
+				} else {
+					r.updateTrackedBlocks(ctx, unfinalisedBlocksID, unfinalisedBlocksMap)
+				}
 			}
 		case <-ctx.Done():
 			return
