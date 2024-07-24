@@ -314,7 +314,7 @@ func TestReorgDetector_AddBlockToTrack(t *testing.T) {
 		require.ErrorIs(t, err, ErrNotSubscribed)
 	})
 
-	t.Run("no unfinalised blocks - block already finalised", func(t *testing.T) {
+	t.Run("no unfinalised blocks - no tracked blocks", func(t *testing.T) {
 		t.Parallel()
 
 		client := NewEthClientMock(t)
@@ -322,7 +322,12 @@ func TestReorgDetector_AddBlockToTrack(t *testing.T) {
 
 		client.On("HeaderByNumber", ctx, big.NewInt(int64(rpc.FinalizedBlockNumber))).Return(
 			&types.Header{Number: big.NewInt(10)}, nil,
-		).Twice()
+		).Once()
+
+		trackedBlock := &types.Header{Number: big.NewInt(11)}
+		client.On("HeaderByNumber", ctx, big.NewInt(11)).Return(
+			trackedBlock, nil,
+		).Once()
 
 		rd, err := newReorgDetector(ctx, client, db)
 		require.NoError(t, err)
@@ -330,35 +335,12 @@ func TestReorgDetector_AddBlockToTrack(t *testing.T) {
 		_, err = rd.Subscribe(testSubscriber)
 		require.NoError(t, err)
 
-		err = rd.AddBlockToTrack(ctx, testSubscriber, 9, common.HexToHash("0x123")) // block already finalized
-		require.NoError(t, err)
-
-		subBlocks := rd.trackedBlocks[testSubscriber]
-		require.Len(t, subBlocks, 0) // since block to track is already finalized no need to track it
-	})
-
-	t.Run("no unfinalised blocks - block not finalised", func(t *testing.T) {
-		t.Parallel()
-
-		client := NewEthClientMock(t)
-		db := newTestDB(t)
-
-		client.On("HeaderByNumber", ctx, big.NewInt(int64(rpc.FinalizedBlockNumber))).Return(
-			&types.Header{Number: big.NewInt(10)}, nil,
-		).Twice()
-
-		rd, err := newReorgDetector(ctx, client, db)
-		require.NoError(t, err)
-
-		_, err = rd.Subscribe(testSubscriber)
-		require.NoError(t, err)
-
-		err = rd.AddBlockToTrack(ctx, testSubscriber, 11, common.HexToHash("0x123")) // block not finalized
+		err = rd.AddBlockToTrack(ctx, testSubscriber, trackedBlock.Number.Uint64(), trackedBlock.Hash()) // block not finalized
 		require.NoError(t, err)
 
 		subBlocks := rd.trackedBlocks[testSubscriber]
 		require.Len(t, subBlocks, 1)
-		require.Equal(t, subBlocks[11].Hash, common.HexToHash("0x123"))
+		require.Equal(t, subBlocks[11].Hash, trackedBlock.Hash())
 	})
 
 	t.Run("have unfinalised blocks - block not finalized", func(t *testing.T) {
