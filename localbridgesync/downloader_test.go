@@ -9,6 +9,7 @@ import (
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
+	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
@@ -203,7 +204,7 @@ func generateBridge(t *testing.T, blockNum uint32) (*types.Log, Bridge) {
 	log := &types.Log{
 		Address:     contractAddr,
 		BlockNumber: uint64(blockNum),
-		BlockHash:   common.BytesToHash(blockNum2Bytes(uint64(blockNum))),
+		BlockHash:   common.BytesToHash(cdkcommon.BlockNum2Bytes(uint64(blockNum))),
 		Topics:      []common.Hash{bridgeEventSignature},
 		Data:        data,
 	}
@@ -262,7 +263,7 @@ func generateClaim(t *testing.T, blockNum uint32, event *abi.Event, isV1 bool) (
 	log := &types.Log{
 		Address:     contractAddr,
 		BlockNumber: uint64(blockNum),
-		BlockHash:   common.BytesToHash(blockNum2Bytes(uint64(blockNum))),
+		BlockHash:   common.BytesToHash(cdkcommon.BlockNum2Bytes(uint64(blockNum))),
 		Topics:      []common.Hash{signature},
 		Data:        data,
 	}
