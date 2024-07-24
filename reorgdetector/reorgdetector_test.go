@@ -314,29 +314,6 @@ func TestReorgDetector_AddBlockToTrack(t *testing.T) {
 		require.ErrorIs(t, err, ErrNotSubscribed)
 	})
 
-	t.Run("no unfinalised blocks - block already finalised", func(t *testing.T) {
-		t.Parallel()
-
-		client := NewEthClientMock(t)
-		db := newTestDB(t)
-
-		client.On("HeaderByNumber", ctx, big.NewInt(int64(rpc.FinalizedBlockNumber))).Return(
-			&types.Header{Number: big.NewInt(10)}, nil,
-		).Twice()
-
-		rd, err := newReorgDetector(ctx, client, db)
-		require.NoError(t, err)
-
-		_, err = rd.Subscribe(testSubscriber)
-		require.NoError(t, err)
-
-		err = rd.AddBlockToTrack(ctx, testSubscriber, 9, common.HexToHash("0x123")) // block already finalized
-		require.NoError(t, err)
-
-		subBlocks := rd.trackedBlocks[testSubscriber]
-		require.Len(t, subBlocks, 0) // since block to track is already finalized no need to track it
-	})
-
 	t.Run("no unfinalised blocks - block not finalised", func(t *testing.T) {
 		t.Parallel()
 
@@ -345,7 +322,7 @@ func TestReorgDetector_AddBlockToTrack(t *testing.T) {
 
 		client.On("HeaderByNumber", ctx, big.NewInt(int64(rpc.FinalizedBlockNumber))).Return(
 			&types.Header{Number: big.NewInt(10)}, nil,
-		).Twice()
+		).Once()
 
 		rd, err := newReorgDetector(ctx, client, db)
 		require.NoError(t, err)
