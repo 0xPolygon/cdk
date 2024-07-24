@@ -224,72 +224,15 @@ func (r *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, blockNum
 			return ErrInvalidBlockHash
 		}
 	} else {
-		// if we do not have the block, we will check for reorgs and save the block if we can
-		block, err := r.ethClient.HeaderByNumber(ctx, big.NewInt(int64(blockNum)))
-		if err != nil {
+		// ReorgDetector has not added the requested block yet,
+		// so we add it to the unfinalised blocks and then to the subscriber blocks as well
+		block := block{Num: blockNum, Hash: blockHash}
+		if err := r.saveTrackedBlock(ctx, unfinalisedBlocksID, block); err != nil {
 			return err
 		}
 
-		if r.checkForReorg(ctx, id, block) != nil {
-			return err
-		}
+		return r.saveTrackedBlock(ctx, id, block)
 	}
-
-	return nil
-}
-
-// checkForReorg checks for reorgs and notifies subscribers if a reorg is detected
-// if not, block will be saved to the tracked blocks of given subscriber
-func (r *ReorgDetector) checkForReorg(ctx context.Context, id string, currentBlock *types.Header) error {
-	r.trackedBlocksLock.RLock()
-	subscriberBlocks := r.trackedBlocks[id]
-	r.trackedBlocksLock.RUnlock()
-
-	if len(subscriberBlocks) == 0 {
-		// no blocks to check for reorg, just save the block
-		return r.saveTrackedBlock(ctx, id, block{Num: currentBlock.Number.Uint64(), Hash: currentBlock.Hash()})
-	}
-
-	sortedBlocks := subscriberBlocks.getSorted()
-	lastTrackedBlock := sortedBlocks[len(subscriberBlocks)-1]
-
-	var (
-		reorgBlock = uint64(0)
-		err        error
-	)
-
-	startBlock := currentBlock
-	for i := startBlock.Number.Uint64(); i > lastTrackedBlock.Num; i-- {
-		previousBlock, ok := subscriberBlocks[i-1]
-		if !ok {
-			prevBlock, err := r.ethClient.HeaderByNumber(ctx, big.NewInt(int64(i-1)))
-			if err != nil {
-				return err
-			}
-
-			previousBlock = block{Num: prevBlock.Number.Uint64(), Hash: prevBlock.Hash()}
-		}
-
-		if previousBlock.Hash != currentBlock.ParentHash {
-			// reorg happened, we will find out from where exactly and report this to subscribers
-			reorgBlock = i
-		}
-
-		currentBlock, err = r.ethClient.HeaderByNumber(ctx, big.NewInt(int64(i-1)))
-		if err != nil {
-			return err
-		}
-	}
-
-	// if we noticed a reorg, notify subscribers and update tracked blocks
-	if reorgBlock > 0 {
-		r.notifyReorgToAllSubscriptions(reorgBlock)
-		return nil
-	}
-
-	// no reorg detected, save the block
-	subscriberBlocks[currentBlock.Number.Uint64()] = block{Num: currentBlock.Number.Uint64(), Hash: currentBlock.Hash()}
-	return r.updateTrackedBlocks(ctx, unfinalisedBlocksID, subscriberBlocks)
 }
 
 func (r *ReorgDetector) cleanStoredSubsBeforeStart(ctx context.Context, latestFinalisedBlock uint64) error {
@@ -434,7 +377,7 @@ func (r *ReorgDetector) addUnfinalisedBlocks(ctx context.Context) {
 
 				if previousBlock.Hash == lastBlockFromClient.ParentHash {
 					unfinalisedBlocksMap[i] = block{Num: lastBlockFromClient.Number.Uint64(), Hash: lastBlockFromClient.Hash()}
-				} else {
+				} else if previousBlock.Hash != lastBlockFromClient.ParentHash {
 					// reorg happened, we will find out from where exactly and report this to subscribers
 					reorgBlock = i
 				}
