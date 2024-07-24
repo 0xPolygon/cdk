@@ -1,7 +1,6 @@
 package sequencesender
 
 import (
-	"context"
 	"testing"
 
 	"github.com/0xPolygon/cdk/log"
@@ -63,11 +62,4 @@ func TestStreamTx(t *testing.T) {
 	require.NoError(t, err)
 
 	printBatch(decodedBatch, true, true)
-}
-
-func TestKK(t *testing.T) {
-	sut := &SequenceSender{}
-	sequences, err := sut.getSequencesToSend(context.TODO())
-	require.NoError(t, err)
-	require.NotNil(t, sequences)
 }
