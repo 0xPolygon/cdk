@@ -2,7 +2,7 @@ ForkUpgradeBatchNumber = 0
 ForkUpgradeNewForkId = 0
 
 [Common]
-IsValidiumMode = true
+IsValidiumMode = ${zkevm_is_validium}
 ContractVersions = "elderberry"
 [Common.Translator]
 		FullMatchRules = [
@@ -48,7 +48,7 @@ MaxPendingTx = 1
 			[SequenceSender.EthTxManager.Etherman]
 				URL = "http://127.0.0.1:${l1_rpc_port}"
 				MultiGasProvider = false
-				L1ChainID = ${zkevm_l1_chain_id}
+				L1ChainID = ${l1_chain_id}
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
@@ -100,7 +100,7 @@ SequencerPrivateKey = {}
 		FinalizedStatusL1NumberOfBlocks = 0
 			[Aggregator.EthTxManager.Etherman]
 				URL = ""
-				L1ChainID = 11155111
+				L1ChainID = ${l1_chain_id}
 				HTTPHeaders = []
 	[Aggregator.Synchronizer]
 		[Aggregator.Synchronizer.DB]
@@ -120,4 +120,4 @@ SequencerPrivateKey = {}
 			OverrideStorageCheck = false
 		[Aggregator.Synchronizer.Etherman]
 			[Aggregator.Synchronizer.Etherman.Validium]
-				Enabled = false
+				Enabled = ${zkevm_is_validium}

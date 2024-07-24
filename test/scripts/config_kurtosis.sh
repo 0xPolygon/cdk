@@ -27,8 +27,13 @@ export zkevm_data_streamer_port=$(kurtosis enclave inspect $ENCLAVE | grep "data
 kurtosis files download $ENCLAVE zkevm-sequence-sender-config-artifact $DEST
 export zkevm_l2_sequencer_address=$(cat $DEST/config.toml  |grep L2Coinbase | cut -f 2 -d "="| tr -d '"'  | tr -d ' ')
 export zkevm_l2_keystore_password=$(cat $DEST/config.toml  |grep -A1 L2Coinbase  | tr ',' '\n' | grep Password | cut -f 2 -d '=' | tr -d '}' | tr -d '"' | tr -d ' ')
-export zkevm_l1_chain_id=$(cat $DEST/config.toml  |grep  L1ChainID  |  cut -f 2 -d '=')
+export l1_chain_id=$(cat $DEST/config.toml  |grep  L1ChainID  |  cut -f 2 -d '=')
+export zkevm_is_validium=$(cat $DEST/config.toml  |grep  IsValidiumMode  |  cut -f 2 -d '=')
 #build_vars_file
 
 envsubst < test/config/test.kurtosis_template.toml > $DEST/test.kurtosis.toml
-#kurtosis files rendertemplate $ENCLAVE  config/test.kurtosis_template.toml $DEST/vars.json config/test.kurtosis.toml
+
+echo "rember to stop sequence-sender:"
+echo "-----------------------------------------------------------"
+echo "kurtosis service stop cdk-v1 zkevm-node-sequence-sender-001"
+

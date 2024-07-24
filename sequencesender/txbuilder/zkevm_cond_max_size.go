@@ -49,6 +49,7 @@ func (c *NewSequenceConditionalMaxSize) NewSequenceIfWorthToSend(ctx context.Con
 
 		return sequence, err
 	}
+	log.Infof("[SeqSender] [MaxSize] current size:%d max_size:%d  num_batches: %d", tx.Size(), c.maxTxSizeForL1, sequence.Len())
 	return nil, nil
 }
 
