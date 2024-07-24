@@ -19,7 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +28,7 @@ func TestEVM(t *testing.T) {
 	sender := evmSetup(t)
 	oracle, err := aggoracle.New(sender, l1Client.Client(), syncer, etherman.LatestBlock)
 	require.NoError(t, err)
-	oracle.Start(ctx)
+	go oracle.Start(ctx)
 
 	runTest(t, gerL1Contract, sender, l1Client, authL1)
 }
@@ -50,16 +49,14 @@ func commonSetup(t *testing.T) (
 	l1Client, gerL1Addr, gerL1Contract, err := newSimulatedL1(authL1)
 	require.NoError(t, err)
 	// Reorg detector
-	rdm := NewReorgDetectorMock(t)
-	rdm.On("Subscribe", mock.Anything).Return(&reorgdetector.Subscription{})
-	rdm.On("AddBlockToTrack", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	reorg, err := reorgdetector.New(ctx)
+	dbPathReorgDetector := t.TempDir()
+	reorg, err := reorgdetector.New(ctx, l1Client.Client(), dbPathReorgDetector)
 	require.NoError(t, err)
 	// Syncer
-	dbPath := t.TempDir()
-	syncer, err := l1infotreesync.New(ctx, dbPath, gerL1Addr, 10, etherman.LatestBlock, reorg, l1Client.Client(), 32)
+	dbPathSyncer := t.TempDir()
+	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, 10, etherman.LatestBlock, reorg, l1Client.Client(), 32)
 	require.NoError(t, err)
-	syncer.Sync(ctx)
+	go syncer.Sync(ctx)
 
 	return l1Client, syncer, gerL1Contract, authL1
 }
@@ -139,9 +136,4 @@ func runTest(
 		require.NoError(t, err)
 		require.True(t, isInjected)
 	}
-}
-
-type ReorgDetector interface {
-	Subscribe(id string) *reorgdetector.Subscription
-	AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error
 }

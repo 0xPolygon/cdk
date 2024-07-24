@@ -32,10 +32,14 @@ func (_m *ReorgDetectorMock) AddBlockToTrack(ctx context.Context, id string, blo
 }
 
 // Subscribe provides a mock function with given fields: id
-func (_m *ReorgDetectorMock) Subscribe(id string) *reorgdetector.Subscription {
+func (_m *ReorgDetectorMock) Subscribe(id string) (*reorgdetector.Subscription, error) {
 	ret := _m.Called(id)
 
 	var r0 *reorgdetector.Subscription
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*reorgdetector.Subscription, error)); ok {
+		return rf(id)
+	}
 	if rf, ok := ret.Get(0).(func(string) *reorgdetector.Subscription); ok {
 		r0 = rf(id)
 	} else {
@@ -44,7 +48,13 @@ func (_m *ReorgDetectorMock) Subscribe(id string) *reorgdetector.Subscription {
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 type mockConstructorTestingTNewReorgDetectorMock interface {

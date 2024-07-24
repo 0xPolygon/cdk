@@ -32,7 +32,7 @@ type processorInterface interface {
 }
 
 type ReorgDetector interface {
-	Subscribe(id string) *reorgdetector.Subscription
+	Subscribe(id string) (*reorgdetector.Subscription, error)
 	AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error
 }
 
@@ -41,7 +41,10 @@ func newDriver(
 	processor processorInterface,
 	downloader downloaderFull,
 ) (*driver, error) {
-	reorgSub := reorgDetector.Subscribe(reorgDetectorID)
+	reorgSub, err := reorgDetector.Subscribe(reorgDetectorID)
+	if err != nil {
+		return nil, err
+	}
 	return &driver{
 		reorgDetector: reorgDetector,
 		reorgSub:      reorgSub,
