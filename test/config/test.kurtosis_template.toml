@@ -15,6 +15,7 @@ Level = "info"
 Outputs = ["stderr"]
 
 [SequenceSender]
+IsValidiumMode={{.zkevm_is_validium}}
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 L1BlockTimestampMargin = "30s"

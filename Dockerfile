@@ -14,6 +14,6 @@ RUN cd /src && make build
 # CONTAINER FOR RUNNING BINARY
 FROM alpine:3.18.4
 COPY --from=build /src/dist/cdk /app/cdk
-RUN apk update && apk add postgresql15-client
+RUN mkdir /app/data &&  apk update && apk add postgresql15-client
 EXPOSE 8123
 CMD ["/bin/sh", "-c", "/app/cdk run"]
