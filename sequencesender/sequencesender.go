@@ -640,7 +640,6 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 		// If the coinbase changes, the sequence ends here
 		if len(sequenceBatches) > 0 && batch.LastCoinbase() != prevCoinbase {
 			log.Infof("[SeqSender] batch with different coinbase (batch %v, sequence %v), sequence will be sent to this point", prevCoinbase, batch.LastCoinbase)
-			//return s.newSequenceBanana(sequenceBatches, s.cfg.L2Coinbase)
 			return s.TxBuilder.NewSequence(sequenceBatches, s.cfg.L2Coinbase)
 		}
 		prevCoinbase = batch.LastCoinbase()
@@ -659,7 +658,6 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 		// Check if the current batch is the last before a change to a new forkid, in this case we need to close and send the sequence to L1
 		if (s.cfg.ForkUpgradeBatchNumber != 0) && (batchNumber == (s.cfg.ForkUpgradeBatchNumber)) {
 			log.Infof("[SeqSender] sequence should be sent to L1, as we have reached the batch %d from which a new forkid is applied (upgrade)", s.cfg.ForkUpgradeBatchNumber)
-			//return s.newSequenceBanana(sequenceBatches, s.cfg.L2Coinbase)
 			return s.TxBuilder.NewSequence(sequenceBatches, s.cfg.L2Coinbase)
 		}
 	}
@@ -672,7 +670,6 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 
 	if s.latestVirtualTime.Before(time.Now().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
 		log.Infof("[SeqSender] sequence should be sent, too much time without sending anything to L1")
-		//return s.newSequenceBanana(sequenceBatches, s.cfg.L2Coinbase)
 		return s.TxBuilder.NewSequence(sequenceBatches, s.cfg.L2Coinbase)
 	}
 
