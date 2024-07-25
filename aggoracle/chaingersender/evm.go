@@ -15,10 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-var (
-	waitPeriodMonitorTx = time.Second * 5
-)
-
 type EthClienter interface {
 	ethereum.LogFilterer
 	ethereum.BlockNumberReader
@@ -34,12 +30,13 @@ type EthTxManager interface {
 }
 
 type EVMChainGERSender struct {
-	gerContract *pessimisticglobalexitroot.Pessimisticglobalexitroot
-	gerAddr     common.Address
-	sender      common.Address
-	client      EthClienter
-	ethTxMan    EthTxManager
-	gasOffset   uint64
+	gerContract         *pessimisticglobalexitroot.Pessimisticglobalexitroot
+	gerAddr             common.Address
+	sender              common.Address
+	client              EthClienter
+	ethTxMan            EthTxManager
+	gasOffset           uint64
+	waitPeriodMonitorTx time.Duration
 }
 
 func NewEVMChainGERSender(
@@ -47,18 +44,20 @@ func NewEVMChainGERSender(
 	client EthClienter,
 	ethTxMan EthTxManager,
 	gasOffset uint64,
+	waitPeriodMonitorTx time.Duration,
 ) (*EVMChainGERSender, error) {
 	gerContract, err := pessimisticglobalexitroot.NewPessimisticglobalexitroot(globalExitRoot, client)
 	if err != nil {
 		return nil, err
 	}
 	return &EVMChainGERSender{
-		gerContract: gerContract,
-		gerAddr:     globalExitRoot,
-		sender:      sender,
-		client:      client,
-		ethTxMan:    ethTxMan,
-		gasOffset:   gasOffset,
+		gerContract:         gerContract,
+		gerAddr:             globalExitRoot,
+		sender:              sender,
+		client:              client,
+		ethTxMan:            ethTxMan,
+		gasOffset:           gasOffset,
+		waitPeriodMonitorTx: waitPeriodMonitorTx,
 	}, nil
 }
 
@@ -81,7 +80,7 @@ func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger com
 		return err
 	}
 	for {
-		time.Sleep(waitPeriodMonitorTx)
+		time.Sleep(c.waitPeriodMonitorTx)
 		res, err := c.ethTxMan.Result(ctx, id)
 		if err != nil {
 			log.Error("error calling ethTxMan.Result: ", err)

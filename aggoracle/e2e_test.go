@@ -2,6 +2,7 @@ package aggoracle_test
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"strconv"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	ethtxmanager "github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -29,7 +31,7 @@ func TestEVM(t *testing.T) {
 	ctx := context.Background()
 	l1Client, syncer, gerL1Contract, authL1 := commonSetup(t)
 	sender := evmSetup(t)
-	oracle, err := aggoracle.New(sender, l1Client.Client(), syncer, etherman.LatestBlock)
+	oracle, err := aggoracle.New(sender, l1Client.Client(), syncer, etherman.LatestBlock, time.Millisecond)
 	require.NoError(t, err)
 	go oracle.Start(ctx)
 
@@ -57,9 +59,9 @@ func commonSetup(t *testing.T) (
 	require.NoError(t, err)
 	// Syncer
 	dbPathSyncer := t.TempDir()
-	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, 10, etherman.LatestBlock, reorg, l1Client.Client(), 32)
+	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, 10, etherman.LatestBlock, reorg, l1Client.Client(), 32, time.Millisecond)
 	require.NoError(t, err)
-	go syncer.Sync(ctx)
+	go syncer.Start(ctx)
 
 	return l1Client, syncer, gerL1Contract, authL1
 }
@@ -81,24 +83,56 @@ func evmSetup(t *testing.T) aggoracle.ChainSender {
 				log.Error(err)
 				return
 			}
-			tx := types.NewTx(&types.LegacyTx{
+			gas, err := l2Client.Client().EstimateGas(ctx, ethereum.CallMsg{
+				From:  authL2.From,
 				To:    args.Get(1).(*common.Address),
-				Nonce: nonce,
 				Value: big.NewInt(0),
 				Data:  args.Get(4).([]byte),
 			})
+			if err != nil {
+				log.Error(err)
+				res, err := l2Client.Client().CallContract(ctx, ethereum.CallMsg{
+					From:  authL2.From,
+					To:    args.Get(1).(*common.Address),
+					Value: big.NewInt(0),
+					Data:  args.Get(4).([]byte),
+				}, nil)
+				log.Debugf("contract call: %s", res)
+				if err != nil {
+					log.Error(err)
+				}
+				return
+			}
+			price, err := l2Client.Client().SuggestGasPrice(ctx)
+			if err != nil {
+				log.Error(err)
+			}
+			tx := types.NewTx(&types.LegacyTx{
+				To:       args.Get(1).(*common.Address),
+				Nonce:    nonce,
+				Value:    big.NewInt(0),
+				Data:     args.Get(4).([]byte),
+				Gas:      gas,
+				GasPrice: price,
+			})
+			tx.Gas()
 			signedTx, err := authL2.Signer(authL2.From, tx)
 			if err != nil {
 				log.Error(err)
 				return
 			}
-			l2Client.Client().SendTransaction(ctx, signedTx)
+			err = l2Client.Client().SendTransaction(ctx, signedTx)
+			if err != nil {
+				log.Error(err)
+				return
+			}
 			l2Client.Commit()
 		}).
 		Return(common.Hash{}, nil)
 	// res, err := c.ethTxMan.Result(ctx, id)
-	ethTxManMock.On("Add", mock.Anything, mock.Anything).Return(ethtxmanager.MonitoredTxStatusMined, nil)
-	sender, err := chaingersender.NewEVMChainGERSender(gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0)
+	ethTxManMock.On("Result", mock.Anything, mock.Anything).
+		Return(ethtxmanager.MonitoredTxResult{Status: ethtxmanager.MonitoredTxStatusMined}, nil)
+	sender, err := chaingersender.NewEVMChainGERSender(gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50)
 	require.NoError(t, err)
 
 	return sender
@@ -143,8 +177,18 @@ func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
 	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
 
 	gerAddr, _, gerContract, err = gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(auth, client.Client(), auth.From)
-
+	if err != nil {
+		return
+	}
 	client.Commit()
+
+	_GLOBAL_EXIT_ROOT_SETTER_ROLE := common.HexToHash("0x7b95520991dfda409891be0afa2635b63540f92ee996fda0bf695a166e5c5176")
+	_, err = gerContract.GrantRole(auth, _GLOBAL_EXIT_ROOT_SETTER_ROLE, auth.From)
+	client.Commit()
+	hasRole, _ := gerContract.HasRole(&bind.CallOpts{Pending: false}, _GLOBAL_EXIT_ROOT_SETTER_ROLE, auth.From)
+	if !hasRole {
+		err = errors.New("failed to set role")
+	}
 	return
 }
 
@@ -159,7 +203,7 @@ func runTest(
 		_, err := gerL1Contract.UpdateExitRoot(authL1, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
 		l1Client.Commit()
-		time.Sleep(time.Second * 30)
+		time.Sleep(time.Millisecond * 50)
 		expectedGER, err := gerL1Contract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
 		isInjected, err := sender.IsGERAlreadyInjected(expectedGER)

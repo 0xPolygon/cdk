@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/0xPolygon/cdk/common"
+	"github.com/0xPolygon/cdk/sync"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 )
@@ -87,7 +88,7 @@ func (p *processor) GetClaimsAndBridges(
 	return events, nil
 }
 
-func (p *processor) getLastProcessedBlock(ctx context.Context) (uint64, error) {
+func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
 		return 0, err
@@ -106,7 +107,7 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	}
 }
 
-func (p *processor) reorg(firstReorgedBlock uint64) error {
+func (p *processor) Reorg(firstReorgedBlock uint64) error {
 	tx, err := p.db.BeginRw(context.Background())
 	if err != nil {
 		return err
@@ -134,23 +135,27 @@ func (p *processor) reorg(firstReorgedBlock uint64) error {
 	return tx.Commit()
 }
 
-func (p *processor) storeBridgeEvents(blockNum uint64, events []BridgeEvent) error {
+func (p *processor) ProcessBlock(block sync.EVMBlock) error {
 	tx, err := p.db.BeginRw(context.Background())
 	if err != nil {
 		return err
 	}
-	if len(events) > 0 {
+	if len(block.Events) > 0 {
+		events := []BridgeEvent{}
+		for _, e := range block.Events {
+			events = append(events, e.(BridgeEvent))
+		}
 		value, err := json.Marshal(events)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
-		if err := tx.Put(eventsTable, common.BlockNum2Bytes(blockNum), value); err != nil {
+		if err := tx.Put(eventsTable, common.BlockNum2Bytes(block.Num), value); err != nil {
 			tx.Rollback()
 			return err
 		}
 	}
-	if err := p.updateLastProcessedBlock(tx, blockNum); err != nil {
+	if err := p.updateLastProcessedBlock(tx, block.Num); err != nil {
 		tx.Rollback()
 		return err
 	}

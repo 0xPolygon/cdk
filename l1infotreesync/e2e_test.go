@@ -43,7 +43,6 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 }
 
 func TestE2E(t *testing.T) {
-	waitForNewBlocksPeriod = time.Millisecond
 	ctx := context.Background()
 	dbPath := t.TempDir()
 	privateKey, err := crypto.GenerateKey()
@@ -51,13 +50,13 @@ func TestE2E(t *testing.T) {
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
 	require.NoError(t, err)
 	rdm := NewReorgDetectorMock(t)
-	rdm.On("Subscribe", reorgDetectorID).Return(&reorgdetector.Subscription{})
+	rdm.On("Subscribe", reorgDetectorID).Return(&reorgdetector.Subscription{}, nil)
 	rdm.On("AddBlockToTrack", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	client, gerAddr, gerSc, err := newSimulatedClient(auth)
 	require.NoError(t, err)
-	syncer, err := New(ctx, dbPath, gerAddr, 10, etherman.LatestBlock, rdm, client.Client(), 32)
+	syncer, err := New(ctx, dbPath, gerAddr, 10, etherman.LatestBlock, rdm, client.Client(), 32, time.Millisecond)
 	require.NoError(t, err)
-	go syncer.Sync(ctx)
+	go syncer.Start(ctx)
 
 	// Update GER 10 times
 	// TODO: test syncer restart

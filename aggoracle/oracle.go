@@ -13,10 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var (
-	waitPeriodNextGER = time.Second * 30
-)
-
 type EthClienter interface {
 	ethereum.LogFilterer
 	ethereum.BlockNumberReader
@@ -46,6 +42,7 @@ func New(
 	l1Client EthClienter,
 	l1InfoTreeSyncer L1InfoTreer,
 	blockFinalityType etherman.BlockNumberFinality,
+	waitPeriodNextGER time.Duration,
 ) (*AggOracle, error) {
 	ticker := time.NewTicker(waitPeriodNextGER)
 	finality, err := blockFinalityType.ToBlockNum()

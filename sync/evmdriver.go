@@ -1,4 +1,4 @@
-package l1infotreesync
+package sync
 
 import (
 	"context"
@@ -8,27 +8,24 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-const (
-	downloadBufferSize = 1000
-	reorgDetectorID    = "localbridgesync"
-)
-
-type downloaderFull interface {
-	downloaderInterface
-	download(ctx context.Context, fromBlock uint64, downloadedCh chan block)
+type evmDownloaderFull interface {
+	evmDownloaderInterface
+	download(ctx context.Context, fromBlock uint64, downloadedCh chan EVMBlock)
 }
 
-type driver struct {
-	reorgDetector ReorgDetector
-	reorgSub      *reorgdetector.Subscription
-	processor     processorInterface
-	downloader    downloaderFull
+type EVMDriver struct {
+	reorgDetector      ReorgDetector
+	reorgSub           *reorgdetector.Subscription
+	processor          processorInterface
+	downloader         evmDownloaderFull
+	reorgDetectorID    string
+	downloadBufferSize int
 }
 
 type processorInterface interface {
-	getLastProcessedBlock(ctx context.Context) (uint64, error)
-	processBlock(block block) error
-	reorg(firstReorgedBlock uint64) error
+	GetLastProcessedBlock(ctx context.Context) (uint64, error)
+	ProcessBlock(block EVMBlock) error
+	Reorg(firstReorgedBlock uint64) error
 }
 
 type ReorgDetector interface {
@@ -36,24 +33,28 @@ type ReorgDetector interface {
 	AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error
 }
 
-func newDriver(
+func NewEVMDriver(
 	reorgDetector ReorgDetector,
 	processor processorInterface,
-	downloader downloaderFull,
-) (*driver, error) {
+	downloader evmDownloaderFull,
+	reorgDetectorID string,
+	downloadBufferSize int,
+) (*EVMDriver, error) {
 	reorgSub, err := reorgDetector.Subscribe(reorgDetectorID)
 	if err != nil {
 		return nil, err
 	}
-	return &driver{
-		reorgDetector: reorgDetector,
-		reorgSub:      reorgSub,
-		processor:     processor,
-		downloader:    downloader,
+	return &EVMDriver{
+		reorgDetector:      reorgDetector,
+		reorgSub:           reorgSub,
+		processor:          processor,
+		downloader:         downloader,
+		reorgDetectorID:    reorgDetectorID,
+		downloadBufferSize: downloadBufferSize,
 	}, nil
 }
 
-func (d *driver) Sync(ctx context.Context) {
+func (d *EVMDriver) Sync(ctx context.Context) {
 reset:
 	var (
 		lastProcessedBlock uint64
@@ -61,11 +62,11 @@ reset:
 		err                error
 	)
 	for {
-		lastProcessedBlock, err = d.processor.getLastProcessedBlock(ctx)
+		lastProcessedBlock, err = d.processor.GetLastProcessedBlock(ctx)
 		if err != nil {
 			attempts++
 			log.Error("error geting last processed block: ", err)
-			retryHandler("Sync", attempts)
+			RetryHandler("Sync", attempts)
 			continue
 		}
 		break
@@ -74,7 +75,7 @@ reset:
 	defer cancel()
 
 	// start downloading
-	downloadCh := make(chan block, downloadBufferSize)
+	downloadCh := make(chan EVMBlock, d.downloadBufferSize)
 	go d.downloader.download(cancellableCtx, lastProcessedBlock, downloadCh)
 
 	for {
@@ -90,33 +91,33 @@ reset:
 	}
 }
 
-func (d *driver) handleNewBlock(ctx context.Context, b block) {
+func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
 	attempts := 0
 	for {
-		err := d.reorgDetector.AddBlockToTrack(ctx, reorgDetectorID, b.Num, b.Hash)
+		err := d.reorgDetector.AddBlockToTrack(ctx, d.reorgDetectorID, b.Num, b.Hash)
 		if err != nil {
 			attempts++
 			log.Errorf("error adding block %d to tracker: %v", b.Num, err)
-			retryHandler("handleNewBlock", attempts)
+			RetryHandler("handleNewBlock", attempts)
 			continue
 		}
 		break
 	}
 	attempts = 0
 	for {
-		err := d.processor.processBlock(b)
+		err := d.processor.ProcessBlock(b)
 		if err != nil {
 			attempts++
 			log.Errorf("error processing events for blcok %d, err: ", b.Num, err)
-			retryHandler("handleNewBlock", attempts)
+			RetryHandler("handleNewBlock", attempts)
 			continue
 		}
 		break
 	}
 }
 
-func (d *driver) handleReorg(
-	cancel context.CancelFunc, downloadCh chan block, firstReorgedBlock uint64,
+func (d *EVMDriver) handleReorg(
+	cancel context.CancelFunc, downloadCh chan EVMBlock, firstReorgedBlock uint64,
 ) {
 	// stop downloader
 	cancel()
@@ -127,14 +128,14 @@ func (d *driver) handleReorg(
 	// handle reorg
 	attempts := 0
 	for {
-		err := d.processor.reorg(firstReorgedBlock)
+		err := d.processor.Reorg(firstReorgedBlock)
 		if err != nil {
 			attempts++
 			log.Errorf(
-				"error processing reorg, last valid block %d, err: %v",
+				"error processing reorg, last valid Block %d, err: %v",
 				firstReorgedBlock, err,
 			)
-			retryHandler("handleReorg", attempts)
+			RetryHandler("handleReorg", attempts)
 			continue
 		}
 		break

@@ -7,6 +7,7 @@ import (
 	"errors"
 
 	"github.com/0xPolygon/cdk/l1infotree"
+	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
@@ -268,7 +269,7 @@ func (p *processor) getInfoByHashWithTx(tx kv.Tx, hash []byte) (*L1InfoTreeLeaf,
 	}, nil
 }
 
-func (p *processor) getLastProcessedBlock(ctx context.Context) (uint64, error) {
+func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
 		return 0, err
@@ -287,7 +288,7 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	}
 }
 
-func (p *processor) reorg(firstReorgedBlock uint64) error {
+func (p *processor) Reorg(firstReorgedBlock uint64) error {
 	// TODO: Does tree need to be reorged?
 	tx, err := p.db.BeginRw(context.Background())
 	if err != nil {
@@ -362,9 +363,9 @@ func (p *processor) deleteLeaf(tx kv.RwTx, index uint32) error {
 	return nil
 }
 
-// processBlock process the leafs of the L1 info tree found on a block
+// ProcessBlock process the leafs of the L1 info tree found on a block
 // this function can be called without leafs with the intention to track the last processed block
-func (p *processor) processBlock(b block) error {
+func (p *processor) ProcessBlock(b sync.EVMBlock) error {
 	tx, err := p.db.BeginRw(context.Background())
 	if err != nil {
 		return err
@@ -380,11 +381,12 @@ func (p *processor) processBlock(b block) error {
 		} else {
 			initialIndex = lastIndex + 1
 		}
-		for i, l := range b.Events {
+		for i, e := range b.Events {
+			event := e.(L1InfoTreeUpdate)
 			leafToStore := storeLeaf{
 				Index:           initialIndex + uint32(i),
-				MainnetExitRoot: l.MainnetExitRoot,
-				RollupExitRoot:  l.RollupExitRoot,
+				MainnetExitRoot: event.MainnetExitRoot,
+				RollupExitRoot:  event.RollupExitRoot,
 				ParentHash:      b.ParentHash,
 				Timestamp:       b.Timestamp,
 				BlockNumber:     b.Num,
