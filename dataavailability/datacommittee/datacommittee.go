@@ -22,8 +22,10 @@ import (
 	"golang.org/x/net/context"
 )
 
-const unexpectedHashTemplate = "missmatch on transaction data. Expected hash %s, actual hash: %s"
-const translateContextName = "dataCommittee"
+const (
+    unexpectedHashTemplate = "missmatch on transaction data. Expected hash %s, actual hash: %s"
+    translateContextName = "dataCommittee"
+)
 
 // DataCommitteeMember represents a member of the Data Committee
 type DataCommitteeMember struct {
