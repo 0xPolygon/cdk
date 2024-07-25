@@ -289,7 +289,7 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 	// request
 	c := client.New(member.URL)
 	log.Infof("sending request to sign the sequence to %s at %s", member.Addr.Hex(), member.URL)
-	//signature, err := c.SignSequenceBanana(ctx, signedSequence)
+	//funcSign must call something like that  c.SignSequenceBanana(ctx, signedSequence)
 	signature, err := funcSign(c)
 
 	if err != nil {
