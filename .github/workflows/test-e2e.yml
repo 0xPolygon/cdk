@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@4
+      uses: actions/checkout@v4
 
     - name: Install Go
       uses: actions/setup-go@v3
@@ -53,7 +53,7 @@ jobs:
       uses: foundry-rs/foundry-toolchain@v1
 
     - name: checkout kurtosis-cdk
-      uses: actions/checkout@4
+      uses: actions/checkout@v4
       with:
         repository: git@github.com:0xPolygon/kurtosis-cdk.git
         ref: jesteban/cdk-seq_sender
