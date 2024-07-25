@@ -23,8 +23,8 @@ import (
 )
 
 const (
-    unexpectedHashTemplate = "missmatch on transaction data. Expected hash %s, actual hash: %s"
-    translateContextName = "dataCommittee"
+	unexpectedHashTemplate = "missmatch on transaction data. Expected hash %s, actual hash: %s"
+	translateContextName   = "dataCommittee"
 )
 
 // DataCommitteeMember represents a member of the Data Committee
@@ -188,7 +188,7 @@ func (s *Backend) PostSequenceElderberry(ctx context.Context, batchesData [][]by
 		go requestSignatureFromMember(signatureCtx, &signedSequenceElderberry,
 			func(c client.Client) ([]byte, error) { return c.SignSequence(ctx, signedSequenceElderberry) }, member, ch)
 	}
-	return s.collectSignatures(committee, ch, cancelSignatureCollection)
+	return collectSignatures(committee, ch, cancelSignatureCollection)
 }
 
 func (s *Backend) PostSequence(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
@@ -235,10 +235,10 @@ func (s *Backend) PostSequence(ctx context.Context, sequence etherman.SequenceBa
 			member, ch)
 	}
 
-	return s.collectSignatures(committee, ch, cancelSignatureCollection)
+	return collectSignatures(committee, ch, cancelSignatureCollection)
 }
 
-func (*Backend) collectSignatures(committee *DataCommittee, ch chan signatureMsg, cancelSignatureCollection context.CancelFunc) ([]byte, error) {
+func collectSignatures(committee *DataCommittee, ch chan signatureMsg, cancelSignatureCollection context.CancelFunc) ([]byte, error) {
 	// Collect signatures
 	// Stop requesting as soon as we have N valid signatures
 	var (
