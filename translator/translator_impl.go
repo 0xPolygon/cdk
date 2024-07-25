@@ -14,10 +14,7 @@ func (t *TranslatorFullMatchRule) Match(contextName string, data string) bool {
 	if t.ContextName != nil && *t.ContextName != contextName {
 		return false
 	}
-	if t.FullMatchString != data {
-		return false
-	}
-	return true
+	return t.FullMatchString == data
 }
 
 func (t *TranslatorFullMatchRule) Translate(contextName string, data string) string {
