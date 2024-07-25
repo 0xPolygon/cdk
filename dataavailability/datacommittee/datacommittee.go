@@ -160,9 +160,9 @@ type signatureMsg struct {
 	err       error
 }
 
-func (s *Backend) PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error) {
+func (d *Backend) PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error) {
 	// Get current committee
-	committee, err := s.getCurrentDataCommittee()
+	committee, err := d.getCurrentDataCommittee()
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (s *Backend) PostSequenceElderberry(ctx context.Context, batchesData [][]by
 	for _, batchData := range batchesData {
 		sequence = append(sequence, batchData)
 	}
-	signedSequence, err := sequence.Sign(s.privKey)
+	signedSequence, err := sequence.Sign(d.privKey)
 	if err != nil {
 		return nil, err
 	}
@@ -191,9 +191,9 @@ func (s *Backend) PostSequenceElderberry(ctx context.Context, batchesData [][]by
 	return collectSignatures(committee, ch, cancelSignatureCollection)
 }
 
-func (s *Backend) PostSequence(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
+func (d *Backend) PostSequence(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
 	// Get current committee
-	committee, err := s.getCurrentDataCommittee()
+	committee, err := d.getCurrentDataCommittee()
 	if err != nil {
 		return nil, err
 	}
