@@ -209,10 +209,14 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	config := etherman.Config{
-		URL: c.Aggregator.EthTxManager.Etherman.URL,
-	}
-	return etherman.NewClient(config, c.NetworkConfig.L1Config)
+	return etherman.NewClient(etherman.Config{
+		EthermanConfig: ethtxman.Config{
+			URL:              c.Aggregator.EthTxManager.Etherman.URL,
+			MultiGasProvider: c.Aggregator.EthTxManager.Etherman.MultiGasProvider,
+			L1ChainID:        c.Aggregator.EthTxManager.Etherman.L1ChainID,
+			HTTPHeaders:      c.Aggregator.EthTxManager.Etherman.HTTPHeaders,
+		},
+	}, c.NetworkConfig.L1Config)
 }
 
 func logVersion() {
