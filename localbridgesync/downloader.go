@@ -32,30 +32,6 @@ type EthClienter interface {
 	bind.ContractBackend
 }
 
-type Bridge struct {
-	LeafType           uint8
-	OriginNetwork      uint32
-	OriginAddress      common.Address
-	DestinationNetwork uint32
-	DestinationAddress common.Address
-	Amount             *big.Int
-	Metadata           []byte
-	DepositCount       uint32
-}
-
-type Claim struct {
-	GlobalIndex        *big.Int
-	OriginNetwork      uint32
-	OriginAddress      common.Address
-	DestinationAddress common.Address
-	Amount             *big.Int
-}
-
-type BridgeEvent struct {
-	Bridge *Bridge
-	Claim  *Claim
-}
-
 func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderMap, error) {
 	bridgeContractV1, err := polygonzkevmbridge.NewPolygonzkevmbridge(bridge, client)
 	if err != nil {
@@ -75,7 +51,7 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 				l, err,
 			)
 		}
-		b.Events = append(b.Events, BridgeEvent{Bridge: &Bridge{
+		b.Events = append(b.Events, Event{Bridge: &Bridge{
 			LeafType:           bridge.LeafType,
 			OriginNetwork:      bridge.OriginNetwork,
 			OriginAddress:      bridge.OriginAddress,
@@ -96,7 +72,7 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 				l, err,
 			)
 		}
-		b.Events = append(b.Events, BridgeEvent{Claim: &Claim{
+		b.Events = append(b.Events, Event{Claim: &Claim{
 			GlobalIndex:        claim.GlobalIndex,
 			OriginNetwork:      claim.OriginNetwork,
 			OriginAddress:      claim.OriginAddress,
@@ -114,7 +90,7 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 				l, err,
 			)
 		}
-		b.Events = append(b.Events, BridgeEvent{Claim: &Claim{
+		b.Events = append(b.Events, Event{Claim: &Claim{
 			GlobalIndex:        big.NewInt(int64(claim.Index)),
 			OriginNetwork:      claim.OriginNetwork,
 			OriginAddress:      claim.OriginAddress,

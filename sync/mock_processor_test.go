@@ -38,11 +38,11 @@ func (_m *ProcessorMock) GetLastProcessedBlock(ctx context.Context) (uint64, err
 }
 
 // ProcessBlock provides a mock function with given fields: block
-func (_m *ProcessorMock) ProcessBlock(block EVMBlock) error {
+func (_m *ProcessorMock) ProcessBlock(block Block) error {
 	ret := _m.Called(block)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(EVMBlock) error); ok {
+	if rf, ok := ret.Get(0).(func(Block) error); ok {
 		r0 = rf(block)
 	} else {
 		r0 = ret.Error(0)

@@ -25,16 +25,30 @@ type LocalBridgeSync struct {
 }
 
 func New(
+	ctx context.Context,
 	dbPath string,
 	bridge common.Address,
 	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
 	rd sync.ReorgDetector,
 	l2Client EthClienter,
+	initialBlock uint64,
 ) (*LocalBridgeSync, error) {
 	processor, err := newProcessor(dbPath)
 	if err != nil {
 		return nil, err
+	}
+	lastProcessedBlock, err := processor.GetLastProcessedBlock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if lastProcessedBlock < initialBlock {
+		err = processor.ProcessBlock(sync.Block{
+			Num: initialBlock,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	appender, err := buildAppender(l2Client, bridge)

@@ -9,17 +9,29 @@ import (
 	"github.com/iden3/go-iden3-crypto/keccak256"
 )
 
-// BlockNum2Bytes converts a block number to a byte slice
-func BlockNum2Bytes(blockNum uint64) []byte {
-	key := make([]byte, 8)
-	binary.LittleEndian.PutUint64(key, blockNum)
+// Uint64To2Bytes converts a block number to a byte slice
+func Uint64To2Bytes(num uint64) []byte {
+	bytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(bytes, num)
 
+	return bytes
+}
+
+// BytesToUint64 converts a byte slice to a block number
+func BytesToUint64(bytes []byte) uint64 {
+	return binary.LittleEndian.Uint64(bytes)
+}
+
+// Uint32To2Bytes converts a block number to a byte slice
+func Uint32ToBytes(num uint32) []byte {
+	key := make([]byte, 4)
+	binary.LittleEndian.PutUint32(key, num)
 	return key
 }
 
-// Bytes2BlockNum converts a byte slice to a block number
-func Bytes2BlockNum(key []byte) uint64 {
-	return binary.LittleEndian.Uint64(key)
+// BytesToUint32 converts a byte slice to a block number
+func BytesToUint32(bytes []byte) uint32 {
+	return binary.LittleEndian.Uint32(bytes)
 }
 
 func CalculateAccInputHash(

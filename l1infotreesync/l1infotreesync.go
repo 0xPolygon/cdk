@@ -34,10 +34,24 @@ func New(
 	l1Client EthClienter,
 	treeHeight uint8,
 	waitForNewBlocksPeriod time.Duration,
+	initialBlock uint64,
 ) (*L1InfoTreeSync, error) {
 	processor, err := newProcessor(ctx, dbPath, treeHeight)
 	if err != nil {
 		return nil, err
+	}
+	// TODO: get the initialBlock from L1 to simplify config
+	lastProcessedBlock, err := processor.GetLastProcessedBlock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if lastProcessedBlock < initialBlock {
+		err = processor.ProcessBlock(sync.Block{
+			Num: initialBlock,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	appender, err := buildAppender(l1Client, globalExitRoot)

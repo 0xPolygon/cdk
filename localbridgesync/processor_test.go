@@ -121,7 +121,7 @@ func TestProceessor(t *testing.T) {
 			ctx:            context.Background(),
 			fromBlock:      2,
 			toBlock:        2,
-			expectedEvents: []BridgeEvent{},
+			expectedEvents: []Event{},
 			expectedErr:    nil,
 		},
 		&getClaimsAndBridgesAction{
@@ -241,13 +241,10 @@ func TestProceessor(t *testing.T) {
 // blocks
 
 var (
-	block1 = sync.EVMBlock{
-		EVMBlockHeader: sync.EVMBlockHeader{
-			Num:  1,
-			Hash: common.HexToHash("01"),
-		},
+	block1 = sync.Block{
+		Num: 1,
 		Events: []interface{}{
-			BridgeEvent{Bridge: &Bridge{
+			Event{Bridge: &Bridge{
 				LeafType:           1,
 				OriginNetwork:      1,
 				OriginAddress:      common.HexToAddress("01"),
@@ -257,7 +254,7 @@ var (
 				Metadata:           common.Hex2Bytes("01"),
 				DepositCount:       1,
 			}},
-			BridgeEvent{Claim: &Claim{
+			Event{Claim: &Claim{
 				GlobalIndex:        big.NewInt(1),
 				OriginNetwork:      1,
 				OriginAddress:      common.HexToAddress("01"),
@@ -266,13 +263,10 @@ var (
 			}},
 		},
 	}
-	block3 = sync.EVMBlock{
-		EVMBlockHeader: sync.EVMBlockHeader{
-			Num:  3,
-			Hash: common.HexToHash("02"),
-		},
+	block3 = sync.Block{
+		Num: 3,
 		Events: []interface{}{
-			BridgeEvent{Bridge: &Bridge{
+			Event{Bridge: &Bridge{
 				LeafType:           2,
 				OriginNetwork:      2,
 				OriginAddress:      common.HexToAddress("02"),
@@ -282,7 +276,7 @@ var (
 				Metadata:           common.Hex2Bytes("02"),
 				DepositCount:       2,
 			}},
-			BridgeEvent{Bridge: &Bridge{
+			Event{Bridge: &Bridge{
 				LeafType:           3,
 				OriginNetwork:      3,
 				OriginAddress:      common.HexToAddress("03"),
@@ -294,27 +288,21 @@ var (
 			}},
 		},
 	}
-	block4 = sync.EVMBlock{
-		EVMBlockHeader: sync.EVMBlockHeader{
-			Num:  4,
-			Hash: common.HexToHash("03"),
-		},
+	block4 = sync.Block{
+		Num:    4,
 		Events: []interface{}{},
 	}
-	block5 = sync.EVMBlock{
-		EVMBlockHeader: sync.EVMBlockHeader{
-			Num:  5,
-			Hash: common.HexToHash("04"),
-		},
+	block5 = sync.Block{
+		Num: 5,
 		Events: []interface{}{
-			BridgeEvent{Claim: &Claim{
+			Event{Claim: &Claim{
 				GlobalIndex:        big.NewInt(4),
 				OriginNetwork:      4,
 				OriginAddress:      common.HexToAddress("04"),
 				DestinationAddress: common.HexToAddress("04"),
 				Amount:             big.NewInt(4),
 			}},
-			BridgeEvent{Claim: &Claim{
+			Event{Claim: &Claim{
 				GlobalIndex:        big.NewInt(5),
 				OriginNetwork:      5,
 				OriginAddress:      common.HexToAddress("05"),
@@ -341,7 +329,7 @@ type getClaimsAndBridgesAction struct {
 	ctx            context.Context
 	fromBlock      uint64
 	toBlock        uint64
-	expectedEvents []BridgeEvent
+	expectedEvents []Event
 	expectedErr    error
 }
 
@@ -410,7 +398,7 @@ func (a *reorgAction) execute(t *testing.T) {
 type processBlockAction struct {
 	p           *processor
 	description string
-	block       sync.EVMBlock
+	block       sync.Block
 	expectedErr error
 }
 
@@ -427,10 +415,10 @@ func (a *processBlockAction) execute(t *testing.T) {
 	require.Equal(t, a.expectedErr, actualErr)
 }
 
-func eventsToBridgeEvents(events []interface{}) []BridgeEvent {
-	bridgeEvents := []BridgeEvent{}
+func eventsToBridgeEvents(events []interface{}) []Event {
+	bridgeEvents := []Event{}
 	for _, event := range events {
-		bridgeEvents = append(bridgeEvents, event.(BridgeEvent))
+		bridgeEvents = append(bridgeEvents, event.(Event))
 	}
 	return bridgeEvents
 }

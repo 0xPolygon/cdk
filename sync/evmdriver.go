@@ -24,7 +24,7 @@ type EVMDriver struct {
 
 type processorInterface interface {
 	GetLastProcessedBlock(ctx context.Context) (uint64, error)
-	ProcessBlock(block EVMBlock) error
+	ProcessBlock(block Block) error
 	Reorg(firstReorgedBlock uint64) error
 }
 
@@ -105,7 +105,11 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
 	}
 	attempts = 0
 	for {
-		err := d.processor.ProcessBlock(b)
+		blockToProcess := Block{
+			Num:    b.Num,
+			Events: b.Events,
+		}
+		err := d.processor.ProcessBlock(blockToProcess)
 		if err != nil {
 			attempts++
 			log.Errorf("error processing events for blcok %d, err: ", b.Num, err)

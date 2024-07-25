@@ -23,11 +23,6 @@ type EthClienter interface {
 	bind.ContractBackend
 }
 
-type L1InfoTreeUpdate struct {
-	MainnetExitRoot common.Hash
-	RollupExitRoot  common.Hash
-}
-
 func buildAppender(client EthClienter, globalExitRoot common.Address) (sync.LogAppenderMap, error) {
 	contract, err := polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2(globalExitRoot, client)
 	if err != nil {
@@ -42,9 +37,11 @@ func buildAppender(client EthClienter, globalExitRoot common.Address) (sync.LogA
 				l, err,
 			)
 		}
-		b.Events = append(b.Events, L1InfoTreeUpdate{
+		b.Events = append(b.Events, Event{
 			MainnetExitRoot: l1InfoTreeUpdate.MainnetExitRoot,
 			RollupExitRoot:  l1InfoTreeUpdate.RollupExitRoot,
+			ParentHash:      b.ParentHash,
+			Timestamp:       b.Timestamp,
 		})
 		return nil
 	}

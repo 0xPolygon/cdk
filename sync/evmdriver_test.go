@@ -78,11 +78,11 @@ func TestSync(t *testing.T) {
 		Return(uint64(3), nil)
 	rdm.On("AddBlockToTrack", ctx, reorgDetectorID, expectedBlock1.Num, expectedBlock1.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", expectedBlock1).
+	pm.On("ProcessBlock", Block{Num: expectedBlock1.Num, Events: expectedBlock1.Events}).
 		Return(nil)
 	rdm.On("AddBlockToTrack", ctx, reorgDetectorID, expectedBlock2.Num, expectedBlock2.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", expectedBlock2).
+	pm.On("ProcessBlock", Block{Num: expectedBlock2.Num, Events: expectedBlock2.Events}).
 		Return(nil)
 	go driver.Sync(ctx)
 	time.Sleep(time.Millisecond * 200) // time to download expectedBlock1
@@ -126,7 +126,7 @@ func TestHandleNewBlock(t *testing.T) {
 	rdm.
 		On("AddBlockToTrack", ctx, reorgDetectorID, b1.Num, b1.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", b1).
+	pm.On("ProcessBlock", Block{Num: b1.Num, Events: b1.Events}).
 		Return(nil)
 	driver.handleNewBlock(ctx, b1)
 
@@ -143,7 +143,7 @@ func TestHandleNewBlock(t *testing.T) {
 	rdm.
 		On("AddBlockToTrack", ctx, reorgDetectorID, b2.Num, b2.Hash).
 		Return(nil).Once()
-	pm.On("ProcessBlock", b2).
+	pm.On("ProcessBlock", Block{Num: b2.Num, Events: b2.Events}).
 		Return(nil)
 	driver.handleNewBlock(ctx, b2)
 
@@ -157,9 +157,9 @@ func TestHandleNewBlock(t *testing.T) {
 	rdm.
 		On("AddBlockToTrack", ctx, reorgDetectorID, b3.Num, b3.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", b3).
+	pm.On("ProcessBlock", Block{Num: b3.Num, Events: b3.Events}).
 		Return(errors.New("foo")).Once()
-	pm.On("ProcessBlock", b3).
+	pm.On("ProcessBlock", Block{Num: b3.Num, Events: b3.Events}).
 		Return(nil).Once()
 	driver.handleNewBlock(ctx, b3)
 
@@ -182,7 +182,7 @@ func TestHandleReorg(t *testing.T) {
 	_, cancel := context.WithCancel(ctx)
 	downloadCh := make(chan EVMBlock)
 	firstReorgedBlock := uint64(5)
-	pm.On("reorg", firstReorgedBlock).Return(nil)
+	pm.On("Reorg", firstReorgedBlock).Return(nil)
 	go driver.handleReorg(cancel, downloadCh, firstReorgedBlock)
 	close(downloadCh)
 	done := <-reorgProcessed
@@ -192,7 +192,7 @@ func TestHandleReorg(t *testing.T) {
 	_, cancel = context.WithCancel(ctx)
 	downloadCh = make(chan EVMBlock)
 	firstReorgedBlock = uint64(6)
-	pm.On("reorg", firstReorgedBlock).Return(nil)
+	pm.On("Reorg", firstReorgedBlock).Return(nil)
 	go driver.handleReorg(cancel, downloadCh, firstReorgedBlock)
 	downloadCh <- EVMBlock{}
 	downloadCh <- EVMBlock{}
@@ -205,9 +205,9 @@ func TestHandleReorg(t *testing.T) {
 	_, cancel = context.WithCancel(ctx)
 	downloadCh = make(chan EVMBlock)
 	firstReorgedBlock = uint64(7)
-	pm.On("reorg", firstReorgedBlock).Return(errors.New("foo")).Once()
-	pm.On("reorg", firstReorgedBlock).Return(errors.New("foo")).Once()
-	pm.On("reorg", firstReorgedBlock).Return(nil).Once()
+	pm.On("Reorg", firstReorgedBlock).Return(errors.New("foo")).Once()
+	pm.On("Reorg", firstReorgedBlock).Return(errors.New("foo")).Once()
+	pm.On("Reorg", firstReorgedBlock).Return(nil).Once()
 	go driver.handleReorg(cancel, downloadCh, firstReorgedBlock)
 	close(downloadCh)
 	done = <-reorgProcessed
