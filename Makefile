@@ -82,7 +82,6 @@ stop: ## Stops all services
 
 .PHONY: test
 test:
-	#go test -count=1 -short -race -p 1 -timeout 60s ./...
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -covermode=atomic -coverprofile=../coverage.out  -coverpkg ./... -timeout 200s ./...
 	
 .PHONY: install-linter
