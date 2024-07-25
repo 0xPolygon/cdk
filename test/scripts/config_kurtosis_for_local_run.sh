@@ -63,5 +63,13 @@ cat << EOF
                 "--custom-network-file", "$DEST/local_config/genesis.json"
                 ]
             },
-EOF
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "cmd/",
+            "args":["run","-cfg","$DEST/test.kurtosis.toml",
+            "--components", "sequence-sender",
+            "--custom-network-file", "$DEST/local_config/genesis.json"
+            ]
+        },
 
