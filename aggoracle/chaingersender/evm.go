@@ -67,24 +67,16 @@ func (c *EVMChainGERSender) IsGERAlreadyInjected(ger common.Hash) (bool, error) 
 	if err != nil {
 		return false, err
 	}
-	return timestamp.Cmp(big.NewInt(0)) == 0, nil
+	return timestamp.Cmp(big.NewInt(0)) != 0, nil
 }
 
 func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger common.Hash) error {
-	opts := &bind.TransactOpts{
-		From: c.sender,
-		// Hardcode dummy values to avoid calls to the client,
-		// ethtxmanager is going to handle that
-		NoSend:   true,
-		Nonce:    big.NewInt(1),
-		GasLimit: 1,
-		GasPrice: big.NewInt(1),
-	}
-	tx, err := c.gerContract.UpdateGlobalExitRoot(opts, ger)
+	abi, err := pessimisticglobalexitroot.PessimisticglobalexitrootMetaData.GetAbi()
 	if err != nil {
 		return err
 	}
-	id, err := c.ethTxMan.Add(ctx, &c.gerAddr, nil, big.NewInt(0), tx.Data(), c.gasOffset, nil)
+	data, err := abi.Pack("updateGlobalExitRoot", ger)
+	id, err := c.ethTxMan.Add(ctx, &c.gerAddr, nil, big.NewInt(0), data, c.gasOffset, nil)
 	if err != nil {
 		return err
 	}

@@ -7,18 +7,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/globalexitrootnopush0"
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitroot"
+	gerContractL1 "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/globalexitrootnopush0"
+	gerContractEVMChain "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitrootnopush0"
 	"github.com/0xPolygon/cdk/aggoracle"
 	"github.com/0xPolygon/cdk/aggoracle/chaingersender"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
+	ethtxmanager "github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
+	mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,7 +39,7 @@ func TestEVM(t *testing.T) {
 func commonSetup(t *testing.T) (
 	*simulated.Backend,
 	*l1infotreesync.L1InfoTreeSync,
-	*globalexitrootnopush0.Globalexitrootnopush0,
+	*gerContractL1.Globalexitrootnopush0,
 	*bind.TransactOpts,
 ) {
 	// Config and spin up
@@ -68,7 +71,34 @@ func evmSetup(t *testing.T) aggoracle.ChainSender {
 	require.NoError(t, err)
 	l2Client, gerL2Addr, _, err := newSimulatedEVMAggSovereignChain(authL2)
 	require.NoError(t, err)
-	sender, err := chaingersender.NewEVMChainGERSender(gerL2Addr, authL2.From, l2Client.Client(), nil, 0)
+	ethTxManMock := aggoracle.NewEthTxManagerMock(t)
+	// id, err := c.ethTxMan.Add(ctx, &c.gerAddr, nil, big.NewInt(0), tx.Data(), c.gasOffset, nil)
+	ethTxManMock.On("Add", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			ctx := context.Background()
+			nonce, err := l2Client.Client().PendingNonceAt(ctx, authL2.From)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			tx := types.NewTx(&types.LegacyTx{
+				To:    args.Get(1).(*common.Address),
+				Nonce: nonce,
+				Value: big.NewInt(0),
+				Data:  args.Get(4).([]byte),
+			})
+			signedTx, err := authL2.Signer(authL2.From, tx)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			l2Client.Client().SendTransaction(ctx, signedTx)
+			l2Client.Commit()
+		}).
+		Return(common.Hash{}, nil)
+	// res, err := c.ethTxMan.Result(ctx, id)
+	ethTxManMock.On("Add", mock.Anything, mock.Anything).Return(ethtxmanager.MonitoredTxStatusMined, nil)
+	sender, err := chaingersender.NewEVMChainGERSender(gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0)
 	require.NoError(t, err)
 
 	return sender
@@ -77,7 +107,7 @@ func evmSetup(t *testing.T) aggoracle.ChainSender {
 func newSimulatedL1(auth *bind.TransactOpts) (
 	client *simulated.Backend,
 	gerAddr common.Address,
-	gerContract *globalexitrootnopush0.Globalexitrootnopush0,
+	gerContract *gerContractL1.Globalexitrootnopush0,
 	err error,
 ) {
 	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10) //nolint:gomnd
@@ -90,7 +120,7 @@ func newSimulatedL1(auth *bind.TransactOpts) (
 	blockGasLimit := uint64(999999999999999999) //nolint:gomnd
 	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
 
-	gerAddr, _, gerContract, err = globalexitrootnopush0.DeployGlobalexitrootnopush0(auth, client.Client(), auth.From, auth.From)
+	gerAddr, _, gerContract, err = gerContractL1.DeployGlobalexitrootnopush0(auth, client.Client(), auth.From, auth.From)
 
 	client.Commit()
 	return
@@ -99,7 +129,7 @@ func newSimulatedL1(auth *bind.TransactOpts) (
 func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
 	client *simulated.Backend,
 	gerAddr common.Address,
-	gerContract *pessimisticglobalexitroot.Pessimisticglobalexitroot,
+	gerContract *gerContractEVMChain.Pessimisticglobalexitrootnopush0,
 	err error,
 ) {
 	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10) //nolint:gomnd
@@ -112,7 +142,7 @@ func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
 	blockGasLimit := uint64(999999999999999999) //nolint:gomnd
 	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
 
-	gerAddr, _, gerContract, err = pessimisticglobalexitroot.DeployPessimisticglobalexitroot(auth, client.Client(), auth.From)
+	gerAddr, _, gerContract, err = gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(auth, client.Client(), auth.From)
 
 	client.Commit()
 	return
@@ -120,7 +150,7 @@ func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
 
 func runTest(
 	t *testing.T,
-	gerL1Contract *globalexitrootnopush0.Globalexitrootnopush0,
+	gerL1Contract *gerContractL1.Globalexitrootnopush0,
 	sender aggoracle.ChainSender,
 	l1Client *simulated.Backend,
 	authL1 *bind.TransactOpts,
