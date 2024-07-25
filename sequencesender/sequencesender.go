@@ -941,27 +941,18 @@ func (s *SequenceSender) addNewBatchL2Block(l2Block *datastream.L2Block) {
 	data := s.sequenceData[s.wipBatch]
 	if data != nil {
 		wipBatchRaw := data.batchRaw
-		//data.batch.LastL2BLockTimestamp = l2Block.Timestamp
 		data.batch.SetLastL2BLockTimestamp(l2Block.Timestamp)
 		// Sanity check: should be the same coinbase within the batch
 		if common.BytesToAddress(l2Block.Coinbase) != data.batch.LastCoinbase() {
 			s.logFatalf("[SeqSender] coinbase changed within the batch! (Previous %v, Current %v)", data.batch.LastCoinbase, common.BytesToAddress(l2Block.Coinbase))
 		}
-		//data.batch.LastCoinbase = common.BytesToAddress(l2Block.Coinbase)
 		data.batch.SetLastCoinbase(common.BytesToAddress(l2Block.Coinbase))
-		//data.batch.L1InfoTreeIndex = l2Block.L1InfotreeIndex
 		data.batch.SetL1InfoTreeIndex(l2Block.L1InfotreeIndex)
 		// New L2 block raw
 		newBlockRaw := state.L2BlockRaw{}
 
 		// Add L2 block
 		wipBatchRaw.Blocks = append(wipBatchRaw.Blocks, newBlockRaw)
-
-		// Update batch timestamp
-		//data.batch.LastL2BLockTimestamp = l2Block.Timestamp
-		// TODO: Duplicated assignation
-		data.batch.SetLastL2BLockTimestamp(l2Block.Timestamp)
-
 		// Get current L2 block
 		_, blockRaw := s.getWipL2Block()
 		if blockRaw == nil {

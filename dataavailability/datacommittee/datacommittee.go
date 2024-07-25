@@ -216,7 +216,7 @@ func (d *Backend) PostSequence(ctx context.Context, sequence etherman.SequenceBa
 		MaxSequenceTimestamp: daTypes.ArgUint64(sequence.MaxSequenceTimestamp),
 	}
 
-	signature, err := sequenceBanana.Sign(s.privKey)
+	signature, err := sequenceBanana.Sign(d.privKey)
 	if err != nil {
 		return nil, err
 	}
