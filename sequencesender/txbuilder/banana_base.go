@@ -63,12 +63,6 @@ func convertToEthermanBatch(batch seqsendertypes.Batch) (etherman.Batch, error) 
 		LastL2BLockTimestamp: batch.LastL2BLockTimestamp(),
 		GlobalExitRoot:       batch.GlobalExitRoot(),
 	}, nil
-	// cast, ok := batch.(*BananaBatch)
-	// if !ok {
-	// 	log.Error("Batch is not a BananaBatch")
-	// 	return etherman.Batch{}, fmt.Errorf("Batch is not a BananaBatch")
-	// }
-	// return cast.Batch, nil
 }
 
 func convertToEthermanBatches(batch []seqsendertypes.Batch) ([]etherman.Batch, error) {
