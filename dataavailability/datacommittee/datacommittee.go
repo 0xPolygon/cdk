@@ -269,11 +269,6 @@ func collectSignatures(committee *DataCommittee, ch chan signatureMsg, cancelSig
 
 type funcSignType func(c client.Client) ([]byte, error)
 
-type SignedInterface interface {
-	SetSignature([]byte)
-	Signer() (common.Address, error)
-}
-
 // funcSetSignatureType: is not possible to define a SetSignature function because
 // the type daTypes.SequenceBanana and daTypes.Sequence belong to different packages
 // So a future refactor is define a common interface for both
