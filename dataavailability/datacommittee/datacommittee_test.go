@@ -16,6 +16,7 @@ import (
 )
 
 func TestUpdateDataCommitteeEvent(t *testing.T) {
+	t.Skip("This test is not working because the simulated backedn doesnt accept PUSH0, check: https://github.com/ethereum/go-ethereum/issues/28144#issuecomment-2247124776")
 	// Set up testing environment
 	dac, ethBackend, auth, da := newTestingEnv(t)
 
