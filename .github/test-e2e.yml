@@ -4,7 +4,7 @@ on:
   workflow_dispatch: {}
   pull_request:
     types: [opened, synchronize, reopened]
-    
+
 jobs:
   test-e2e:
     strategy:
@@ -27,7 +27,7 @@ jobs:
 
     - name: Build Docker
       run: make build-docker
-
+ 
 
 
     - name: Test
