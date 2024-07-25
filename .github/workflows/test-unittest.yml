@@ -12,3 +12,8 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+    - name: Install Go
+      uses: actions/setup-go@v3
+
+    - name: Build Docker
+      run: make test
