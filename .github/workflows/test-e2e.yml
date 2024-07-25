@@ -55,7 +55,7 @@ jobs:
     - name: checkout kurtosis-cdk
       uses: actions/checkout@v4
       with:
-        repository: https://github.com/0xPolygon/kurtosis-cdk.git
+        repository: 0xPolygon/kurtosis-cdk
         ref: jesteban/cdk-seq_sender
         path: "ext/kurtosis-cdk"
 
