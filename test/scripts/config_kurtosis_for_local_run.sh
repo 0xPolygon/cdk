@@ -54,15 +54,6 @@ echo "- Add next configuration to vscode launch.json"
 cat << EOF
          {
             "name": "run local_docker",
-                "type": "go",
-                "request": "launch",
-                "mode": "auto",
-                "program": "cmd/",
-                "args":["run","-cfg","$DEST/test.kurtosis.toml",
-                "--components", "sequence-sender",
-                "--custom-network-file", "$DEST/local_config/genesis.json"
-                ]
-            },
             "type": "go",
             "request": "launch",
             "mode": "auto",
