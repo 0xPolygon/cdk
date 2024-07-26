@@ -76,6 +76,7 @@ func start(cliCtx *cli.Context) error {
 				log.Fatal(err)
 			}
 			reorgDetector := newReorgDetectorL1(cliCtx.Context, *c, l1Client)
+			go reorgDetector.Start(cliCtx.Context)
 			syncer := newL1InfoTreeSyncer(cliCtx.Context, *c, l1Client, reorgDetector)
 			go syncer.Start(cliCtx.Context)
 			aggOracle := createAggoracle(*c, l1Client, syncer)
