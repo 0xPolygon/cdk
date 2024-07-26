@@ -60,7 +60,7 @@ func runMigrations(cfg Config, name string, direction migrate.MigrationDirection
 		return fmt.Errorf("migration not found with name: %v", name)
 	}
 
-	var migrations = &migrate.EmbedFileSystemMigrationSource{FileSystem: embedMigration}
+	var migrations = &migrate.EmbedFileSystemMigrationSource{FileSystem: embedMigration, Root: "migrations/"}
 	nMigrations, err := migrate.Exec(db, "postgres", migrations, direction)
 	if err != nil {
 		return err
