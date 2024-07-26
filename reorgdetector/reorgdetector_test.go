@@ -423,6 +423,9 @@ func TestReorgDetector_removeFinalisedBlocks(t *testing.T) {
 	cancel()
 
 	// make sure all blocks are removed from the tracked blocks
+	rd.trackedBlocksLock.RLock()
+	defer rd.trackedBlocksLock.RUnlock()
+
 	require.Len(t, rd.trackedBlocks[unfinalisedBlocksID], 5)
 	require.Len(t, rd.trackedBlocks[testSubscriber], 5)
 }

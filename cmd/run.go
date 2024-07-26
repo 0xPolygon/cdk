@@ -16,10 +16,14 @@ import (
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/dataavailability/datacommittee"
 	"github.com/0xPolygon/cdk/etherman"
+	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
+	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender"
+	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/pgstatestorage"
+	"github.com/0xPolygon/cdk/translator"
 	ethtxman "github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman/etherscan"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -111,7 +115,7 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 }
 
 func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
-	ethman, err := etherman.NewClient(etherman.Config{
+	ethman, err := etherman.NewClient(ethermanconfig.Config{
 		EthermanConfig: ethtxman.Config{
 			URL:              cfg.SequenceSender.EthTxManager.Etherman.URL,
 			MultiGasProvider: cfg.SequenceSender.EthTxManager.Etherman.MultiGasProvider,
@@ -122,10 +126,9 @@ func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 			},
 			HTTPHeaders: cfg.SequenceSender.EthTxManager.Etherman.HTTPHeaders,
 		},
-		IsValidiumMode: cfg.SequenceSender.IsValidiumMode,
-	}, cfg.NetworkConfig.L1Config)
+	}, cfg.NetworkConfig.L1Config, cfg.Common)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to create etherman. Err: %w, ", err)
 	}
 
 	auth, _, err := ethman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
@@ -134,12 +137,11 @@ func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 	}
 	cfg.SequenceSender.SenderAddress = auth.From
 
-	da, err := newDataAvailability(cfg, ethman)
+	txBuilder, err := newTxBuilder(cfg, ethman)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	seqSender, err := sequencesender.New(cfg.SequenceSender, ethman, da)
+	seqSender, err := sequencesender.New(cfg.SequenceSender, ethman, txBuilder)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -147,10 +149,44 @@ func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 	return seqSender
 }
 
+func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuilder, error) {
+	auth, _, err := ethman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
+	if err != nil {
+		log.Fatal(err)
+	}
+	da, err := newDataAvailability(cfg, ethman)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var txBuilder txbuilder.TxBuilder
+
+	switch contracts.VersionType(cfg.Common.ContractVersions) {
+	case contracts.VersionBanana:
+		if cfg.Common.IsValidiumMode {
+			txBuilder = txbuilder.NewTxBuilderBananaValidium(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, da, *auth, auth.From, cfg.SequenceSender.MaxBatchesForL1)
+		} else {
+			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
+		}
+	case contracts.VersionElderberry:
+		if cfg.Common.IsValidiumMode {
+			txBuilder = txbuilder.NewTxBuilderElderberryValidium(ethman.Contracts.Elderberry.Rollup, da, *auth, auth.From, cfg.SequenceSender.MaxBatchesForL1)
+		} else {
+			txBuilder = txbuilder.NewTxBuilderElderberryZKEVM(ethman.Contracts.Elderberry.Rollup, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
+		}
+	default:
+		err = fmt.Errorf("unknown contract version: %s", cfg.Common.ContractVersions)
+	}
+
+	return txBuilder, err
+}
+
 func newDataAvailability(c config.Config, etherman *etherman.Client) (*dataavailability.DataAvailability, error) {
-	if !c.SequenceSender.IsValidiumMode {
+	if !c.Common.IsValidiumMode {
 		return nil, nil
 	}
+	translator := translator.NewTranslatorImpl()
+	log.Infof("Translator rules: %v", c.Common.Translator)
+	translator.AddConfigRules(c.Common.Translator)
 
 	// Backend specific config
 	daProtocolName, err := etherman.GetDAProtocolName()
@@ -178,6 +214,7 @@ func newDataAvailability(c config.Config, etherman *etherman.Client) (*dataavail
 			dacAddr,
 			pk,
 			dataCommitteeClient.NewFactory(),
+			translator,
 		)
 		if err != nil {
 			return nil, err
@@ -209,10 +246,10 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	config := etherman.Config{
+	config := ethermanconfig.Config{
 		URL: c.Aggregator.EthTxManager.Etherman.URL,
 	}
-	return etherman.NewClient(config, c.NetworkConfig.L1Config)
+	return etherman.NewClient(config, c.NetworkConfig.L1Config, c.Common)
 }
 
 func logVersion() {

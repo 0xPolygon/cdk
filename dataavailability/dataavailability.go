@@ -3,7 +3,7 @@ package dataavailability
 import (
 	"context"
 
-	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
+	"github.com/0xPolygon/cdk/etherman"
 )
 
 // DataAvailability implements an abstract data availability integration
@@ -20,15 +20,10 @@ func New(backend DABackender) (*DataAvailability, error) {
 	return da, da.backend.Init()
 }
 
-// PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
-// as expected by the contract
-func (d *DataAvailability) PostSequence(ctx context.Context, sequences []ethmanTypes.Sequence) ([]byte, error) {
-	batchesData := [][]byte{}
-	for _, batch := range sequences {
-		// Do not send to the DA backend data that will be stored to L1
-		if batch.ForcedBatchTimestamp == 0 {
-			batchesData = append(batchesData, batch.BatchL2Data)
-		}
-	}
-	return d.backend.PostSequence(ctx, batchesData)
+func (d *DataAvailability) PostSequence(ctx context.Context, sequenceBanana etherman.SequenceBanana) ([]byte, error) {
+	return d.backend.PostSequence(ctx, sequenceBanana)
+}
+
+func (d *DataAvailability) PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error) {
+	return d.backend.PostSequenceElderberry(ctx, batchesData)
 }

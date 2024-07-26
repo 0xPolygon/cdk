@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/0xPolygon/cdk/etherman"
+	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,7 +17,7 @@ import (
 // NetworkConfig is the configuration struct for the different environments
 type NetworkConfig struct {
 	// L1: Configuration related to L1
-	L1Config etherman.L1Config `json:"l1Config"`
+	L1Config ethermanconfig.L1Config `json:"l1Config"`
 	// L1: Genesis of the rollup, first block number and root
 	Genesis state.Genesis
 }
@@ -48,7 +48,7 @@ type GenesisFromJSON struct {
 	// L2:  List of states contracts used to populate merkle tree at initial state
 	Genesis []genesisAccountFromJSON `json:"genesis"`
 	// L1: configuration of the network
-	L1Config etherman.L1Config
+	L1Config ethermanconfig.L1Config
 }
 
 type genesisAccountFromJSON struct {
