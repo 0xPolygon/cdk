@@ -21,6 +21,8 @@ const (
 	infoTable      = "l1infotreesync-info"
 	blockTable     = "l1infotreesync-block"
 	lastBlockTable = "l1infotreesync-lastBlock"
+
+	treeHeight uint8 = 32
 )
 
 var (
@@ -88,7 +90,7 @@ func tableCfgFunc(defaultBuckets kv.TableCfg) kv.TableCfg {
 	}
 }
 
-func newProcessor(ctx context.Context, dbPath string, treeHeight uint8) (*processor, error) {
+func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 	db, err := mdbx.NewMDBX(nil).
 		Path(dbPath).
 		WithTableCfg(tableCfgFunc).

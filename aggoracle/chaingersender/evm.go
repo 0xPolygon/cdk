@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitroot"
+	cfgTypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/ethereum/go-ethereum"
@@ -39,22 +40,32 @@ type EVMChainGERSender struct {
 	waitPeriodMonitorTx time.Duration
 }
 
+type EVMConfig struct {
+	GlobalExitRootL2    common.Address      `mapstructure:"GlobalExitRootL2"`
+	URLRPCL2            string              `mapstructure:"URLRPCL2"`
+	ChainIDL2           uint64              `mapstructure:"ChainIDL2"`
+	GasOffset           uint64              `mapstructure:"GasOffset"`
+	WaitPeriodMonitorTx cfgTypes.Duration   `mapstructure:"WaitPeriodMonitorTx"`
+	SenderAddr          common.Address      `mapstructure:"SenderAddr"`
+	EthTxManager        ethtxmanager.Config `mapstructure:"EthTxManager"`
+}
+
 func NewEVMChainGERSender(
-	globalExitRoot, sender common.Address,
-	client EthClienter,
+	l2GlobalExitRoot, sender common.Address,
+	l2Client EthClienter,
 	ethTxMan EthTxManager,
 	gasOffset uint64,
 	waitPeriodMonitorTx time.Duration,
 ) (*EVMChainGERSender, error) {
-	gerContract, err := pessimisticglobalexitroot.NewPessimisticglobalexitroot(globalExitRoot, client)
+	gerContract, err := pessimisticglobalexitroot.NewPessimisticglobalexitroot(l2GlobalExitRoot, l2Client)
 	if err != nil {
 		return nil, err
 	}
 	return &EVMChainGERSender{
 		gerContract:         gerContract,
-		gerAddr:             globalExitRoot,
+		gerAddr:             l2GlobalExitRoot,
 		sender:              sender,
-		client:              client,
+		client:              l2Client,
 		ethTxMan:            ethTxMan,
 		gasOffset:           gasOffset,
 		waitPeriodMonitorTx: waitPeriodMonitorTx,

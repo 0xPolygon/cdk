@@ -54,7 +54,7 @@ func TestE2E(t *testing.T) {
 	rdm.On("AddBlockToTrack", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	client, gerAddr, gerSc, err := newSimulatedClient(auth)
 	require.NoError(t, err)
-	syncer, err := New(ctx, dbPath, gerAddr, 10, etherman.LatestBlock, rdm, client.Client(), 32, time.Millisecond, 0)
+	syncer, err := New(ctx, dbPath, gerAddr, 10, etherman.LatestBlock, rdm, client.Client(), time.Millisecond, 0)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 

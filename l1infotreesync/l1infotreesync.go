@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,6 +20,16 @@ var (
 	maxRetryAttemptsAfterError = 5
 )
 
+type Config struct {
+	DBPath                 string         `mapstructure:"DBPath"`
+	GlobalExitRootAddr     common.Address `mapstructure:"GlobalExitRootAddr"`
+	SyncBlockChunkSize     uint64         `mapstructure:"SyncBlockChunkSize"`
+	BlockFinality          string         `jsonschema:"enum=latest,enum=safe, enum=pending, enum=finalized" mapstructure:"BlockFinality"`
+	URLRPCL1               string         `mapstructure:"URLRPCL1"`
+	WaitForNewBlocksPeriod types.Duration `mapstructure:"WaitForNewBlocksPeriod"`
+	InitialBlock           uint64         `mapstructure:"InitialBlock"`
+}
+
 type L1InfoTreeSync struct {
 	processor *processor
 	driver    *sync.EVMDriver
@@ -32,11 +43,10 @@ func New(
 	blockFinalityType etherman.BlockNumberFinality,
 	rd sync.ReorgDetector,
 	l1Client EthClienter,
-	treeHeight uint8,
 	waitForNewBlocksPeriod time.Duration,
 	initialBlock uint64,
 ) (*L1InfoTreeSync, error) {
-	processor, err := newProcessor(ctx, dbPath, treeHeight)
+	processor, err := newProcessor(ctx, dbPath)
 	if err != nil {
 		return nil, err
 	}
