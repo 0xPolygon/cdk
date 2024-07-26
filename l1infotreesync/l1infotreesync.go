@@ -21,9 +21,10 @@ var (
 )
 
 type Config struct {
-	DBPath                 string         `mapstructure:"DBPath"`
-	GlobalExitRootAddr     common.Address `mapstructure:"GlobalExitRootAddr"`
-	SyncBlockChunkSize     uint64         `mapstructure:"SyncBlockChunkSize"`
+	DBPath             string         `mapstructure:"DBPath"`
+	GlobalExitRootAddr common.Address `mapstructure:"GlobalExitRootAddr"`
+	SyncBlockChunkSize uint64         `mapstructure:"SyncBlockChunkSize"`
+	// TODO: BlockFinality doesnt work as per the jsonschema
 	BlockFinality          string         `jsonschema:"enum=latest,enum=safe, enum=pending, enum=finalized" mapstructure:"BlockFinality"`
 	URLRPCL1               string         `mapstructure:"URLRPCL1"`
 	WaitForNewBlocksPeriod types.Duration `mapstructure:"WaitForNewBlocksPeriod"`
