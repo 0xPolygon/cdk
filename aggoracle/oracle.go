@@ -64,7 +64,11 @@ func (a *AggOracle) Start(ctx context.Context) {
 		case <-a.ticker.C:
 			gerToInject, err := a.getLastFinalisedGER(ctx)
 			if err != nil {
-				log.Error("error calling getLastFinalisedGER: ", err)
+				if err == l1infotreesync.ErrBlockNotProcessed || err == l1infotreesync.ErrNotFound {
+					log.Debugf("syncer is not ready: %v", err)
+				} else {
+					log.Error("error calling isGERAlreadyInjected: ", err)
+				}
 				continue
 			}
 			if alreadyInjectd, err := a.chainSender.IsGERAlreadyInjected(gerToInject); err != nil {

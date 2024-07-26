@@ -208,6 +208,10 @@ func createAggoracle(cfg config.Config, l1Client *ethclient.Client, syncer *l1in
 			Outputs:     cfg.Log.Outputs,
 		}
 		ethTxManager, err := ethtxmanager.New(cfg.AggOracle.EVMSender.EthTxManager)
+		if err != nil {
+			log.Fatal(err)
+		}
+		go ethTxManager.Start()
 		l2CLient, err := ethclient.Dial(cfg.AggOracle.EVMSender.URLRPCL2)
 		if err != nil {
 			log.Fatal(err)

@@ -16,9 +16,10 @@ var (
 )
 
 type Config struct {
-	TargetChainType   TargetChainType          `mapstructure:"TargetChainType"`
-	EVMSender         chaingersender.EVMConfig `mapstructure:"EVMSender"`
-	URLRPCL1          string                   `mapstructure:"URLRPCL1"`
+	TargetChainType TargetChainType `mapstructure:"TargetChainType"`
+	URLRPCL1        string          `mapstructure:"URLRPCL1"`
+	// TODO: BlockFinality doesnt work as per the jsonschema
 	BlockFinality     string                   `jsonschema:"enum=latest,enum=safe, enum=pending, enum=finalized" mapstructure:"BlockFinality"`
 	WaitPeriodNextGER types.Duration           `mapstructure:"WaitPeriodNextGER"`
+	EVMSender         chaingersender.EVMConfig `mapstructure:"EVMSender"`
 }

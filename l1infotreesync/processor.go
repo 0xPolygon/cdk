@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/l1infotree"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -186,7 +187,8 @@ func (p *processor) GetInfoByRoot(ctx context.Context, root ethCommon.Hash) (*L1
 	return p.getInfoByHashWithTx(tx, hash)
 }
 
-// GetLatestInfoUntilBlock returns the most recent L1InfoTreeLeaf that occured before or at blockNum
+// GetLatestInfoUntilBlock returns the most recent L1InfoTreeLeaf that occured before or at blockNum.
+// If the blockNum has not been processed yet the error ErrBlockNotProcessed will be returned
 func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*L1InfoTreeLeaf, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
@@ -197,32 +199,26 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	if lpb < blockNum {
 		return nil, ErrBlockNotProcessed
 	}
-	c, err := tx.Cursor(blockTable)
+	iter, err := tx.RangeDescend(blockTable, uint64ToBytes(blockNum), uint64ToBytes(0), 1)
 	if err != nil {
 		return nil, err
 	}
-	defer c.Close()
-	for k, v, err := c.Seek(uint64ToBytes(blockNum)); k != nil; k, v, err = c.Prev() {
-		if err != nil {
-			return nil, err
-		}
-		if bytes2Uint64(k) > blockNum {
-			// Seek function returns matching key or greater, therefore
-			// we could bed ealing with a block number greater than expected
-			continue
-		}
-		blk := blockWithLeafs{}
-		if err := json.Unmarshal(v, &blk); err != nil {
-			return nil, err
-		}
-		hash, err := tx.GetOne(indexTable, common.Uint32ToBytes(blk.LastIndex-1))
-		if err != nil {
-			return nil, err
-		}
-		return p.getInfoByHashWithTx(tx, hash)
+	if !iter.HasNext() {
+		return nil, ErrNotFound
 	}
-
-	return nil, ErrNotFound
+	_, v, err := iter.Next()
+	if err != nil {
+		return nil, err
+	}
+	blk := blockWithLeafs{}
+	if err := json.Unmarshal(v, &blk); err != nil {
+		return nil, err
+	}
+	hash, err := tx.GetOne(indexTable, common.Uint32ToBytes(blk.LastIndex-1))
+	if err != nil {
+		return nil, err
+	}
+	return p.getInfoByHashWithTx(tx, hash)
 }
 
 func (p *processor) GetInfoByIndex(ctx context.Context, index uint32) (*L1InfoTreeLeaf, error) {
@@ -424,6 +420,7 @@ func (p *processor) ProcessBlock(b sync.Block) error {
 		tx.Rollback()
 		return err
 	}
+	log.Debugf("block %d processed with events: %+v", b.Num, b.Events)
 	return tx.Commit()
 }
 
