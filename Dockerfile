@@ -4,12 +4,12 @@ FROM golang:1.22.4 AS build
 WORKDIR $GOPATH/src/github.com/0xPolygon/cdk
 
 # INSTALL DEPENDENCIES
-COPY go.mod go.sum ./
-RUN go mod download
+COPY go.mod go.sum /src/
+RUN cd /src && go mod download
 
 # BUILD BINARY
-COPY . .
-RUN make build
+COPY . /src
+RUN cd /src && make build
 
 # CONTAINER FOR RUNNING BINARY
 FROM alpine:3.18.4
