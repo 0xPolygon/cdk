@@ -126,8 +126,10 @@ type Subscription struct {
 }
 
 type ReorgDetector struct {
-	ethClient     EthClient
-	subscriptions map[string]*Subscription
+	ethClient EthClient
+
+	subscriptionsLock sync.RWMutex
+	subscriptions     map[string]*Subscription
 
 	trackedBlocksLock sync.RWMutex
 	trackedBlocks     map[string]blockMap
@@ -196,6 +198,9 @@ func (r *ReorgDetector) Subscribe(id string) (*Subscription, error) {
 		return nil, ErrIDReserverd
 	}
 
+	r.subscriptionsLock.Lock()
+	defer r.subscriptionsLock.Unlock()
+
 	if sub, ok := r.subscriptions[id]; ok {
 		return sub, nil
 	}
@@ -209,13 +214,17 @@ func (r *ReorgDetector) Subscribe(id string) (*Subscription, error) {
 }
 
 func (r *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error {
+	r.subscriptionsLock.RLock()
 	if sub, ok := r.subscriptions[id]; !ok {
+		r.subscriptionsLock.RUnlock()
 		return ErrNotSubscribed
 	} else {
 		// In case there are reorgs being processed, wait
 		// Note that this also makes any addition to trackedBlocks[id] safe
 		sub.pendingReorgsToBeProcessed.Wait()
 	}
+
+	r.subscriptionsLock.RUnlock()
 
 	if actualHash, ok := r.getUnfinalisedBlocksMap()[blockNum]; ok {
 		if actualHash.Hash == blockHash {
@@ -242,10 +251,12 @@ func (r *ReorgDetector) cleanStoredSubsBeforeStart(ctx context.Context, latestFi
 	defer r.trackedBlocksLock.Unlock()
 
 	for id, blocks := range r.trackedBlocks {
+		r.subscriptionsLock.Lock()
 		r.subscriptions[id] = &Subscription{
 			FirstReorgedBlock: make(chan uint64),
 			ReorgProcessed:    make(chan bool),
 		}
+		r.subscriptionsLock.Unlock()
 
 		var (
 			lastTrackedBlock uint64
@@ -404,7 +415,10 @@ func (r *ReorgDetector) addUnfinalisedBlocks(ctx context.Context) {
 }
 
 func (r *ReorgDetector) notifyReorgToAllSubscriptions(reorgBlock uint64) {
-	for id := range r.subscriptions {
+	r.subscriptionsLock.RLock()
+	defer r.subscriptionsLock.RUnlock()
+
+	for id, sub := range r.subscriptions {
 		r.trackedBlocksLock.RLock()
 		subscriberBlocks := r.trackedBlocks[id]
 		r.trackedBlocksLock.RUnlock()
@@ -412,7 +426,7 @@ func (r *ReorgDetector) notifyReorgToAllSubscriptions(reorgBlock uint64) {
 		closestBlock, exists := subscriberBlocks.getClosestHigherBlock(reorgBlock)
 
 		if exists {
-			go r.notifyReorgToSubscription(id, closestBlock.Num)
+			go r.notifyReorgToSub(sub, closestBlock.Num)
 
 			// remove reorged blocks from tracked blocks
 			sorted := subscriberBlocks.getSorted()
@@ -430,7 +444,14 @@ func (r *ReorgDetector) notifyReorgToSubscription(id string, reorgBlock uint64) 
 		return
 	}
 
+	r.subscriptionsLock.RLock()
 	sub := r.subscriptions[id]
+	r.subscriptionsLock.RUnlock()
+
+	r.notifyReorgToSub(sub, reorgBlock)
+}
+
+func (r *ReorgDetector) notifyReorgToSub(sub *Subscription, reorgBlock uint64) {
 	sub.pendingReorgsToBeProcessed.Add(1)
 
 	// notify about the first reorged block that was tracked
@@ -518,13 +539,15 @@ func (r *ReorgDetector) saveTrackedBlock(ctx context.Context, id string, b block
 
 // removeTrackedBlocks removes the tracked blocks for a subscriber in db and in memory
 func (r *ReorgDetector) removeTrackedBlocks(ctx context.Context, lastFinalizedBlock uint64) error {
-	r.trackedBlocksLock.Lock()
-	defer r.trackedBlocksLock.Unlock()
+	r.subscriptionsLock.RLock()
+	defer r.subscriptionsLock.RUnlock()
 
-	for id := range r.trackedBlocks {
+	for id := range r.subscriptions {
+		r.trackedBlocksLock.RLock()
 		newTrackedBlocks := r.trackedBlocks[id].getFromBlockSorted(lastFinalizedBlock)
+		r.trackedBlocksLock.RUnlock()
 
-		if err := r.updateTrackedBlocksNoLock(ctx, id, newBlockMap(newTrackedBlocks...)); err != nil {
+		if err := r.updateTrackedBlocks(ctx, id, newBlockMap(newTrackedBlocks...)); err != nil {
 			return err
 		}
 	}

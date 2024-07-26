@@ -39,7 +39,7 @@ var (
 	}
 )
 
-func tryParseError(err error) (error, bool) {
+func TryParseError(err error) (error, bool) {
 	parsedError, exists := errorsCache[err.Error()]
 	if !exists {
 		for errStr, actualErr := range errorsCache {

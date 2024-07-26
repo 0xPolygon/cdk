@@ -1,9 +1,10 @@
 name: Test Unittest
 on: 
   push:
+     branches:
+      - '**'
   workflow_dispatch: {}
-  pull_request:
-    types: [opened, synchronize, reopened]
+  
  
 jobs:
   test-unittest:
@@ -12,3 +13,8 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+    - name: Install Go
+      uses: actions/setup-go@v3
+
+    - name: Launch unittest
+      run: make test

@@ -1,13 +1,13 @@
-package config
-
-// DefaultValues is the default configuration
-const DefaultValues = `
 ForkUpgradeBatchNumber = 0
 ForkUpgradeNewForkId = 0
 
 [Common]
-IsValidiumMode = false
-ContractVersions = "banana"
+IsValidiumMode = ${zkevm_is_validium}
+ContractVersions = "elderberry"
+[Common.Translator]
+		FullMatchRules = [
+						{Old="http://zkevm-dac-001:8484", New="http://127.0.0.1:${dac_port}"},
+					]
 
 [Log]
 Environment = "development" # "production" or "development"
@@ -19,21 +19,23 @@ WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 L1BlockTimestampMargin = "30s"
 MaxTxSizeForL1 = 131072
-L2Coinbase = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
-PrivateKey = {Path = "./test/sequencer.keystore", Password = "testonly"}
+MaxBatchesForL1 = 2
+L2Coinbase = "${zkevm_l2_sequencer_address}"
+PrivateKey = {Path = "${sequencer_keystore_file}", Password = "${zkevm_l2_keystore_password}"}
+
 SequencesTxFileName = "sequencesender.json"
 GasOffset = 80000
 WaitPeriodPurgeTxFile = "15m"
 MaxPendingTx = 1
 	[SequenceSender.StreamClient]
-		Server = "127.0.0.1:6900"
+		Server = "127.0.0.1:${zkevm_data_streamer_port}"
 	[SequenceSender.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2m"
 		GetReceiptMaxTime = "250ms"
 		GetReceiptWaitInterval = "1s"
 		PrivateKeys = [
-			{Path = "./test/sequencer.keystore", Password = "testonly"},
+			{Path = "${sequencer_keystore_file}", Password = "${zkevm_l2_keystore_password}"},
 		]
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
@@ -43,9 +45,9 @@ MaxPendingTx = 1
 		SafeStatusL1NumberOfBlocks = 0
 		FinalizedStatusL1NumberOfBlocks = 0
 			[SequenceSender.EthTxManager.Etherman]
-				URL = "http://127.0.0.1:8545"
+				URL = "http://127.0.0.1:${l1_rpc_port}"
 				MultiGasProvider = false
-				L1ChainID = 1337
+				L1ChainID = ${l1_chain_id}
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
@@ -97,7 +99,7 @@ SequencerPrivateKey = {}
 		FinalizedStatusL1NumberOfBlocks = 0
 			[Aggregator.EthTxManager.Etherman]
 				URL = ""
-				L1ChainID = 11155111
+				L1ChainID = ${l1_chain_id}
 				HTTPHeaders = []
 	[Aggregator.Synchronizer]
 		[Aggregator.Synchronizer.DB]
@@ -117,5 +119,4 @@ SequencerPrivateKey = {}
 			OverrideStorageCheck = false
 		[Aggregator.Synchronizer.Etherman]
 			[Aggregator.Synchronizer.Etherman.Validium]
-				Enabled = false
-`
+				Enabled = ${zkevm_is_validium}
