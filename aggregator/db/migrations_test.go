@@ -9,8 +9,11 @@ import (
 
 func Test_checkMigrations(t *testing.T) {
 	embedMigration := embedMigrations[AggregatorMigrationName]
-	migrationSource := &migrate.EmbedFileSystemMigrationSource{FileSystem: embedMigration}
+	migrationSource := &migrate.EmbedFileSystemMigrationSource{
+		FileSystem: embedMigration,
+		Root:       "migrations",
+	}
 
-	_, err := migrationSource.FileSystem.ReadFile("migrations/aggregator/0001.sql")
+	_, err := migrationSource.FileSystem.ReadFile("migrations/0001.sql")
 	assert.NoError(t, err)
 }

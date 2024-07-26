@@ -16,7 +16,7 @@ const (
 )
 
 var (
-	//go:embed migrations/aggregator/*.sql
+	//go:embed migrations/*.sql
 	embedAggregatorMigrations embed.FS
 
 	// embedMigrations is a map of migrations with the name
@@ -60,7 +60,10 @@ func runMigrations(cfg Config, name string, direction migrate.MigrationDirection
 		return fmt.Errorf("migration not found with name: %v", name)
 	}
 
-	var migrations = &migrate.EmbedFileSystemMigrationSource{FileSystem: embedMigration, Root: "migrations/aggregator/"}
+	var migrations = &migrate.EmbedFileSystemMigrationSource{
+		FileSystem: embedMigration,
+		Root:       "migrations",
+	}
 	nMigrations, err := migrate.Exec(db, "postgres", migrations, direction)
 	if err != nil {
 		return err
