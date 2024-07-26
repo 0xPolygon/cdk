@@ -4,7 +4,7 @@ go 1.22.4
 
 require (
 	github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240726101945-d05a885ae884
-	github.com/0xPolygon/cdk-data-availability v0.0.8-0.20240712072318-72ae67613cbf
+	github.com/0xPolygon/cdk-data-availability v0.0.8
 	github.com/0xPolygon/cdk-rpc v0.0.0-20240419104226-c0a62ba0f49d
 	github.com/0xPolygonHermez/zkevm-data-streamer v0.2.3-RC4
 	github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.9
