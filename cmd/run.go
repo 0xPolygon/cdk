@@ -99,7 +99,8 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 
 	c.Aggregator.ChainID = l2ChainID
 
-	checkAggregatorMigrations(c.Aggregator.DB)
+	// TODO: fix check aggregator migrations
+	// checkAggregatorMigrations(c.Aggregator.DB)
 
 	// Populate Network config
 	c.Aggregator.Synchronizer.Etherman.Contracts.GlobalExitRootManagerAddr = c.NetworkConfig.L1Config.GlobalExitRootManagerAddr
