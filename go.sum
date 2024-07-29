@@ -1,5 +1,5 @@
-github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240627125553-80db9d8a41b5 h1:bezOoVvpQvGvf4aCZQpMPFJGKXhhvktpApr+TsD8rdk=
-github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240627125553-80db9d8a41b5/go.mod h1:mFlcEjsm2YBBsu8atHJ3zyVnwM+Z/fMXpVmIJge+WVU=
+github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240726125827-301fa4c59245 h1:BBmVd50JQID9UyUR3vWFMKr2pMHD3mrqjpuB9DDepBw=
+github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240726125827-301fa4c59245/go.mod h1:mFlcEjsm2YBBsu8atHJ3zyVnwM+Z/fMXpVmIJge+WVU=
 github.com/0xPolygon/cdk-data-availability v0.0.8 h1:bMmOYZ7Ei683y80ric3KzMPXtRGmchAmfjIRzghaHb4=
 github.com/0xPolygon/cdk-data-availability v0.0.8/go.mod h1:3XkZ0zn0GsvAT01MPQMmukF534CVSFmtrcoK3F/BK6Q=
 github.com/0xPolygon/cdk-rpc v0.0.0-20240419104226-c0a62ba0f49d h1:sxh6hZ2jF/sxxj2jd5o1vuNNCZjYmn4aRG9SRlVaEFs=
