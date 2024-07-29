@@ -1,4 +1,4 @@
-package localbridgesync
+package bridgesync
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 
 func TestProceessor(t *testing.T) {
 	path := t.TempDir()
-	p, err := newProcessor(path)
+	p, err := newProcessor(path, "foo")
 	require.NoError(t, err)
 	actions := []processAction{
 		// processed: ~

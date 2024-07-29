@@ -1,4 +1,4 @@
-package localbridgesync
+package bridgesync
 
 import (
 	"context"
@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	eventsTable    = "localbridgesync-events"
-	lastBlockTable = "localbridgesync-lastBlock"
+	eventsTableSufix    = "-events"
+	lastBlockTableSufix = "-lastBlock"
 )
 
 var (
@@ -48,26 +48,30 @@ type Event struct {
 }
 
 type processor struct {
-	db kv.RwDB
+	db             kv.RwDB
+	eventsTable    string
+	lastBlockTable string
 }
 
-func tableCfgFunc(defaultBuckets kv.TableCfg) kv.TableCfg {
-	return kv.TableCfg{
-		eventsTable:    {},
-		lastBlockTable: {},
-	}
-}
-
-func newProcessor(dbPath string) (*processor, error) {
+func newProcessor(dbPath, dbPrefix string) (*processor, error) {
+	eventsTable := dbPrefix + eventsTableSufix
+	lastBlockTable := dbPrefix + lastBlockTableSufix
 	db, err := mdbx.NewMDBX(nil).
 		Path(dbPath).
-		WithTableCfg(tableCfgFunc).
+		WithTableCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
+			return kv.TableCfg{
+				eventsTable:    {},
+				lastBlockTable: {},
+			}
+		}).
 		Open()
 	if err != nil {
 		return nil, err
 	}
 	return &processor{
-		db: db,
+		db:             db,
+		eventsTable:    eventsTable,
+		lastBlockTable: lastBlockTable,
 	}, nil
 }
 
@@ -90,7 +94,7 @@ func (p *processor) GetClaimsAndBridges(
 	if lpb < toBlock {
 		return nil, ErrBlockNotProcessed
 	}
-	c, err := tx.Cursor(eventsTable)
+	c, err := tx.Cursor(p.eventsTable)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +128,7 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 }
 
 func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
-	if blockNumBytes, err := tx.GetOne(lastBlockTable, lastBlokcKey); err != nil {
+	if blockNumBytes, err := tx.GetOne(p.lastBlockTable, lastBlokcKey); err != nil {
 		return 0, err
 	} else if blockNumBytes == nil {
 		return 0, nil
@@ -138,7 +142,7 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 	if err != nil {
 		return err
 	}
-	c, err := tx.Cursor(eventsTable)
+	c, err := tx.Cursor(p.eventsTable)
 	if err != nil {
 		return err
 	}
@@ -149,7 +153,7 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 			tx.Rollback()
 			return err
 		}
-		if err := tx.Delete(eventsTable, k); err != nil {
+		if err := tx.Delete(p.eventsTable, k); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -176,7 +180,7 @@ func (p *processor) ProcessBlock(block sync.Block) error {
 			tx.Rollback()
 			return err
 		}
-		if err := tx.Put(eventsTable, common.Uint64To2Bytes(block.Num), value); err != nil {
+		if err := tx.Put(p.eventsTable, common.Uint64To2Bytes(block.Num), value); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -190,5 +194,5 @@ func (p *processor) ProcessBlock(block sync.Block) error {
 
 func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {
 	blockNumBytes := common.Uint64To2Bytes(blockNum)
-	return tx.Put(lastBlockTable, lastBlokcKey, blockNumBytes)
+	return tx.Put(p.lastBlockTable, lastBlokcKey, blockNumBytes)
 }

@@ -1,4 +1,4 @@
-package localbridgesync
+package bridgesync
 
 import (
 	"context"
@@ -10,7 +10,10 @@ import (
 )
 
 const (
-	reorgDetectorID    = "localbridgesync"
+	reorgDetectorIDL1  = "bridgesyncl1"
+	reorgDetectorIDL2  = "bridgesyncl2"
+	dbPrefixL1         = "bridgesyncl1"
+	dbPrefixL2         = "bridgesyncl2"
 	downloadBufferSize = 1000
 )
 
@@ -24,17 +27,66 @@ type LocalBridgeSync struct {
 	driver    *sync.EVMDriver
 }
 
-func New(
+func NewL1(
 	ctx context.Context,
 	dbPath string,
 	bridge common.Address,
 	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
 	rd sync.ReorgDetector,
-	l2Client EthClienter,
+	ethClient EthClienter,
 	initialBlock uint64,
 ) (*LocalBridgeSync, error) {
-	processor, err := newProcessor(dbPath)
+	return new(
+		ctx,
+		dbPath,
+		bridge,
+		syncBlockChunkSize,
+		blockFinalityType,
+		rd,
+		ethClient,
+		initialBlock,
+		dbPrefixL1,
+		reorgDetectorIDL1,
+	)
+}
+
+func NewL2(
+	ctx context.Context,
+	dbPath string,
+	bridge common.Address,
+	syncBlockChunkSize uint64,
+	blockFinalityType etherman.BlockNumberFinality,
+	rd sync.ReorgDetector,
+	ethClient EthClienter,
+	initialBlock uint64,
+) (*LocalBridgeSync, error) {
+	return new(
+		ctx,
+		dbPath,
+		bridge,
+		syncBlockChunkSize,
+		blockFinalityType,
+		rd,
+		ethClient,
+		initialBlock,
+		dbPrefixL1,
+		reorgDetectorIDL1,
+	)
+}
+
+func new(
+	ctx context.Context,
+	dbPath string,
+	bridge common.Address,
+	syncBlockChunkSize uint64,
+	blockFinalityType etherman.BlockNumberFinality,
+	rd sync.ReorgDetector,
+	ethClient EthClienter,
+	initialBlock uint64,
+	dbPrefix, reorgDetectorID string,
+) (*LocalBridgeSync, error) {
+	processor, err := newProcessor(dbPath, dbPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -51,12 +103,12 @@ func New(
 		}
 	}
 
-	appender, err := buildAppender(l2Client, bridge)
+	appender, err := buildAppender(ethClient, bridge)
 	if err != nil {
 		return nil, err
 	}
 	downloader, err := sync.NewEVMDownloader(
-		l2Client,
+		ethClient,
 		syncBlockChunkSize,
 		blockFinalityType,
 		waitForNewBlocksPeriod,
