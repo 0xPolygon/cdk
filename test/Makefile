@@ -13,7 +13,7 @@ generate-mocks-localbridgesync: ## Generates mocks for localbridgesync, using mo
 generate-mocks-reorgdetector: ## Generates mocks for reorgdetector, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthClient --dir=../reorgdetector --output=../reorgdetector --outpkg=reorgdetector --inpackage --structname=EthClientMock --filename=mock_eth_client.go
 
-COMMON_MOCKERY_PARAMS=--disable-version-string --with-expecter
+COMMON_MOCKERY_PARAMS=--disable-version-string --with-expecter --exported
 .PHONY: generate-mocks-sequencesender
 generate-mocks-sequencesender: ## Generates mocks for sequencesender, using mockery tool
 	rm -Rf ../sequencesender/txbuilder/mocks_txbuilder
