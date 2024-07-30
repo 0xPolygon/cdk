@@ -86,6 +86,9 @@ func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger com
 		return err
 	}
 	data, err := abi.Pack("updateGlobalExitRoot", ger)
+	if err != nil {
+		return err
+	}
 	id, err := c.ethTxMan.Add(ctx, &c.gerAddr, nil, big.NewInt(0), data, c.gasOffset, nil)
 	if err != nil {
 		return err
@@ -98,15 +101,12 @@ func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger com
 		}
 		switch res.Status {
 		case ethtxmanager.MonitoredTxStatusCreated:
-			continue
 		case ethtxmanager.MonitoredTxStatusSent:
 			continue
 		case ethtxmanager.MonitoredTxStatusFailed:
 			return fmt.Errorf("tx %s failed", res.ID)
 		case ethtxmanager.MonitoredTxStatusMined:
-			return nil
 		case ethtxmanager.MonitoredTxStatusSafe:
-			return nil
 		case ethtxmanager.MonitoredTxStatusFinalized:
 			return nil
 		default:
