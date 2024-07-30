@@ -1,11 +1,15 @@
 package datacommittee
 
 import (
+	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 
+	smcparis "github.com/0xPolygon/cdk-contracts-tooling/contracts/banana-paris/polygondatacommittee"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygondatacommittee"
 	"github.com/0xPolygon/cdk/log"
+	erc1967proxy "github.com/0xPolygon/cdk/test/contracts/erc1967proxy"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -16,7 +20,7 @@ import (
 )
 
 func TestUpdateDataCommitteeEvent(t *testing.T) {
-	t.Skip("This test is not working because the simulated backend doesnt accept PUSH0, check: https://github.com/ethereum/go-ethereum/issues/28144#issuecomment-2247124776")
+	//t.Skip("This test is not working because the simulated backend doesnt accept PUSH0, check: https://github.com/ethereum/go-ethereum/issues/28144#issuecomment-2247124776")
 	// Set up testing environment
 	dac, ethBackend, auth, da := newTestingEnv(t)
 
@@ -109,16 +113,22 @@ func newSimulatedDacman(t *testing.T, auth *bind.TransactOpts) (
 	client := simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
 
 	// DAC Setup
-	_, _, da, err = polygondatacommittee.DeployPolygondatacommittee(auth, client.Client())
+	addr, _, _, err := smcparis.DeployPolygondatacommittee(auth, client.Client())
 	if err != nil {
 		return &Backend{}, nil, nil, err
 	}
 	client.Commit()
-	_, err = da.Initialize(auth)
+	proxyAddr, err := deployDACProxy(auth, client.Client(), addr)
 	if err != nil {
 		return &Backend{}, nil, nil, err
 	}
+
 	client.Commit()
+	da, err = polygondatacommittee.NewPolygondatacommittee(proxyAddr, client.Client())
+	if err != nil {
+		return &Backend{}, nil, nil, err
+	}
+
 	_, err = da.SetupCommittee(auth, big.NewInt(0), []string{}, []byte{})
 	if err != nil {
 		return &Backend{}, nil, nil, err
@@ -129,4 +139,43 @@ func newSimulatedDacman(t *testing.T, auth *bind.TransactOpts) (
 		dataCommitteeContract: da,
 	}
 	return c, client, da, nil
+}
+
+func deployDACProxy(auth *bind.TransactOpts, client bind.ContractBackend, dacImpl common.Address) (common.Address, error) {
+	// Deploy proxy
+	dacABI, err := polygondatacommittee.PolygondatacommitteeMetaData.GetAbi()
+	if err != nil {
+		return common.Address{}, err
+	}
+	if dacABI == nil {
+		return common.Address{}, errors.New("GetABI returned nil")
+	}
+	initializeCallData, err := dacABI.Pack("initialize")
+	if err != nil {
+		return common.Address{}, err
+	}
+	proxyAddr, err := deployProxy(
+		auth,
+		client,
+		dacImpl,
+		initializeCallData,
+	)
+	if err != nil {
+		return common.Address{}, err
+	}
+	fmt.Println("DAC proxy deployed at", proxyAddr)
+	return proxyAddr, nil
+}
+
+func deployProxy(auth *bind.TransactOpts,
+	client bind.ContractBackend,
+	implementationAddr common.Address,
+	initializeParams []byte) (common.Address, error) {
+	addr, _, _, err := erc1967proxy.DeployErc1967proxy(
+		auth,
+		client,
+		implementationAddr,
+		initializeParams,
+	)
+	return addr, err
 }
