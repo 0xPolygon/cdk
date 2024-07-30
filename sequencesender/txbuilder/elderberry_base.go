@@ -21,6 +21,11 @@ func NewTxBuilderElderberryBase(rollupContract contracts.RollupElderberryType, o
 	}
 }
 
+// SetAuth sets the auth for the tx builder
+func (t *TxBuilderElderberryBase) SetAuth(auth *bind.TransactOpts) {
+	t.opts = *auth
+}
+
 func (t *TxBuilderElderberryBase) NewSequence(batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
 	seq := ElderberrySequence{
 		l2Coinbase: coinbase,
@@ -43,6 +48,9 @@ func (t *TxBuilderElderberryBase) NewBatchFromL2Block(l2Block *datastream.L2Bloc
 func getLastSequencedBatchNumber(sequences seqsendertypes.Sequence) uint64 {
 	if sequences.Len() == 0 {
 		return 0
+	}
+	if sequences.FirstBatch().BatchNumber() == 0 {
+		panic("First batch number is 0, that is not allowed!")
 	}
 	return sequences.FirstBatch().BatchNumber() - 1
 }

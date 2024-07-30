@@ -3,6 +3,7 @@ package txbuilder
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
@@ -32,22 +33,25 @@ func NewTxBuilderElderberryValidium(zkevm contracts.RollupElderberryType,
 		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(
 			zkevm, opts,
 		),
-		condNewSeq: &NewSequenceConditionalNumBatches{
-			maxBatchesForL1: maxBatchesForL1,
-		},
+		condNewSeq: NewConditionalNewSequenceNumBatches(maxBatchesForL1),
 	}
 }
 func (t *TxBuilderElderberryValidium) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
-	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.opts.From, l2Coinbase, batchNumber)
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.opts.From, l2Coinbase)
 }
 
 func (t *TxBuilderElderberryValidium) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
-
+	if sequences == nil || sequences.Len() == 0 {
+		return nil, fmt.Errorf("can't sequence an empty sequence")
+	}
 	batchesData := convertToBatchesData(sequences)
 	dataAvailabilityMessage, err := t.da.PostSequenceElderberry(ctx, batchesData)
 	if err != nil {
 		log.Error("error posting sequences to the data availability protocol: ", err)
 		return nil, err
+	}
+	if dataAvailabilityMessage == nil {
+		return nil, fmt.Errorf("data availability message is nil")
 	}
 	newopts := t.opts
 	newopts.NoSend = true

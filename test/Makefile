@@ -1,7 +1,6 @@
 .PHONY: generate-mocks
-generate-mocks: 
-	$(MAKE) generate-mocks-localbridgesync
-	$(MAKE) generate-mocks-reorgdetector
+generate-mocks: generate-mocks-localbridgesync generate-mocks-reorgdetector generate-mocks-sequencesender generate-mocks-da
+
 
 .PHONY: generate-mocks-localbridgesync
 generate-mocks-localbridgesync: ## Generates mocks for localbridgesync, using mockery tool
@@ -13,6 +12,18 @@ generate-mocks-localbridgesync: ## Generates mocks for localbridgesync, using mo
 .PHONY: generate-mocks-reorgdetector
 generate-mocks-reorgdetector: ## Generates mocks for reorgdetector, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthClient --dir=../reorgdetector --output=../reorgdetector --outpkg=reorgdetector --inpackage --structname=EthClientMock --filename=mock_eth_client.go
+
+COMMON_MOCKERY_PARAMS=--disable-version-string --with-expecter
+.PHONY: generate-mocks-sequencesender
+generate-mocks-sequencesender: ## Generates mocks for sequencesender, using mockery tool
+	rm -Rf ../sequencesender/txbuilder/mocks_txbuilder
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../sequencesender/txbuilder --output ../sequencesender/txbuilder/mocks_txbuilder --outpkg mocks_txbuilder ${COMMON_MOCKERY_PARAMS}
+
+.PHONY: generate-mocks-da
+generate-mocks-da: ## Generates mocks for dataavailability, using mockery tool
+	rm -Rf ../dataavailability/mocks_da
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../dataavailability --output ../dataavailability/mocks_da --outpkg mocks_da ${COMMON_MOCKERY_PARAMS}
+	
 
 .PHONY: test-e2e-elderberry-validium
 test-e2e-elderberry-validium: stop ## Runs e2e tests checking elderberry/validium

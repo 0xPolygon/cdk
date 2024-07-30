@@ -28,14 +28,14 @@ func NewTxBuilderBananaValidium(rollupContract contracts.RollupBananaType,
 	return &TxBuilderBananaValidium{
 		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts, sender),
 		da:                  da,
-		condNewSeq: &NewSequenceConditionalNumBatches{
+		condNewSeq: &ConditionalNewSequenceNumBatches{
 			maxBatchesForL1: maxBatchesForL1,
 		},
 	}
 }
 
 func (t *TxBuilderBananaValidium) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
-	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.SenderAddress, l2Coinbase, batchNumber)
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.SenderAddress, l2Coinbase)
 }
 
 func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {

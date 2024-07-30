@@ -2,6 +2,7 @@ package txbuilder
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
@@ -25,18 +26,20 @@ func NewTxBuilderElderberryZKEVM(zkevm contracts.RollupElderberryType, opts bind
 		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(
 			zkevm, opts,
 		),
-		condNewSeq: &NewSequenceConditionalMaxSize{
-			maxTxSizeForL1: maxTxSizeForL1,
-		},
+		condNewSeq: NewConditionalNewSequenceMaxSize(maxTxSizeForL1),
 	}
 }
 
 func (t *TxBuilderElderberryZKEVM) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
-	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.opts.From, l2Coinbase, batchNumber)
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.opts.From, l2Coinbase)
+}
+
+// SetCondNewSeq allow to override the default conditional for new sequence
+func (t *TxBuilderElderberryZKEVM) SetCondNewSeq(cond CondNewSequence) {
+	t.condNewSeq = cond
 }
 
 func (t *TxBuilderElderberryZKEVM) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
-
 	newopts := t.opts
 	newopts.NoSend = true
 
@@ -49,6 +52,9 @@ func (t *TxBuilderElderberryZKEVM) BuildSequenceBatchesTx(ctx context.Context, s
 }
 
 func (t *TxBuilderElderberryZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
+	if sequences == nil || sequences.Len() == 0 {
+		return nil, fmt.Errorf("can't sequence an empty sequence")
+	}
 	batches := make([]polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, sequences.Len())
 	for i, seq := range sequences.Batches() {
 		var ger common.Hash

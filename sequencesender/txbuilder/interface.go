@@ -18,5 +18,6 @@ type TxBuilder interface {
 }
 
 type CondNewSequence interface {
-	NewSequenceIfWorthToSend(ctx context.Context, txBuilder TxBuilder, sequenceBatches []seqsendertypes.Batch, senderAddress, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error)
+	//NewSequenceIfWorthToSend  Return nil, nil if the sequence is not worth sending
+	NewSequenceIfWorthToSend(ctx context.Context, txBuilder TxBuilder, sequenceBatches []seqsendertypes.Batch, senderAddress, l2Coinbase common.Address) (seqsendertypes.Sequence, error)
 }
