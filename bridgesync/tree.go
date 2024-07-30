@@ -233,7 +233,7 @@ func (t *tree) initLastLeftCache(tx kv.Tx, lastDepositCount int64, lastRoot comm
 		t.lastLeftCache = siblings
 		return nil
 	}
-	index := t.lastDepositCount
+	index := lastDepositCount
 
 	currentNodeHash := lastRoot
 	// It starts in height-1 because 0 is the level of the leafs
@@ -244,6 +244,9 @@ func (t *tree) initLastLeftCache(tx kv.Tx, lastDepositCount int64, lastRoot comm
 				"error getting node %s from the RHT at height %d with root %s: %v",
 				currentNodeHash.Hex(), h, lastRoot.Hex(), err,
 			)
+		}
+		if currentNode == nil {
+			return ErrNotFound
 		}
 		siblings = append(siblings, currentNode.left)
 		if index&(1<<h) > 0 {
@@ -276,6 +279,9 @@ func (t *tree) getRHTNode(tx kv.Tx, nodeHash common.Hash) (*treeNode, error) {
 }
 
 func (t *tree) reorg(tx kv.RwTx, lastValidDepositCount uint32) error {
+	if t.lastDepositCount == -1 {
+		return nil
+	}
 	// Clean root table
 	for i := lastValidDepositCount + 1; i <= uint32(t.lastDepositCount); i++ {
 		if err := tx.Delete(t.rootTable, dbCommon.Uint32ToBytes(i)); err != nil {
@@ -288,7 +294,10 @@ func (t *tree) reorg(tx kv.RwTx, lastValidDepositCount uint32) error {
 	if err != nil {
 		return err
 	}
-	err = t.initLastLeftCache(tx, int64(lastValidDepositCount), common.Hash(rootBytes))
+	if rootBytes == nil {
+		return ErrNotFound
+	}
+	err = t.initLastLeftCache(tx, int64(lastValidDepositCount), common.Hash(rootBytes)) // 0x619a9fedbe029225288d32e39e06fb868ed0d8f20db26047cf0ef8d3582b5f6e
 	if err != nil {
 		return err
 	}

@@ -254,7 +254,7 @@ var (
 				DestinationAddress: common.HexToAddress("01"),
 				Amount:             big.NewInt(1),
 				Metadata:           common.Hex2Bytes("01"),
-				DepositCount:       1,
+				DepositCount:       0,
 			}},
 			Event{Claim: &Claim{
 				GlobalIndex:        big.NewInt(1),
@@ -276,7 +276,7 @@ var (
 				DestinationAddress: common.HexToAddress("02"),
 				Amount:             big.NewInt(2),
 				Metadata:           common.Hex2Bytes("02"),
-				DepositCount:       2,
+				DepositCount:       1,
 			}},
 			Event{Bridge: &Bridge{
 				LeafType:           3,
@@ -286,7 +286,7 @@ var (
 				DestinationAddress: common.HexToAddress("03"),
 				Amount:             nil,
 				Metadata:           common.Hex2Bytes("03"),
-				DepositCount:       3,
+				DepositCount:       2,
 			}},
 		},
 	}

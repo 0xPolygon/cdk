@@ -49,6 +49,9 @@ func (b *Bridge) Hash() common.Hash {
 	metaHash := keccak256.Hash(b.Metadata)
 	hash := common.Hash{}
 	var buf [32]byte //nolint:gomnd
+	if b.Amount == nil {
+		b.Amount = big.NewInt(0)
+	}
 	copy(
 		hash[:],
 		keccak256.Hash(
@@ -218,7 +221,12 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 		return err
 	}
 	if firstDepositCountReorged != -1 {
-		lastValidDepositCount := uint32(firstDepositCountReorged) - 1
+		var lastValidDepositCount uint32
+		if firstDepositCountReorged == 0 {
+			lastValidDepositCount = 0
+		} else {
+			lastValidDepositCount = uint32(firstDepositCountReorged) - 1
+		}
 		if err := p.tree.reorg(tx, lastValidDepositCount); err != nil {
 			tx.Rollback()
 			return err
