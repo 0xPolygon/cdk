@@ -25,6 +25,7 @@ The following actions are required once you create a new repository from this re
 ## Getting Started
 
 ### Local Development
+
 - You can run locally against kurtosis-cdk environment using: [docs/local_debug.md](docs/local_debug.md)
 
 ### Database
