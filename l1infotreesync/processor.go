@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/l1infotree"
@@ -47,6 +48,7 @@ const (
 var (
 	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
 	ErrNotFound          = errors.New("not found")
+	ErrNoBlock0          = errors.New("blockNum must be greater than 0")
 	lastBlockKey         = []byte("lb")
 )
 
@@ -208,6 +210,9 @@ func (p *processor) GetInfoByRoot(ctx context.Context, root ethCommon.Hash) (*L1
 // GetLatestInfoUntilBlock returns the most recent L1InfoTreeLeaf that occurred before or at blockNum.
 // If the blockNum has not been processed yet the error ErrBlockNotProcessed will be returned
 func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*L1InfoTreeLeaf, error) {
+	if blockNum == 0 {
+		return nil, ErrNoBlock0
+	}
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
 		return nil, err
@@ -222,14 +227,16 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	}
 	iter, err := tx.RangeDescend(blockTable, common.Uint64ToBytes(blockNum), common.Uint64ToBytes(0), 1)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(
+			"error calling RangeDescend(blockTable, %d, 0, 1): %w", blockNum, err,
+		)
 	}
-	if !iter.HasNext() {
-		return nil, ErrNotFound
-	}
-	_, v, err := iter.Next()
+	k, v, err := iter.Next()
 	if err != nil {
 		return nil, err
+	}
+	if k == nil {
+		return nil, ErrNotFound
 	}
 	blk := blockWithLeafs{}
 	if err := json.Unmarshal(v, &blk); err != nil {

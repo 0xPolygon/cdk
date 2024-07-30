@@ -75,7 +75,7 @@ func NewEVMChainGERSender(
 func (c *EVMChainGERSender) IsGERAlreadyInjected(ger common.Hash) (bool, error) {
 	timestamp, err := c.gerContract.GlobalExitRootMap(&bind.CallOpts{Pending: false}, ger)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("error calling gerContract.GlobalExitRootMap: %w", err)
 	}
 	return timestamp.Cmp(big.NewInt(0)) != 0, nil
 }
@@ -95,19 +95,20 @@ func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger com
 	}
 	for {
 		time.Sleep(c.waitPeriodMonitorTx)
+		log.Debugf("waiting for tx %s to be mined", id.Hex())
 		res, err := c.ethTxMan.Result(ctx, id)
 		if err != nil {
 			log.Error("error calling ethTxMan.Result: ", err)
 		}
 		switch res.Status {
-		case ethtxmanager.MonitoredTxStatusCreated:
-		case ethtxmanager.MonitoredTxStatusSent:
+		case ethtxmanager.MonitoredTxStatusCreated,
+			ethtxmanager.MonitoredTxStatusSent:
 			continue
 		case ethtxmanager.MonitoredTxStatusFailed:
 			return fmt.Errorf("tx %s failed", res.ID)
-		case ethtxmanager.MonitoredTxStatusMined:
-		case ethtxmanager.MonitoredTxStatusSafe:
-		case ethtxmanager.MonitoredTxStatusFinalized:
+		case ethtxmanager.MonitoredTxStatusMined,
+			ethtxmanager.MonitoredTxStatusSafe,
+			ethtxmanager.MonitoredTxStatusFinalized:
 			return nil
 		default:
 			log.Error("unexpected tx status: ", res.Status)

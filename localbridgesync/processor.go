@@ -96,7 +96,7 @@ func (p *processor) GetClaimsAndBridges(
 	}
 	defer c.Close()
 
-	for k, v, err := c.Seek(common.Uint64To2Bytes(fromBlock)); k != nil; k, v, err = c.Next() {
+	for k, v, err := c.Seek(common.Uint64ToBytes(fromBlock)); k != nil; k, v, err = c.Next() {
 		if err != nil {
 			return nil, err
 		}
@@ -143,7 +143,7 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 		return err
 	}
 	defer c.Close()
-	firstKey := common.Uint64To2Bytes(firstReorgedBlock)
+	firstKey := common.Uint64ToBytes(firstReorgedBlock)
 	for k, _, err := c.Seek(firstKey); k != nil; k, _, err = c.Next() {
 		if err != nil {
 			tx.Rollback()
@@ -176,7 +176,7 @@ func (p *processor) ProcessBlock(block sync.Block) error {
 			tx.Rollback()
 			return err
 		}
-		if err := tx.Put(eventsTable, common.Uint64To2Bytes(block.Num), value); err != nil {
+		if err := tx.Put(eventsTable, common.Uint64ToBytes(block.Num), value); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -189,6 +189,6 @@ func (p *processor) ProcessBlock(block sync.Block) error {
 }
 
 func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {
-	blockNumBytes := common.Uint64To2Bytes(blockNum)
+	blockNumBytes := common.Uint64ToBytes(blockNum)
 	return tx.Put(lastBlockTable, lastBlokcKey, blockNumBytes)
 }
