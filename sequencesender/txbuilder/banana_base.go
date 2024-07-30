@@ -17,19 +17,16 @@ type TxBuilderBananaBase struct {
 	rollupContract         contracts.RollupBananaType
 	globalExitRootContract contracts.GlobalExitRootBananaType
 
-	opts          bind.TransactOpts
-	SenderAddress common.Address
+	opts bind.TransactOpts
 }
 
 func NewTxBuilderBananaBase(rollupContract contracts.RollupBananaType,
 	gerContract contracts.GlobalExitRootBananaType,
-	opts bind.TransactOpts,
-	sender common.Address) *TxBuilderBananaBase {
+	opts bind.TransactOpts) *TxBuilderBananaBase {
 	return &TxBuilderBananaBase{
 		rollupContract:         rollupContract,
 		globalExitRootContract: gerContract,
 		opts:                   opts,
-		SenderAddress:          sender,
 	}
 
 }

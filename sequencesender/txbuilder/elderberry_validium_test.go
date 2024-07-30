@@ -30,12 +30,12 @@ func TestElderberryValidiumName(t *testing.T) {
 func TestElderberryValidiumBuildSequenceBatchesTxEmtpySequence(t *testing.T) {
 	testData := newElderberryValidiumSUT(t)
 	ctx := context.TODO()
-	_, err := testData.sut.BuildSequenceBatchesTx(ctx, common.Address{}, nil)
+	_, err := testData.sut.BuildSequenceBatchesTx(ctx, nil)
 	require.Error(t, err)
 
 	seq, err := testData.sut.NewSequence(nil, common.Address{})
 	require.NoError(t, err)
-	_, err = testData.sut.BuildSequenceBatchesTx(ctx, common.Address{}, seq)
+	_, err = testData.sut.BuildSequenceBatchesTx(ctx, seq)
 	require.Error(t, err)
 }
 
@@ -56,10 +56,10 @@ func TestElderberryValidiumBuildSequenceBatchesTxSequenceErrorsFromDA(t *testing
 	seq, err := testData.sut.NewSequence(batches, common.Address{})
 	require.NoError(t, err)
 	testData.mockDA.EXPECT().PostSequenceElderberry(ctx, mock.Anything).Return(nil, nil)
-	_, err = testData.sut.BuildSequenceBatchesTx(ctx, common.Address{}, seq)
+	_, err = testData.sut.BuildSequenceBatchesTx(ctx, seq)
 	require.Error(t, err, "data availability message is nil")
 	testData.mockDA.EXPECT().PostSequenceElderberry(ctx, mock.Anything).Return(nil, fmt.Errorf("test error"))
-	_, err = testData.sut.BuildSequenceBatchesTx(ctx, common.Address{}, seq)
+	_, err = testData.sut.BuildSequenceBatchesTx(ctx, seq)
 	require.Error(t, err, "error posting sequences to the data availability protocol: test error")
 }
 
@@ -80,7 +80,7 @@ func TestElderberryValidiumBuildSequenceBatchesTxSequenceDAOk(t *testing.T) {
 	seq, err := testData.sut.NewSequence(batches, common.Address{})
 	require.NoError(t, err)
 	testData.mockDA.EXPECT().PostSequenceElderberry(ctx, mock.Anything).Return([]byte{1}, nil)
-	tx, err := testData.sut.BuildSequenceBatchesTx(ctx, common.Address{}, seq)
+	tx, err := testData.sut.BuildSequenceBatchesTx(ctx, seq)
 	require.NoError(t, err)
 	require.NotNil(t, tx)
 }
@@ -97,10 +97,10 @@ func newElderberryValidiumSUT(t *testing.T) *testDataElderberryValidium {
 	require.NoError(t, err)
 	opts, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
 	require.NoError(t, err)
-	sender := common.Address{}
+
 	da := mocks_da.NewSequenceSenderElderberry(t)
 
-	sut := txbuilder.NewTxBuilderElderberryValidium(*zkevmContract, da, *opts, sender, uint64(100))
+	sut := txbuilder.NewTxBuilderElderberryValidium(*zkevmContract, da, *opts, uint64(100))
 	require.NotNil(t, sut)
 	return &testDataElderberryValidium{
 		mockDA: da,

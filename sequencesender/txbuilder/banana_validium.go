@@ -24,21 +24,19 @@ type TxBuilderBananaValidium struct {
 
 func NewTxBuilderBananaValidium(rollupContract contracts.RollupBananaType,
 	gerContract contracts.GlobalExitRootBananaType,
-	da dataavailability.SequenceSender, opts bind.TransactOpts, sender common.Address, maxBatchesForL1 uint64) *TxBuilderBananaValidium {
+	da dataavailability.SequenceSender, opts bind.TransactOpts, maxBatchesForL1 uint64) *TxBuilderBananaValidium {
 	return &TxBuilderBananaValidium{
-		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts, sender),
+		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts),
 		da:                  da,
-		condNewSeq: &ConditionalNewSequenceNumBatches{
-			maxBatchesForL1: maxBatchesForL1,
-		},
+		condNewSeq:          NewConditionalNewSequenceNumBatches(maxBatchesForL1),
 	}
 }
 
 func (t *TxBuilderBananaValidium) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
-	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.SenderAddress, l2Coinbase)
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, l2Coinbase)
 }
 
-func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
+func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
 	// TODO: param sender
 	// Post sequences to DA backend
 	var dataAvailabilityMessage []byte
@@ -56,7 +54,7 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, se
 	}
 
 	// Build sequence data
-	tx, err := t.internalBuildSequenceBatchesTx(t.SenderAddress, ethseq, dataAvailabilityMessage)
+	tx, err := t.internalBuildSequenceBatchesTx(ethseq, dataAvailabilityMessage)
 	if err != nil {
 		log.Errorf("[SeqSender] error estimating new sequenceBatches to add to ethtxmanager: ", err)
 		return nil, err
@@ -65,7 +63,7 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, se
 }
 
 // BuildSequenceBatchesTx builds a tx to be sent to the PoE SC method SequenceBatches.
-func (t *TxBuilderBananaValidium) internalBuildSequenceBatchesTx(sender common.Address, sequence etherman.SequenceBanana,
+func (t *TxBuilderBananaValidium) internalBuildSequenceBatchesTx(sequence etherman.SequenceBanana,
 	dataAvailabilityMessage []byte) (*ethtypes.Transaction, error) {
 	newopts := t.opts
 	newopts.NoSend = true

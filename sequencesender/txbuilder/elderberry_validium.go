@@ -27,7 +27,7 @@ type TxBuilderElderberryValidium struct {
 
 func NewTxBuilderElderberryValidium(zkevm contracts.RollupElderberryType,
 	da dataavailability.SequenceSenderElderberry,
-	opts bind.TransactOpts, sender common.Address, maxBatchesForL1 uint64) *TxBuilderElderberryValidium {
+	opts bind.TransactOpts, maxBatchesForL1 uint64) *TxBuilderElderberryValidium {
 	return &TxBuilderElderberryValidium{
 		da: da,
 		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(
@@ -37,10 +37,10 @@ func NewTxBuilderElderberryValidium(zkevm contracts.RollupElderberryType,
 	}
 }
 func (t *TxBuilderElderberryValidium) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
-	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.opts.From, l2Coinbase)
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, l2Coinbase)
 }
 
-func (t *TxBuilderElderberryValidium) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
+func (t *TxBuilderElderberryValidium) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
 	if sequences == nil || sequences.Len() == 0 {
 		return nil, fmt.Errorf("can't sequence an empty sequence")
 	}

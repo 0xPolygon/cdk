@@ -19,20 +19,18 @@ type TxBuilderBananaZKEVM struct {
 	condNewSeq CondNewSequence
 }
 
-func NewTxBuilderBananaZKEVM(rollupContract contracts.RollupBananaType, gerContract contracts.GlobalExitRootBananaType, opts bind.TransactOpts, sender common.Address, maxTxSizeForL1 uint64) *TxBuilderBananaZKEVM {
+func NewTxBuilderBananaZKEVM(rollupContract contracts.RollupBananaType, gerContract contracts.GlobalExitRootBananaType, opts bind.TransactOpts, maxTxSizeForL1 uint64) *TxBuilderBananaZKEVM {
 	return &TxBuilderBananaZKEVM{
-		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts, sender),
-		condNewSeq: &ConditionalNewSequenceMaxSize{
-			maxTxSizeForL1: maxTxSizeForL1,
-		},
+		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts),
+		condNewSeq:          NewConditionalNewSequenceMaxSize(maxTxSizeForL1),
 	}
 }
 
 func (t *TxBuilderBananaZKEVM) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
-	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.SenderAddress, l2Coinbase)
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, l2Coinbase)
 }
 
-func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
+func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
 	var err error
 	ethseq, err := convertToSequenceBanana(sequences)
 	if err != nil {

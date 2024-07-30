@@ -26,7 +26,7 @@ func NewConditionalNewSequenceMaxSize(maxTxSizeForL1 uint64) *ConditionalNewSequ
 	}
 }
 
-func (c *ConditionalNewSequenceMaxSize) NewSequenceIfWorthToSend(ctx context.Context, txBuilder TxBuilder, sequenceBatches []seqsendertypes.Batch, senderAddress, l2Coinbase common.Address) (seqsendertypes.Sequence, error) {
+func (c *ConditionalNewSequenceMaxSize) NewSequenceIfWorthToSend(ctx context.Context, txBuilder TxBuilder, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address) (seqsendertypes.Sequence, error) {
 	if c.maxTxSizeForL1 == 0 {
 		log.Debug("maxTxSizeForL1 is 0, so is disabled")
 		return nil, nil
@@ -42,7 +42,7 @@ func (c *ConditionalNewSequenceMaxSize) NewSequenceIfWorthToSend(ctx context.Con
 	}
 
 	// Check if can be sent
-	tx, err := txBuilder.BuildSequenceBatchesTx(ctx, senderAddress, sequence)
+	tx, err := txBuilder.BuildSequenceBatchesTx(ctx, sequence)
 	if tx == nil && err == nil {
 		err = fmt.Errorf("error txBuilder.BuildSequenceBatchesTx, returns tx=nil and err==nil, is not expected")
 		log.Errorf(err.Error())
@@ -64,7 +64,7 @@ func (c *ConditionalNewSequenceMaxSize) NewSequenceIfWorthToSend(ctx context.Con
 				return nil, err
 			}
 
-			txReduced, err := txBuilder.BuildSequenceBatchesTx(ctx, senderAddress, sequence)
+			txReduced, err := txBuilder.BuildSequenceBatchesTx(ctx, sequence)
 			log.Debugf("After reducing batches:  (txSize %d -> %d)", tx.Size(), txReduced.Size())
 			if err == nil && txReduced != nil && txReduced.Size() > c.maxTxSizeForL1 {
 				log.Warnf("After reducing batches:  (txSize %d -> %d) is still too big > %d", tx.Size(), txReduced.Size(), c.maxTxSizeForL1)

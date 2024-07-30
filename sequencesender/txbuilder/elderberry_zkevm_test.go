@@ -22,8 +22,7 @@ import (
 func TestElderberryZkevmName(t *testing.T) {
 	zkevmContract := contracts.RollupElderberryType{}
 	opts := bind.TransactOpts{}
-	sender := common.Address{}
-	sut := txbuilder.NewTxBuilderElderberryZKEVM(zkevmContract, opts, sender, 100)
+	sut := txbuilder.NewTxBuilderElderberryZKEVM(zkevmContract, opts, 100)
 	require.NotNil(t, sut)
 	require.True(t, strings.Contains(sut.String(), "Elderberry"))
 	require.True(t, strings.Contains(sut.String(), "ZKEVM"))
@@ -32,8 +31,7 @@ func TestElderberryZkevmName(t *testing.T) {
 func TestElderberryZkevmNewSequence(t *testing.T) {
 	zkevmContract := contracts.RollupElderberryType{}
 	opts := bind.TransactOpts{}
-	sender := common.Address{}
-	sut := txbuilder.NewTxBuilderElderberryZKEVM(zkevmContract, opts, sender, 100)
+	sut := txbuilder.NewTxBuilderElderberryZKEVM(zkevmContract, opts, 100)
 	require.NotNil(t, sut)
 	seq, err := sut.NewSequence(nil, common.Address{})
 	require.NoError(t, err)
@@ -43,12 +41,12 @@ func TestElderberryZkevmNewSequence(t *testing.T) {
 func TestElderberryZkevmBuildSequenceBatchesTxEmtpySequence(t *testing.T) {
 	sut := newElderberryZkevmSUT(t)
 	ctx := context.TODO()
-	_, err := sut.BuildSequenceBatchesTx(ctx, common.Address{}, nil)
+	_, err := sut.BuildSequenceBatchesTx(ctx, nil)
 	require.Error(t, err)
 
 	seq, err := sut.NewSequence(nil, common.Address{})
 	require.NoError(t, err)
-	_, err = sut.BuildSequenceBatchesTx(ctx, common.Address{}, seq)
+	_, err = sut.BuildSequenceBatchesTx(ctx, seq)
 	require.Error(t, err)
 }
 
@@ -68,7 +66,7 @@ func TestElderberryZkevmBuildSequenceBatchesTxSequence1Batch(t *testing.T) {
 	}
 	seq, err := sut.NewSequence(batches, common.Address{})
 	require.NoError(t, err)
-	_, err = sut.BuildSequenceBatchesTx(ctx, common.Address{}, seq)
+	_, err = sut.BuildSequenceBatchesTx(ctx, seq)
 	require.NoError(t, err)
 }
 
@@ -90,7 +88,7 @@ func TestElderberryZkevmBuildSequenceBatchesTxSequence1BatchError(t *testing.T) 
 	}
 	seq, err := sut.NewSequence(batches, common.Address{})
 	require.NoError(t, err)
-	_, err = sut.BuildSequenceBatchesTx(ctx, common.Address{}, seq)
+	_, err = sut.BuildSequenceBatchesTx(ctx, seq)
 	require.Error(t, err)
 }
 
@@ -99,7 +97,7 @@ func TestElderberryZkevmNewSequenceIfWorthToSend(t *testing.T) {
 	mockCond := mocks_txbuilder.NewCondNewSequence(t)
 	sut.SetCondNewSeq(mockCond)
 	// Returns that is not work to be send
-	mockCond.EXPECT().NewSequenceIfWorthToSend(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockCond.EXPECT().NewSequenceIfWorthToSend(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	seq, err := sut.NewSequenceIfWorthToSend(context.TODO(), nil, common.Address{}, 0)
 	require.NoError(t, err)
 	require.Nil(t, seq)
@@ -112,8 +110,7 @@ func newElderberryZkevmSUT(t *testing.T) *txbuilder.TxBuilderElderberryZKEVM {
 	require.NoError(t, err)
 	opts, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
 	require.NoError(t, err)
-	sender := common.Address{}
-	sut := txbuilder.NewTxBuilderElderberryZKEVM(*zkevmContract, *opts, sender, 100)
+	sut := txbuilder.NewTxBuilderElderberryZKEVM(*zkevmContract, *opts, 100)
 	require.NotNil(t, sut)
 	return sut
 }

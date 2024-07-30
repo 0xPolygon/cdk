@@ -21,7 +21,7 @@ type TxBuilderElderberryZKEVM struct {
 	condNewSeq CondNewSequence
 }
 
-func NewTxBuilderElderberryZKEVM(zkevm contracts.RollupElderberryType, opts bind.TransactOpts, sender common.Address, maxTxSizeForL1 uint64) *TxBuilderElderberryZKEVM {
+func NewTxBuilderElderberryZKEVM(zkevm contracts.RollupElderberryType, opts bind.TransactOpts, maxTxSizeForL1 uint64) *TxBuilderElderberryZKEVM {
 	return &TxBuilderElderberryZKEVM{
 		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(
 			zkevm, opts,
@@ -31,7 +31,7 @@ func NewTxBuilderElderberryZKEVM(zkevm contracts.RollupElderberryType, opts bind
 }
 
 func (t *TxBuilderElderberryZKEVM) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
-	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.opts.From, l2Coinbase)
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, l2Coinbase)
 }
 
 // SetCondNewSeq allow to override the default conditional for new sequence
@@ -39,7 +39,7 @@ func (t *TxBuilderElderberryZKEVM) SetCondNewSeq(cond CondNewSequence) {
 	t.condNewSeq = cond
 }
 
-func (t *TxBuilderElderberryZKEVM) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
+func (t *TxBuilderElderberryZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
 	newopts := t.opts
 	newopts.NoSend = true
 

@@ -29,9 +29,9 @@ func (_m *TxBuilder) EXPECT() *TxBuilder_Expecter {
 	return &TxBuilder_Expecter{mock: &_m.Mock}
 }
 
-// BuildSequenceBatchesTx provides a mock function with given fields: ctx, sender, sequences
-func (_m *TxBuilder) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
-	ret := _m.Called(ctx, sender, sequences)
+// BuildSequenceBatchesTx provides a mock function with given fields: ctx, sequences
+func (_m *TxBuilder) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
+	ret := _m.Called(ctx, sequences)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BuildSequenceBatchesTx")
@@ -39,19 +39,19 @@ func (_m *TxBuilder) BuildSequenceBatchesTx(ctx context.Context, sender common.A
 
 	var r0 *types.Transaction
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Address, seqsendertypes.Sequence) (*types.Transaction, error)); ok {
-		return rf(ctx, sender, sequences)
+	if rf, ok := ret.Get(0).(func(context.Context, seqsendertypes.Sequence) (*types.Transaction, error)); ok {
+		return rf(ctx, sequences)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, common.Address, seqsendertypes.Sequence) *types.Transaction); ok {
-		r0 = rf(ctx, sender, sequences)
+	if rf, ok := ret.Get(0).(func(context.Context, seqsendertypes.Sequence) *types.Transaction); ok {
+		r0 = rf(ctx, sequences)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*types.Transaction)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, common.Address, seqsendertypes.Sequence) error); ok {
-		r1 = rf(ctx, sender, sequences)
+	if rf, ok := ret.Get(1).(func(context.Context, seqsendertypes.Sequence) error); ok {
+		r1 = rf(ctx, sequences)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -66,15 +66,14 @@ type TxBuilder_BuildSequenceBatchesTx_Call struct {
 
 // BuildSequenceBatchesTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - sender common.Address
 //   - sequences seqsendertypes.Sequence
-func (_e *TxBuilder_Expecter) BuildSequenceBatchesTx(ctx interface{}, sender interface{}, sequences interface{}) *TxBuilder_BuildSequenceBatchesTx_Call {
-	return &TxBuilder_BuildSequenceBatchesTx_Call{Call: _e.mock.On("BuildSequenceBatchesTx", ctx, sender, sequences)}
+func (_e *TxBuilder_Expecter) BuildSequenceBatchesTx(ctx interface{}, sequences interface{}) *TxBuilder_BuildSequenceBatchesTx_Call {
+	return &TxBuilder_BuildSequenceBatchesTx_Call{Call: _e.mock.On("BuildSequenceBatchesTx", ctx, sequences)}
 }
 
-func (_c *TxBuilder_BuildSequenceBatchesTx_Call) Run(run func(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence)) *TxBuilder_BuildSequenceBatchesTx_Call {
+func (_c *TxBuilder_BuildSequenceBatchesTx_Call) Run(run func(ctx context.Context, sequences seqsendertypes.Sequence)) *TxBuilder_BuildSequenceBatchesTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(common.Address), args[2].(seqsendertypes.Sequence))
+		run(args[0].(context.Context), args[1].(seqsendertypes.Sequence))
 	})
 	return _c
 }
@@ -84,7 +83,7 @@ func (_c *TxBuilder_BuildSequenceBatchesTx_Call) Return(_a0 *types.Transaction, 
 	return _c
 }
 
-func (_c *TxBuilder_BuildSequenceBatchesTx_Call) RunAndReturn(run func(context.Context, common.Address, seqsendertypes.Sequence) (*types.Transaction, error)) *TxBuilder_BuildSequenceBatchesTx_Call {
+func (_c *TxBuilder_BuildSequenceBatchesTx_Call) RunAndReturn(run func(context.Context, seqsendertypes.Sequence) (*types.Transaction, error)) *TxBuilder_BuildSequenceBatchesTx_Call {
 	_c.Call.Return(run)
 	return _c
 }

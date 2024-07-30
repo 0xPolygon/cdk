@@ -163,15 +163,15 @@ func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuild
 	switch contracts.VersionType(cfg.Common.ContractVersions) {
 	case contracts.VersionBanana:
 		if cfg.Common.IsValidiumMode {
-			txBuilder = txbuilder.NewTxBuilderBananaValidium(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, da, *auth, auth.From, cfg.SequenceSender.MaxBatchesForL1)
+			txBuilder = txbuilder.NewTxBuilderBananaValidium(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, da, *auth, cfg.SequenceSender.MaxBatchesForL1)
 		} else {
-			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
+			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, *auth, cfg.SequenceSender.MaxTxSizeForL1)
 		}
 	case contracts.VersionElderberry:
 		if cfg.Common.IsValidiumMode {
-			txBuilder = txbuilder.NewTxBuilderElderberryValidium(ethman.Contracts.Elderberry.Rollup, da, *auth, auth.From, cfg.SequenceSender.MaxBatchesForL1)
+			txBuilder = txbuilder.NewTxBuilderElderberryValidium(ethman.Contracts.Elderberry.Rollup, da, *auth, cfg.SequenceSender.MaxBatchesForL1)
 		} else {
-			txBuilder = txbuilder.NewTxBuilderElderberryZKEVM(ethman.Contracts.Elderberry.Rollup, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
+			txBuilder = txbuilder.NewTxBuilderElderberryZKEVM(ethman.Contracts.Elderberry.Rollup, *auth, cfg.SequenceSender.MaxTxSizeForL1)
 		}
 	default:
 		err = fmt.Errorf("unknown contract version: %s", cfg.Common.ContractVersions)
