@@ -70,7 +70,7 @@ envsubst < test/config/test.kurtosis_template.toml > $DEST/test.kurtosis.toml
 echo "- to restart kurtosis:"
 echo "    kurtosis clean --all; kurtosis run --enclave cdk-v1 --args-file cdk-erigon-sequencer-params.yml --image-download always ."
 echo " "
-echo "- Stop sequence-sender"
+echo "- Stop sequence-sender:"
 echo "    kurtosis service stop cdk-v1 zkevm-node-sequence-sender-001"
 echo " "
 echo "- Add next configuration to vscode launch.json"
