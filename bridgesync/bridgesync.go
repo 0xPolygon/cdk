@@ -86,7 +86,7 @@ func new(
 	initialBlock uint64,
 	dbPrefix, reorgDetectorID string,
 ) (*LocalBridgeSync, error) {
-	processor, err := newProcessor(dbPath, dbPrefix)
+	processor, err := newProcessor(ctx, dbPath, dbPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -132,3 +132,5 @@ func new(
 func (s *LocalBridgeSync) Start(ctx context.Context) {
 	s.driver.Sync(ctx)
 }
+
+// TODO: expose methods from the processor for consumers

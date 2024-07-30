@@ -1,19 +1,28 @@
 package bridgesync
 
 import (
-	"errors"
+	"context"
 	"fmt"
+	"math"
 
-	"github.com/ledgerwatch/erigon-lib/common"
+	dbCommon "github.com/0xPolygon/cdk/common"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"golang.org/x/crypto/sha3"
 )
 
+const (
+	defaultHeight uint8 = 32
+)
+
 type tree struct {
-	db             kv.RwDB
-	lastIndex      int64
-	height         uint8
-	rightPathCache []common.Hash
+	db               kv.RwDB
+	rhtTable         string
+	rootTable        string
+	height           uint8
+	lastDepositCount int64
+	lastLeftCache    []common.Hash
+	zeroHashes       []common.Hash
 }
 
 type treeNode struct {
@@ -30,42 +39,122 @@ func (n *treeNode) hash() common.Hash {
 	return hash
 }
 
-func newTree() (*tree, error) {
-	// TODO: init lastIndex & rightPathCache
-	return &tree{}, errors.New("not implemented")
+func (n *treeNode) MarshalBinary() ([]byte, error) {
+	return append(n.left[:], n.right[:]...), nil
 }
 
-func (t *tree) addLeaf(index uint, hash common.Hash) error {
-	if int64(index) != t.lastIndex+1 {
-		return fmt.Errorf("mismatched index. Expected: %d, actual: %d", t.lastIndex+1, index)
+func (n *treeNode) UnmarshalBinary(data []byte) error {
+	if len(data) != 64 {
+		return fmt.Errorf("expected len %d, actual len %d", 64, len(data))
+	}
+	n.left = common.Hash(data[:32])
+	n.right = common.Hash(data[32:])
+	return nil
+}
+
+func newTree(ctx context.Context, rhtTable, rootTable string, db kv.RwDB) (*tree, error) {
+	t := &tree{
+		rhtTable:   rhtTable,
+		rootTable:  rootTable,
+		db:         db,
+		height:     defaultHeight,
+		zeroHashes: generateZeroHashes(defaultHeight),
 	}
 
+	if err := t.initLastLeftCacheAndLastDepositCount(ctx); err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
+// getProof returns the merkle proof for a given deposit count and root.
+func (t *tree) getProof(ctx context.Context, depositCount uint32, root common.Hash) ([]common.Hash, error) {
+	tx, err := t.db.BeginRw(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	siblings := make([]common.Hash, int(t.height))
+
+	currentNodeHash := root
+	// It starts in height-1 because 0 is the level of the leafs
+	for h := int(t.height - 1); h >= 0; h-- {
+		currentNode, err := t.getRHTNode(tx, currentNodeHash)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"height: %d, currentNode: %s, error: %v",
+				h, currentNodeHash.Hex(), err,
+			)
+		}
+		/*
+		*        Root                (level h=3 => height=4)
+		*      /     \
+		*	 O5       O6             (level h=2)
+		*	/ \      / \
+		*  O1  O2   O3  O4           (level h=1)
+		*  /\   /\   /\ /\
+		* 0  1 2  3 4 5 6 7 Leafs    (level h=0)
+		* Example 1:
+		* Choose index = 3 => 011 binary
+		* Assuming we are in level 1 => h=1; 1<<h = 010 binary
+		* Now, let's do AND operation => 011&010=010 which is higher than 0 so we need the left sibling (O1)
+		* Example 2:
+		* Choose index = 4 => 100 binary
+		* Assuming we are in level 1 => h=1; 1<<h = 010 binary
+		* Now, let's do AND operation => 100&010=000 which is not higher than 0 so we need the right sibling (O4)
+		* Example 3:
+		* Choose index = 4 => 100 binary
+		* Assuming we are in level 2 => h=2; 1<<h = 100 binary
+		* Now, let's do AND operation => 100&100=100 which is higher than 0 so we need the left sibling (O5)
+		 */
+		if depositCount&(1<<h) > 0 {
+			siblings = append(siblings, currentNode.left)
+			currentNodeHash = currentNode.right
+		} else {
+			siblings = append(siblings, currentNode.right)
+			currentNodeHash = currentNode.left
+		}
+	}
+
+	// Reverse siblings to go from leafs to root
+	for i, j := 0, len(siblings)-1; i < j; i, j = i+1, j-1 {
+		siblings[i], siblings[j] = siblings[j], siblings[i]
+	}
+
+	return siblings, nil
+}
+
+func (t *tree) addLeaf(tx kv.RwTx, depositCount uint32, hash common.Hash) error {
+	// Sanity check
+	if int64(depositCount) != t.lastDepositCount+1 {
+		return fmt.Errorf(
+			"mismatched index. Expected: %d, actual: %d",
+			t.lastDepositCount+1, depositCount,
+		)
+	}
+
+	// Calculate new tree nodes
 	currentChildHash := hash
-	leftIsFilled := true
 	newNodes := []treeNode{}
 	for h := uint8(0); h < t.height; h++ {
 		var parent treeNode
-		if index&(1<<h) > 0 {
+		if depositCount&(1<<h) > 0 {
 			// Add child to the right
-			var child common.Hash
-			copy(child[:], currentChildHash[:])
 			parent = treeNode{
-				left:  t.rightPathCache[h],
-				right: child,
+				left:  t.lastLeftCache[h],
+				right: currentChildHash,
 			}
 		} else {
 			// Add child to the left
-			if leftIsFilled {
-				// if at this level the left is filled, it means that the new node will be in the right path
-				copy(t.rightPathCache[h][:], currentChildHash[:])
-				leftIsFilled = false
-			}
-			var child common.Hash
-			copy(child[:], currentChildHash[:])
 			parent = treeNode{
-				left:  child,
-				right: common.Hash{},
+				left:  currentChildHash,
+				right: t.zeroHashes[h],
 			}
+			// Update cache
+			// TODO: review this part of the logic, skipping ?optimizaton?
+			// from OG implementation
+			t.lastLeftCache[h] = currentChildHash
 		}
 		currentChildHash = parent.hash()
 		newNodes = append(newNodes, parent)
@@ -73,10 +162,155 @@ func (t *tree) addLeaf(index uint, hash common.Hash) error {
 
 	// store root
 	root := currentChildHash
-	// store nodes
+	if err := tx.Put(t.rootTable, dbCommon.Uint32ToBytes(depositCount), root[:]); err != nil {
+		return err
+	}
 
-	t.lastIndex++
+	// store nodes
+	for _, node := range newNodes {
+		value, err := node.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		if err := tx.Put(t.rhtTable, node.hash().Bytes(), value); err != nil {
+			return err
+		}
+	}
+
+	t.lastDepositCount++
 	return nil
 }
 
-// TODO: handle rerog: lastIndex & rightPathCache
+func (t *tree) initLastLeftCacheAndLastDepositCount(ctx context.Context) error {
+	tx, err := t.db.BeginRw(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	root, err := t.initLastDepositCount(tx)
+	if err != nil {
+		return err
+	}
+	return t.initLastLeftCache(tx, t.lastDepositCount, root)
+}
+
+// getLastDepositCountAndRoot return the deposit count and the root associated to the last deposit.
+// If deposit count == -1, it means no deposit added yet
+func (t *tree) getLastDepositCountAndRoot(tx kv.Tx) (int64, common.Hash, error) {
+	iter, err := tx.RangeDescend(
+		t.rootTable,
+		dbCommon.Uint32ToBytes(math.MaxUint32),
+		dbCommon.Uint32ToBytes(0),
+		1,
+	)
+	if err != nil {
+		return 0, common.Hash{}, err
+	}
+
+	lastDepositCountBytes, rootBytes, err := iter.Next()
+	if err != nil {
+		return 0, common.Hash{}, err
+	}
+	if lastDepositCountBytes == nil {
+		return -1, common.Hash{}, nil
+	}
+	return int64(dbCommon.BytesToUint32(lastDepositCountBytes)), common.Hash(rootBytes), nil
+}
+
+func (t *tree) initLastDepositCount(tx kv.Tx) (common.Hash, error) {
+	ldc, root, err := t.getLastDepositCountAndRoot(tx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	t.lastDepositCount = ldc
+	return root, nil
+}
+
+func (t *tree) initLastLeftCache(tx kv.Tx, lastDepositCount int64, lastRoot common.Hash) error {
+	siblings := make([]common.Hash, t.height, t.height)
+	if lastDepositCount == -1 {
+		t.lastLeftCache = siblings
+		return nil
+	}
+	index := t.lastDepositCount
+
+	currentNodeHash := lastRoot
+	// It starts in height-1 because 0 is the level of the leafs
+	for h := int(t.height - 1); h >= 0; h-- {
+		currentNode, err := t.getRHTNode(tx, currentNodeHash)
+		if err != nil {
+			return fmt.Errorf(
+				"error getting node %s from the RHT at height %d with root %s: %v",
+				currentNodeHash.Hex(), h, lastRoot.Hex(), err,
+			)
+		}
+		siblings = append(siblings, currentNode.left)
+		if index&(1<<h) > 0 {
+			currentNodeHash = currentNode.right
+		} else {
+			currentNodeHash = currentNode.left
+		}
+	}
+
+	// Reverse the siblings to go from leafs to root
+	for i, j := 0, len(siblings)-1; i < j; i, j = i+1, j-1 {
+		siblings[i], siblings[j] = siblings[j], siblings[i]
+	}
+
+	t.lastLeftCache = siblings
+	return nil
+}
+
+func (t *tree) getRHTNode(tx kv.Tx, nodeHash common.Hash) (*treeNode, error) {
+	nodeBytes, err := tx.GetOne(t.rhtTable, nodeHash[:])
+	if err != nil {
+		return nil, err
+	}
+	if nodeBytes == nil {
+		return nil, ErrNotFound
+	}
+	node := &treeNode{}
+	err = node.UnmarshalBinary(nodeBytes)
+	return node, err
+}
+
+func (t *tree) reorg(tx kv.RwTx, lastValidDepositCount uint32) error {
+	// Clean root table
+	for i := lastValidDepositCount + 1; i <= uint32(t.lastDepositCount); i++ {
+		if err := tx.Delete(t.rootTable, dbCommon.Uint32ToBytes(i)); err != nil {
+			return err
+		}
+	}
+
+	// Reset cache
+	rootBytes, err := tx.GetOne(t.rootTable, dbCommon.Uint32ToBytes(lastValidDepositCount))
+	if err != nil {
+		return err
+	}
+	err = t.initLastLeftCache(tx, int64(lastValidDepositCount), common.Hash(rootBytes))
+	if err != nil {
+		return err
+	}
+
+	// Note: not cleaning RHT, not worth it
+	t.lastDepositCount = int64(lastValidDepositCount)
+	return nil
+}
+
+func generateZeroHashes(height uint8) []common.Hash {
+	var zeroHashes = []common.Hash{
+		{},
+	}
+	// This generates a leaf = HashZero in position 0. In the rest of the positions that are equivalent to the ascending levels,
+	// we set the hashes of the nodes. So all nodes from level i=5 will have the same value and same children nodes.
+	for i := 1; i <= int(height); i++ {
+		hasher := sha3.NewLegacyKeccak256()
+		hasher.Write(zeroHashes[i-1][:])
+		hasher.Write(zeroHashes[i-1][:])
+		thisHeightHash := common.Hash{}
+		copy(thisHeightHash[:], hasher.Sum(nil))
+		zeroHashes = append(zeroHashes, thisHeightHash)
+	}
+	return zeroHashes
+}

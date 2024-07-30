@@ -2,8 +2,10 @@ package bridgesync
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
+	"os"
 	"slices"
 	"testing"
 
@@ -14,7 +16,7 @@ import (
 
 func TestProceessor(t *testing.T) {
 	path := t.TempDir()
-	p, err := newProcessor(path, "foo")
+	p, err := newProcessor(context.Background(), path, "foo")
 	require.NoError(t, err)
 	actions := []processAction{
 		// processed: ~
@@ -421,4 +423,43 @@ func eventsToBridgeEvents(events []interface{}) []Event {
 		bridgeEvents = append(bridgeEvents, event.(Event))
 	}
 	return bridgeEvents
+}
+
+// DepositVectorRaw represents the deposit vector
+type DepositVectorRaw struct {
+	OriginalNetwork    uint32 `json:"originNetwork"`
+	TokenAddress       string `json:"tokenAddress"`
+	Amount             string `json:"amount"`
+	DestinationNetwork uint32 `json:"destinationNetwork"`
+	DestinationAddress string `json:"destinationAddress"`
+	ExpectedHash       string `json:"leafValue"`
+	CurrentHash        string `json:"currentLeafValue"`
+	Metadata           string `json:"metadata"`
+}
+
+func TestHashBridge(t *testing.T) {
+	data, err := os.ReadFile("testvectors/leaf-vectors.json")
+	require.NoError(t, err)
+
+	var leafVectors []DepositVectorRaw
+	err = json.Unmarshal(data, &leafVectors)
+	require.NoError(t, err)
+
+	for ti, testVector := range leafVectors {
+		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
+			amount, err := big.NewInt(0).SetString(testVector.Amount, 0)
+			require.True(t, err)
+
+			bridge := Bridge{
+				OriginNetwork:      testVector.OriginalNetwork,
+				OriginAddress:      common.HexToAddress(testVector.TokenAddress),
+				Amount:             amount,
+				DestinationNetwork: testVector.DestinationNetwork,
+				DestinationAddress: common.HexToAddress(testVector.DestinationAddress),
+				DepositCount:       uint32(ti + 1),
+				Metadata:           common.FromHex(testVector.Metadata),
+			}
+			require.Equal(t, common.HexToHash(testVector.ExpectedHash), bridge.Hash())
+		})
+	}
 }

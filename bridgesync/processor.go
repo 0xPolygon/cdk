@@ -2,13 +2,16 @@ package bridgesync
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"log"
 	"math/big"
 
-	"github.com/0xPolygon/cdk/common"
+	dbCommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/sync"
-	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 )
@@ -16,29 +19,56 @@ import (
 const (
 	eventsTableSufix    = "-events"
 	lastBlockTableSufix = "-lastBlock"
+	rootTableSufix      = "-root"
+	rhtTableSufix       = "-rht"
 )
 
 var (
 	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
+	ErrNotFound          = errors.New("not found")
 	lastBlokcKey         = []byte("lb")
 )
 
 type Bridge struct {
 	LeafType           uint8
 	OriginNetwork      uint32
-	OriginAddress      ethCommon.Address
+	OriginAddress      common.Address
 	DestinationNetwork uint32
-	DestinationAddress ethCommon.Address
+	DestinationAddress common.Address
 	Amount             *big.Int
 	Metadata           []byte
 	DepositCount       uint32
 }
 
+func (b *Bridge) Hash() common.Hash {
+	origNet := make([]byte, 4) //nolint:gomnd
+	binary.BigEndian.PutUint32(origNet, uint32(b.OriginNetwork))
+	destNet := make([]byte, 4) //nolint:gomnd
+	binary.BigEndian.PutUint32(destNet, uint32(b.DestinationNetwork))
+
+	metaHash := keccak256.Hash(b.Metadata)
+	hash := common.Hash{}
+	var buf [32]byte //nolint:gomnd
+	copy(
+		hash[:],
+		keccak256.Hash(
+			[]byte{b.LeafType},
+			origNet,
+			b.OriginAddress[:],
+			destNet,
+			b.DestinationAddress[:],
+			b.Amount.FillBytes(buf[:]),
+			metaHash,
+		),
+	)
+	return hash
+}
+
 type Claim struct {
 	GlobalIndex        *big.Int
 	OriginNetwork      uint32
-	OriginAddress      ethCommon.Address
-	DestinationAddress ethCommon.Address
+	OriginAddress      common.Address
+	DestinationAddress common.Address
 	Amount             *big.Int
 }
 
@@ -51,20 +81,30 @@ type processor struct {
 	db             kv.RwDB
 	eventsTable    string
 	lastBlockTable string
+	tree           *tree
 }
 
-func newProcessor(dbPath, dbPrefix string) (*processor, error) {
+func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, error) {
 	eventsTable := dbPrefix + eventsTableSufix
 	lastBlockTable := dbPrefix + lastBlockTableSufix
+	rootTable := dbPrefix + rootTableSufix
+	rhtTable := dbPrefix + rhtTableSufix
 	db, err := mdbx.NewMDBX(nil).
 		Path(dbPath).
 		WithTableCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
 			return kv.TableCfg{
 				eventsTable:    {},
 				lastBlockTable: {},
+				rootTable:      {},
+				rhtTable:       {},
 			}
 		}).
 		Open()
+	if err != nil {
+		return nil, err
+	}
+
+	tree, err := newTree(ctx, rhtTable, rootTable, db)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +112,7 @@ func newProcessor(dbPath, dbPrefix string) (*processor, error) {
 		db:             db,
 		eventsTable:    eventsTable,
 		lastBlockTable: lastBlockTable,
+		tree:           tree,
 	}, nil
 }
 
@@ -100,11 +141,11 @@ func (p *processor) GetClaimsAndBridges(
 	}
 	defer c.Close()
 
-	for k, v, err := c.Seek(common.Uint64To2Bytes(fromBlock)); k != nil; k, v, err = c.Next() {
+	for k, v, err := c.Seek(dbCommon.Uint64To2Bytes(fromBlock)); k != nil; k, v, err = c.Next() {
 		if err != nil {
 			return nil, err
 		}
-		if common.BytesToUint64(k) > toBlock {
+		if dbCommon.BytesToUint64(k) > toBlock {
 			break
 		}
 		blockEvents := []Event{}
@@ -133,7 +174,7 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	} else if blockNumBytes == nil {
 		return 0, nil
 	} else {
-		return common.BytesToUint64(blockNumBytes), nil
+		return dbCommon.BytesToUint64(blockNumBytes), nil
 	}
 }
 
@@ -147,8 +188,9 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 		return err
 	}
 	defer c.Close()
-	firstKey := common.Uint64To2Bytes(firstReorgedBlock)
-	for k, _, err := c.Seek(firstKey); k != nil; k, _, err = c.Next() {
+	firstKey := dbCommon.Uint64To2Bytes(firstReorgedBlock)
+	firstDepositCountReorged := int64(-1)
+	for k, v, err := c.Seek(firstKey); k != nil; k, _, err = c.Next() {
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -157,42 +199,84 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 			tx.Rollback()
 			return err
 		}
+		if firstDepositCountReorged == -1 {
+			events := []Event{}
+			if err := json.Unmarshal(v, &events); err != nil {
+				tx.Rollback()
+				return err
+			}
+			for _, event := range events {
+				if event.Bridge != nil {
+					firstDepositCountReorged = int64(event.Bridge.DepositCount)
+					break
+				}
+			}
+		}
 	}
 	if err := p.updateLastProcessedBlock(tx, firstReorgedBlock-1); err != nil {
 		tx.Rollback()
 		return err
 	}
+	if firstDepositCountReorged != -1 {
+		lastValidDepositCount := uint32(firstDepositCountReorged) - 1
+		if err := p.tree.reorg(tx, lastValidDepositCount); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
 	return tx.Commit()
 }
 
 func (p *processor) ProcessBlock(block sync.Block) error {
-	tx, err := p.db.BeginRw(context.Background())
+	ctx := context.Background()
+	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
 		return err
 	}
+	bridges := []Bridge{}
 	if len(block.Events) > 0 {
 		events := []Event{}
 		for _, e := range block.Events {
-			events = append(events, e.(Event))
+			event := e.(Event)
+			events = append(events, event)
+			if event.Bridge != nil {
+				bridges = append(bridges, *event.Bridge)
+			}
 		}
 		value, err := json.Marshal(events)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
-		if err := tx.Put(p.eventsTable, common.Uint64To2Bytes(block.Num), value); err != nil {
+		if err := tx.Put(p.eventsTable, dbCommon.Uint64To2Bytes(block.Num), value); err != nil {
 			tx.Rollback()
 			return err
 		}
 	}
+
 	if err := p.updateLastProcessedBlock(tx, block.Num); err != nil {
 		tx.Rollback()
 		return err
+	}
+
+	for i, bridge := range bridges {
+		if err := p.tree.addLeaf(tx, bridge.DepositCount, bridge.Hash()); err != nil {
+			if i != 0 {
+				tx.Rollback()
+				if err2 := p.tree.initLastLeftCacheAndLastDepositCount(ctx); err2 != nil {
+					log.Fatalf(
+						"after failing to add a leaf to the tree with error: %v, error initializing the cache with error: %v",
+						err, err2,
+					)
+				}
+				return err
+			}
+		}
 	}
 	return tx.Commit()
 }
 
 func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {
-	blockNumBytes := common.Uint64To2Bytes(blockNum)
+	blockNumBytes := dbCommon.Uint64To2Bytes(blockNum)
 	return tx.Put(p.lastBlockTable, lastBlokcKey, blockNumBytes)
 }
