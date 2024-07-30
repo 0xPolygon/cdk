@@ -7,7 +7,6 @@ import (
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk/etherman"
-	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -18,15 +17,19 @@ import (
 
 type TxBuilderElderberryZKEVM struct {
 	TxBuilderElderberryBase
-	condNewSeq CondNewSequence
+	condNewSeq     CondNewSequence
+	rollupContract rollupElderberryZKEVMContractor
 }
 
-func NewTxBuilderElderberryZKEVM(zkevm contracts.RollupElderberryType, opts bind.TransactOpts, maxTxSizeForL1 uint64) *TxBuilderElderberryZKEVM {
+type rollupElderberryZKEVMContractor interface {
+	SequenceBatches(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, maxSequenceTimestamp uint64, initSequencedBatch uint64, l2Coinbase common.Address) (*types.Transaction, error)
+}
+
+func NewTxBuilderElderberryZKEVM(zkevm rollupElderberryZKEVMContractor, opts bind.TransactOpts, maxTxSizeForL1 uint64) *TxBuilderElderberryZKEVM {
 	return &TxBuilderElderberryZKEVM{
-		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(
-			zkevm, opts,
-		),
-		condNewSeq: NewConditionalNewSequenceMaxSize(maxTxSizeForL1),
+		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(opts),
+		condNewSeq:              NewConditionalNewSequenceMaxSize(maxTxSizeForL1),
+		rollupContract:          zkevm,
 	}
 }
 
@@ -71,8 +74,7 @@ func (t *TxBuilderElderberryZKEVM) sequenceBatchesRollup(opts bind.TransactOpts,
 		}
 	}
 	lastSequencedBatchNumber := getLastSequencedBatchNumber(sequences)
-	ZkEVM := t.rollupContract.Contract()
-	tx, err := ZkEVM.SequenceBatches(&opts, batches, sequences.MaxSequenceTimestamp(), lastSequencedBatchNumber, sequences.L2Coinbase())
+	tx, err := t.rollupContract.SequenceBatches(&opts, batches, sequences.MaxSequenceTimestamp(), lastSequencedBatchNumber, sequences.L2Coinbase())
 	if err != nil {
 		t.warningMessage(batches, sequences.L2Coinbase(), &opts)
 		if parsedErr, ok := etherman.TryParseError(err); ok {

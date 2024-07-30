@@ -21,19 +21,23 @@ import (
 
 type TxBuilderElderberryValidium struct {
 	TxBuilderElderberryBase
-	da         dataavailability.SequenceSenderElderberry
-	condNewSeq CondNewSequence
+	da             dataavailability.SequenceSenderElderberry
+	condNewSeq     CondNewSequence
+	rollupContract rollupElderberryValidiumContractor
+}
+
+type rollupElderberryValidiumContractor interface {
+	SequenceBatchesValidium(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, maxSequenceTimestamp uint64, initSequencedBatch uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error)
 }
 
 func NewTxBuilderElderberryValidium(zkevm contracts.RollupElderberryType,
 	da dataavailability.SequenceSenderElderberry,
 	opts bind.TransactOpts, maxBatchesForL1 uint64) *TxBuilderElderberryValidium {
 	return &TxBuilderElderberryValidium{
-		da: da,
-		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(
-			zkevm, opts,
-		),
-		condNewSeq: NewConditionalNewSequenceNumBatches(maxBatchesForL1),
+		da:                      da,
+		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(opts),
+		condNewSeq:              NewConditionalNewSequenceNumBatches(maxBatchesForL1),
+		rollupContract:          zkevm,
 	}
 }
 func (t *TxBuilderElderberryValidium) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
@@ -80,10 +84,9 @@ func (t *TxBuilderElderberryValidium) buildSequenceBatchesTxValidium(opts *bind.
 		}
 	}
 	lastSequencedBatchNumber := getLastSequencedBatchNumber(sequences)
-	ZkEVM := t.rollupContract.Contract()
 	log.Infof("SequenceBatchesValidium(from=%s, len(batches)=%d, MaxSequenceTimestamp=%d, lastSequencedBatchNumber=%d, L2Coinbase=%s, dataAvailabilityMessage=%s)",
 		t.opts.From.String(), len(batches), sequences.MaxSequenceTimestamp(), lastSequencedBatchNumber, sequences.L2Coinbase().String(), hex.EncodeToString(dataAvailabilityMessage))
-	tx, err := ZkEVM.SequenceBatchesValidium(opts, batches, sequences.MaxSequenceTimestamp(),
+	tx, err := t.rollupContract.SequenceBatchesValidium(opts, batches, sequences.MaxSequenceTimestamp(),
 		lastSequencedBatchNumber, sequences.L2Coinbase(), dataAvailabilityMessage)
 	if err != nil {
 		if parsedErr, ok := etherman.TryParseError(err); ok {

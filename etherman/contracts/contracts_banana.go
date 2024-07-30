@@ -8,9 +8,20 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
-type GlobalExitRootBananaType = ContractBase[polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2]
-type RollupBananaType = ContractBase[polygonvalidiumetrog.Polygonvalidiumetrog]
-type RollupManagerBananaType = ContractBase[polygonrollupmanager.Polygonrollupmanager]
+type GlobalExitRootBananaType struct {
+	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
+	*ContractBase
+}
+
+type RollupManagerBananaType struct {
+	*polygonrollupmanager.Polygonrollupmanager
+	*ContractBase
+}
+
+type RollupBananaType struct {
+	*polygonvalidiumetrog.Polygonvalidiumetrog
+	*ContractBase
+}
 
 type ContractsBanana struct {
 	GlobalExitRoot GlobalExitRootBananaType
@@ -19,16 +30,17 @@ type ContractsBanana struct {
 }
 
 func NewContractsBanana(cfg config.L1Config, backend bind.ContractBackend) (*ContractsBanana, error) {
-	ger, err := NewContractBase(polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2, cfg.GlobalExitRootManagerAddr, backend, ContractNameGlobalExitRoot, VersionBanana)
+
+	ger, err := NewContractMagic[GlobalExitRootBananaType](polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2, cfg.GlobalExitRootManagerAddr, backend, ContractNameGlobalExitRoot, VersionBanana)
 	if err != nil {
 		return nil, err
 	}
-	rollup, err := NewContractBase(polygonvalidiumetrog.NewPolygonvalidiumetrog, cfg.ZkEVMAddr, backend, ContractNameRollup, VersionBanana)
+	rollup, err := NewContractMagic[RollupBananaType](polygonvalidiumetrog.NewPolygonvalidiumetrog, cfg.ZkEVMAddr, backend, ContractNameRollup, VersionBanana)
 	if err != nil {
 		return nil, err
 	}
 
-	rollupManager, err := NewContractBase(polygonrollupmanager.NewPolygonrollupmanager, cfg.RollupManagerAddr, backend, ContractNameRollupManager, VersionBanana)
+	rollupManager, err := NewContractMagic[RollupManagerBananaType](polygonrollupmanager.NewPolygonrollupmanager, cfg.RollupManagerAddr, backend, ContractNameRollupManager, VersionBanana)
 	if err != nil {
 		return nil, err
 	}

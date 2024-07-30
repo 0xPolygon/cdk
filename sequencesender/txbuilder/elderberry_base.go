@@ -2,7 +2,6 @@ package txbuilder
 
 import (
 	"github.com/0xPolygon/cdk/etherman"
-	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -10,14 +9,12 @@ import (
 )
 
 type TxBuilderElderberryBase struct {
-	rollupContract contracts.RollupElderberryType
-	opts           bind.TransactOpts
+	opts bind.TransactOpts
 }
 
-func NewTxBuilderElderberryBase(rollupContract contracts.RollupElderberryType, opts bind.TransactOpts) *TxBuilderElderberryBase {
+func NewTxBuilderElderberryBase(opts bind.TransactOpts) *TxBuilderElderberryBase {
 	return &TxBuilderElderberryBase{
-		rollupContract: rollupContract,
-		opts:           opts,
+		opts: opts,
 	}
 }
 

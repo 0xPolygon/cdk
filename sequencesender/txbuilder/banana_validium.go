@@ -12,23 +12,31 @@ import (
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type TxBuilderBananaValidium struct {
 	TxBuilderBananaBase
-	da         dataavailability.SequenceSender
-	condNewSeq CondNewSequence
+	da             dataavailability.SequenceSender
+	condNewSeq     CondNewSequence
+	rollupContract rollupBananaValidiumContractor
 }
 
-func NewTxBuilderBananaValidium(rollupContract contracts.RollupBananaType,
+type rollupBananaValidiumContractor interface {
+	rollupBananaBaseContractor
+	SequenceBatchesValidium(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, indexL1InfoRoot uint32, maxSequenceTimestamp uint64, expectedFinalAccInputHash [32]byte, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error)
+}
+
+func NewTxBuilderBananaValidium(rollupContract rollupBananaValidiumContractor,
 	gerContract contracts.GlobalExitRootBananaType,
 	da dataavailability.SequenceSender, opts bind.TransactOpts, maxBatchesForL1 uint64) *TxBuilderBananaValidium {
 	return &TxBuilderBananaValidium{
 		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts),
 		da:                  da,
 		condNewSeq:          NewConditionalNewSequenceNumBatches(maxBatchesForL1),
+		rollupContract:      rollupContract,
 	}
 }
 
@@ -92,7 +100,7 @@ func (t *TxBuilderBananaValidium) sequenceBatchesValidium(opts bind.TransactOpts
 		}
 	}
 
-	tx, err := t.rollupContract.Contract().SequenceBatchesValidium(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase, dataAvailabilityMessage)
+	tx, err := t.rollupContract.SequenceBatchesValidium(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", sequence.L2Coinbase)

@@ -5,7 +5,6 @@ import (
 
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/etherman"
-	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
@@ -13,15 +12,23 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type TxBuilderBananaBase struct {
-	rollupContract         contracts.RollupBananaType
-	globalExitRootContract contracts.GlobalExitRootBananaType
-
-	opts bind.TransactOpts
+type rollupBananaBaseContractor interface {
+	LastAccInputHash(opts *bind.CallOpts) ([32]byte, error)
 }
 
-func NewTxBuilderBananaBase(rollupContract contracts.RollupBananaType,
-	gerContract contracts.GlobalExitRootBananaType,
+type globalExitRootBananaContractor interface {
+	L1InfoRootMap(opts *bind.CallOpts, index uint32) ([32]byte, error)
+	String() string
+}
+
+type TxBuilderBananaBase struct {
+	rollupContract         rollupBananaBaseContractor
+	globalExitRootContract globalExitRootBananaContractor
+	opts                   bind.TransactOpts
+}
+
+func NewTxBuilderBananaBase(rollupContract rollupBananaBaseContractor,
+	gerContract globalExitRootBananaContractor,
 	opts bind.TransactOpts) *TxBuilderBananaBase {
 	return &TxBuilderBananaBase{
 		rollupContract:         rollupContract,
@@ -100,7 +107,7 @@ func (t *TxBuilderBananaBase) NewSequence(batches []seqsendertypes.Batch, coinba
 
 	sequence.L1InfoRoot = l1InfoRoot
 
-	accInputHash, err := t.rollupContract.Contract().LastAccInputHash(&bind.CallOpts{Pending: false})
+	accInputHash, err := t.rollupContract.LastAccInputHash(&bind.CallOpts{Pending: false})
 	if err != nil {
 		return nil, err
 	}
@@ -138,9 +145,9 @@ func (t *TxBuilderBananaBase) getL1InfoRoot(indexL1InfoRoot uint32) (common.Hash
 	)
 
 	if indexL1InfoRoot > 0 {
-		lastL1InfoTreeRoot, err = t.globalExitRootContract.Contract().L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
+		lastL1InfoTreeRoot, err = t.globalExitRootContract.L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
 		if err != nil {
-			log.Errorf("error calling SC globalexitroot L1InfoLeafMap: %v", err)
+			log.Errorf("error calling SC globalexitroot L1InfoLeafMap (%s) Err: %w", t.globalExitRootContract.String(), err)
 		}
 	}
 

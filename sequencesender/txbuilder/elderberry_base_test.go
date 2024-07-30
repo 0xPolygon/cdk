@@ -3,7 +3,6 @@ package txbuilder
 import (
 	"testing"
 
-	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -12,9 +11,8 @@ import (
 )
 
 func TestElderberryBaseNewSequence(t *testing.T) {
-	zkevmContract := contracts.RollupElderberryType{}
 	opts := bind.TransactOpts{}
-	sut := NewTxBuilderElderberryBase(zkevmContract, opts)
+	sut := NewTxBuilderElderberryBase(opts)
 	require.NotNil(t, sut)
 	seq, err := sut.NewSequence(nil, common.Address{})
 	require.NotNil(t, seq)
@@ -93,9 +91,8 @@ func TestElderberryBaseGetLastSequencedBatchFirstBatchIsZeroThrowAPanic(t *testi
 }
 
 func newElderberryBaseSUT(t *testing.T) *TxBuilderElderberryBase {
-	zkevmContract := contracts.RollupElderberryType{}
 	opts := bind.TransactOpts{}
-	sut := NewTxBuilderElderberryBase(zkevmContract, opts)
+	sut := NewTxBuilderElderberryBase(opts)
 	require.NotNil(t, sut)
 	return sut
 }
