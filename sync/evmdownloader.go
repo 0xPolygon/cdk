@@ -110,18 +110,25 @@ type downloaderImplementation struct {
 
 func (d *downloaderImplementation) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64) {
 	attempts := 0
+	ticker := time.NewTicker(d.waitForNewBlocksPeriod)
+	defer ticker.Stop()
 	for {
-		header, err := d.ethClient.HeaderByNumber(ctx, d.blockFinality)
-		if err != nil {
-			attempts++
-			log.Error("error geting last block num from eth client: ", err)
-			RetryHandler("waitForNewBlocks", attempts)
-			continue
+		select {
+		case <-ctx.Done():
+			log.Info("context cancelled")
+			return lastBlockSeen
+		case <-ticker.C:
+			header, err := d.ethClient.HeaderByNumber(ctx, d.blockFinality)
+			if err != nil {
+				attempts++
+				log.Error("error getting last block num from eth client: ", err)
+				RetryHandler("waitForNewBlocks", attempts)
+				continue
+			}
+			if header.Number.Uint64() > lastBlockSeen {
+				return header.Number.Uint64()
+			}
 		}
-		if header.Number.Uint64() > lastBlockSeen {
-			return header.Number.Uint64()
-		}
-		time.Sleep(d.waitForNewBlocksPeriod)
 	}
 }
 

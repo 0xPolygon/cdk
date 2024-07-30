@@ -71,10 +71,10 @@ func (a *AggOracle) Start(ctx context.Context) {
 				}
 				continue
 			}
-			if alreadyInjectd, err := a.chainSender.IsGERAlreadyInjected(gerToInject); err != nil {
+			if alreadyInjected, err := a.chainSender.IsGERAlreadyInjected(gerToInject); err != nil {
 				log.Error("error calling isGERAlreadyInjected: ", err)
 				continue
-			} else if alreadyInjectd {
+			} else if alreadyInjected {
 				log.Debugf("GER %s already injected", gerToInject.Hex())
 				continue
 			}

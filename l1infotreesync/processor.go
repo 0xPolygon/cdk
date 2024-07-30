@@ -2,7 +2,6 @@ package l1infotreesync
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 
@@ -17,10 +16,29 @@ import (
 )
 
 const (
-	rootTable      = "l1infotreesync-root"
-	indexTable     = "l1infotreesync-index"
-	infoTable      = "l1infotreesync-info"
-	blockTable     = "l1infotreesync-block"
+	// rootTable stores the L1 info tree roots
+	// Key: root (common.Hash)
+	// Value: hash of the leaf that caused the update (common.Hash)
+	rootTable = "l1infotreesync-root"
+	// indexTable stores the L1 info tree indexes
+	// Key: index (uint32 converted to bytes)
+	// Value: hash of the leaf that caused the update (common.Hash)
+	indexTable = "l1infotreesync-index"
+	// infoTable stores the information of the tree (the leaves). Note that the value
+	// of rootTable and indexTable references the key of the infoTable
+	// Key: hash of the leaf that caused the update (common.Hash)
+	// Value: JSON of storeLeaf struct
+	infoTable = "l1infotreesync-info"
+	// blockTable stores the first and last index of L1 Info Tree that have been updated on
+	// a block. This is useful in case there are blocks with multiple updates and a reorg is needed.
+	// Or for when querying by block number
+	// Key: block number (uint64 converted to bytes)
+	// Value: JSON of blockWithLeafs
+	blockTable = "l1infotreesync-block"
+	// lastBlockTable used to store the last block processed. This is needed to know the last processed blcok
+	// when it doesn't have events that make other tables get populated
+	// Key: it's always lastBlockKey
+	// Value: block number (uint64 converted to bytes)
 	lastBlockTable = "l1infotreesync-lastBlock"
 
 	treeHeight uint8 = 32
@@ -29,7 +47,7 @@ const (
 var (
 	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
 	ErrNotFound          = errors.New("not found")
-	lastBlokcKey         = []byte("lb")
+	lastBlockKey         = []byte("lb")
 )
 
 type processor struct {
@@ -130,7 +148,7 @@ func (p *processor) getAllLeavesHashed(ctx context.Context) ([][32]byte, error) 
 		return nil, err
 	}
 
-	return p.getHasedLeaves(tx, index)
+	return p.getHashedLeaves(tx, index)
 }
 
 func (p *processor) ComputeMerkleProofByIndex(ctx context.Context, index uint32) ([][32]byte, ethCommon.Hash, error) {
@@ -143,14 +161,14 @@ func (p *processor) ComputeMerkleProofByIndex(ctx context.Context, index uint32)
 	}
 	defer tx.Rollback()
 
-	leaves, err := p.getHasedLeaves(tx, index)
+	leaves, err := p.getHashedLeaves(tx, index)
 	if err != nil {
 		return nil, ethCommon.Hash{}, err
 	}
 	return p.tree.ComputeMerkleProof(index, leaves)
 }
 
-func (p *processor) getHasedLeaves(tx kv.Tx, untilIndex uint32) ([][32]byte, error) {
+func (p *processor) getHashedLeaves(tx kv.Tx, untilIndex uint32) ([][32]byte, error) {
 	leaves := [][32]byte{}
 	for i := uint32(0); i <= untilIndex; i++ {
 		info, err := p.getInfoByIndexWithTx(tx, i)
@@ -187,7 +205,7 @@ func (p *processor) GetInfoByRoot(ctx context.Context, root ethCommon.Hash) (*L1
 	return p.getInfoByHashWithTx(tx, hash)
 }
 
-// GetLatestInfoUntilBlock returns the most recent L1InfoTreeLeaf that occured before or at blockNum.
+// GetLatestInfoUntilBlock returns the most recent L1InfoTreeLeaf that occurred before or at blockNum.
 // If the blockNum has not been processed yet the error ErrBlockNotProcessed will be returned
 func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*L1InfoTreeLeaf, error) {
 	tx, err := p.db.BeginRo(ctx)
@@ -196,10 +214,13 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	}
 	defer tx.Rollback()
 	lpb, err := p.getLastProcessedBlockWithTx(tx)
+	if err != nil {
+		return nil, err
+	}
 	if lpb < blockNum {
 		return nil, ErrBlockNotProcessed
 	}
-	iter, err := tx.RangeDescend(blockTable, uint64ToBytes(blockNum), uint64ToBytes(0), 1)
+	iter, err := tx.RangeDescend(blockTable, common.Uint64ToBytes(blockNum), common.Uint64ToBytes(0), 1)
 	if err != nil {
 		return nil, err
 	}
@@ -285,13 +306,13 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 }
 
 func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
-	if blockNumBytes, err := tx.GetOne(lastBlockTable, lastBlokcKey); err != nil {
+	blockNumBytes, err := tx.GetOne(lastBlockTable, lastBlockKey)
+	if err != nil {
 		return 0, err
 	} else if blockNumBytes == nil {
 		return 0, nil
-	} else {
-		return bytes2Uint64(blockNumBytes), nil
 	}
+	return common.BytesToUint64(blockNumBytes), nil
 }
 
 func (p *processor) Reorg(firstReorgedBlock uint64) error {
@@ -305,7 +326,7 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 		return err
 	}
 	defer c.Close()
-	firstKey := uint64ToBytes(firstReorgedBlock)
+	firstKey := common.Uint64ToBytes(firstReorgedBlock)
 	for blkKey, blkValue, err := c.Seek(firstKey); blkKey != nil; blkKey, blkValue, err = c.Next() {
 		if err != nil {
 			tx.Rollback()
@@ -411,7 +432,7 @@ func (p *processor) ProcessBlock(b sync.Block) error {
 			tx.Rollback()
 			return err
 		}
-		if err := tx.Put(blockTable, uint64ToBytes(b.Num), blockValue); err != nil {
+		if err := tx.Put(blockTable, common.Uint64ToBytes(b.Num), blockValue); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -432,7 +453,7 @@ func (p *processor) getLastIndex(tx kv.Tx) (uint32, error) {
 	if bNum == 0 {
 		return 0, nil
 	}
-	iter, err := tx.RangeDescend(blockTable, uint64ToBytes(bNum), uint64ToBytes(0), 1)
+	iter, err := tx.RangeDescend(blockTable, common.Uint64ToBytes(bNum), common.Uint64ToBytes(0), 1)
 	if err != nil {
 		return 0, err
 	}
@@ -478,16 +499,6 @@ func (p *processor) addLeaf(tx kv.RwTx, leaf storeLeaf) error {
 }
 
 func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {
-	blockNumBytes := uint64ToBytes(blockNum)
-	return tx.Put(lastBlockTable, lastBlokcKey, blockNumBytes)
-}
-
-func uint64ToBytes(num uint64) []byte {
-	key := make([]byte, 8)
-	binary.LittleEndian.PutUint64(key, num)
-	return key
-}
-
-func bytes2Uint64(key []byte) uint64 {
-	return binary.LittleEndian.Uint64(key)
+	blockNumBytes := common.Uint64ToBytes(blockNum)
+	return tx.Put(lastBlockTable, lastBlockKey, blockNumBytes)
 }
