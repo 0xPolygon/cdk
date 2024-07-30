@@ -3,6 +3,7 @@ package aggoracle_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"strconv"
 	"testing"
@@ -208,6 +209,6 @@ func runTest(
 		require.NoError(t, err)
 		isInjected, err := sender.IsGERAlreadyInjected(expectedGER)
 		require.NoError(t, err)
-		require.True(t, isInjected)
+		require.True(t, isInjected, fmt.Sprintf("iteration %d, GER: %s", i, common.Bytes2Hex(expectedGER[:])))
 	}
 }
