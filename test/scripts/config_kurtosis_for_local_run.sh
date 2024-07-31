@@ -15,7 +15,7 @@ if [ $? -ne 0 ]; then
     echo "kurtosis is not installed. Please install it:"
     cat << EOF
             echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
-        sudo apt update
+        echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
         sudo apt install kurtosis-cli=0.90.1
         kurtosis version
 EOF
