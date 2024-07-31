@@ -46,9 +46,9 @@ func NewEVMDownloader(
 	if err != nil {
 		return nil, err
 	}
-	topicsToQuery := [][]common.Hash{}
+	topicsToQuery := []common.Hash{}
 	for topic := range appender {
-		topicsToQuery = append(topicsToQuery, []common.Hash{topic})
+		topicsToQuery = append(topicsToQuery, topic)
 	}
 	return &EVMDownloader{
 		syncBlockChunkSize: syncBlockChunkSize,
@@ -57,7 +57,7 @@ func NewEVMDownloader(
 			blockFinality:          finality,
 			waitForNewBlocksPeriod: waitForNewBlocksPeriod,
 			appender:               appender,
-			topicsToQuery:          topicsToQuery,
+			topicsToQuery:          [][]common.Hash{topicsToQuery},
 			adressessToQuery:       adressessToQuery,
 		},
 	}, nil
@@ -90,7 +90,7 @@ func (d *EVMDownloader) download(ctx context.Context, fromBlock uint64, download
 		}
 		if len(blocks) == 0 || blocks[len(blocks)-1].Num < toBlock {
 			// Indicate the last downloaded block if there are not events on it
-			log.Debugf("sending block %d to the driver (without evvents)", toBlock)
+			log.Debugf("sending block %d to the driver (without events)", toBlock)
 			downloadedCh <- EVMBlock{
 				EVMBlockHeader: d.getBlockHeader(ctx, toBlock),
 			}

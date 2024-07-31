@@ -3,8 +3,8 @@ package l1infotreesync
 import (
 	"fmt"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonrollupmanager"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonzkevmglobalexitrootv2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonrollupmanager"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -28,6 +28,9 @@ type EthClienter interface {
 
 func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Address) (sync.LogAppenderMap, error) {
 	ger, err := polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2(globalExitRoot, client)
+	if err != nil {
+		return nil, err
+	}
 	rm, err := polygonrollupmanager.NewPolygonrollupmanager(rollupManager, client)
 	if err != nil {
 		return nil, err
@@ -51,6 +54,24 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 	}
 	appender[verifyBatchesSignature] = func(b *sync.EVMBlock, l types.Log) error {
 		verifyBatches, err := rm.ParseVerifyBatches(l)
+		if err != nil {
+			return fmt.Errorf(
+				"error parsing log %+v using rm.ParseVerifyBatches: %v",
+				l, err,
+			)
+		}
+		fmt.Println(verifyBatches)
+		b.Events = append(b.Events, Event{VerifyBatches: &VerifyBatches{
+			RollupID:   verifyBatches.RollupID,
+			NumBatch:   verifyBatches.NumBatch,
+			StateRoot:  verifyBatches.StateRoot,
+			ExitRoot:   verifyBatches.ExitRoot,
+			Aggregator: verifyBatches.Aggregator,
+		}})
+		return nil
+	}
+	appender[verifyBatchesTrustedAggregatorSignature] = func(b *sync.EVMBlock, l types.Log) error {
+		verifyBatches, err := rm.ParseVerifyBatchesTrustedAggregator(l)
 		if err != nil {
 			return fmt.Errorf(
 				"error parsing log %+v using rm.ParseVerifyBatches: %v",

@@ -58,7 +58,7 @@ func New(
 		return nil, err
 	}
 	if lastProcessedBlock < initialBlock {
-		err = processor.ProcessBlock(sync.Block{
+		err = processor.ProcessBlock(ctx, sync.Block{
 			Num: initialBlock,
 		})
 		if err != nil {
@@ -76,7 +76,7 @@ func New(
 		blockFinalityType,
 		waitForNewBlocksPeriod,
 		appender,
-		[]common.Address{globalExitRoot},
+		[]common.Address{globalExitRoot, rollupManager},
 	)
 	if err != nil {
 		return nil, err

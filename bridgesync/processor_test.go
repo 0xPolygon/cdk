@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk/sync"
+	"github.com/0xPolygon/cdk/tree/testvectors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
@@ -391,7 +392,7 @@ func (a *reorgAction) desc() string {
 }
 
 func (a *reorgAction) execute(t *testing.T) {
-	actualErr := a.p.Reorg(a.firstReorgedBlock)
+	actualErr := a.p.Reorg(context.Background(), a.firstReorgedBlock)
 	require.Equal(t, a.expectedErr, actualErr)
 }
 
@@ -413,7 +414,7 @@ func (a *processBlockAction) desc() string {
 }
 
 func (a *processBlockAction) execute(t *testing.T) {
-	actualErr := a.p.ProcessBlock(a.block)
+	actualErr := a.p.ProcessBlock(context.Background(), a.block)
 	require.Equal(t, a.expectedErr, actualErr)
 }
 
@@ -425,23 +426,11 @@ func eventsToBridgeEvents(events []interface{}) []Event {
 	return bridgeEvents
 }
 
-// DepositVectorRaw represents the deposit vector
-type DepositVectorRaw struct {
-	OriginalNetwork    uint32 `json:"originNetwork"`
-	TokenAddress       string `json:"tokenAddress"`
-	Amount             string `json:"amount"`
-	DestinationNetwork uint32 `json:"destinationNetwork"`
-	DestinationAddress string `json:"destinationAddress"`
-	ExpectedHash       string `json:"leafValue"`
-	CurrentHash        string `json:"currentLeafValue"`
-	Metadata           string `json:"metadata"`
-}
-
 func TestHashBridge(t *testing.T) {
-	data, err := os.ReadFile("testvectors/leaf-vectors.json")
+	data, err := os.ReadFile("../tree/testvectors/leaf-vectors.json")
 	require.NoError(t, err)
 
-	var leafVectors []DepositVectorRaw
+	var leafVectors []testvectors.DepositVectorRaw
 	err = json.Unmarshal(data, &leafVectors)
 	require.NoError(t, err)
 

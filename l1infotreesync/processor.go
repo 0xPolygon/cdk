@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
 
 	"github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/l1infotree"
-	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
+	"github.com/0xPolygon/cdk/tree"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
@@ -17,30 +18,31 @@ import (
 )
 
 const (
+	dbPrefix = "l1infotreesync"
 	// rootTable stores the L1 info tree roots
 	// Key: root (common.Hash)
 	// Value: hash of the leaf that caused the update (common.Hash)
-	rootTable = "l1infotreesync-root"
+	rootTable = dbPrefix + "-root"
 	// indexTable stores the L1 info tree indexes
 	// Key: index (uint32 converted to bytes)
 	// Value: hash of the leaf that caused the update (common.Hash)
-	indexTable = "l1infotreesync-index"
+	indexTable = dbPrefix + "-index"
 	// infoTable stores the information of the tree (the leaves). Note that the value
 	// of rootTable and indexTable references the key of the infoTable
 	// Key: hash of the leaf that caused the update (common.Hash)
 	// Value: JSON of storeLeaf struct
-	infoTable = "l1infotreesync-info"
+	infoTable = dbPrefix + "-info"
 	// blockTable stores the first and last index of L1 Info Tree that have been updated on
 	// a block. This is useful in case there are blocks with multiple updates and a reorg is needed.
 	// Or for when querying by block number
 	// Key: block number (uint64 converted to bytes)
 	// Value: JSON of blockWithLeafs
-	blockTable = "l1infotreesync-block"
+	blockTable = dbPrefix + "-block"
 	// lastBlockTable used to store the last block processed. This is needed to know the last processed blcok
 	// when it doesn't have events that make other tables get populated
 	// Key: it's always lastBlockKey
 	// Value: block number (uint64 converted to bytes)
-	lastBlockTable = "l1infotreesync-lastBlock"
+	lastBlockTable = dbPrefix + "-lastBlock"
 
 	treeHeight uint8 = 32
 )
@@ -55,7 +57,7 @@ var (
 type processor struct {
 	db             kv.RwDB
 	l1InfoTree     *l1infotree.L1InfoTree
-	rollupExitTree *rollupExitTree
+	rollupExitTree *tree.UpdatableTree
 }
 
 type UpdateL1InfoTree struct {
@@ -140,12 +142,16 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 	if err != nil {
 		return nil, err
 	}
-	tree, err := l1infotree.NewL1InfoTree(treeHeight, leaves)
+	l1InfoTree, err := l1infotree.NewL1InfoTree(treeHeight, leaves)
 	if err != nil {
 		return nil, err
 	}
-	p.l1InfoTree = tree
-	rollupExitTree := newRollupExitTree()
+	p.l1InfoTree = l1InfoTree
+	rollupExitTreeDBPath := path.Join(dbPath, "rollupExitTree")
+	rollupExitTree, err := tree.NewUpdatable(ctx, rollupExitTreeDBPath, dbPrefix)
+	if err != nil {
+		return nil, err
+	}
 	p.rollupExitTree = rollupExitTree
 	return p, nil
 }
@@ -338,9 +344,9 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	return common.BytesToUint64(blockNumBytes), nil
 }
 
-func (p *processor) Reorg(firstReorgedBlock uint64) error {
+func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	// TODO: Does tree need to be reorged?
-	tx, err := p.db.BeginRw(context.Background())
+	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
 		return err
 	}
@@ -415,8 +421,8 @@ func (p *processor) deleteLeaf(tx kv.RwTx, index uint32) error {
 
 // ProcessBlock process the leafs of the L1 info tree found on a block
 // this function can be called without leafs with the intention to track the last processed block
-func (p *processor) ProcessBlock(b sync.Block) error {
-	tx, err := p.db.BeginRw(context.Background())
+func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
+	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
 		return err
 	}
@@ -455,8 +461,9 @@ func (p *processor) ProcessBlock(b sync.Block) error {
 				// Since the previous event include the rollup exit root, this can use it to assert
 				// that the computation of the tree is correct. However, there are some execution paths
 				// on the contract that don't follow this (verifyBatches + pendingStateTimeout != 0)
-				if err := p.rollupExitTree.addLeaf(
-					tx, event.VerifyBatches.RollupID,
+				if err := p.rollupExitTree.UpsertLeaf(
+					ctx,
+					event.VerifyBatches.RollupID,
 					event.VerifyBatches.ExitRoot,
 					nextExpectedRollupExitTreeRoot,
 				); err != nil {
@@ -484,7 +491,6 @@ func (p *processor) ProcessBlock(b sync.Block) error {
 		tx.Rollback()
 		return err
 	}
-	log.Debugf("block %d processed with events: %+v", b.Num, b.Events)
 	return tx.Commit()
 }
 

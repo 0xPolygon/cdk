@@ -5,11 +5,12 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"log"
 	"math/big"
+	"path"
 
 	dbCommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/sync"
+	"github.com/0xPolygon/cdk/tree"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -19,8 +20,6 @@ import (
 const (
 	eventsTableSufix    = "-events"
 	lastBlockTableSufix = "-lastBlock"
-	rootTableSufix      = "-root"
-	rhtTableSufix       = "-rht"
 )
 
 var (
@@ -84,30 +83,26 @@ type processor struct {
 	db             kv.RwDB
 	eventsTable    string
 	lastBlockTable string
-	tree           *tree
+	exitTree       *tree.AppendOnlyTree
 }
 
 func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, error) {
 	eventsTable := dbPrefix + eventsTableSufix
 	lastBlockTable := dbPrefix + lastBlockTableSufix
-	rootTable := dbPrefix + rootTableSufix
-	rhtTable := dbPrefix + rhtTableSufix
 	db, err := mdbx.NewMDBX(nil).
 		Path(dbPath).
 		WithTableCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
 			return kv.TableCfg{
 				eventsTable:    {},
 				lastBlockTable: {},
-				rootTable:      {},
-				rhtTable:       {},
 			}
 		}).
 		Open()
 	if err != nil {
 		return nil, err
 	}
-
-	tree, err := newTree(ctx, rhtTable, rootTable, db)
+	exitTreeDBPath := path.Join(dbPath, "exittree")
+	exitTree, err := tree.NewAppendOnly(ctx, exitTreeDBPath, dbPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +110,7 @@ func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, err
 		db:             db,
 		eventsTable:    eventsTable,
 		lastBlockTable: lastBlockTable,
-		tree:           tree,
+		exitTree:       exitTree,
 	}, nil
 }
 
@@ -181,8 +176,8 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	}
 }
 
-func (p *processor) Reorg(firstReorgedBlock uint64) error {
-	tx, err := p.db.BeginRw(context.Background())
+func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
+	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
 		return err
 	}
@@ -221,13 +216,7 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 		return err
 	}
 	if firstDepositCountReorged != -1 {
-		var lastValidDepositCount uint32
-		if firstDepositCountReorged == 0 {
-			lastValidDepositCount = 0
-		} else {
-			lastValidDepositCount = uint32(firstDepositCountReorged) - 1
-		}
-		if err := p.tree.reorg(tx, lastValidDepositCount); err != nil {
+		if err := p.exitTree.Reorg(ctx, uint32(firstDepositCountReorged)); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -235,8 +224,7 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 	return tx.Commit()
 }
 
-func (p *processor) ProcessBlock(block sync.Block) error {
-	ctx := context.Background()
+func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
 		return err
@@ -267,19 +255,16 @@ func (p *processor) ProcessBlock(block sync.Block) error {
 		return err
 	}
 
-	for i, bridge := range bridges {
-		if err := p.tree.addLeaf(tx, bridge.DepositCount, bridge.Hash()); err != nil {
-			if i != 0 {
-				tx.Rollback()
-				if err2 := p.tree.initLastLeftCacheAndLastDepositCount(ctx); err2 != nil {
-					log.Fatalf(
-						"after failing to add a leaf to the tree with error: %v, error initializing the cache with error: %v",
-						err, err2,
-					)
-				}
-				return err
-			}
-		}
+	leaves := []tree.Leaf{}
+	for _, bridge := range bridges {
+		leaves = append(leaves, tree.Leaf{
+			Index: bridge.DepositCount,
+			Hash:  bridge.Hash(),
+		})
+	}
+	if err := p.exitTree.AddLeaves(ctx, leaves); err != nil {
+		tx.Rollback()
+		return err
 	}
 	return tx.Commit()
 }
