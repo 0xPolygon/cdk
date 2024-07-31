@@ -16,7 +16,7 @@ import (
 
 func TestConditionalMaxSizeDisabled(t *testing.T) {
 	mockTxBuilder := mocks_txbuilder.NewTxBuilder(t)
-	sut := txbuilder.NewConditionalNewSequenceMaxSize(0)
+	sut := txbuilder.NewConditionalNewSequenceMaxSize(txbuilder.MaxTxSizeForL1Disabled)
 
 	tx, err := sut.NewSequenceIfWorthToSend(nil, mockTxBuilder, nil, common.Address{})
 	require.NoError(t, err)

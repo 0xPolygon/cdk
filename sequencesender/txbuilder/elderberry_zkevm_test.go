@@ -10,12 +10,10 @@ import (
 	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
-	"github.com/0xPolygon/cdk/sequencesender/txbuilder/mocks_txbuilder"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -94,13 +92,9 @@ func TestElderberryZkevmBuildSequenceBatchesTxSequence1BatchError(t *testing.T) 
 
 func TestElderberryZkevmNewSequenceIfWorthToSend(t *testing.T) {
 	sut := newElderberryZkevmSUT(t)
-	mockCond := mocks_txbuilder.NewCondNewSequence(t)
-	sut.SetCondNewSeq(mockCond)
-	// Returns that is not work to be send
-	mockCond.EXPECT().NewSequenceIfWorthToSend(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	seq, err := sut.NewSequenceIfWorthToSend(context.TODO(), nil, common.Address{}, 0)
-	require.NoError(t, err)
-	require.Nil(t, seq)
+	testSequenceIfWorthToSendNoNewSeq(t, sut)
+	testSequenceIfWorthToSendErr(t, sut)
+	testSetCondNewSeq(t, sut)
 }
 
 func newElderberryZkevmSUT(t *testing.T) *txbuilder.TxBuilderElderberryZKEVM {

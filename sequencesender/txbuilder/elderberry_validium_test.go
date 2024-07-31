@@ -85,6 +85,13 @@ func TestElderberryValidiumBuildSequenceBatchesTxSequenceDAOk(t *testing.T) {
 	require.NotNil(t, tx)
 }
 
+func TestElderberryValidiumNewSequenceIfWorthToSend(t *testing.T) {
+	testData := newElderberryValidiumSUT(t)
+	testSequenceIfWorthToSendNoNewSeq(t, testData.sut)
+	testSequenceIfWorthToSendErr(t, testData.sut)
+	testSetCondNewSeq(t, testData.sut)
+}
+
 type testDataElderberryValidium struct {
 	mockDA *mocks_da.SequenceSenderElderberry
 	sut    *txbuilder.TxBuilderElderberryValidium

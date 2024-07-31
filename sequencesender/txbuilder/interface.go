@@ -14,6 +14,8 @@ type TxBuilder interface {
 	NewSequence(batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error)
 	NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error)
 	NewBatchFromL2Block(l2Block *datastream.L2Block) seqsendertypes.Batch
+	//SetCondNewSeq  Allows to override the condition to send a new sequence, returns previous one
+	SetCondNewSeq(cond CondNewSequence) CondNewSequence
 	String() string
 }
 

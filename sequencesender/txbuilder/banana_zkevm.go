@@ -41,6 +41,13 @@ func (t *TxBuilderBananaZKEVM) NewSequenceIfWorthToSend(ctx context.Context, seq
 	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, l2Coinbase)
 }
 
+// SetCondNewSeq allow to override the default conditional for new sequence
+func (t *TxBuilderBananaZKEVM) SetCondNewSeq(cond CondNewSequence) CondNewSequence {
+	previous := t.condNewSeq
+	t.condNewSeq = cond
+	return previous
+}
+
 func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
 	var err error
 	ethseq, err := convertToSequenceBanana(sequences)

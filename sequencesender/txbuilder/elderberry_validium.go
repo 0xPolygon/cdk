@@ -44,6 +44,13 @@ func (t *TxBuilderElderberryValidium) NewSequenceIfWorthToSend(ctx context.Conte
 	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, l2Coinbase)
 }
 
+// SetCondNewSeq allow to override the default conditional for new sequence
+func (t *TxBuilderElderberryValidium) SetCondNewSeq(cond CondNewSequence) CondNewSequence {
+	previous := t.condNewSeq
+	t.condNewSeq = cond
+	return previous
+}
+
 func (t *TxBuilderElderberryValidium) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
 	if sequences == nil || sequences.Len() == 0 {
 		return nil, fmt.Errorf("can't sequence an empty sequence")

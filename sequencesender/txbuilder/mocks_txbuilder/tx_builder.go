@@ -13,6 +13,8 @@ import (
 
 	seqsendertypes "github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 
+	txbuilder "github.com/0xPolygon/cdk/sequencesender/txbuilder"
+
 	types "github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -252,6 +254,54 @@ func (_c *TxBuilder_NewSequenceIfWorthToSend_Call) Return(_a0 seqsendertypes.Seq
 }
 
 func (_c *TxBuilder_NewSequenceIfWorthToSend_Call) RunAndReturn(run func(context.Context, []seqsendertypes.Batch, common.Address, uint64) (seqsendertypes.Sequence, error)) *TxBuilder_NewSequenceIfWorthToSend_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetCondNewSeq provides a mock function with given fields: cond
+func (_m *TxBuilder) SetCondNewSeq(cond txbuilder.CondNewSequence) txbuilder.CondNewSequence {
+	ret := _m.Called(cond)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetCondNewSeq")
+	}
+
+	var r0 txbuilder.CondNewSequence
+	if rf, ok := ret.Get(0).(func(txbuilder.CondNewSequence) txbuilder.CondNewSequence); ok {
+		r0 = rf(cond)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(txbuilder.CondNewSequence)
+		}
+	}
+
+	return r0
+}
+
+// TxBuilder_SetCondNewSeq_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetCondNewSeq'
+type TxBuilder_SetCondNewSeq_Call struct {
+	*mock.Call
+}
+
+// SetCondNewSeq is a helper method to define mock.On call
+//   - cond txbuilder.CondNewSequence
+func (_e *TxBuilder_Expecter) SetCondNewSeq(cond interface{}) *TxBuilder_SetCondNewSeq_Call {
+	return &TxBuilder_SetCondNewSeq_Call{Call: _e.mock.On("SetCondNewSeq", cond)}
+}
+
+func (_c *TxBuilder_SetCondNewSeq_Call) Run(run func(cond txbuilder.CondNewSequence)) *TxBuilder_SetCondNewSeq_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(txbuilder.CondNewSequence))
+	})
+	return _c
+}
+
+func (_c *TxBuilder_SetCondNewSeq_Call) Return(_a0 txbuilder.CondNewSequence) *TxBuilder_SetCondNewSeq_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *TxBuilder_SetCondNewSeq_Call) RunAndReturn(run func(txbuilder.CondNewSequence) txbuilder.CondNewSequence) *TxBuilder_SetCondNewSeq_Call {
 	_c.Call.Return(run)
 	return _c
 }

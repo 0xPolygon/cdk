@@ -13,7 +13,8 @@ import (
 
 var (
 	// ErrOversizedData when transaction input data is greater than a limit (DOS protection)
-	ErrOversizedData = errors.New("oversized data")
+	ErrOversizedData       = errors.New("oversized data")
+	MaxTxSizeForL1Disabled = uint64(0)
 )
 
 type ConditionalNewSequenceMaxSize struct {
@@ -27,8 +28,8 @@ func NewConditionalNewSequenceMaxSize(maxTxSizeForL1 uint64) *ConditionalNewSequ
 }
 
 func (c *ConditionalNewSequenceMaxSize) NewSequenceIfWorthToSend(ctx context.Context, txBuilder TxBuilder, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address) (seqsendertypes.Sequence, error) {
-	if c.maxTxSizeForL1 == 0 {
-		log.Debug("maxTxSizeForL1 is 0, so is disabled")
+	if c.maxTxSizeForL1 == MaxTxSizeForL1Disabled {
+		log.Debugf("maxTxSizeForL1 is %d, so is disabled", MaxTxSizeForL1Disabled)
 		return nil, nil
 	}
 	sequence, err := txBuilder.NewSequence(sequenceBatches, l2Coinbase)
