@@ -37,13 +37,13 @@ func (_m *ProcessorMock) GetLastProcessedBlock(ctx context.Context) (uint64, err
 	return r0, r1
 }
 
-// ProcessBlock provides a mock function with given fields: block
-func (_m *ProcessorMock) ProcessBlock(block Block) error {
-	ret := _m.Called(block)
+// ProcessBlock provides a mock function with given fields: ctx, block
+func (_m *ProcessorMock) ProcessBlock(ctx context.Context, block Block) error {
+	ret := _m.Called(ctx, block)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(Block) error); ok {
-		r0 = rf(block)
+	if rf, ok := ret.Get(0).(func(context.Context, Block) error); ok {
+		r0 = rf(ctx, block)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -51,13 +51,13 @@ func (_m *ProcessorMock) ProcessBlock(block Block) error {
 	return r0
 }
 
-// Reorg provides a mock function with given fields: firstReorgedBlock
-func (_m *ProcessorMock) Reorg(firstReorgedBlock uint64) error {
-	ret := _m.Called(firstReorgedBlock)
+// Reorg provides a mock function with given fields: ctx, firstReorgedBlock
+func (_m *ProcessorMock) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
+	ret := _m.Called(ctx, firstReorgedBlock)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(uint64) error); ok {
-		r0 = rf(firstReorgedBlock)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) error); ok {
+		r0 = rf(ctx, firstReorgedBlock)
 	} else {
 		r0 = ret.Error(0)
 	}

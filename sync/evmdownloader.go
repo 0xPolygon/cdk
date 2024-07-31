@@ -46,9 +46,9 @@ func NewEVMDownloader(
 	if err != nil {
 		return nil, err
 	}
-	topicsToQuery := [][]common.Hash{}
+	topicsToQuery := []common.Hash{}
 	for topic := range appender {
-		topicsToQuery = append(topicsToQuery, []common.Hash{topic})
+		topicsToQuery = append(topicsToQuery, topic)
 	}
 	return &EVMDownloader{
 		syncBlockChunkSize: syncBlockChunkSize,
@@ -57,7 +57,7 @@ func NewEVMDownloader(
 			blockFinality:          finality,
 			waitForNewBlocksPeriod: waitForNewBlocksPeriod,
 			appender:               appender,
-			topicsToQuery:          topicsToQuery,
+			topicsToQuery:          [][]common.Hash{topicsToQuery},
 			adressessToQuery:       adressessToQuery,
 		},
 	}, nil
@@ -90,7 +90,7 @@ func (d *EVMDownloader) download(ctx context.Context, fromBlock uint64, download
 		}
 		if len(blocks) == 0 || blocks[len(blocks)-1].Num < toBlock {
 			// Indicate the last downloaded block if there are not events on it
-			log.Debugf("sending block %d to the driver (without evvents)", toBlock)
+			log.Debugf("sending block %d to the driver (without events)", toBlock)
 			downloadedCh <- EVMBlock{
 				EVMBlockHeader: d.getBlockHeader(ctx, toBlock),
 			}
@@ -110,18 +110,25 @@ type downloaderImplementation struct {
 
 func (d *downloaderImplementation) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64) {
 	attempts := 0
+	ticker := time.NewTicker(d.waitForNewBlocksPeriod)
+	defer ticker.Stop()
 	for {
-		header, err := d.ethClient.HeaderByNumber(ctx, d.blockFinality)
-		if err != nil {
-			attempts++
-			log.Error("error geting last block num from eth client: ", err)
-			RetryHandler("waitForNewBlocks", attempts)
-			continue
+		select {
+		case <-ctx.Done():
+			log.Info("context cancelled")
+			return lastBlockSeen
+		case <-ticker.C:
+			header, err := d.ethClient.HeaderByNumber(ctx, d.blockFinality)
+			if err != nil {
+				attempts++
+				log.Error("error getting last block num from eth client: ", err)
+				RetryHandler("waitForNewBlocks", attempts)
+				continue
+			}
+			if header.Number.Uint64() > lastBlockSeen {
+				return header.Number.Uint64()
+			}
 		}
-		if header.Number.Uint64() > lastBlockSeen {
-			return header.Number.Uint64()
-		}
-		time.Sleep(d.waitForNewBlocksPeriod)
 	}
 }
 

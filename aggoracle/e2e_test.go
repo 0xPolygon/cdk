@@ -3,6 +3,7 @@ package aggoracle_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"strconv"
 	"testing"
@@ -59,7 +60,7 @@ func commonSetup(t *testing.T) (
 	require.NoError(t, err)
 	// Syncer
 	dbPathSyncer := t.TempDir()
-	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, 10, etherman.LatestBlock, reorg, l1Client.Client(), time.Millisecond, 0)
+	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, common.Address{}, 10, etherman.LatestBlock, reorg, l1Client.Client(), time.Millisecond, 0)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
@@ -208,6 +209,6 @@ func runTest(
 		require.NoError(t, err)
 		isInjected, err := sender.IsGERAlreadyInjected(expectedGER)
 		require.NoError(t, err)
-		require.True(t, isInjected)
+		require.True(t, isInjected, fmt.Sprintf("iteration %d, GER: %s", i, common.Bytes2Hex(expectedGER[:])))
 	}
 }

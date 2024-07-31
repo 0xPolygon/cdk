@@ -95,7 +95,7 @@ func new(
 		return nil, err
 	}
 	if lastProcessedBlock < initialBlock {
-		err = processor.ProcessBlock(sync.Block{
+		err = processor.ProcessBlock(ctx, sync.Block{
 			Num: initialBlock,
 		})
 		if err != nil {
