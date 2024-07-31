@@ -86,7 +86,7 @@ test:
 
 .PHONY: test-seq_sender
 test-seq_sender:
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -covermode=atomic -coverprofile=../coverage.out  -coverpkg ./sequencesender/... -timeout 200s ./sequencesender/...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1  -covermode=atomic -coverprofile=../coverage.out   -timeout 200s ./sequencesender/...
 	
 
 .PHONY: install-linter

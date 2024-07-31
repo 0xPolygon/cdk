@@ -17,18 +17,20 @@ type DABackender interface {
 
 // SequenceSender is used to send provided sequence of batches
 type SequenceSender interface {
-	// PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
-	// as expected by the contract
-	PostSequence(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error)
-	// PostSequenceElderberry sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
-	// as expected by the contract
-	PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error)
+	SequenceSenderElderberry
+	SequenceSenderBanana
 }
 
 type SequenceSenderElderberry interface {
 	// PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
 	// as expected by the contract
 	PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error)
+}
+
+type SequenceSenderBanana interface {
+	// PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
+	// as expected by the contract
+	PostSequence(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error)
 }
 
 // SequenceRetriever is used to retrieve batch data

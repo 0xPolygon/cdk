@@ -2,12 +2,12 @@ package txbuilder
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/etherman"
-	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -19,7 +19,7 @@ import (
 
 type TxBuilderBananaValidium struct {
 	TxBuilderBananaBase
-	da             dataavailability.SequenceSender
+	da             dataavailability.SequenceSenderBanana
 	condNewSeq     CondNewSequence
 	rollupContract rollupBananaValidiumContractor
 }
@@ -30,8 +30,8 @@ type rollupBananaValidiumContractor interface {
 }
 
 func NewTxBuilderBananaValidium(rollupContract rollupBananaValidiumContractor,
-	gerContract contracts.GlobalExitRootBananaType,
-	da dataavailability.SequenceSender, opts bind.TransactOpts, maxBatchesForL1 uint64) *TxBuilderBananaValidium {
+	gerContract globalExitRootBananaContractor,
+	da dataavailability.SequenceSenderBanana, opts bind.TransactOpts, maxBatchesForL1 uint64) *TxBuilderBananaValidium {
 	return &TxBuilderBananaValidium{
 		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts),
 		da:                  da,
@@ -65,6 +65,11 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, se
 	dataAvailabilityMessage, err = t.da.PostSequence(ctx, ethseq)
 	if err != nil {
 		log.Error("error posting sequences to the data availability protocol: ", err)
+		return nil, err
+	}
+	if dataAvailabilityMessage == nil {
+		err := fmt.Errorf("data availability message is nil")
+		log.Error("error posting sequences to the data availability protocol: ", err.Error())
 		return nil, err
 	}
 

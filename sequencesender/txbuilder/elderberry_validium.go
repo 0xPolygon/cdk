@@ -62,7 +62,9 @@ func (t *TxBuilderElderberryValidium) BuildSequenceBatchesTx(ctx context.Context
 		return nil, err
 	}
 	if dataAvailabilityMessage == nil {
-		return nil, fmt.Errorf("data availability message is nil")
+		err := fmt.Errorf("data availability message is nil")
+		log.Error("error posting sequences to the data availability protocol: ", err.Error())
+		return nil, err
 	}
 	newopts := t.opts
 	newopts.NoSend = true
