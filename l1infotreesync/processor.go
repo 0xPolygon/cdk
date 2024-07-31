@@ -31,17 +31,9 @@ const (
 	// of rootTable and indexTable references the key of the infoTable
 	// Key: hash of the leaf that caused the update (common.Hash)
 	// Value: JSON of storeLeaf struct
-	infoTable = dbPrefix + "-info"
 	// blockTable stores the first and last index of L1 Info Tree that have been updated on
-	// a block. This is useful in case there are blocks with multiple updates and a reorg is needed.
-	// Or for when querying by block number
-	// Key: block number (uint64 converted to bytes)
 	// Value: JSON of blockWithLeafs
-	blockTable = dbPrefix + "-block"
 	// lastBlockTable used to store the last block processed. This is needed to know the last processed blcok
-	// when it doesn't have events that make other tables get populated
-	// Key: it's always lastBlockKey
-	// Value: block number (uint64 converted to bytes)
 	lastBlockTable = dbPrefix + "-lastBlock"
 
 	treeHeight uint8 = 32
