@@ -23,6 +23,7 @@ var (
 type Config struct {
 	DBPath             string         `mapstructure:"DBPath"`
 	GlobalExitRootAddr common.Address `mapstructure:"GlobalExitRootAddr"`
+	RollupManagerAddr  common.Address `mapstructure:"RollupManagerAddr"`
 	SyncBlockChunkSize uint64         `mapstructure:"SyncBlockChunkSize"`
 	// TODO: BlockFinality doesnt work as per the jsonschema
 	BlockFinality          string         `jsonschema:"enum=latest,enum=safe, enum=pending, enum=finalized" mapstructure:"BlockFinality"`
@@ -39,7 +40,7 @@ type L1InfoTreeSync struct {
 func New(
 	ctx context.Context,
 	dbPath string,
-	globalExitRoot common.Address,
+	globalExitRoot, rollupManager common.Address,
 	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
 	rd sync.ReorgDetector,
@@ -65,7 +66,7 @@ func New(
 		}
 	}
 
-	appender, err := buildAppender(l1Client, globalExitRoot)
+	appender, err := buildAppender(l1Client, globalExitRoot, rollupManager)
 	if err != nil {
 		return nil, err
 	}

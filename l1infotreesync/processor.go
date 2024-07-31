@@ -53,15 +53,29 @@ var (
 )
 
 type processor struct {
-	db   kv.RwDB
-	tree *l1infotree.L1InfoTree
+	db             kv.RwDB
+	l1InfoTree     *l1infotree.L1InfoTree
+	rollupExitTree *rollupExitTree
 }
 
-type Event struct {
+type UpdateL1InfoTree struct {
 	MainnetExitRoot ethCommon.Hash
 	RollupExitRoot  ethCommon.Hash
 	ParentHash      ethCommon.Hash
 	Timestamp       uint64
+}
+
+type VerifyBatches struct {
+	RollupID   uint32
+	NumBatch   uint64
+	StateRoot  ethCommon.Hash
+	ExitRoot   ethCommon.Hash
+	Aggregator ethCommon.Address
+}
+
+type Event struct {
+	UpdateL1InfoTree *UpdateL1InfoTree
+	VerifyBatches    *VerifyBatches
 }
 
 type L1InfoTreeLeaf struct {
@@ -130,7 +144,9 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.tree = tree
+	p.l1InfoTree = tree
+	rollupExitTree := newRollupExitTree()
+	p.rollupExitTree = rollupExitTree
 	return p, nil
 }
 
@@ -167,7 +183,7 @@ func (p *processor) ComputeMerkleProofByIndex(ctx context.Context, index uint32)
 	if err != nil {
 		return nil, ethCommon.Hash{}, err
 	}
-	return p.tree.ComputeMerkleProof(index, leaves)
+	return p.l1InfoTree.ComputeMerkleProof(index, leaves)
 }
 
 func (p *processor) getHashedLeaves(tx kv.Tx, untilIndex uint32) ([][32]byte, error) {
@@ -415,19 +431,39 @@ func (p *processor) ProcessBlock(b sync.Block) error {
 		} else {
 			initialIndex = lastIndex + 1
 		}
+		var nextExpectedRollupExitTreeRoot *ethCommon.Hash
 		for i, e := range b.Events {
 			event := e.(Event)
-			leafToStore := storeLeaf{
-				Index:           initialIndex + uint32(i),
-				MainnetExitRoot: event.MainnetExitRoot,
-				RollupExitRoot:  event.RollupExitRoot,
-				ParentHash:      event.ParentHash,
-				Timestamp:       event.Timestamp,
-				BlockNumber:     b.Num,
+			if event.UpdateL1InfoTree != nil {
+				leafToStore := storeLeaf{
+					Index:           initialIndex + uint32(i),
+					MainnetExitRoot: event.UpdateL1InfoTree.MainnetExitRoot,
+					RollupExitRoot:  event.UpdateL1InfoTree.RollupExitRoot,
+					ParentHash:      event.UpdateL1InfoTree.ParentHash,
+					Timestamp:       event.UpdateL1InfoTree.Timestamp,
+					BlockNumber:     b.Num,
+				}
+				if err := p.addLeaf(tx, leafToStore); err != nil {
+					tx.Rollback()
+					return err
+				}
+				nextExpectedRollupExitTreeRoot = &leafToStore.RollupExitRoot
 			}
-			if err := p.addLeaf(tx, leafToStore); err != nil {
-				tx.Rollback()
-				return err
+
+			if event.VerifyBatches != nil {
+				// before the verify batches event happens, the updateExitRoot event is emitted.
+				// Since the previous event include the rollup exit root, this can use it to assert
+				// that the computation of the tree is correct. However, there are some execution paths
+				// on the contract that don't follow this (verifyBatches + pendingStateTimeout != 0)
+				if err := p.rollupExitTree.addLeaf(
+					tx, event.VerifyBatches.RollupID,
+					event.VerifyBatches.ExitRoot,
+					nextExpectedRollupExitTreeRoot,
+				); err != nil {
+					tx.Rollback()
+					return err
+				}
+				nextExpectedRollupExitTreeRoot = nil
 			}
 		}
 		bwl := blockWithLeafs{
@@ -481,7 +517,7 @@ func (p *processor) getLastIndex(tx kv.Tx) (uint32, error) {
 func (p *processor) addLeaf(tx kv.RwTx, leaf storeLeaf) error {
 	// Update tree
 	hash := l1infotree.HashLeafData(leaf.GlobalExitRoot(), leaf.ParentHash, leaf.Timestamp)
-	root, err := p.tree.AddLeaf(leaf.Index, hash)
+	root, err := p.l1InfoTree.AddLeaf(leaf.Index, hash)
 	if err != nil {
 		return err
 	}
