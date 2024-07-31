@@ -60,7 +60,7 @@ export l1_chain_id=$(cat $DEST/config.toml  |grep  L1ChainID  |  cut -f 2 -d '='
 export zkevm_is_validium=$(cat $DEST/config.toml  |grep  IsValidiumMode  |  cut -f 2 -d '=')
 
 if [ "$zkevm_is_validium" == "true" ]; then
-    echo "Validium mode detected... lokking for dac_port"
+    echo "Validium mode detected... Retrieving the dac_port"
     dac_port=$(kurtosis port print $ENCLAVE zkevm-dac-001 dac | cut -f 3 -d ":")
     [ $? -ne 0 ] && echo "Error getting dac_port" && exit 1 || export dac_port  && echo "dac_port=$dac_port"
 fi
