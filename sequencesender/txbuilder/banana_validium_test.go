@@ -30,12 +30,12 @@ func TestBananaValidiumBuildSequenceBatchesTxSequenceErrorsFromDA(t *testing.T) 
 	seq, err := newSequenceBananaValidiumForTest(testData)
 	require.NoError(t, err)
 	ctx := context.TODO()
-	testData.da.EXPECT().PostSequence(ctx, mock.Anything).Return(nil, nil).Once()
+	testData.da.EXPECT().PostSequenceBanana(ctx, mock.Anything).Return(nil, nil).Once()
 
 	_, err = testData.sut.BuildSequenceBatchesTx(ctx, seq)
 	require.Error(t, err, "data availability message is nil")
 
-	testData.da.EXPECT().PostSequence(ctx, mock.Anything).Return(nil, fmt.Errorf("test error"))
+	testData.da.EXPECT().PostSequenceBanana(ctx, mock.Anything).Return(nil, fmt.Errorf("test error"))
 	_, err = testData.sut.BuildSequenceBatchesTx(ctx, seq)
 	require.Error(t, err, "error posting sequences to the data availability protocol: test error")
 
@@ -47,7 +47,7 @@ func TestBananaValidiumBuildSequenceBatchesTxSequenceDAOk(t *testing.T) {
 	require.NoError(t, err)
 	ctx := context.TODO()
 	daMessage := []byte{1}
-	testData.da.EXPECT().PostSequence(ctx, mock.Anything).Return(daMessage, nil)
+	testData.da.EXPECT().PostSequenceBanana(ctx, mock.Anything).Return(daMessage, nil)
 	inner := &ethtypes.LegacyTx{}
 	seqBatchesTx := ethtypes.NewTx(inner)
 	testData.rollupContract.EXPECT().SequenceBatchesValidium(mock.MatchedBy(func(opts *bind.TransactOpts) bool {

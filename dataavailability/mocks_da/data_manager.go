@@ -85,12 +85,12 @@ func (_c *DataManager_GetBatchL2Data_Call) RunAndReturn(run func([]uint64, []com
 	return _c
 }
 
-// PostSequence provides a mock function with given fields: ctx, sequence
-func (_m *DataManager) PostSequence(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
+// PostSequenceBanana provides a mock function with given fields: ctx, sequence
+func (_m *DataManager) PostSequenceBanana(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
 	ret := _m.Called(ctx, sequence)
 
 	if len(ret) == 0 {
-		panic("no return value specified for PostSequence")
+		panic("no return value specified for PostSequenceBanana")
 	}
 
 	var r0 []byte
@@ -115,31 +115,31 @@ func (_m *DataManager) PostSequence(ctx context.Context, sequence etherman.Seque
 	return r0, r1
 }
 
-// DataManager_PostSequence_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PostSequence'
-type DataManager_PostSequence_Call struct {
+// DataManager_PostSequenceBanana_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PostSequenceBanana'
+type DataManager_PostSequenceBanana_Call struct {
 	*mock.Call
 }
 
-// PostSequence is a helper method to define mock.On call
+// PostSequenceBanana is a helper method to define mock.On call
 //   - ctx context.Context
 //   - sequence etherman.SequenceBanana
-func (_e *DataManager_Expecter) PostSequence(ctx interface{}, sequence interface{}) *DataManager_PostSequence_Call {
-	return &DataManager_PostSequence_Call{Call: _e.mock.On("PostSequence", ctx, sequence)}
+func (_e *DataManager_Expecter) PostSequenceBanana(ctx interface{}, sequence interface{}) *DataManager_PostSequenceBanana_Call {
+	return &DataManager_PostSequenceBanana_Call{Call: _e.mock.On("PostSequenceBanana", ctx, sequence)}
 }
 
-func (_c *DataManager_PostSequence_Call) Run(run func(ctx context.Context, sequence etherman.SequenceBanana)) *DataManager_PostSequence_Call {
+func (_c *DataManager_PostSequenceBanana_Call) Run(run func(ctx context.Context, sequence etherman.SequenceBanana)) *DataManager_PostSequenceBanana_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(etherman.SequenceBanana))
 	})
 	return _c
 }
 
-func (_c *DataManager_PostSequence_Call) Return(_a0 []byte, _a1 error) *DataManager_PostSequence_Call {
+func (_c *DataManager_PostSequenceBanana_Call) Return(_a0 []byte, _a1 error) *DataManager_PostSequenceBanana_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *DataManager_PostSequence_Call) RunAndReturn(run func(context.Context, etherman.SequenceBanana) ([]byte, error)) *DataManager_PostSequence_Call {
+func (_c *DataManager_PostSequenceBanana_Call) RunAndReturn(run func(context.Context, etherman.SequenceBanana) ([]byte, error)) *DataManager_PostSequenceBanana_Call {
 	_c.Call.Return(run)
 	return _c
 }

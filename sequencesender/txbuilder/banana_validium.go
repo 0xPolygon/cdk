@@ -62,7 +62,7 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, se
 		return nil, err
 	}
 
-	dataAvailabilityMessage, err = t.da.PostSequence(ctx, ethseq)
+	dataAvailabilityMessage, err = t.da.PostSequenceBanana(ctx, ethseq)
 	if err != nil {
 		log.Error("error posting sequences to the data availability protocol: ", err)
 		return nil, err
