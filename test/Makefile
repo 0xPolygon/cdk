@@ -1,5 +1,5 @@
 .PHONY: generate-mocks
-generate-mocks: generate-mocks-localbridgesync generate-mocks-reorgdetector generate-mocks-sequencesender generate-mocks-da
+generate-mocks: generate-mocks-localbridgesync generate-mocks-reorgdetector generate-mocks-sequencesender generate-mocks-da generate-mocks-l1infotreesync generate-mocks-aggoracle generate-mocks-sync
 
 
 .PHONY: generate-mocks-localbridgesync
@@ -48,3 +48,17 @@ help: ## Prints this help
 		@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| sort \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+.PHONY: generate-mocks-l1infotreesync
+generate-mocks-l1infotreesync: ## Generates mocks for l1infotreesync , using mockery tool
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../l1infotreesync --outpkg=l1infotreesync --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
+
+.PHONY: generate-mocks-aggoracle
+generate-mocks-aggoracle: ## Generates mocks for aggoracle , using mockery tool
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager --dir=../aggoracle/chaingersender --output=../aggoracle --outpkg=aggoracle --structname=EthTxManagerMock --filename=mock_ethtxmanager_test.go
+
+.PHONY: generate-mocks-sync
+generate-mocks-sync: ## Generates mocks for sync, using mockery tool
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthClienter --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=L2Mock --filename=mock_l2_test.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=evmDownloaderFull --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=EVMDownloaderMock --filename=mock_downloader_test.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=processorInterface --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=ProcessorMock --filename=mock_processor_test.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go

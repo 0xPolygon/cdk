@@ -10,18 +10,40 @@ source $(dirname $0)/env.sh
 ###############################################################################
 set -o pipefail # enable strict command pipe error detection
 
+which kurtosis > /dev/null
+if [ $? -ne 0 ]; then
+    echo "kurtosis is not installed. Please install it:"
+    cat << EOF
+            echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
+        echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
+        sudo apt install kurtosis-cli=0.90.1
+        kurtosis version
+EOF
+        exit 1
+    
+fi
+
 if [ -z $TMP_CDK_FOLDER -o -z $ENCLAVE ]; then
     echo "TMP_CDK_FOLDER or ENCLAVE is not set. Must be set on file env.sh"
+    exit 1
+fi
+kurtosis enclave inspect $ENCLAVE > /dev/null
+if [ $? -ne 0 ]; then
+    echo "Error inspecting enclave $ENCLAVE"
+    echo "You must start kurtosis environment before running this script"
+    echo "- start kurtosis:"
+    echo "    kurtosis clean --all; kurtosis run --enclave $ENCLAVE --args-file cdk-erigon-sequencer-params.yml --image-download always ."
+
     exit 1
 fi
 DEST=${TMP_CDK_FOLDER}/local_config
 
 [ ! -d ${DEST} ] && mkdir -p ${DEST}
 rm $DEST/*
-kurtosis files download cdk-v1 genesis $DEST
+kurtosis files download $ENCLAVE genesis $DEST
 [ $? -ne 0 ] && echo "Error downloading genesis" && exit 1
 export genesis_file=$DEST/genesis.json
-kurtosis files download cdk-v1 sequencer-keystore $DEST
+kurtosis files download $ENCLAVE sequencer-keystore $DEST
 [ $? -ne 0 ] && echo "Error downloading sequencer-keystore" && exit 1
 export sequencer_keystore_file=$DEST/sequencer.keystore
 
@@ -38,16 +60,17 @@ export l1_chain_id=$(cat $DEST/config.toml  |grep  L1ChainID  |  cut -f 2 -d '='
 export zkevm_is_validium=$(cat $DEST/config.toml  |grep  IsValidiumMode  |  cut -f 2 -d '=')
 
 if [ "$zkevm_is_validium" == "true" ]; then
-    dac_port=$(kurtosis port print $ENCLAVE zkevm-dac http-rpc | cut -f 3 -d ":")
+    echo "Validium mode detected... Retrieving the dac_port"
+    dac_port=$(kurtosis port print $ENCLAVE zkevm-dac-001 dac | cut -f 3 -d ":")
     [ $? -ne 0 ] && echo "Error getting dac_port" && exit 1 || export dac_port  && echo "dac_port=$dac_port"
 fi
 
 envsubst < test/config/test.kurtosis_template.toml > $DEST/test.kurtosis.toml
 
-echo "- start kurtosis"
+echo "- to restart kurtosis:"
 echo "    kurtosis clean --all; kurtosis run --enclave cdk-v1 --args-file cdk-erigon-sequencer-params.yml --image-download always ."
 echo " "
-echo "- Stop sequence-sender"
+echo "- Stop sequence-sender:"
 echo "    kurtosis service stop cdk-v1 zkevm-node-sequence-sender-001"
 echo " "
 echo "- Add next configuration to vscode launch.json"
@@ -63,4 +86,4 @@ cat << EOF
             "--custom-network-file", "$DEST/local_config/genesis.json"
             ]
         },
-
+EOF

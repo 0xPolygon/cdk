@@ -140,6 +140,10 @@ type ReorgDetector struct {
 	waitPeriodBlockAdder   time.Duration
 }
 
+type Config struct {
+	DBPath string `mapstructure:"DBPath"`
+}
+
 // New creates a new instance of ReorgDetector
 func New(ctx context.Context, client EthClient, dbPath string) (*ReorgDetector, error) {
 	db, err := mdbx.NewMDBX(nil).
