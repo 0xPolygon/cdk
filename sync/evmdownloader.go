@@ -41,6 +41,7 @@ func NewEVMDownloader(
 	waitForNewBlocksPeriod time.Duration,
 	appender LogAppenderMap,
 	adressessToQuery []common.Address,
+	rh *RetryHandler,
 ) (*EVMDownloader, error) {
 	finality, err := blockFinalityType.ToBlockNum()
 	if err != nil {
@@ -59,6 +60,7 @@ func NewEVMDownloader(
 			appender:               appender,
 			topicsToQuery:          topicsToQuery,
 			adressessToQuery:       adressessToQuery,
+			rh:                     rh,
 		},
 	}, nil
 }
@@ -106,6 +108,7 @@ type downloaderImplementation struct {
 	appender               LogAppenderMap
 	topicsToQuery          [][]common.Hash
 	adressessToQuery       []common.Address
+	rh                     *RetryHandler
 }
 
 func (d *downloaderImplementation) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64) {
@@ -122,7 +125,7 @@ func (d *downloaderImplementation) waitForNewBlocks(ctx context.Context, lastBlo
 			if err != nil {
 				attempts++
 				log.Error("error getting last block num from eth client: ", err)
-				RetryHandler("waitForNewBlocks", attempts)
+				d.rh.Handle("waitForNewBlocks", attempts)
 				continue
 			}
 			if header.Number.Uint64() > lastBlockSeen {
@@ -155,7 +158,7 @@ func (d *downloaderImplementation) getEventsByBlockRange(ctx context.Context, fr
 			if err != nil {
 				attempts++
 				log.Error("error trying to append log: ", err)
-				RetryHandler("getLogs", attempts)
+				d.rh.Handle("getLogs", attempts)
 				continue
 			}
 			break
@@ -178,7 +181,7 @@ func (d *downloaderImplementation) getLogs(ctx context.Context, fromBlock, toBlo
 		if err != nil {
 			attempts++
 			log.Error("error calling FilterLogs to eth client: ", err)
-			RetryHandler("getLogs", attempts)
+			d.rh.Handle("getLogs", attempts)
 			continue
 		}
 		return logs
@@ -192,7 +195,7 @@ func (d *downloaderImplementation) getBlockHeader(ctx context.Context, blockNum 
 		if err != nil {
 			attempts++
 			log.Errorf("error getting block header for block %d, err: %v", blockNum, err)
-			RetryHandler("getBlockHeader", attempts)
+			d.rh.Handle("getBlockHeader", attempts)
 			continue
 		}
 		return EVMBlockHeader{

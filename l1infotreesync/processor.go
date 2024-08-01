@@ -122,7 +122,13 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 	p := &processor{
 		db: db,
 	}
-	leaves, err := p.getAllLeavesHashed(ctx)
+
+	tx, err := p.db.BeginRo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	leaves, err := p.getAllLeavesHashed(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -134,14 +140,8 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 	return p, nil
 }
 
-func (p *processor) getAllLeavesHashed(ctx context.Context) ([][32]byte, error) {
+func (p *processor) getAllLeavesHashed(tx kv.Tx) ([][32]byte, error) {
 	// TODO: same coment about refactor that appears at ComputeMerkleProofByIndex
-	tx, err := p.db.BeginRo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
 	index, err := p.getLastIndex(tx)
 	if err == ErrNotFound || index == 0 {
 		return nil, nil
@@ -323,7 +323,6 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 }
 
 func (p *processor) Reorg(firstReorgedBlock uint64) error {
-	// TODO: Does tree need to be reorged?
 	tx, err := p.db.BeginRw(context.Background())
 	if err != nil {
 		return err
@@ -359,6 +358,17 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 		tx.Rollback()
 		return err
 	}
+	leaves, err := p.getAllLeavesHashed(tx)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	tree, err := l1infotree.NewL1InfoTree(treeHeight, leaves)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	p.tree = tree
 	return tx.Commit()
 }
 
@@ -404,6 +414,7 @@ func (p *processor) ProcessBlock(b sync.Block) error {
 	if err != nil {
 		return err
 	}
+	events := make([]Event, len(b.Events))
 	if len(b.Events) > 0 {
 		var initialIndex uint32
 		lastIndex, err := p.getLastIndex(tx)
@@ -417,6 +428,7 @@ func (p *processor) ProcessBlock(b sync.Block) error {
 		}
 		for i, e := range b.Events {
 			event := e.(Event)
+			events = append(events, event)
 			leafToStore := storeLeaf{
 				Index:           initialIndex + uint32(i),
 				MainnetExitRoot: event.MainnetExitRoot,
@@ -448,7 +460,7 @@ func (p *processor) ProcessBlock(b sync.Block) error {
 		tx.Rollback()
 		return err
 	}
-	log.Debugf("block %d processed with events: %+v", b.Num, b.Events)
+	log.Debugf("block %d processed with events: %+v", b.Num, events)
 	return tx.Commit()
 }
 

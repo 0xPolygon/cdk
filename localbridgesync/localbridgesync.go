@@ -50,6 +50,10 @@ func New(
 			return nil, err
 		}
 	}
+	rh := &sync.RetryHandler{
+		MaxRetryAttemptsAfterError: maxRetryAttemptsAfterError,
+		RetryAfterErrorPeriod:      retryAfterErrorPeriod,
+	}
 
 	appender, err := buildAppender(l2Client, bridge)
 	if err != nil {
@@ -62,12 +66,13 @@ func New(
 		waitForNewBlocksPeriod,
 		appender,
 		[]common.Address{bridge},
+		rh,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	driver, err := sync.NewEVMDriver(rd, processor, downloader, reorgDetectorID, downloadBufferSize)
+	driver, err := sync.NewEVMDriver(rd, processor, downloader, reorgDetectorID, downloadBufferSize, rh)
 	if err != nil {
 		return nil, err
 	}

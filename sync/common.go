@@ -5,17 +5,17 @@ import (
 	"time"
 )
 
-var (
-	RetryAfterErrorPeriod      = time.Second * 10
-	MaxRetryAttemptsAfterError = 5
-)
+type RetryHandler struct {
+	RetryAfterErrorPeriod      time.Duration
+	MaxRetryAttemptsAfterError int
+}
 
-func RetryHandler(funcName string, attempts int) {
-	if attempts >= MaxRetryAttemptsAfterError {
+func (h *RetryHandler) Handle(funcName string, attempts int) {
+	if h.MaxRetryAttemptsAfterError > -1 && attempts >= h.MaxRetryAttemptsAfterError {
 		log.Fatalf(
 			"%s failed too many times (%d)",
-			funcName, MaxRetryAttemptsAfterError,
+			funcName, h.MaxRetryAttemptsAfterError,
 		)
 	}
-	time.Sleep(RetryAfterErrorPeriod)
+	time.Sleep(h.RetryAfterErrorPeriod)
 }

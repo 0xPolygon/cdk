@@ -320,7 +320,6 @@ func TestDownload(t *testing.T) {
 }
 
 func TestWaitForNewBlocks(t *testing.T) {
-	RetryAfterErrorPeriod = time.Millisecond * 100
 	ctx := context.Background()
 	d, clientMock := NewTestDownloader(t)
 
@@ -353,7 +352,6 @@ func TestWaitForNewBlocks(t *testing.T) {
 }
 
 func TestGetBlockHeader(t *testing.T) {
-	RetryAfterErrorPeriod = time.Millisecond * 100
 	ctx := context.Background()
 	d, clientMock := NewTestDownloader(t)
 
@@ -389,8 +387,12 @@ func buildAppender() LogAppenderMap {
 }
 
 func NewTestDownloader(t *testing.T) (*EVMDownloader, *L2Mock) {
+	rh := &RetryHandler{
+		MaxRetryAttemptsAfterError: 5,
+		RetryAfterErrorPeriod:      time.Millisecond * 100,
+	}
 	clientMock := NewL2Mock(t)
-	d, err := NewEVMDownloader(clientMock, syncBlockChunck, etherman.LatestBlock, time.Millisecond, buildAppender(), []common.Address{contractAddr})
+	d, err := NewEVMDownloader(clientMock, syncBlockChunck, etherman.LatestBlock, time.Millisecond, buildAppender(), []common.Address{contractAddr}, rh)
 	require.NoError(t, err)
 	return d, clientMock
 }

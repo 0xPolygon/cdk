@@ -15,20 +15,17 @@ const (
 	downloadBufferSize = 1000
 )
 
-var (
-	retryAfterErrorPeriod      = time.Second * 10
-	maxRetryAttemptsAfterError = 5
-)
-
 type Config struct {
 	DBPath             string         `mapstructure:"DBPath"`
 	GlobalExitRootAddr common.Address `mapstructure:"GlobalExitRootAddr"`
 	SyncBlockChunkSize uint64         `mapstructure:"SyncBlockChunkSize"`
 	// TODO: BlockFinality doesnt work as per the jsonschema
-	BlockFinality          string         `jsonschema:"enum=latest,enum=safe, enum=pending, enum=finalized" mapstructure:"BlockFinality"`
-	URLRPCL1               string         `mapstructure:"URLRPCL1"`
-	WaitForNewBlocksPeriod types.Duration `mapstructure:"WaitForNewBlocksPeriod"`
-	InitialBlock           uint64         `mapstructure:"InitialBlock"`
+	BlockFinality              string         `jsonschema:"enum=latest,enum=safe, enum=pending, enum=finalized" mapstructure:"BlockFinality"`
+	URLRPCL1                   string         `mapstructure:"URLRPCL1"`
+	WaitForNewBlocksPeriod     types.Duration `mapstructure:"WaitForNewBlocksPeriod"`
+	InitialBlock               uint64         `mapstructure:"InitialBlock"`
+	RetryAfterErrorPeriod      types.Duration `mapstructure:"RetryAfterErrorPeriod"`
+	MaxRetryAttemptsAfterError int            `mapstructure:"MaxRetryAttemptsAfterError"`
 }
 
 type L1InfoTreeSync struct {
@@ -46,6 +43,8 @@ func New(
 	l1Client EthClienter,
 	waitForNewBlocksPeriod time.Duration,
 	initialBlock uint64,
+	retryAfterErrorPeriod time.Duration,
+	maxRetryAttemptsAfterError int,
 ) (*L1InfoTreeSync, error) {
 	processor, err := newProcessor(ctx, dbPath)
 	if err != nil {
@@ -56,13 +55,17 @@ func New(
 	if err != nil {
 		return nil, err
 	}
-	if lastProcessedBlock < initialBlock {
+	if initialBlock > 0 && lastProcessedBlock < initialBlock-1 {
 		err = processor.ProcessBlock(sync.Block{
-			Num: initialBlock,
+			Num: initialBlock - 1,
 		})
 		if err != nil {
 			return nil, err
 		}
+	}
+	rh := &sync.RetryHandler{
+		RetryAfterErrorPeriod:      retryAfterErrorPeriod,
+		MaxRetryAttemptsAfterError: maxRetryAttemptsAfterError,
 	}
 
 	appender, err := buildAppender(l1Client, globalExitRoot)
@@ -76,12 +79,13 @@ func New(
 		waitForNewBlocksPeriod,
 		appender,
 		[]common.Address{globalExitRoot},
+		rh,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	driver, err := sync.NewEVMDriver(rd, processor, downloader, reorgDetectorID, downloadBufferSize)
+	driver, err := sync.NewEVMDriver(rd, processor, downloader, reorgDetectorID, downloadBufferSize, rh)
 	if err != nil {
 		return nil, err
 	}
