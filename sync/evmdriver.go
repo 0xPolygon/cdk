@@ -20,6 +20,7 @@ type EVMDriver struct {
 	downloader         evmDownloaderFull
 	reorgDetectorID    string
 	downloadBufferSize int
+	rh                 *RetryHandler
 }
 
 type processorInterface interface {
@@ -39,6 +40,7 @@ func NewEVMDriver(
 	downloader evmDownloaderFull,
 	reorgDetectorID string,
 	downloadBufferSize int,
+	rh *RetryHandler,
 ) (*EVMDriver, error) {
 	reorgSub, err := reorgDetector.Subscribe(reorgDetectorID)
 	if err != nil {
@@ -51,6 +53,7 @@ func NewEVMDriver(
 		downloader:         downloader,
 		reorgDetectorID:    reorgDetectorID,
 		downloadBufferSize: downloadBufferSize,
+		rh:                 rh,
 	}, nil
 }
 
@@ -66,7 +69,7 @@ reset:
 		if err != nil {
 			attempts++
 			log.Error("error geting last processed block: ", err)
-			RetryHandler("Sync", attempts)
+			d.rh.Handle("Sync", attempts)
 			continue
 		}
 		break
@@ -98,7 +101,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
 		if err != nil {
 			attempts++
 			log.Errorf("error adding block %d to tracker: %v", b.Num, err)
-			RetryHandler("handleNewBlock", attempts)
+			d.rh.Handle("handleNewBlock", attempts)
 			continue
 		}
 		break
@@ -113,7 +116,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
 		if err != nil {
 			attempts++
 			log.Errorf("error processing events for blcok %d, err: ", b.Num, err)
-			RetryHandler("handleNewBlock", attempts)
+			d.rh.Handle("handleNewBlock", attempts)
 			continue
 		}
 		break
@@ -139,7 +142,7 @@ func (d *EVMDriver) handleReorg(
 				"error processing reorg, last valid Block %d, err: %v",
 				firstReorgedBlock, err,
 			)
-			RetryHandler("handleReorg", attempts)
+			d.rh.Handle("handleReorg", attempts)
 			continue
 		}
 		break

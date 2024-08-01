@@ -41,13 +41,13 @@ type EVMChainGERSender struct {
 }
 
 type EVMConfig struct {
-	GlobalExitRootL2    common.Address      `mapstructure:"GlobalExitRootL2"`
-	URLRPCL2            string              `mapstructure:"URLRPCL2"`
-	ChainIDL2           uint64              `mapstructure:"ChainIDL2"`
-	GasOffset           uint64              `mapstructure:"GasOffset"`
-	WaitPeriodMonitorTx cfgTypes.Duration   `mapstructure:"WaitPeriodMonitorTx"`
-	SenderAddr          common.Address      `mapstructure:"SenderAddr"`
-	EthTxManager        ethtxmanager.Config `mapstructure:"EthTxManager"`
+	GlobalExitRootL2Addr common.Address      `mapstructure:"GlobalExitRootL2"`
+	URLRPCL2             string              `mapstructure:"URLRPCL2"`
+	ChainIDL2            uint64              `mapstructure:"ChainIDL2"`
+	GasOffset            uint64              `mapstructure:"GasOffset"`
+	WaitPeriodMonitorTx  cfgTypes.Duration   `mapstructure:"WaitPeriodMonitorTx"`
+	SenderAddr           common.Address      `mapstructure:"SenderAddr"`
+	EthTxManager         ethtxmanager.Config `mapstructure:"EthTxManager"`
 }
 
 func NewEVMChainGERSender(

@@ -19,7 +19,10 @@ var (
 )
 
 func TestSync(t *testing.T) {
-	RetryAfterErrorPeriod = time.Millisecond * 100
+	rh := &RetryHandler{
+		MaxRetryAttemptsAfterError: 5,
+		RetryAfterErrorPeriod:      time.Millisecond * 100,
+	}
 	rdm := NewReorgDetectorMock(t)
 	pm := NewProcessorMock(t)
 	dm := NewEVMDownloaderMock(t)
@@ -29,7 +32,7 @@ func TestSync(t *testing.T) {
 		FirstReorgedBlock: firstReorgedBlock,
 		ReorgProcessed:    reorgProcessed,
 	}, nil)
-	driver, err := NewEVMDriver(rdm, pm, dm, reorgDetectorID, 10)
+	driver, err := NewEVMDriver(rdm, pm, dm, reorgDetectorID, 10, rh)
 	require.NoError(t, err)
 	ctx := context.Background()
 	expectedBlock1 := EVMBlock{
@@ -107,12 +110,15 @@ func TestSync(t *testing.T) {
 }
 
 func TestHandleNewBlock(t *testing.T) {
-	RetryAfterErrorPeriod = time.Millisecond * 100
+	rh := &RetryHandler{
+		MaxRetryAttemptsAfterError: 5,
+		RetryAfterErrorPeriod:      time.Millisecond * 100,
+	}
 	rdm := NewReorgDetectorMock(t)
 	pm := NewProcessorMock(t)
 	dm := NewEVMDownloaderMock(t)
 	rdm.On("Subscribe", reorgDetectorID).Return(&reorgdetector.Subscription{}, nil)
-	driver, err := NewEVMDriver(rdm, pm, dm, reorgDetectorID, 10)
+	driver, err := NewEVMDriver(rdm, pm, dm, reorgDetectorID, 10, rh)
 	require.NoError(t, err)
 	ctx := context.Background()
 
@@ -166,7 +172,10 @@ func TestHandleNewBlock(t *testing.T) {
 }
 
 func TestHandleReorg(t *testing.T) {
-	RetryAfterErrorPeriod = time.Millisecond * 100
+	rh := &RetryHandler{
+		MaxRetryAttemptsAfterError: 5,
+		RetryAfterErrorPeriod:      time.Millisecond * 100,
+	}
 	rdm := NewReorgDetectorMock(t)
 	pm := NewProcessorMock(t)
 	dm := NewEVMDownloaderMock(t)
@@ -174,7 +183,7 @@ func TestHandleReorg(t *testing.T) {
 	rdm.On("Subscribe", reorgDetectorID).Return(&reorgdetector.Subscription{
 		ReorgProcessed: reorgProcessed,
 	}, nil)
-	driver, err := NewEVMDriver(rdm, pm, dm, reorgDetectorID, 10)
+	driver, err := NewEVMDriver(rdm, pm, dm, reorgDetectorID, 10, rh)
 	require.NoError(t, err)
 	ctx := context.Background()
 

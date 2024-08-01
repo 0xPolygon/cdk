@@ -217,7 +217,7 @@ func createAggoracle(cfg config.Config, l1Client *ethclient.Client, syncer *l1in
 			log.Fatal(err)
 		}
 		sender, err = chaingersender.NewEVMChainGERSender(
-			cfg.AggOracle.EVMSender.GlobalExitRootL2,
+			cfg.AggOracle.EVMSender.GlobalExitRootL2Addr,
 			cfg.AggOracle.EVMSender.SenderAddr,
 			l2CLient,
 			ethTxManager,
@@ -389,6 +389,8 @@ func newL1InfoTreeSyncer(
 		l1Client,
 		cfg.L1InfoTreeSync.WaitForNewBlocksPeriod.Duration,
 		cfg.L1InfoTreeSync.InitialBlock,
+		cfg.L1InfoTreeSync.RetryAfterErrorPeriod.Duration,
+		cfg.L1InfoTreeSync.MaxRetryAttemptsAfterError,
 	)
 	if err != nil {
 		log.Fatal(err)
