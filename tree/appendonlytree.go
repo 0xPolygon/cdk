@@ -3,7 +3,6 @@ package tree
 import (
 	"context"
 	"fmt"
-	"math"
 
 	dbCommon "github.com/0xPolygon/cdk/common"
 	"github.com/ethereum/go-ethereum/common"
@@ -81,25 +80,26 @@ func (t *AppendOnlyTree) addLeaf(tx kv.RwTx, leaf Leaf) error {
 		newNodes = append(newNodes, parent)
 	}
 
-	// store root
-	root := currentChildHash
-	if err := tx.Put(t.rootTable, dbCommon.Uint32ToBytes(leaf.Index), root[:]); err != nil {
+	if err := assertRoot(leaf.ExpectedRoot, currentChildHash); err != nil {
 		return err
 	}
 
-	// store nodes
-	for _, node := range newNodes {
-		value, err := node.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		if err := tx.Put(t.rhtTable, node.hash().Bytes(), value); err != nil {
-			return err
-		}
+	// store root
+	t.storeRoot(tx, uint64(leaf.Index), currentChildHash)
+	root := currentChildHash
+	if err := tx.Put(t.rootTable, dbCommon.Uint64ToBytes(uint64(leaf.Index)), root[:]); err != nil {
+		return err
 	}
-
+	// store nodes
+	if err := t.storeNodes(tx, newNodes); err != nil {
+		return err
+	}
 	t.lastIndex++
 	return nil
+}
+
+func (t *AppendOnlyTree) GetRootByIndex(tx kv.Tx, index uint32) (common.Hash, error) {
+	return t.getRootByIndex(tx, uint64(index))
 }
 
 func (t *AppendOnlyTree) initLastLeftCacheAndLastDepositCount(ctx context.Context) error {
@@ -114,29 +114,6 @@ func (t *AppendOnlyTree) initLastLeftCacheAndLastDepositCount(ctx context.Contex
 		return err
 	}
 	return t.initLastLeftCache(tx, t.lastIndex, root)
-}
-
-// getLastIndexAndRoot return the index and the root associated to the last leaf inserted.
-// If index == -1, it means no leaf added yet
-func (t *AppendOnlyTree) getLastIndexAndRoot(tx kv.Tx) (int64, common.Hash, error) {
-	iter, err := tx.RangeDescend(
-		t.rootTable,
-		dbCommon.Uint32ToBytes(math.MaxUint32),
-		dbCommon.Uint32ToBytes(0),
-		1,
-	)
-	if err != nil {
-		return 0, common.Hash{}, err
-	}
-
-	lastIndexBytes, rootBytes, err := iter.Next()
-	if err != nil {
-		return 0, common.Hash{}, err
-	}
-	if lastIndexBytes == nil {
-		return -1, common.Hash{}, nil
-	}
-	return int64(dbCommon.BytesToUint32(lastIndexBytes)), common.Hash(rootBytes), nil
 }
 
 func (t *AppendOnlyTree) initLastIndex(tx kv.Tx) (common.Hash, error) {
@@ -193,7 +170,7 @@ func (t *AppendOnlyTree) Reorg(tx kv.RwTx, firstReorgedIndex uint32) (func(), er
 	}
 	// Clean root table
 	for i := firstReorgedIndex; i <= uint32(t.lastIndex); i++ {
-		if err := tx.Delete(t.rootTable, dbCommon.Uint32ToBytes(i)); err != nil {
+		if err := tx.Delete(t.rootTable, dbCommon.Uint64ToBytes(uint64(i))); err != nil {
 			return func() {}, err
 		}
 	}
@@ -201,7 +178,7 @@ func (t *AppendOnlyTree) Reorg(tx kv.RwTx, firstReorgedIndex uint32) (func(), er
 	// Reset
 	root := common.Hash{}
 	if firstReorgedIndex > 0 {
-		rootBytes, err := tx.GetOne(t.rootTable, dbCommon.Uint32ToBytes(firstReorgedIndex-1))
+		rootBytes, err := tx.GetOne(t.rootTable, dbCommon.Uint64ToBytes(uint64(firstReorgedIndex)-1))
 		if err != nil {
 			return func() {}, err
 		}

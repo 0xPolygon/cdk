@@ -139,12 +139,15 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 		return nil, err
 	}
 	p.l1InfoTree = l1InfoTree
-	rollupExitTree := tree.NewUpdatable(ctx, db, dbPrefix+rollupExitTreeSuffix)
+	rollupExitTree, err := tree.NewUpdatable(ctx, db, dbPrefix+rollupExitTreeSuffix)
+	if err != nil {
+		return nil, err
+	}
 	p.rollupExitTree = rollupExitTree
 	return p, nil
 }
 
-func (p *processor) ComputeMerkleProofByIndex(ctx context.Context, index uint32) ([]ethCommon.Hash, ethCommon.Hash, error) {
+func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([]ethCommon.Hash, ethCommon.Hash, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
 		return nil, ethCommon.Hash{}, err
@@ -334,6 +337,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		l1InfoTreeRollback()
 	}
 	l1InfoTreeLeavesToAdd := []tree.Leaf{}
+	rollupExitTreeLeavesToAdd := []tree.Leaf{}
 	if len(b.Events) > 0 {
 		var initialIndex uint32
 		lastIndex, err := p.getLastIndex(tx)
@@ -374,16 +378,11 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 				// Since the previous event include the rollup exit root, this can use it to assert
 				// that the computation of the tree is correct. However, there are some execution paths
 				// on the contract that don't follow this (verifyBatches + pendingStateTimeout != 0)
-				rollupExitTreeRollback, err = p.rollupExitTree.UpsertLeaf(
-					tx,
-					event.VerifyBatches.RollupID,
-					event.VerifyBatches.ExitRoot,
-					nextExpectedRollupExitTreeRoot,
-				)
-				if err != nil {
-					rollback()
-					return err
-				}
+				rollupExitTreeLeavesToAdd = append(rollupExitTreeLeavesToAdd, tree.Leaf{
+					Index:        event.VerifyBatches.RollupID,
+					Hash:         event.VerifyBatches.ExitRoot,
+					ExpectedRoot: nextExpectedRollupExitTreeRoot,
+				})
 				nextExpectedRollupExitTreeRoot = nil
 			}
 		}
@@ -400,14 +399,19 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 			rollback()
 			return err
 		}
+		l1InfoTreeRollback, err = p.l1InfoTree.AddLeaves(tx, l1InfoTreeLeavesToAdd)
+		if err != nil {
+			rollback()
+			return err
+		}
+
+		rollupExitTreeRollback, err = p.rollupExitTree.UpseartLeaves(tx, rollupExitTreeLeavesToAdd, b.Num)
+		if err != nil {
+			rollback()
+			return err
+		}
 	}
 	if err := p.updateLastProcessedBlock(tx, b.Num); err != nil {
-		rollback()
-		return err
-	}
-
-	l1InfoTreeRollback, err = p.l1InfoTree.AddLeaves(tx, l1InfoTreeLeavesToAdd)
-	if err != nil {
 		rollback()
 		return err
 	}

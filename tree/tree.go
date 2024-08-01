@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 
 	dbCommon "github.com/0xPolygon/cdk/common"
 	"github.com/ethereum/go-ethereum/common"
@@ -22,8 +23,9 @@ var (
 )
 
 type Leaf struct {
-	Index uint32
-	Hash  common.Hash
+	Index        uint32
+	Hash         common.Hash
+	ExpectedRoot *common.Hash
 }
 
 type Tree struct {
@@ -82,8 +84,8 @@ func newTree(db kv.RwDB, dbPrefix string) *Tree {
 	return t
 }
 
-func (t *Tree) GetRootByIndex(tx kv.Tx, index uint32) (common.Hash, error) {
-	rootBytes, err := tx.GetOne(t.rootTable, dbCommon.Uint32ToBytes(index))
+func (t *Tree) getRootByIndex(tx kv.Tx, index uint64) (common.Hash, error) {
+	rootBytes, err := tx.GetOne(t.rootTable, dbCommon.Uint64ToBytes(index))
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -93,24 +95,30 @@ func (t *Tree) GetRootByIndex(tx kv.Tx, index uint32) (common.Hash, error) {
 	return common.BytesToHash(rootBytes), nil
 }
 
-// GetProof returns the merkle proof for a given index and root.
-func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([]common.Hash, error) {
-	tx, err := t.db.BeginRw(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	siblings := make([]common.Hash, int(t.height))
+func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
+	siblings []common.Hash,
+	hasUsedZeroHashes bool,
+	err error,
+) {
+	siblings = make([]common.Hash, int(t.height))
 
 	currentNodeHash := root
 	// It starts in height-1 because 0 is the level of the leafs
 	for h := int(t.height - 1); h >= 0; h-- {
-		currentNode, err := t.getRHTNode(tx, currentNodeHash)
+		var currentNode *treeNode
+		currentNode, err = t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
-			return nil, fmt.Errorf(
-				"height: %d, currentNode: %s, error: %v",
-				h, currentNodeHash.Hex(), err,
-			)
+			if err == ErrNotFound {
+				hasUsedZeroHashes = true
+				siblings = append(siblings, t.zeroHashes[h])
+				continue
+			} else {
+				err = fmt.Errorf(
+					"height: %d, currentNode: %s, error: %v",
+					h, currentNodeHash.Hex(), err,
+				)
+				return
+			}
 		}
 		/*
 		*        Root                (level h=3 => height=4)
@@ -147,6 +155,23 @@ func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([]
 		siblings[i], siblings[j] = siblings[j], siblings[i]
 	}
 
+	return
+}
+
+// GetProof returns the merkle proof for a given index and root.
+func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([]common.Hash, error) {
+	tx, err := t.db.BeginRw(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	siblings, isErrNotFound, err := t.getSiblings(tx, index, root)
+	if err != nil {
+		return nil, err
+	}
+	if isErrNotFound {
+		return nil, ErrNotFound
+	}
 	return siblings, nil
 }
 
@@ -178,4 +203,71 @@ func generateZeroHashes(height uint8) []common.Hash {
 		zeroHashes = append(zeroHashes, thisHeightHash)
 	}
 	return zeroHashes
+}
+
+func (t *Tree) storeNodes(tx kv.RwTx, nodes []treeNode) error {
+	for _, node := range nodes {
+		value, err := node.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		if err := tx.Put(t.rhtTable, node.hash().Bytes(), value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *Tree) storeRoot(tx kv.RwTx, rootIndex uint64, root common.Hash) error {
+	return tx.Put(t.rootTable, dbCommon.Uint64ToBytes(rootIndex), root[:])
+}
+
+func (t *Tree) GetLastRoot(ctx context.Context) (common.Hash, error) {
+	tx, err := t.db.BeginRo(ctx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	i, root, err := t.getLastIndexAndRoot(tx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if i == -1 {
+		return common.Hash{}, ErrNotFound
+	}
+	return root, nil
+}
+
+// getLastIndexAndRoot return the index and the root associated to the last leaf inserted.
+// If index == -1, it means no leaf added yet
+func (t *Tree) getLastIndexAndRoot(tx kv.Tx) (int64, common.Hash, error) {
+	iter, err := tx.RangeDescend(
+		t.rootTable,
+		dbCommon.Uint64ToBytes(math.MaxUint64),
+		dbCommon.Uint64ToBytes(0),
+		1,
+	)
+	if err != nil {
+		return 0, common.Hash{}, err
+	}
+
+	lastIndexBytes, rootBytes, err := iter.Next()
+	if err != nil {
+		return 0, common.Hash{}, err
+	}
+	if lastIndexBytes == nil {
+		return -1, common.Hash{}, nil
+	}
+	return int64(dbCommon.BytesToUint32(lastIndexBytes)), common.Hash(rootBytes), nil
+}
+
+func assertRoot(expected *common.Hash, actual common.Hash) error {
+	if expected != nil && *expected != actual {
+		return fmt.Errorf(
+			"root missmatch. Expected %s actual %s",
+			expected.Hex(),
+			actual.Hex(),
+		)
+	}
+	return nil
 }
