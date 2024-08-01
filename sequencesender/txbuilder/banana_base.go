@@ -50,7 +50,7 @@ func (t *TxBuilderBananaBase) NewBatchFromL2Block(l2Block *datastream.L2Block) s
 }
 
 func (t *TxBuilderBananaBase) NewSequence(batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
-	ethBatches, err := convertToEthermanBatches(batches)
+	ethBatches, err := toEthermanBatches(batches)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.Sequen
 	}
 	seqEth.SequenceBanana.Batches = make([]etherman.Batch, len(sequences.Batches()))
 	for _, batch := range sequences.Batches() {
-		ethBatch, err := convertToEthermanBatch(batch)
+		ethBatch, err := toEthermanBatch(batch)
 		if err != nil {
 			return etherman.SequenceBanana{}, err
 		}
@@ -127,7 +127,7 @@ func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.Sequen
 	return seqEth.SequenceBanana, nil
 }
 
-func convertToEthermanBatch(batch seqsendertypes.Batch) (etherman.Batch, error) {
+func toEthermanBatch(batch seqsendertypes.Batch) (etherman.Batch, error) {
 	return etherman.Batch{
 		L2Data:               batch.L2Data(),
 		LastCoinbase:         batch.LastCoinbase(),
@@ -141,11 +141,11 @@ func convertToEthermanBatch(batch seqsendertypes.Batch) (etherman.Batch, error) 
 	}, nil
 }
 
-func convertToEthermanBatches(batch []seqsendertypes.Batch) ([]etherman.Batch, error) {
+func toEthermanBatches(batch []seqsendertypes.Batch) ([]etherman.Batch, error) {
 	result := make([]etherman.Batch, len(batch))
 	for i, b := range batch {
 		var err error
-		result[i], err = convertToEthermanBatch(b)
+		result[i], err = toEthermanBatch(b)
 		if err != nil {
 			return nil, err
 		}

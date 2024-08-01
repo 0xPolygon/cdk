@@ -8,9 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-var (
-	MaxBatchesForL1Disabled = uint64(0)
-)
+var MaxBatchesForL1Disabled = uint64(0)
 
 type ConditionalNewSequenceNumBatches struct {
 	maxBatchesForL1 uint64 // cfg.MaxBatchesForL1
