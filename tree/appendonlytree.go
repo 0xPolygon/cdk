@@ -16,11 +16,8 @@ type AppendOnlyTree struct {
 	lastIndex     int64
 }
 
-func NewAppendOnly(ctx context.Context, dbPath, dbPrefix string) (*AppendOnlyTree, error) {
-	t, err := newTree(dbPath, dbPrefix)
-	if err != nil {
-		return nil, err
-	}
+func NewAppendOnly(ctx context.Context, db kv.RwDB, dbPrefix string) (*AppendOnlyTree, error) {
+	t := newTree(db, dbPrefix)
 	at := &AppendOnlyTree{Tree: t}
 	if err := at.initLastLeftCacheAndLastDepositCount(ctx); err != nil {
 		return nil, err
@@ -29,40 +26,32 @@ func NewAppendOnly(ctx context.Context, dbPath, dbPrefix string) (*AppendOnlyTre
 }
 
 // AddLeaves adds a list leaves into the tree
-func (t *AppendOnlyTree) AddLeaves(ctx context.Context, leaves []Leaf) error {
+func (t *AppendOnlyTree) AddLeaves(tx kv.RwTx, leaves []Leaf) (func(), error) {
 	// Sanity check
 	if len(leaves) == 0 {
-		return nil
+		return func() {}, nil
 	}
 	if int64(leaves[0].Index) != t.lastIndex+1 {
-		return fmt.Errorf(
+		return func() {}, fmt.Errorf(
 			"mismatched index. Expected: %d, actual: %d",
 			t.lastIndex+1, leaves[0].Index,
 		)
 	}
-	tx, err := t.db.BeginRw(ctx)
-	if err != nil {
-		return err
-	}
 	backupIndx := t.lastIndex
 	backupCache := make([]common.Hash, len(t.lastLeftCache))
 	copy(backupCache, t.lastLeftCache)
+	rollback := func() {
+		t.lastIndex = backupIndx
+		t.lastLeftCache = backupCache
+	}
 
 	for _, leaf := range leaves {
 		if err := t.addLeaf(tx, leaf); err != nil {
-			tx.Rollback()
-			t.lastIndex = backupIndx
-			t.lastLeftCache = backupCache
-			return err
+			return rollback, err
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		t.lastIndex = backupIndx
-		t.lastLeftCache = backupCache
-		return err
-	}
-	return nil
+	return rollback, nil
 }
 
 func (t *AppendOnlyTree) addLeaf(tx kv.RwTx, leaf Leaf) error {
@@ -198,19 +187,14 @@ func (t *AppendOnlyTree) initLastLeftCache(tx kv.Tx, lastIndex int64, lastRoot c
 
 // Reorg deletes all the data relevant from firstReorgedIndex (includded) and onwards
 // and prepares the tree tfor being used as it was at firstReorgedIndex-1
-func (t *AppendOnlyTree) Reorg(ctx context.Context, firstReorgedIndex uint32) error {
+func (t *AppendOnlyTree) Reorg(tx kv.RwTx, firstReorgedIndex uint32) (func(), error) {
 	if t.lastIndex == -1 {
-		return nil
-	}
-	tx, err := t.db.BeginRw(ctx)
-	if err != nil {
-		return err
+		return func() {}, nil
 	}
 	// Clean root table
 	for i := firstReorgedIndex; i <= uint32(t.lastIndex); i++ {
 		if err := tx.Delete(t.rootTable, dbCommon.Uint32ToBytes(i)); err != nil {
-			tx.Rollback()
-			return err
+			return func() {}, err
 		}
 	}
 
@@ -219,25 +203,22 @@ func (t *AppendOnlyTree) Reorg(ctx context.Context, firstReorgedIndex uint32) er
 	if firstReorgedIndex > 0 {
 		rootBytes, err := tx.GetOne(t.rootTable, dbCommon.Uint32ToBytes(firstReorgedIndex-1))
 		if err != nil {
-			tx.Rollback()
-			return err
+			return func() {}, err
 		}
 		if rootBytes == nil {
-			tx.Rollback()
-			return ErrNotFound
+			return func() {}, ErrNotFound
 		}
 		root = common.Hash(rootBytes)
 	}
-	err = t.initLastLeftCache(tx, int64(firstReorgedIndex)-1, root)
+	err := t.initLastLeftCache(tx, int64(firstReorgedIndex)-1, root)
 	if err != nil {
-		tx.Rollback()
-		return err
+		return func() {}, err
 	}
 
 	// Note: not cleaning RHT, not worth it
-	if err := tx.Commit(); err != nil {
-		return err
-	}
+	backupLastIndex := t.lastIndex
 	t.lastIndex = int64(firstReorgedIndex) - 1
-	return nil
+	return func() {
+		t.lastIndex = backupLastIndex
+	}, nil
 }

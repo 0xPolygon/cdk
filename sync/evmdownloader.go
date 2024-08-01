@@ -142,7 +142,9 @@ func (d *downloaderImplementation) getEventsByBlockRange(ctx context.Context, fr
 		if len(blocks) == 0 || blocks[len(blocks)-1].Num < l.BlockNumber {
 			b := d.getBlockHeader(ctx, l.BlockNumber)
 			if b.Hash != l.BlockHash {
-				log.Infof("there has been a block hash change between the event query and the block query, retrtying")
+				log.Infof(
+					"there has been a block hash change between the event query and the block query for block %d: %s vs %s. Retrtying.",
+					l.BlockNumber, b.Hash, l.BlockHash)
 				return d.getEventsByBlockRange(ctx, fromBlock, toBlock)
 			}
 			blocks = append(blocks, EVMBlock{

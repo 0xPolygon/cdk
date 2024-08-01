@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"math/big"
-	"path"
 
 	dbCommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/sync"
@@ -89,20 +88,22 @@ type processor struct {
 func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, error) {
 	eventsTable := dbPrefix + eventsTableSufix
 	lastBlockTable := dbPrefix + lastBlockTableSufix
+	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
+		cfg := kv.TableCfg{
+			eventsTable:    {},
+			lastBlockTable: {},
+		}
+		tree.AddTables(cfg, dbPrefix)
+		return cfg
+	}
 	db, err := mdbx.NewMDBX(nil).
 		Path(dbPath).
-		WithTableCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
-			return kv.TableCfg{
-				eventsTable:    {},
-				lastBlockTable: {},
-			}
-		}).
+		WithTableCfg(tableCfgFunc).
 		Open()
 	if err != nil {
 		return nil, err
 	}
-	exitTreeDBPath := path.Join(dbPath, "exittree")
-	exitTree, err := tree.NewAppendOnly(ctx, exitTreeDBPath, dbPrefix)
+	exitTree, err := tree.NewAppendOnly(ctx, db, dbPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -215,13 +216,19 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		tx.Rollback()
 		return err
 	}
+	exitTreeRollback := func() {}
 	if firstDepositCountReorged != -1 {
-		if err := p.exitTree.Reorg(ctx, uint32(firstDepositCountReorged)); err != nil {
+		if exitTreeRollback, err = p.exitTree.Reorg(tx, uint32(firstDepositCountReorged)); err != nil {
 			tx.Rollback()
+			exitTreeRollback()
 			return err
 		}
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		exitTreeRollback()
+		return err
+	}
+	return nil
 }
 
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
@@ -262,11 +269,17 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			Hash:  bridge.Hash(),
 		})
 	}
-	if err := p.exitTree.AddLeaves(ctx, leaves); err != nil {
+	exitTreeRollback, err := p.exitTree.AddLeaves(tx, leaves)
+	if err != nil {
 		tx.Rollback()
+		exitTreeRollback()
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		exitTreeRollback()
+		return err
+	}
+	return nil
 }
 
 func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {

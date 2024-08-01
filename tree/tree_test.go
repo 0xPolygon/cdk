@@ -9,6 +9,8 @@ import (
 
 	"github.com/0xPolygon/cdk/tree/testvectors"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,9 +25,19 @@ func TestMTAddLeaf(t *testing.T) {
 
 	for ti, testVector := range mtTestVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
-
 			path := t.TempDir()
-			tree, err := NewAppendOnly(context.Background(), path, "foo")
+			dbPrefix := "foo"
+			tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
+				cfg := kv.TableCfg{}
+				AddTables(cfg, dbPrefix)
+				return cfg
+			}
+			db, err := mdbx.NewMDBX(nil).
+				Path(path).
+				WithTableCfg(tableCfgFunc).
+				Open()
+			require.NoError(t, err)
+			tree, err := NewAppendOnly(context.Background(), db, dbPrefix)
 			require.NoError(t, err)
 
 			// Add exisiting leaves
@@ -36,8 +48,11 @@ func TestMTAddLeaf(t *testing.T) {
 					Hash:  common.HexToHash(leaf),
 				})
 			}
-			err = tree.AddLeaves(ctx, leaves)
+			tx, err := db.BeginRw(ctx)
 			require.NoError(t, err)
+			_, err = tree.AddLeaves(tx, leaves)
+			require.NoError(t, err)
+			require.NoError(t, tx.Commit())
 			if len(testVector.ExistingLeaves) > 0 {
 				txRo, err := tree.db.BeginRo(ctx)
 				require.NoError(t, err)
@@ -48,11 +63,15 @@ func TestMTAddLeaf(t *testing.T) {
 			}
 
 			// Add new bridge
-			err = tree.AddLeaves(ctx, []Leaf{{
+			tx, err = db.BeginRw(ctx)
+			require.NoError(t, err)
+			_, err = tree.AddLeaves(tx, []Leaf{{
 				Index: uint32(len(testVector.ExistingLeaves)),
 				Hash:  common.HexToHash(testVector.NewLeaf.CurrentHash),
 			}})
 			require.NoError(t, err)
+			require.NoError(t, tx.Commit())
+
 			txRo, err := tree.db.BeginRo(ctx)
 			require.NoError(t, err)
 			_, actualRoot, err := tree.getLastIndexAndRoot(txRo)
@@ -75,8 +94,20 @@ func TestMTGetProof(t *testing.T) {
 	for ti, testVector := range mtTestVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
 			path := t.TempDir()
-			tree, err := NewAppendOnly(context.Background(), path, "foo")
+			dbPrefix := "foo"
+			tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
+				cfg := kv.TableCfg{}
+				AddTables(cfg, dbPrefix)
+				return cfg
+			}
+			db, err := mdbx.NewMDBX(nil).
+				Path(path).
+				WithTableCfg(tableCfgFunc).
+				Open()
 			require.NoError(t, err)
+			tree, err := NewAppendOnly(context.Background(), db, dbPrefix)
+			require.NoError(t, err)
+
 			leaves := []Leaf{}
 			for li, leaf := range testVector.Deposits {
 				leaves = append(leaves, Leaf{
@@ -84,8 +115,12 @@ func TestMTGetProof(t *testing.T) {
 					Hash:  leaf.Hash(),
 				})
 			}
-			err = tree.AddLeaves(ctx, leaves)
+			tx, err := db.BeginRw(ctx)
 			require.NoError(t, err)
+			_, err = tree.AddLeaves(tx, leaves)
+			require.NoError(t, err)
+			require.NoError(t, tx.Commit())
+
 			txRo, err := tree.db.BeginRo(ctx)
 			require.NoError(t, err)
 			_, actualRoot, err := tree.getLastIndexAndRoot(txRo)

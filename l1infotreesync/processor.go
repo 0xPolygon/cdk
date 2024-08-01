@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path"
 
 	"github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/l1infotree"
@@ -112,17 +111,18 @@ func (l *storeLeaf) GlobalExitRoot() ethCommon.Hash {
 	return gerBytes
 }
 
-func tableCfgFunc(defaultBuckets kv.TableCfg) kv.TableCfg {
-	return kv.TableCfg{
-		rootTable:      {},
-		indexTable:     {},
-		infoTable:      {},
-		blockTable:     {},
-		lastBlockTable: {},
-	}
-}
-
 func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
+	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
+		cfg := kv.TableCfg{
+			rootTable:      {},
+			indexTable:     {},
+			infoTable:      {},
+			blockTable:     {},
+			lastBlockTable: {},
+		}
+		tree.AddTables(cfg, dbPrefix)
+		return cfg
+	}
 	db, err := mdbx.NewMDBX(nil).
 		Path(dbPath).
 		WithTableCfg(tableCfgFunc).
@@ -148,11 +148,7 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 		return nil, err
 	}
 	p.l1InfoTree = l1InfoTree
-	rollupExitTreeDBPath := path.Join(dbPath, "rollupExitTree")
-	rollupExitTree, err := tree.NewUpdatable(ctx, rollupExitTreeDBPath, dbPrefix)
-	if err != nil {
-		return nil, err
-	}
+	rollupExitTree := tree.NewUpdatable(ctx, db, dbPrefix)
 	p.rollupExitTree = rollupExitTree
 	return p, nil
 }

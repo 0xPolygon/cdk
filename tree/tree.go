@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -61,21 +60,16 @@ func (n *treeNode) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func newTree(dbPath, dbPrefix string) (*Tree, error) {
+func AddTables(tableCfg map[string]kv.TableCfgItem, dbPrefix string) {
 	rootTable := dbPrefix + rootTableSufix
 	rhtTable := dbPrefix + rhtTableSufix
-	db, err := mdbx.NewMDBX(nil).
-		Path(dbPath).
-		WithTableCfg(func(defaultBuckets kv.TableCfg) kv.TableCfg {
-			return kv.TableCfg{
-				rootTable: {},
-				rhtTable:  {},
-			}
-		}).
-		Open()
-	if err != nil {
-		return nil, err
-	}
+	tableCfg[rootTable] = kv.TableCfgItem{}
+	tableCfg[rhtTable] = kv.TableCfgItem{}
+}
+
+func newTree(db kv.RwDB, dbPrefix string) *Tree {
+	rootTable := dbPrefix + rootTableSufix
+	rhtTable := dbPrefix + rhtTableSufix
 	t := &Tree{
 		rhtTable:   rhtTable,
 		rootTable:  rootTable,
@@ -84,7 +78,7 @@ func newTree(dbPath, dbPrefix string) (*Tree, error) {
 		zeroHashes: generateZeroHashes(defaultHeight),
 	}
 
-	return t, nil
+	return t
 }
 
 // GetProof returns the merkle proof for a given index and root.
