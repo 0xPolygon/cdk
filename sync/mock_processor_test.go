@@ -18,7 +18,7 @@ func (_m *ProcessorMock) GetLastProcessedBlock(ctx context.Context) (uint64, err
 	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for getLastProcessedBlock")
+		panic("no return value specified for GetLastProcessedBlock")
 	}
 
 	var r0 uint64
@@ -46,7 +46,7 @@ func (_m *ProcessorMock) ProcessBlock(block Block) error {
 	ret := _m.Called(block)
 
 	if len(ret) == 0 {
-		panic("no return value specified for reorg")
+		panic("no return value specified for ProcessBlock")
 	}
 
 	var r0 error
@@ -64,7 +64,7 @@ func (_m *ProcessorMock) Reorg(firstReorgedBlock uint64) error {
 	ret := _m.Called(firstReorgedBlock)
 
 	if len(ret) == 0 {
-		panic("no return value specified for storeBridgeEvents")
+		panic("no return value specified for Reorg")
 	}
 
 	var r0 error
