@@ -385,8 +385,11 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		tx.Rollback()
 		return err
 	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
 	p.l1InfoTree = l1InfoTree
-	return tx.Commit()
+	return nil
 }
 
 func (p *processor) deleteLeaf(tx kv.RwTx, index uint32) error {

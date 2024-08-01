@@ -58,7 +58,7 @@ func NewEVMDownloader(
 			blockFinality:          finality,
 			waitForNewBlocksPeriod: waitForNewBlocksPeriod,
 			appender:               appender,
-			topicsToQuery:          [][]common.Hash{topicsToQuery},
+			topicsToQuery:          topicsToQuery,
 			adressessToQuery:       adressessToQuery,
 			rh:                     rh,
 		},
@@ -106,7 +106,7 @@ type downloaderImplementation struct {
 	blockFinality          *big.Int
 	waitForNewBlocksPeriod time.Duration
 	appender               LogAppenderMap
-	topicsToQuery          [][]common.Hash
+	topicsToQuery          []common.Hash
 	adressessToQuery       []common.Address
 	rh                     *RetryHandler
 }
@@ -141,6 +141,10 @@ func (d *downloaderImplementation) getEventsByBlockRange(ctx context.Context, fr
 	for _, l := range logs {
 		if len(blocks) == 0 || blocks[len(blocks)-1].Num < l.BlockNumber {
 			b := d.getBlockHeader(ctx, l.BlockNumber)
+			if b.Hash != l.BlockHash {
+				log.Infof("there has been a block hash change between the event query and the block query, retrtying")
+				return d.getEventsByBlockRange(ctx, fromBlock, toBlock)
+			}
 			blocks = append(blocks, EVMBlock{
 				EVMBlockHeader: EVMBlockHeader{
 					Num:        l.BlockNumber,
@@ -172,20 +176,38 @@ func (d *downloaderImplementation) getLogs(ctx context.Context, fromBlock, toBlo
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
 		Addresses: d.adressessToQuery,
-		Topics:    d.topicsToQuery,
 		ToBlock:   new(big.Int).SetUint64(toBlock),
 	}
 	attempts := 0
+	var (
+		unfilteredLogs []types.Log
+		err            error
+	)
 	for {
-		logs, err := d.ethClient.FilterLogs(ctx, query)
+		unfilteredLogs, err = d.ethClient.FilterLogs(ctx, query)
 		if err != nil {
 			attempts++
 			log.Error("error calling FilterLogs to eth client: ", err)
 			d.rh.Handle("getLogs", attempts)
 			continue
 		}
-		return logs
+		break
 	}
+	logs := []types.Log{}
+	for _, l := range unfilteredLogs {
+		found := false
+		for _, topic := range d.topicsToQuery {
+			if l.Topics[0] == topic {
+				logs = append(logs, l)
+				found = true
+				break
+			}
+		}
+		if !found {
+			log.Debugf("ignoring log %+v because it's not under the list of topics to query", l)
+		}
+	}
+	return logs
 }
 
 func (d *downloaderImplementation) getBlockHeader(ctx context.Context, blockNum uint64) EVMBlockHeader {
