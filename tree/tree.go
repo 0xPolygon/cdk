@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	dbCommon "github.com/0xPolygon/cdk/common"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"golang.org/x/crypto/sha3"
@@ -79,6 +80,17 @@ func newTree(db kv.RwDB, dbPrefix string) *Tree {
 	}
 
 	return t
+}
+
+func (t *Tree) GetRootByIndex(tx kv.Tx, index uint32) (common.Hash, error) {
+	rootBytes, err := tx.GetOne(t.rootTable, dbCommon.Uint32ToBytes(index))
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if rootBytes == nil {
+		return common.Hash{}, ErrNotFound
+	}
+	return common.BytesToHash(rootBytes), nil
 }
 
 // GetProof returns the merkle proof for a given index and root.

@@ -67,16 +67,16 @@ func TestE2E(t *testing.T) {
 		// Let the processor catch up
 		time.Sleep(time.Millisecond * 10)
 
-		expectedRoot, err := gerSc.GetRoot(&bind.CallOpts{Pending: false})
-		require.NoError(t, err)
 		expectedGER, err := gerSc.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		info2, err := syncer.GetInfoByIndex(ctx, uint32(i))
-		require.NoError(t, err, fmt.Sprintf("index: %d, root: %s", i, common.Bytes2Hex(expectedRoot[:])))
-		require.Equal(t, common.Hash(expectedGER), info2.GlobalExitRoot, fmt.Sprintf("index: %d", i))
-		info, err := syncer.GetInfoByRoot(ctx, expectedRoot)
-		require.NoError(t, err, fmt.Sprintf("index: %d, expected root: %s, actual root: %s", i, common.Bytes2Hex(expectedRoot[:]), info2.L1InfoTreeRoot))
-		require.Equal(t, common.Hash(expectedRoot), info.L1InfoTreeRoot)
-		require.Equal(t, info, info2)
+		info, err := syncer.GetInfoByIndex(ctx, uint32(i))
+		require.NoError(t, err)
+		require.Equal(t, common.Hash(expectedGER), info.GlobalExitRoot, fmt.Sprintf("index: %d", i))
+
+		expectedRoot, err := gerSc.GetRoot(&bind.CallOpts{Pending: false})
+		require.NoError(t, err)
+		actualRoot, err := syncer.GetRootByIndex(ctx, uint32(i))
+		require.NoError(t, err)
+		require.Equal(t, common.Hash(expectedRoot), actualRoot)
 	}
 }

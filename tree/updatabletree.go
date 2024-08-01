@@ -18,6 +18,10 @@ func NewUpdatable(ctx context.Context, db kv.RwDB, dbPrefix string) *UpdatableTr
 	return ut
 }
 
-func (t *UpdatableTree) UpsertLeaf(ctx context.Context, index uint32, leafHash common.Hash, expectedRoot *common.Hash) error {
-	return errors.New("not implemented")
+func (t *UpdatableTree) UpsertLeaf(tx kv.RwTx, index uint32, leafHash common.Hash, expectedRoot *common.Hash) (func(), error) {
+	return func() {}, errors.New("not implemented")
+}
+
+func (t *UpdatableTree) Reorg(tx kv.RwTx, firstReorgedIndex uint32) (func(), error) {
+	return func() {}, errors.New("not implemented")
 }

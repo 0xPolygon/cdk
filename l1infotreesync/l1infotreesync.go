@@ -100,16 +100,8 @@ func (s *L1InfoTreeSync) Start(ctx context.Context) {
 	s.driver.Sync(ctx)
 }
 
-func (s *L1InfoTreeSync) ComputeMerkleProofByIndex(ctx context.Context, index uint32) ([][32]byte, common.Hash, error) {
+func (s *L1InfoTreeSync) ComputeMerkleProofByIndex(ctx context.Context, index uint32) ([]common.Hash, common.Hash, error) {
 	return s.processor.ComputeMerkleProofByIndex(ctx, index)
-}
-
-func (s *L1InfoTreeSync) ComputeMerkleProofByRoot(ctx context.Context, root common.Hash) ([][32]byte, common.Hash, error) {
-	return s.processor.ComputeMerkleProofByRoot(ctx, root)
-}
-
-func (s *L1InfoTreeSync) GetInfoByRoot(ctx context.Context, root common.Hash) (*L1InfoTreeLeaf, error) {
-	return s.processor.GetInfoByRoot(ctx, root)
 }
 
 func (s *L1InfoTreeSync) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*L1InfoTreeLeaf, error) {
@@ -120,6 +112,12 @@ func (s *L1InfoTreeSync) GetInfoByIndex(ctx context.Context, index uint32) (*L1I
 	return s.processor.GetInfoByIndex(ctx, index)
 }
 
-func (s *L1InfoTreeSync) GetInfoByHash(ctx context.Context, hash []byte) (*L1InfoTreeLeaf, error) {
-	return s.processor.GetInfoByHash(ctx, hash)
+func (s *L1InfoTreeSync) GetRootByIndex(ctx context.Context, index uint32) (common.Hash, error) {
+	tx, err := s.processor.db.BeginRo(ctx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	defer tx.Rollback()
+
+	return s.processor.l1InfoTree.GetRootByIndex(tx, index)
 }
