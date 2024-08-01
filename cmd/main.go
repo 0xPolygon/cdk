@@ -16,6 +16,8 @@ const (
 	SEQUENCE_SENDER = "sequence-sender"
 	// AGGREGATOR name to identify the aggregator component
 	AGGREGATOR = "aggregator"
+	// AGGORACLE name to identify the aggoracle component
+	AGGORACLE = "aggoracle"
 )
 
 const (
@@ -47,7 +49,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(SEQUENCE_SENDER, AGGREGATOR),
+		Value:    cli.NewStringSlice(SEQUENCE_SENDER, AGGREGATOR, AGGORACLE),
 	}
 )
 
