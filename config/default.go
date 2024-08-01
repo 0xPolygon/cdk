@@ -118,4 +118,49 @@ SequencerPrivateKey = {}
 		[Aggregator.Synchronizer.Etherman]
 			[Aggregator.Synchronizer.Etherman.Validium]
 				Enabled = false
+
+[ReorgDetectorL1]
+DBPath = "/tmp/reorgdetector"
+
+[L1InfoTreeSync]
+DBPath = "/tmp/L1InfoTreeSync"
+GlobalExitRootAddr="0x8464135c8F25Da09e49BC8782676a84730C318bC"
+SyncBlockChunkSize=10
+BlockFinality="latest"
+URLRPCL1="http://test-aggoracle-l1:8545"
+WaitForNewBlocksPeriod="100ms"
+InitialBlock=0
+
+[AggOracle]
+TargetChainType="EVM"
+URLRPCL1="http://test-aggoracle-l1:8545"
+BlockFinality="latest"
+WaitPeriodNextGER="100ms"
+	[EVMSender]
+		GlobalExitRootL2="0x8464135c8F25Da09e49BC8782676a84730C318bC"
+		URLRPCL2="http://test-aggoracle-l2:8545"
+		ChainIDL2=1337
+		GasOffset=0
+		WaitPeriodMonitorTx="100ms"
+		SenderAddr="0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+		[SequenceSender.EthTxManager]
+				FrequencyToMonitorTxs = "1s"
+				WaitTxToBeMined = "2s"
+				GetReceiptMaxTime = "250ms"
+				GetReceiptWaitInterval = "1s"
+				PrivateKeys = [
+					{Path = "/app/keystore/aggoracle.keystore", Password = "testonly"},
+				]
+				ForcedGas = 0
+				GasPriceMarginFactor = 1
+				MaxGasPriceLimit = 0
+				PersistenceFilename = "/tmp/ethtxmanager.json"
+				ReadPendingL1Txs = false
+				SafeStatusL1NumberOfBlocks = 5
+				FinalizedStatusL1NumberOfBlocks = 10
+					[SequenceSender.EthTxManager.Etherman]
+						URL = "http://test-aggoracle-l2"
+						MultiGasProvider = false
+						L1ChainID = 1337
+						HTTPHeaders = []
 `
