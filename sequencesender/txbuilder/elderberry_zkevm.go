@@ -2,11 +2,11 @@ package txbuilder
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk/etherman"
-	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -17,26 +17,34 @@ import (
 
 type TxBuilderElderberryZKEVM struct {
 	TxBuilderElderberryBase
-	condNewSeq CondNewSequence
+	condNewSeq     CondNewSequence
+	rollupContract rollupElderberryZKEVMContractor
 }
 
-func NewTxBuilderElderberryZKEVM(zkevm contracts.RollupElderberryType, opts bind.TransactOpts, sender common.Address, maxTxSizeForL1 uint64) *TxBuilderElderberryZKEVM {
+type rollupElderberryZKEVMContractor interface {
+	SequenceBatches(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, maxSequenceTimestamp uint64, initSequencedBatch uint64, l2Coinbase common.Address) (*types.Transaction, error)
+}
+
+func NewTxBuilderElderberryZKEVM(zkevm rollupElderberryZKEVMContractor, opts bind.TransactOpts, maxTxSizeForL1 uint64) *TxBuilderElderberryZKEVM {
 	return &TxBuilderElderberryZKEVM{
-		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(
-			zkevm, opts,
-		),
-		condNewSeq: &NewSequenceConditionalMaxSize{
-			maxTxSizeForL1: maxTxSizeForL1,
-		},
+		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(opts),
+		condNewSeq:              NewConditionalNewSequenceMaxSize(maxTxSizeForL1),
+		rollupContract:          zkevm,
 	}
 }
 
 func (t *TxBuilderElderberryZKEVM) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
-	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.opts.From, l2Coinbase, batchNumber)
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, l2Coinbase)
 }
 
-func (t *TxBuilderElderberryZKEVM) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
+// SetCondNewSeq allow to override the default conditional for new sequence
+func (t *TxBuilderElderberryZKEVM) SetCondNewSeq(cond CondNewSequence) CondNewSequence {
+	previous := t.condNewSeq
+	t.condNewSeq = cond
+	return previous
+}
 
+func (t *TxBuilderElderberryZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
 	newopts := t.opts
 	newopts.NoSend = true
 
@@ -49,6 +57,9 @@ func (t *TxBuilderElderberryZKEVM) BuildSequenceBatchesTx(ctx context.Context, s
 }
 
 func (t *TxBuilderElderberryZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
+	if sequences == nil || sequences.Len() == 0 {
+		return nil, fmt.Errorf("can't sequence an empty sequence")
+	}
 	batches := make([]polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, sequences.Len())
 	for i, seq := range sequences.Batches() {
 		var ger common.Hash
@@ -65,8 +76,7 @@ func (t *TxBuilderElderberryZKEVM) sequenceBatchesRollup(opts bind.TransactOpts,
 		}
 	}
 	lastSequencedBatchNumber := getLastSequencedBatchNumber(sequences)
-	ZkEVM := t.rollupContract.Contract()
-	tx, err := ZkEVM.SequenceBatches(&opts, batches, sequences.MaxSequenceTimestamp(), lastSequencedBatchNumber, sequences.L2Coinbase())
+	tx, err := t.rollupContract.SequenceBatches(&opts, batches, sequences.MaxSequenceTimestamp(), lastSequencedBatchNumber, sequences.L2Coinbase())
 	if err != nil {
 		t.warningMessage(batches, sequences.L2Coinbase(), &opts)
 		if parsedErr, ok := etherman.TryParseError(err); ok {

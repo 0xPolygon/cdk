@@ -93,7 +93,7 @@ func NewClient(cfg config.Config, l1Config config.L1Config, commonConfig cdkcomm
 	}
 	log.Info(contracts.String())
 	// Get RollupID
-	rollupID, err := contracts.Banana.RollupManager.Contract().RollupAddressToID(&bind.CallOpts{Pending: false}, l1Config.ZkEVMAddr)
+	rollupID, err := contracts.Banana.RollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, l1Config.ZkEVMAddr)
 	if err != nil {
 		log.Errorf("error getting rollupID from %s : %+v", contracts.Banana.RollupManager.String(), err)
 		return nil, err
@@ -114,7 +114,7 @@ func NewClient(cfg config.Config, l1Config config.L1Config, commonConfig cdkcomm
 	}
 
 	if commonConfig.IsValidiumMode {
-		dapAddr, err := contracts.Banana.Rollup.Contract().DataAvailabilityProtocol(&bind.CallOpts{Pending: false})
+		dapAddr, err := contracts.Banana.Rollup.DataAvailabilityProtocol(&bind.CallOpts{Pending: false})
 		if err != nil {
 			return nil, err
 		}
@@ -148,7 +148,7 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 
 // GetSendSequenceFee get super/trusted sequencer fee
 func (etherMan *Client) GetSendSequenceFee(numBatches uint64) (*big.Int, error) {
-	f, err := etherMan.Contracts.Banana.RollupManager.Contract().GetBatchFee(&bind.CallOpts{Pending: false})
+	f, err := etherMan.Contracts.Banana.RollupManager.GetBatchFee(&bind.CallOpts{Pending: false})
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (etherMan *Client) GetSendSequenceFee(numBatches uint64) (*big.Int, error) 
 
 // TrustedSequencer gets trusted sequencer address
 func (etherMan *Client) TrustedSequencer() (common.Address, error) {
-	return etherMan.Contracts.Banana.Rollup.Contract().TrustedSequencer(&bind.CallOpts{Pending: false})
+	return etherMan.Contracts.Banana.Rollup.TrustedSequencer(&bind.CallOpts{Pending: false})
 }
 
 // HeaderByNumber returns a block header from the current canonical chain. If number is
@@ -181,7 +181,7 @@ func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64
 
 // GetLatestBatchNumber function allows to retrieve the latest proposed batch in the smc
 func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
-	rollupData, err := etherMan.Contracts.Banana.RollupManager.Contract().RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
+	rollupData, err := etherMan.Contracts.Banana.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
 	if err != nil {
 		return 0, err
 	}
@@ -223,7 +223,7 @@ func (etherMan *Client) GetLatestBlockTimestamp(ctx context.Context) (uint64, er
 
 // GetLatestVerifiedBatchNum gets latest verified batch from ethereum
 func (etherMan *Client) GetLatestVerifiedBatchNum() (uint64, error) {
-	rollupData, err := etherMan.Contracts.Banana.RollupManager.Contract().RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
+	rollupData, err := etherMan.Contracts.Banana.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
 	if err != nil {
 		return 0, err
 	}
@@ -242,12 +242,12 @@ func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 
 // GetTrustedSequencerURL Gets the trusted sequencer url from rollup smc
 func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
-	return etherMan.Contracts.Banana.Rollup.Contract().TrustedSequencerURL(&bind.CallOpts{Pending: false})
+	return etherMan.Contracts.Banana.Rollup.TrustedSequencerURL(&bind.CallOpts{Pending: false})
 }
 
 // GetL2ChainID returns L2 Chain ID
 func (etherMan *Client) GetL2ChainID() (uint64, error) {
-	rollupData, err := etherMan.Contracts.Banana.RollupManager.Contract().RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
+	rollupData, err := etherMan.Contracts.Banana.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
 	log.Debug("chainID read from rollupManager: ", rollupData.ChainID)
 	if err != nil {
 		log.Debug("error from rollupManager: ", err)
@@ -397,7 +397,7 @@ func (etherMan *Client) GetLatestBlockHeader(ctx context.Context) (*types.Header
 
 // GetDAProtocolAddr returns the address of the data availability protocol
 func (etherMan *Client) GetDAProtocolAddr() (common.Address, error) {
-	return etherMan.Contracts.Banana.Rollup.Contract().DataAvailabilityProtocol(&bind.CallOpts{Pending: false})
+	return etherMan.Contracts.Banana.Rollup.DataAvailabilityProtocol(&bind.CallOpts{Pending: false})
 }
 
 // GetDAProtocolName returns the name of the data availability protocol
@@ -407,7 +407,7 @@ func (etherMan *Client) GetDAProtocolName() (string, error) {
 
 // LastAccInputHash gets the last acc input hash from the SC
 func (etherMan *Client) LastAccInputHash() (common.Hash, error) {
-	return etherMan.Contracts.Banana.Rollup.Contract().LastAccInputHash(&bind.CallOpts{Pending: false})
+	return etherMan.Contracts.Banana.Rollup.LastAccInputHash(&bind.CallOpts{Pending: false})
 }
 
 // GetL1InfoRoot gets the L1 info root from the SC
@@ -419,7 +419,7 @@ func (etherMan *Client) GetL1InfoRoot(indexL1InfoRoot uint32) (common.Hash, erro
 	)
 
 	if indexL1InfoRoot > 0 {
-		lastL1InfoTreeRoot, err = etherMan.Contracts.Banana.GlobalExitRoot.Contract().L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
+		lastL1InfoTreeRoot, err = etherMan.Contracts.Banana.GlobalExitRoot.L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
 		if err != nil {
 			log.Errorf("error calling SC globalexitroot L1InfoLeafMap: %v", err)
 		}

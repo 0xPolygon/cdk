@@ -191,7 +191,7 @@ func (d *Backend) PostSequenceElderberry(ctx context.Context, batchesData [][]by
 	return collectSignatures(committee, ch, cancelSignatureCollection)
 }
 
-func (d *Backend) PostSequence(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
+func (d *Backend) PostSequenceBanana(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
 	// Get current committee
 	committee, err := d.getCurrentDataCommittee()
 	if err != nil {
