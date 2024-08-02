@@ -22,7 +22,7 @@ var (
 	maxRetryAttemptsAfterError = 5
 )
 
-type LocalBridgeSync struct {
+type BridgeSync struct {
 	processor *processor
 	driver    *sync.EVMDriver
 }
@@ -37,7 +37,7 @@ func NewL1(
 	rd sync.ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
-) (*LocalBridgeSync, error) {
+) (*BridgeSync, error) {
 	return new(
 		ctx,
 		dbPath,
@@ -62,7 +62,7 @@ func NewL2(
 	rd sync.ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
-) (*LocalBridgeSync, error) {
+) (*BridgeSync, error) {
 	return new(
 		ctx,
 		dbPath,
@@ -87,7 +87,7 @@ func new(
 	ethClient EthClienter,
 	initialBlock uint64,
 	dbPrefix, reorgDetectorID string,
-) (*LocalBridgeSync, error) {
+) (*BridgeSync, error) {
 	processor, err := newProcessor(ctx, dbPath, dbPrefix)
 	if err != nil {
 		return nil, err
@@ -130,15 +130,19 @@ func new(
 	if err != nil {
 		return nil, err
 	}
-	return &LocalBridgeSync{
+	return &BridgeSync{
 		processor: processor,
 		driver:    driver,
 	}, nil
 }
 
 // Start starts the synchronization process
-func (s *LocalBridgeSync) Start(ctx context.Context) {
+func (s *BridgeSync) Start(ctx context.Context) {
 	s.driver.Sync(ctx)
+}
+
+func (s *BridgeSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
+	return s.GetLastProcessedBlock(ctx)
 }
 
 // TODO: expose methods from the processor for consumers
