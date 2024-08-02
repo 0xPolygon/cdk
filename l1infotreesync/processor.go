@@ -374,10 +374,6 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 			}
 
 			if event.VerifyBatches != nil {
-				// before the verify batches event happens, the updateExitRoot event is emitted.
-				// Since the previous event include the rollup exit root, this can use it to assert
-				// that the computation of the tree is correct. However, there are some execution paths
-				// on the contract that don't follow this (verifyBatches + pendingStateTimeout != 0)
 				rollupExitTreeLeavesToAdd = append(rollupExitTreeLeavesToAdd, tree.Leaf{
 					Index: event.VerifyBatches.RollupID - 1,
 					Hash:  event.VerifyBatches.ExitRoot,
