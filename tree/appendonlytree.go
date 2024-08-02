@@ -30,12 +30,7 @@ func (t *AppendOnlyTree) AddLeaves(tx kv.RwTx, leaves []Leaf) (func(), error) {
 	if len(leaves) == 0 {
 		return func() {}, nil
 	}
-	if int64(leaves[0].Index) != t.lastIndex+1 {
-		return func() {}, fmt.Errorf(
-			"mismatched index. Expected: %d, actual: %d",
-			t.lastIndex+1, leaves[0].Index,
-		)
-	}
+
 	backupIndx := t.lastIndex
 	backupCache := make([]common.Hash, len(t.lastLeftCache))
 	copy(backupCache, t.lastLeftCache)
@@ -54,6 +49,12 @@ func (t *AppendOnlyTree) AddLeaves(tx kv.RwTx, leaves []Leaf) (func(), error) {
 }
 
 func (t *AppendOnlyTree) addLeaf(tx kv.RwTx, leaf Leaf) error {
+	if int64(leaf.Index) != t.lastIndex+1 {
+		return fmt.Errorf(
+			"mismatched index. Expected: %d, actual: %d",
+			t.lastIndex+1, leaf.Index,
+		)
+	}
 	// Calculate new tree nodes
 	currentChildHash := leaf.Hash
 	newNodes := []treeNode{}
@@ -80,10 +81,6 @@ func (t *AppendOnlyTree) addLeaf(tx kv.RwTx, leaf Leaf) error {
 		newNodes = append(newNodes, parent)
 	}
 
-	if err := assertRoot(leaf.ExpectedRoot, currentChildHash); err != nil {
-		return err
-	}
-
 	// store root
 	t.storeRoot(tx, uint64(leaf.Index), currentChildHash)
 	root := currentChildHash
@@ -102,6 +99,21 @@ func (t *AppendOnlyTree) GetRootByIndex(tx kv.Tx, index uint32) (common.Hash, er
 	return t.getRootByIndex(tx, uint64(index))
 }
 
+func (t *AppendOnlyTree) GetLastIndexAndRoot(ctx context.Context) (uint32, common.Hash, error) {
+	tx, err := t.db.BeginRo(ctx)
+	if err != nil {
+		return 0, common.Hash{}, err
+	}
+	i, root, err := t.getLastIndexAndRootWithTx(tx)
+	if err != nil {
+		return 0, common.Hash{}, err
+	}
+	if i == -1 {
+		return 0, common.Hash{}, ErrNotFound
+	}
+	return uint32(i), root, nil
+}
+
 func (t *AppendOnlyTree) initLastLeftCacheAndLastDepositCount(ctx context.Context) error {
 	tx, err := t.db.BeginRw(ctx)
 	if err != nil {
@@ -117,7 +129,7 @@ func (t *AppendOnlyTree) initLastLeftCacheAndLastDepositCount(ctx context.Contex
 }
 
 func (t *AppendOnlyTree) initLastIndex(tx kv.Tx) (common.Hash, error) {
-	ldc, root, err := t.getLastIndexAndRoot(tx)
+	ldc, root, err := t.getLastIndexAndRootWithTx(tx)
 	if err != nil {
 		return common.Hash{}, err
 	}

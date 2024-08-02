@@ -125,3 +125,11 @@ func (s *L1InfoTreeSync) GetL1InfoTreeRootByIndex(ctx context.Context, index uin
 func (s *L1InfoTreeSync) GetLastRollupExitRoot(ctx context.Context) (common.Hash, error) {
 	return s.processor.rollupExitTree.GetLastRoot(ctx)
 }
+
+func (s *L1InfoTreeSync) GetLastL1InfoTreeRootAndIndex(ctx context.Context) (uint32, common.Hash, error) {
+	return s.processor.l1InfoTree.GetLastIndexAndRoot(ctx)
+}
+
+func (s *L1InfoTreeSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
+	return s.processor.GetLastProcessedBlock(ctx)
+}

@@ -56,7 +56,7 @@ func TestMTAddLeaf(t *testing.T) {
 			if len(testVector.ExistingLeaves) > 0 {
 				txRo, err := tree.db.BeginRo(ctx)
 				require.NoError(t, err)
-				_, actualRoot, err := tree.getLastIndexAndRoot(txRo)
+				_, actualRoot, err := tree.getLastIndexAndRootWithTx(txRo)
 				txRo.Rollback()
 				require.NoError(t, err)
 				require.Equal(t, common.HexToHash(testVector.CurrentRoot), actualRoot)
@@ -74,7 +74,7 @@ func TestMTAddLeaf(t *testing.T) {
 
 			txRo, err := tree.db.BeginRo(ctx)
 			require.NoError(t, err)
-			_, actualRoot, err := tree.getLastIndexAndRoot(txRo)
+			_, actualRoot, err := tree.getLastIndexAndRootWithTx(txRo)
 			txRo.Rollback()
 			require.NoError(t, err)
 			require.Equal(t, common.HexToHash(testVector.NewRoot), actualRoot)
@@ -123,7 +123,7 @@ func TestMTGetProof(t *testing.T) {
 
 			txRo, err := tree.db.BeginRo(ctx)
 			require.NoError(t, err)
-			_, actualRoot, err := tree.getLastIndexAndRoot(txRo)
+			_, actualRoot, err := tree.getLastIndexAndRootWithTx(txRo)
 			txRo.Rollback()
 			expectedRoot := common.HexToHash(testVector.ExpectedRoot)
 			require.Equal(t, expectedRoot, actualRoot)

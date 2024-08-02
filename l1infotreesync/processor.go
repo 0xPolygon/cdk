@@ -339,24 +339,25 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	l1InfoTreeLeavesToAdd := []tree.Leaf{}
 	rollupExitTreeLeavesToAdd := []tree.Leaf{}
 	if len(b.Events) > 0 {
-		var initialIndex uint32
+		var initialL1InfoIndex uint32
+		var l1InfoLeavesAdded uint32
 		lastIndex, err := p.getLastIndex(tx)
 		if err == ErrNotFound {
-			initialIndex = 0
+			initialL1InfoIndex = 0
 		} else if err != nil {
 			rollback()
 			return err
 		} else {
-			initialIndex = lastIndex + 1
+			initialL1InfoIndex = lastIndex + 1
 		}
-		var nextExpectedRollupExitTreeRoot *ethCommon.Hash
-		for i, e := range b.Events {
+		for _, e := range b.Events {
 			event := e.(Event)
 			events = append(events, event)
 			if event.UpdateL1InfoTree != nil {
+				index := initialL1InfoIndex + l1InfoLeavesAdded
 				leafToStore := storeLeaf{
 					BlockNumber:     b.Num,
-					Index:           initialIndex + uint32(i),
+					Index:           index,
 					MainnetExitRoot: event.UpdateL1InfoTree.MainnetExitRoot,
 					RollupExitRoot:  event.UpdateL1InfoTree.RollupExitRoot,
 					ParentHash:      event.UpdateL1InfoTree.ParentHash,
@@ -367,10 +368,10 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 					return err
 				}
 				l1InfoTreeLeavesToAdd = append(l1InfoTreeLeavesToAdd, tree.Leaf{
-					Index: initialIndex + uint32(i),
+					Index: leafToStore.Index,
 					Hash:  leafToStore.Hash(),
 				})
-				nextExpectedRollupExitTreeRoot = &leafToStore.RollupExitRoot
+				l1InfoLeavesAdded++
 			}
 
 			if event.VerifyBatches != nil {
@@ -379,36 +380,38 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 				// that the computation of the tree is correct. However, there are some execution paths
 				// on the contract that don't follow this (verifyBatches + pendingStateTimeout != 0)
 				rollupExitTreeLeavesToAdd = append(rollupExitTreeLeavesToAdd, tree.Leaf{
-					Index:        event.VerifyBatches.RollupID,
-					Hash:         event.VerifyBatches.ExitRoot,
-					ExpectedRoot: nextExpectedRollupExitTreeRoot,
+					Index: event.VerifyBatches.RollupID - 1,
+					Hash:  event.VerifyBatches.ExitRoot,
 				})
-				nextExpectedRollupExitTreeRoot = nil
 			}
 		}
-		bwl := blockWithLeafs{
-			FirstIndex: initialIndex,
-			LastIndex:  initialIndex + uint32(len(b.Events)),
-		}
-		blockValue, err := json.Marshal(bwl)
-		if err != nil {
-			rollback()
-			return err
-		}
-		if err := tx.Put(blockTable, common.Uint64ToBytes(b.Num), blockValue); err != nil {
-			rollback()
-			return err
-		}
-		l1InfoTreeRollback, err = p.l1InfoTree.AddLeaves(tx, l1InfoTreeLeavesToAdd)
-		if err != nil {
-			rollback()
-			return err
+		if l1InfoLeavesAdded > 0 {
+			bwl := blockWithLeafs{
+				FirstIndex: initialL1InfoIndex,
+				LastIndex:  initialL1InfoIndex + l1InfoLeavesAdded,
+			}
+			blockValue, err := json.Marshal(bwl)
+			if err != nil {
+				rollback()
+				return err
+			}
+			if err := tx.Put(blockTable, common.Uint64ToBytes(b.Num), blockValue); err != nil {
+				rollback()
+				return err
+			}
+			l1InfoTreeRollback, err = p.l1InfoTree.AddLeaves(tx, l1InfoTreeLeavesToAdd)
+			if err != nil {
+				rollback()
+				return err
+			}
 		}
 
-		rollupExitTreeRollback, err = p.rollupExitTree.UpseartLeaves(tx, rollupExitTreeLeavesToAdd, b.Num)
-		if err != nil {
-			rollback()
-			return err
+		if len(rollupExitTreeLeavesToAdd) > 0 {
+			rollupExitTreeRollback, err = p.rollupExitTree.UpseartLeaves(tx, rollupExitTreeLeavesToAdd, b.Num)
+			if err != nil {
+				rollback()
+				return err
+			}
 		}
 	}
 	if err := p.updateLastProcessedBlock(tx, b.Num); err != nil {

@@ -22,7 +22,7 @@ func NewUpdatable(ctx context.Context, db kv.RwDB, dbPrefix string) (*UpdatableT
 		return nil, err
 	}
 	defer tx.Rollback()
-	rootIndex, root, err := t.getLastIndexAndRoot(tx)
+	rootIndex, root, err := t.getLastIndexAndRootWithTx(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,9 @@ func (t *UpdatableTree) UpseartLeaves(tx kv.RwTx, leaves []Leaf, rootIndex uint6
 	}
 
 	for _, l := range leaves {
-		t.upsertLeaf(tx, l)
+		if err := t.upsertLeaf(tx, l); err != nil {
+			return rollback, err
+		}
 	}
 
 	if err := t.storeRoot(tx, rootIndex, t.lastRoot); err != nil {
@@ -79,10 +81,6 @@ func (t *UpdatableTree) upsertLeaf(tx kv.RwTx, leaf Leaf) error {
 		}
 		currentChildHash = parent.hash()
 		newNodes = append(newNodes, parent)
-	}
-
-	if err := assertRoot(leaf.ExpectedRoot, currentChildHash); err != nil {
-		return err
 	}
 
 	if err := t.storeNodes(tx, newNodes); err != nil {

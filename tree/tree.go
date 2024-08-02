@@ -23,9 +23,8 @@ var (
 )
 
 type Leaf struct {
-	Index        uint32
-	Hash         common.Hash
-	ExpectedRoot *common.Hash
+	Index uint32
+	Hash  common.Hash
 }
 
 type Tree struct {
@@ -111,6 +110,7 @@ func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
 			if err == ErrNotFound {
 				hasUsedZeroHashes = true
 				siblings = append(siblings, t.zeroHashes[h])
+				err = nil
 				continue
 			} else {
 				err = fmt.Errorf(
@@ -228,7 +228,7 @@ func (t *Tree) GetLastRoot(ctx context.Context) (common.Hash, error) {
 		return common.Hash{}, err
 	}
 
-	i, root, err := t.getLastIndexAndRoot(tx)
+	i, root, err := t.getLastIndexAndRootWithTx(tx)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -238,9 +238,9 @@ func (t *Tree) GetLastRoot(ctx context.Context) (common.Hash, error) {
 	return root, nil
 }
 
-// getLastIndexAndRoot return the index and the root associated to the last leaf inserted.
+// getLastIndexAndRootWithTx return the index and the root associated to the last leaf inserted.
 // If index == -1, it means no leaf added yet
-func (t *Tree) getLastIndexAndRoot(tx kv.Tx) (int64, common.Hash, error) {
+func (t *Tree) getLastIndexAndRootWithTx(tx kv.Tx) (int64, common.Hash, error) {
 	iter, err := tx.RangeDescend(
 		t.rootTable,
 		dbCommon.Uint64ToBytes(math.MaxUint64),
@@ -258,16 +258,5 @@ func (t *Tree) getLastIndexAndRoot(tx kv.Tx) (int64, common.Hash, error) {
 	if lastIndexBytes == nil {
 		return -1, common.Hash{}, nil
 	}
-	return int64(dbCommon.BytesToUint32(lastIndexBytes)), common.Hash(rootBytes), nil
-}
-
-func assertRoot(expected *common.Hash, actual common.Hash) error {
-	if expected != nil && *expected != actual {
-		return fmt.Errorf(
-			"root missmatch. Expected %s actual %s",
-			expected.Hex(),
-			actual.Hex(),
-		)
-	}
-	return nil
+	return int64(dbCommon.BytesToUint64(lastIndexBytes)), common.Hash(rootBytes), nil
 }
