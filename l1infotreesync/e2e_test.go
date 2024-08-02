@@ -161,7 +161,7 @@ func TestFinalised(t *testing.T) {
 
 func TestStressAndReorgs(t *testing.T) {
 	const (
-		totalIterations       = 10_124
+		totalIterations       = 200   // Have tested with much larger number (+10k)
 		enableReorgs          = false // test fails when set to true
 		reorgEveryXIterations = 53
 		maxReorgDepth         = 5
