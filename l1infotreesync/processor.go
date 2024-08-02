@@ -223,7 +223,6 @@ func (p *processor) getInfoByIndexWithTx(tx kv.Tx, index uint32) (*L1InfoTreeLea
 	if infoBytes == nil {
 		return nil, ErrNotFound
 	}
-
 	var info storeLeaf
 	if err := json.Unmarshal(infoBytes, &info); err != nil {
 		return nil, err

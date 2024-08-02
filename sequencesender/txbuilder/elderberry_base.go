@@ -2,7 +2,6 @@ package txbuilder
 
 import (
 	"github.com/0xPolygon/cdk/etherman"
-	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -10,15 +9,18 @@ import (
 )
 
 type TxBuilderElderberryBase struct {
-	rollupContract contracts.RollupElderberryType
-	opts           bind.TransactOpts
+	opts bind.TransactOpts
 }
 
-func NewTxBuilderElderberryBase(rollupContract contracts.RollupElderberryType, opts bind.TransactOpts) *TxBuilderElderberryBase {
+func NewTxBuilderElderberryBase(opts bind.TransactOpts) *TxBuilderElderberryBase {
 	return &TxBuilderElderberryBase{
-		rollupContract: rollupContract,
-		opts:           opts,
+		opts: opts,
 	}
+}
+
+// SetAuth sets the auth for the tx builder
+func (t *TxBuilderElderberryBase) SetAuth(auth *bind.TransactOpts) {
+	t.opts = *auth
 }
 
 func (t *TxBuilderElderberryBase) NewSequence(batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
@@ -43,6 +45,9 @@ func (t *TxBuilderElderberryBase) NewBatchFromL2Block(l2Block *datastream.L2Bloc
 func getLastSequencedBatchNumber(sequences seqsendertypes.Sequence) uint64 {
 	if sequences.Len() == 0 {
 		return 0
+	}
+	if sequences.FirstBatch().BatchNumber() == 0 {
+		panic("First batch number is 0, that is not allowed!")
 	}
 	return sequences.FirstBatch().BatchNumber() - 1
 }
