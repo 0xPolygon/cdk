@@ -49,6 +49,7 @@ type processor struct {
 	rollupExitTree *tree.UpdatableTree
 }
 
+// UpdateL1InfoTree representation of the UpdateL1InfoTree event
 type UpdateL1InfoTree struct {
 	MainnetExitRoot ethCommon.Hash
 	RollupExitRoot  ethCommon.Hash
@@ -56,6 +57,7 @@ type UpdateL1InfoTree struct {
 	Timestamp       uint64
 }
 
+// VerifyBatches representation of the VerifyBatches and VerifyBatchesTrustedAggregator events
 type VerifyBatches struct {
 	RollupID   uint32
 	NumBatch   uint64
@@ -69,6 +71,7 @@ type Event struct {
 	VerifyBatches    *VerifyBatches
 }
 
+// L1InfoTreeLeaf representation of a leaf of the L1 Info tree
 type L1InfoTreeLeaf struct {
 	L1InfoTreeIndex   uint32
 	PreviousBlockHash ethCommon.Hash
@@ -88,6 +91,7 @@ type storeLeaf struct {
 	Timestamp       uint64
 }
 
+// Hash as expected by the tree
 func (l *storeLeaf) Hash() ethCommon.Hash {
 	var res [32]byte
 	t := make([]byte, 8) //nolint:gomnd
@@ -103,6 +107,7 @@ type blockWithLeafs struct {
 	LastIndex uint32
 }
 
+// GlobalExitRoot returns the GER
 func (l *storeLeaf) GlobalExitRoot() ethCommon.Hash {
 	var gerBytes [32]byte
 	hasher := sha3.NewLegacyKeccak256()
@@ -134,12 +139,12 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 		db: db,
 	}
 
-	l1InfoTree, err := tree.NewAppendOnly(ctx, db, dbPrefix+l1InfoTreeSuffix)
+	l1InfoTree, err := tree.NewAppendOnlyTree(ctx, db, dbPrefix+l1InfoTreeSuffix)
 	if err != nil {
 		return nil, err
 	}
 	p.l1InfoTree = l1InfoTree
-	rollupExitTree, err := tree.NewUpdatable(ctx, db, dbPrefix+rollupExitTreeSuffix)
+	rollupExitTree, err := tree.NewUpdatableTree(ctx, db, dbPrefix+rollupExitTreeSuffix)
 	if err != nil {
 		return nil, err
 	}
@@ -147,6 +152,7 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 	return p, nil
 }
 
+// GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
 func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([]ethCommon.Hash, ethCommon.Hash, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
@@ -206,6 +212,7 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	return p.getInfoByIndexWithTx(tx, blk.LastIndex-1)
 }
 
+// GetInfoByIndex returns the value of a leave (not the hash) of the L1 info tree
 func (p *processor) GetInfoByIndex(ctx context.Context, index uint32) (*L1InfoTreeLeaf, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
@@ -238,6 +245,7 @@ func (p *processor) getInfoByIndexWithTx(tx kv.Tx, index uint32) (*L1InfoTreeLea
 	}, nil
 }
 
+// GetLastProcessedBlock returns the last processed block
 func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
@@ -257,6 +265,8 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	return common.BytesToUint64(blockNumBytes), nil
 }
 
+// Reorg triggers a purge and reset process on the processot to leave it on a state
+// as if the last block processed was firstReorgedBlock-1
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
@@ -320,8 +330,8 @@ func (p *processor) deleteLeaf(tx kv.RwTx, index uint32) error {
 	return nil
 }
 
-// ProcessBlock process the leafs of the L1 info tree found on a block
-// this function can be called without leafs with the intention to track the last processed block
+// ProcessBlock procees the events of the block to build the rollup exit tree and the l1 info tree
+// and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	tx, err := p.db.BeginRw(ctx)
 	if err != nil {

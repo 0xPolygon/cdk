@@ -62,6 +62,7 @@ func (n *treeNode) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// AddTables add the needed tables for the tree to work in a tableCfg
 func AddTables(tableCfg map[string]kv.TableCfgItem, dbPrefix string) {
 	rootTable := dbPrefix + rootTableSufix
 	rhtTable := dbPrefix + rhtTableSufix
@@ -222,6 +223,7 @@ func (t *Tree) storeRoot(tx kv.RwTx, rootIndex uint64, root common.Hash) error {
 	return tx.Put(t.rootTable, dbCommon.Uint64ToBytes(rootIndex), root[:])
 }
 
+// GetLastRoot returns the last processed root
 func (t *Tree) GetLastRoot(ctx context.Context) (common.Hash, error) {
 	tx, err := t.db.BeginRo(ctx)
 	if err != nil {

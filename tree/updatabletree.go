@@ -9,12 +9,14 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
+// UpdatableTree is a tree that have updatable leaves, and doesn't need to have sequential inserts
 type UpdatableTree struct {
 	*Tree
 	lastRoot common.Hash
 }
 
-func NewUpdatable(ctx context.Context, db kv.RwDB, dbPrefix string) (*UpdatableTree, error) {
+// NewUpdatableTree returns an UpdatableTree
+func NewUpdatableTree(ctx context.Context, db kv.RwDB, dbPrefix string) (*UpdatableTree, error) {
 	// TODO: Load last root
 	t := newTree(db, dbPrefix)
 	tx, err := t.db.BeginRw(ctx)
@@ -36,6 +38,10 @@ func NewUpdatable(ctx context.Context, db kv.RwDB, dbPrefix string) (*UpdatableT
 	return ut, nil
 }
 
+// UpseartLeaves inserts or updates a list of leaves. The root index will be used to index the resulting
+// root after performing all the operations. Root index must be greater than the last used root index,
+// but doesn't need to be sequential. Great for relating block nums and roots :)
+// It returns a function that must be called to rollback the changes done by this interaction
 func (t *UpdatableTree) UpseartLeaves(tx kv.RwTx, leaves []Leaf, rootIndex uint64) (func(), error) {
 	if len(leaves) == 0 {
 		return func() {}, nil
@@ -90,6 +96,9 @@ func (t *UpdatableTree) upsertLeaf(tx kv.RwTx, leaf Leaf) error {
 	return nil
 }
 
+// Reorg deletes all the data relevant from firstReorgedIndex (includded) and onwards
+// and prepares the tree tfor being used as it was at firstReorgedIndex-1.
+// It returns a function that must be called to rollback the changes done by this interaction
 func (t *UpdatableTree) Reorg(tx kv.RwTx, firstReorgedIndex uint64) (func(), error) {
 	iter, err := tx.RangeDescend(
 		t.rootTable,
@@ -125,6 +134,7 @@ func (t *UpdatableTree) Reorg(tx kv.RwTx, firstReorgedIndex uint64) (func(), err
 	return rollback, nil
 }
 
-func (t *UpdatableTree) GetRootByIndex(tx kv.Tx, rootIndex uint64) (common.Hash, error) {
+// GetRootByRootIndex returns the root of the tree as it was right after adding the leaf with index
+func (t *UpdatableTree) GetRootByRootIndex(tx kv.Tx, rootIndex uint64) (common.Hash, error) {
 	return t.getRootByIndex(tx, rootIndex)
 }

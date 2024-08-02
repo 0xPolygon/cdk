@@ -9,13 +9,15 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
+// AppendOnlyTree is a tree where leaves are added sequentially (by index)
 type AppendOnlyTree struct {
 	*Tree
 	lastLeftCache []common.Hash
 	lastIndex     int64
 }
 
-func NewAppendOnly(ctx context.Context, db kv.RwDB, dbPrefix string) (*AppendOnlyTree, error) {
+// NewAppendOnlyTree creates a AppendOnlyTree
+func NewAppendOnlyTree(ctx context.Context, db kv.RwDB, dbPrefix string) (*AppendOnlyTree, error) {
 	t := newTree(db, dbPrefix)
 	at := &AppendOnlyTree{Tree: t}
 	if err := at.initLastLeftCacheAndLastDepositCount(ctx); err != nil {
@@ -24,7 +26,9 @@ func NewAppendOnly(ctx context.Context, db kv.RwDB, dbPrefix string) (*AppendOnl
 	return at, nil
 }
 
-// AddLeaves adds a list leaves into the tree
+// AddLeaves adds a list leaves into the tree. The indexes of the leaves must be consecutive,
+// starting by the index of the last leave added +1
+// It returns a function that must be called to rollback the changes done by this interaction
 func (t *AppendOnlyTree) AddLeaves(tx kv.RwTx, leaves []Leaf) (func(), error) {
 	// Sanity check
 	if len(leaves) == 0 {
@@ -95,10 +99,12 @@ func (t *AppendOnlyTree) addLeaf(tx kv.RwTx, leaf Leaf) error {
 	return nil
 }
 
+// GetRootByIndex returns the root of the tree as it was right after adding the leaf with index
 func (t *AppendOnlyTree) GetRootByIndex(tx kv.Tx, index uint32) (common.Hash, error) {
 	return t.getRootByIndex(tx, uint64(index))
 }
 
+// GetLastIndexAndRoot returns the last index and root added to the tree
 func (t *AppendOnlyTree) GetLastIndexAndRoot(ctx context.Context) (uint32, common.Hash, error) {
 	tx, err := t.db.BeginRo(ctx)
 	if err != nil {
@@ -176,6 +182,7 @@ func (t *AppendOnlyTree) initLastLeftCache(tx kv.Tx, lastIndex int64, lastRoot c
 
 // Reorg deletes all the data relevant from firstReorgedIndex (includded) and onwards
 // and prepares the tree tfor being used as it was at firstReorgedIndex-1
+// It returns a function that must be called to rollback the changes done by this interaction
 func (t *AppendOnlyTree) Reorg(tx kv.RwTx, firstReorgedIndex uint32) (func(), error) {
 	if t.lastIndex == -1 {
 		return func() {}, nil

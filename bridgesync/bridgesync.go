@@ -27,6 +27,7 @@ type LocalBridgeSync struct {
 	driver    *sync.EVMDriver
 }
 
+// NewL1 creates a bridge syncer that synchronizes the mainnet exit tree
 func NewL1(
 	ctx context.Context,
 	dbPath string,
@@ -51,6 +52,7 @@ func NewL1(
 	)
 }
 
+// NewL2 creates a bridge syncer that synchronizes the local exit tree
 func NewL2(
 	ctx context.Context,
 	dbPath string,
@@ -134,6 +136,7 @@ func new(
 	}, nil
 }
 
+// Start starts the synchronization process
 func (s *LocalBridgeSync) Start(ctx context.Context) {
 	s.driver.Sync(ctx)
 }

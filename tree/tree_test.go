@@ -37,7 +37,7 @@ func TestMTAddLeaf(t *testing.T) {
 				WithTableCfg(tableCfgFunc).
 				Open()
 			require.NoError(t, err)
-			tree, err := NewAppendOnly(context.Background(), db, dbPrefix)
+			tree, err := NewAppendOnlyTree(context.Background(), db, dbPrefix)
 			require.NoError(t, err)
 
 			// Add exisiting leaves
@@ -105,7 +105,7 @@ func TestMTGetProof(t *testing.T) {
 				WithTableCfg(tableCfgFunc).
 				Open()
 			require.NoError(t, err)
-			tree, err := NewAppendOnly(context.Background(), db, dbPrefix)
+			tree, err := NewAppendOnlyTree(context.Background(), db, dbPrefix)
 			require.NoError(t, err)
 
 			leaves := []Leaf{}

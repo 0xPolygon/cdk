@@ -27,6 +27,7 @@ var (
 	lastBlokcKey         = []byte("lb")
 )
 
+// Bridge is the representation of a bridge event
 type Bridge struct {
 	LeafType           uint8
 	OriginNetwork      uint32
@@ -38,6 +39,7 @@ type Bridge struct {
 	DepositCount       uint32
 }
 
+// Hash returns the hash of the bridge event as expected by the exit tree
 func (b *Bridge) Hash() common.Hash {
 	origNet := make([]byte, 4) //nolint:gomnd
 	binary.BigEndian.PutUint32(origNet, uint32(b.OriginNetwork))
@@ -65,6 +67,7 @@ func (b *Bridge) Hash() common.Hash {
 	return hash
 }
 
+// Claim representation of a claim event
 type Claim struct {
 	GlobalIndex        *big.Int
 	OriginNetwork      uint32
@@ -73,6 +76,7 @@ type Claim struct {
 	Amount             *big.Int
 }
 
+// Event combination of bridge and claim events
 type Event struct {
 	Bridge *Bridge
 	Claim  *Claim
@@ -103,7 +107,7 @@ func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, err
 	if err != nil {
 		return nil, err
 	}
-	exitTree, err := tree.NewAppendOnly(ctx, db, dbPrefix)
+	exitTree, err := tree.NewAppendOnlyTree(ctx, db, dbPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -158,6 +162,8 @@ func (p *processor) GetClaimsAndBridges(
 	return events, nil
 }
 
+// GetLastProcessedBlock returns the last processed block oby the processor, including blocks
+// that don't have events
 func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
@@ -177,6 +183,8 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	}
 }
 
+// Reorg triggers a purge and reset process on the processot to leave it on a state
+// as if the last block processed was firstReorgedBlock-1
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
@@ -231,6 +239,8 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	return nil
 }
 
+// ProcessBlock procees the events of the block to build the exit tree
+// and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
