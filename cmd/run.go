@@ -10,6 +10,8 @@ import (
 
 	zkevm "github.com/0xPolygon/cdk"
 	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
+	"github.com/0xPolygon/cdk/aggoracle"
+	"github.com/0xPolygon/cdk/aggoracle/chaingersender"
 	"github.com/0xPolygon/cdk/aggregator"
 	"github.com/0xPolygon/cdk/aggregator/db"
 	"github.com/0xPolygon/cdk/config"
@@ -18,7 +20,9 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/etherman/contracts"
+	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/sequencesender"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
@@ -26,6 +30,9 @@ import (
 	"github.com/0xPolygon/cdk/translator"
 	ethtxman "github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman/etherscan"
+	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
 )
@@ -63,6 +70,17 @@ func start(cliCtx *cli.Context) error {
 					log.Fatal(err)
 				}
 			}()
+		case AGGORACLE:
+			l1Client, err := ethclient.Dial(c.AggOracle.URLRPCL1)
+			if err != nil {
+				log.Fatal(err)
+			}
+			reorgDetector := newReorgDetectorL1(cliCtx.Context, *c, l1Client)
+			go reorgDetector.Start(cliCtx.Context)
+			syncer := newL1InfoTreeSyncer(cliCtx.Context, *c, l1Client, reorgDetector)
+			go syncer.Start(cliCtx.Context)
+			aggOracle := createAggoracle(*c, l1Client, syncer)
+			go aggOracle.Start(cliCtx.Context)
 		}
 	}
 
@@ -164,21 +182,70 @@ func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuild
 	switch contracts.VersionType(cfg.Common.ContractVersions) {
 	case contracts.VersionBanana:
 		if cfg.Common.IsValidiumMode {
-			txBuilder = txbuilder.NewTxBuilderBananaValidium(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, da, *auth, auth.From, cfg.SequenceSender.MaxBatchesForL1)
+			txBuilder = txbuilder.NewTxBuilderBananaValidium(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, da, *auth, cfg.SequenceSender.MaxBatchesForL1)
 		} else {
-			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
+			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, *auth, cfg.SequenceSender.MaxTxSizeForL1)
 		}
 	case contracts.VersionElderberry:
 		if cfg.Common.IsValidiumMode {
-			txBuilder = txbuilder.NewTxBuilderElderberryValidium(ethman.Contracts.Elderberry.Rollup, da, *auth, auth.From, cfg.SequenceSender.MaxBatchesForL1)
+			txBuilder = txbuilder.NewTxBuilderElderberryValidium(ethman.Contracts.Elderberry.Rollup, da, *auth, cfg.SequenceSender.MaxBatchesForL1)
 		} else {
-			txBuilder = txbuilder.NewTxBuilderElderberryZKEVM(ethman.Contracts.Elderberry.Rollup, *auth, auth.From, cfg.SequenceSender.MaxTxSizeForL1)
+			txBuilder = txbuilder.NewTxBuilderElderberryZKEVM(ethman.Contracts.Elderberry.Rollup, *auth, cfg.SequenceSender.MaxTxSizeForL1)
 		}
 	default:
 		err = fmt.Errorf("unknown contract version: %s", cfg.Common.ContractVersions)
 	}
 
 	return txBuilder, err
+}
+
+func createAggoracle(cfg config.Config, l1Client *ethclient.Client, syncer *l1infotreesync.L1InfoTreeSync) *aggoracle.AggOracle {
+	var sender aggoracle.ChainSender
+	switch cfg.AggOracle.TargetChainType {
+	case aggoracle.EVMChain:
+		cfg.AggOracle.EVMSender.EthTxManager.Log = ethtxlog.Config{
+			Environment: ethtxlog.LogEnvironment(cfg.Log.Environment),
+			Level:       cfg.Log.Level,
+			Outputs:     cfg.Log.Outputs,
+		}
+		ethTxManager, err := ethtxmanager.New(cfg.AggOracle.EVMSender.EthTxManager)
+		if err != nil {
+			log.Fatal(err)
+		}
+		go ethTxManager.Start()
+		l2CLient, err := ethclient.Dial(cfg.AggOracle.EVMSender.URLRPCL2)
+		if err != nil {
+			log.Fatal(err)
+		}
+		sender, err = chaingersender.NewEVMChainGERSender(
+			cfg.AggOracle.EVMSender.GlobalExitRootL2Addr,
+			cfg.AggOracle.EVMSender.SenderAddr,
+			l2CLient,
+			ethTxManager,
+			cfg.AggOracle.EVMSender.GasOffset,
+			cfg.AggOracle.EVMSender.WaitPeriodMonitorTx.Duration,
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+	default:
+		log.Fatalf(
+			"Unsupported chaintype %s. Supported values: %v",
+			cfg.AggOracle.TargetChainType, aggoracle.SupportedChainTypes,
+		)
+	}
+	aggOracle, err := aggoracle.New(
+		sender,
+		l1Client,
+		syncer,
+		etherman.BlockNumberFinality(cfg.AggOracle.BlockFinality),
+		cfg.AggOracle.WaitPeriodNextGER.Duration,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return aggOracle
 }
 
 func newDataAvailability(c config.Config, etherman *etherman.Client) (*dataavailability.DataAvailability, error) {
@@ -296,4 +363,41 @@ func newState(c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.St
 
 	st := state.NewState(stateCfg, stateDb)
 	return st
+}
+
+func newReorgDetectorL1(
+	ctx context.Context,
+	cfg config.Config,
+	l1Client *ethclient.Client,
+) *reorgdetector.ReorgDetector {
+	rd, err := reorgdetector.New(ctx, l1Client, cfg.ReorgDetectorL1.DBPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return rd
+}
+
+func newL1InfoTreeSyncer(
+	ctx context.Context,
+	cfg config.Config,
+	l1Client *ethclient.Client,
+	reorgDetector *reorgdetector.ReorgDetector,
+) *l1infotreesync.L1InfoTreeSync {
+	syncer, err := l1infotreesync.New(
+		ctx,
+		cfg.L1InfoTreeSync.DBPath,
+		cfg.L1InfoTreeSync.GlobalExitRootAddr,
+		cfg.L1InfoTreeSync.SyncBlockChunkSize,
+		etherman.BlockNumberFinality(cfg.L1InfoTreeSync.BlockFinality),
+		reorgDetector,
+		l1Client,
+		cfg.L1InfoTreeSync.WaitForNewBlocksPeriod.Duration,
+		cfg.L1InfoTreeSync.InitialBlock,
+		cfg.L1InfoTreeSync.RetryAfterErrorPeriod.Duration,
+		cfg.L1InfoTreeSync.MaxRetryAttemptsAfterError,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return syncer
 }

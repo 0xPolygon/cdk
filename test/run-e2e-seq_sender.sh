@@ -31,4 +31,4 @@ kurtosis clean --all
 kurtosis run --enclave cdk-v1 --args-file $DEST_KURTOSIS_PARAMS_YML --image-download always $KURTOSIS_FOLDER
 #[ $? -ne 0 ] && echo "Error running kurtosis" && exit 1
 echo "Waiting 10 minutes to get some verified batch...."
-$KURTOSIS_FOLDER/.github/actions/monitor-cdk-verified-batches/batch_verification_monitor.sh 1 600
+$KURTOSIS_FOLDER/.github/actions/monitor-cdk-verified-batches/batch_verification_monitor.sh 0 600

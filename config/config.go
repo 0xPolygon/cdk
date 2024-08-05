@@ -6,10 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/0xPolygon/cdk/aggoracle"
 	"github.com/0xPolygon/cdk/aggregator"
 	"github.com/0xPolygon/cdk/common"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
+	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/sequencesender"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/mitchellh/mapstructure"
@@ -71,6 +74,12 @@ type Config struct {
 
 	// Common Config that affects all the services
 	Common common.Config
+	// Configuration of the reorg detector service to be used for the L1
+	ReorgDetectorL1 reorgdetector.Config
+	// Configuration of the aggOracle service
+	AggOracle aggoracle.Config
+	// Configuration of the L1 Info Treee Sync service
+	L1InfoTreeSync l1infotreesync.Config
 }
 
 // Default parses the default configuration values.

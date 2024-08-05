@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math/big"
 
 	"github.com/0xPolygon/cdk/common"
+	"github.com/0xPolygon/cdk/sync"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 )
@@ -19,6 +22,30 @@ var (
 	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
 	lastBlokcKey         = []byte("lb")
 )
+
+type Bridge struct {
+	LeafType           uint8
+	OriginNetwork      uint32
+	OriginAddress      ethCommon.Address
+	DestinationNetwork uint32
+	DestinationAddress ethCommon.Address
+	Amount             *big.Int
+	Metadata           []byte
+	DepositCount       uint32
+}
+
+type Claim struct {
+	GlobalIndex        *big.Int
+	OriginNetwork      uint32
+	OriginAddress      ethCommon.Address
+	DestinationAddress ethCommon.Address
+	Amount             *big.Int
+}
+
+type Event struct {
+	Bridge *Bridge
+	Claim  *Claim
+}
 
 type processor struct {
 	db kv.RwDB
@@ -48,8 +75,8 @@ func newProcessor(dbPath string) (*processor, error) {
 // If toBlock has not been porcessed yet, ErrBlockNotProcessed will be returned
 func (p *processor) GetClaimsAndBridges(
 	ctx context.Context, fromBlock, toBlock uint64,
-) ([]BridgeEvent, error) {
-	events := []BridgeEvent{}
+) ([]Event, error) {
+	events := []Event{}
 
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
@@ -69,14 +96,14 @@ func (p *processor) GetClaimsAndBridges(
 	}
 	defer c.Close()
 
-	for k, v, err := c.Seek(common.BlockNum2Bytes(fromBlock)); k != nil; k, v, err = c.Next() {
+	for k, v, err := c.Seek(common.Uint64ToBytes(fromBlock)); k != nil; k, v, err = c.Next() {
 		if err != nil {
 			return nil, err
 		}
-		if common.Bytes2BlockNum(k) > toBlock {
+		if common.BytesToUint64(k) > toBlock {
 			break
 		}
-		blockEvents := []BridgeEvent{}
+		blockEvents := []Event{}
 		err := json.Unmarshal(v, &blockEvents)
 		if err != nil {
 			return nil, err
@@ -87,7 +114,7 @@ func (p *processor) GetClaimsAndBridges(
 	return events, nil
 }
 
-func (p *processor) getLastProcessedBlock(ctx context.Context) (uint64, error) {
+func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
 		return 0, err
@@ -102,11 +129,11 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	} else if blockNumBytes == nil {
 		return 0, nil
 	} else {
-		return common.Bytes2BlockNum(blockNumBytes), nil
+		return common.BytesToUint64(blockNumBytes), nil
 	}
 }
 
-func (p *processor) reorg(firstReorgedBlock uint64) error {
+func (p *processor) Reorg(firstReorgedBlock uint64) error {
 	tx, err := p.db.BeginRw(context.Background())
 	if err != nil {
 		return err
@@ -116,7 +143,7 @@ func (p *processor) reorg(firstReorgedBlock uint64) error {
 		return err
 	}
 	defer c.Close()
-	firstKey := common.BlockNum2Bytes(firstReorgedBlock)
+	firstKey := common.Uint64ToBytes(firstReorgedBlock)
 	for k, _, err := c.Seek(firstKey); k != nil; k, _, err = c.Next() {
 		if err != nil {
 			tx.Rollback()
@@ -134,23 +161,27 @@ func (p *processor) reorg(firstReorgedBlock uint64) error {
 	return tx.Commit()
 }
 
-func (p *processor) storeBridgeEvents(blockNum uint64, events []BridgeEvent) error {
+func (p *processor) ProcessBlock(block sync.Block) error {
 	tx, err := p.db.BeginRw(context.Background())
 	if err != nil {
 		return err
 	}
-	if len(events) > 0 {
+	if len(block.Events) > 0 {
+		events := []Event{}
+		for _, e := range block.Events {
+			events = append(events, e.(Event))
+		}
 		value, err := json.Marshal(events)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
-		if err := tx.Put(eventsTable, common.BlockNum2Bytes(blockNum), value); err != nil {
+		if err := tx.Put(eventsTable, common.Uint64ToBytes(block.Num), value); err != nil {
 			tx.Rollback()
 			return err
 		}
 	}
-	if err := p.updateLastProcessedBlock(tx, blockNum); err != nil {
+	if err := p.updateLastProcessedBlock(tx, block.Num); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -158,6 +189,6 @@ func (p *processor) storeBridgeEvents(blockNum uint64, events []BridgeEvent) err
 }
 
 func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {
-	blockNumBytes := common.BlockNum2Bytes(blockNum)
+	blockNumBytes := common.Uint64ToBytes(blockNum)
 	return tx.Put(lastBlockTable, lastBlokcKey, blockNumBytes)
 }

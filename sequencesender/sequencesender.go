@@ -520,7 +520,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	log.Infof("[SeqSender] sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber(), lastSequence.BatchNumber())
 	log.Infof(sequence.String())
 
-	tx, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, s.cfg.SenderAddress, sequence)
+	tx, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, sequence)
 	if err != nil {
 		log.Errorf("[SeqSender] error building sequenceBatches tx: %v", err)
 		return

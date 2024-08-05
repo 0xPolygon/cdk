@@ -1,46 +1,45 @@
-package localbridgesync
+package sync
 
 import (
 	"context"
 	"errors"
 	"math/big"
+	"strconv"
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
-	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 var (
-	contractAddr = common.HexToAddress("1234567890")
+	contractAddr   = common.HexToAddress("f00")
+	eventSignature = crypto.Keccak256Hash([]byte("foo"))
 )
 
 const (
 	syncBlockChunck = uint64(10)
 )
 
+type testEvent common.Hash
+
 func TestGetEventsByBlockRange(t *testing.T) {
 	type testCase struct {
 		description        string
 		inputLogs          []types.Log
 		fromBlock, toBlock uint64
-		expectedBlocks     []block
+		expectedBlocks     []EVMBlock
 	}
 	testCases := []testCase{}
-	clientMock := NewL2Mock(t)
 	ctx := context.Background()
-	d, err := newDownloader(contractAddr, clientMock, syncBlockChunck, etherman.LatestBlock)
-	require.NoError(t, err)
+	d, clientMock := NewTestDownloader(t)
 
 	// case 0: single block, no events
 	case0 := testCase{
@@ -48,26 +47,23 @@ func TestGetEventsByBlockRange(t *testing.T) {
 		inputLogs:      []types.Log{},
 		fromBlock:      1,
 		toBlock:        3,
-		expectedBlocks: []block{},
+		expectedBlocks: []EVMBlock{},
 	}
 	testCases = append(testCases, case0)
 
 	// case 1: single block, single event
-	logC1, bridgeC1 := generateBridge(t, 3)
+	logC1, updateC1 := generateEvent(3)
 	logsC1 := []types.Log{
 		*logC1,
 	}
-	blocksC1 := []block{
+	blocksC1 := []EVMBlock{
 		{
-			blockHeader: blockHeader{
-				Num:  logC1.BlockNumber,
-				Hash: logC1.BlockHash,
+			EVMBlockHeader: EVMBlockHeader{
+				Num:        logC1.BlockNumber,
+				Hash:       logC1.BlockHash,
+				ParentHash: common.HexToHash("foo"),
 			},
-			Events: []BridgeEvent{
-				{
-					Bridge: &bridgeC1,
-				},
-			},
+			Events: []interface{}{updateC1},
 		},
 	}
 	case1 := testCase{
@@ -80,27 +76,28 @@ func TestGetEventsByBlockRange(t *testing.T) {
 	testCases = append(testCases, case1)
 
 	// case 2: single block, multiple events
-	logC2_1, bridgeC2_1 := generateBridge(t, 5)
-	logC2_2, bridgeC2_2 := generateBridge(t, 5)
-	logC2_3, claimC2_1 := generateClaimV1(t, 5)
-	logC2_4, claimC2_2 := generateClaimV2(t, 5)
+	logC2_1, updateC2_1 := generateEvent(5)
+	logC2_2, updateC2_2 := generateEvent(5)
+	logC2_3, updateC2_3 := generateEvent(5)
+	logC2_4, updateC2_4 := generateEvent(5)
 	logsC2 := []types.Log{
 		*logC2_1,
 		*logC2_2,
 		*logC2_3,
 		*logC2_4,
 	}
-	blocksC2 := []block{
+	blocksC2 := []EVMBlock{
 		{
-			blockHeader: blockHeader{
-				Num:  logC2_1.BlockNumber,
-				Hash: logC2_1.BlockHash,
+			EVMBlockHeader: EVMBlockHeader{
+				Num:        logC2_1.BlockNumber,
+				Hash:       logC2_1.BlockHash,
+				ParentHash: common.HexToHash("foo"),
 			},
-			Events: []BridgeEvent{
-				{Bridge: &bridgeC2_1},
-				{Bridge: &bridgeC2_2},
-				{Claim: &claimC2_1},
-				{Claim: &claimC2_2},
+			Events: []interface{}{
+				updateC2_1,
+				updateC2_2,
+				updateC2_3,
+				updateC2_4,
 			},
 		},
 	}
@@ -114,35 +111,37 @@ func TestGetEventsByBlockRange(t *testing.T) {
 	testCases = append(testCases, case2)
 
 	// case 3: multiple blocks, some events
-	logC3_1, bridgeC3_1 := generateBridge(t, 7)
-	logC3_2, bridgeC3_2 := generateBridge(t, 7)
-	logC3_3, claimC3_1 := generateClaimV1(t, 8)
-	logC3_4, claimC3_2 := generateClaimV2(t, 8)
+	logC3_1, updateC3_1 := generateEvent(7)
+	logC3_2, updateC3_2 := generateEvent(7)
+	logC3_3, updateC3_3 := generateEvent(8)
+	logC3_4, updateC3_4 := generateEvent(8)
 	logsC3 := []types.Log{
 		*logC3_1,
 		*logC3_2,
 		*logC3_3,
 		*logC3_4,
 	}
-	blocksC3 := []block{
+	blocksC3 := []EVMBlock{
 		{
-			blockHeader: blockHeader{
-				Num:  logC3_1.BlockNumber,
-				Hash: logC3_1.BlockHash,
+			EVMBlockHeader: EVMBlockHeader{
+				Num:        logC3_1.BlockNumber,
+				Hash:       logC3_1.BlockHash,
+				ParentHash: common.HexToHash("foo"),
 			},
-			Events: []BridgeEvent{
-				{Bridge: &bridgeC3_1},
-				{Bridge: &bridgeC3_2},
+			Events: []interface{}{
+				updateC3_1,
+				updateC3_2,
 			},
 		},
 		{
-			blockHeader: blockHeader{
-				Num:  logC3_3.BlockNumber,
-				Hash: logC3_3.BlockHash,
+			EVMBlockHeader: EVMBlockHeader{
+				Num:        logC3_3.BlockNumber,
+				Hash:       logC3_3.BlockHash,
+				ParentHash: common.HexToHash("foo"),
 			},
-			Events: []BridgeEvent{
-				{Claim: &claimC3_1},
-				{Claim: &claimC3_2},
+			Events: []interface{}{
+				updateC3_3,
+				updateC3_4,
 			},
 		},
 	}
@@ -160,114 +159,40 @@ func TestGetEventsByBlockRange(t *testing.T) {
 			FromBlock: new(big.Int).SetUint64(tc.fromBlock),
 			Addresses: []common.Address{contractAddr},
 			Topics: [][]common.Hash{
-				{bridgeEventSignature},
-				{claimEventSignature},
-				{claimEventSignaturePreEtrog},
+				{eventSignature},
 			},
 			ToBlock: new(big.Int).SetUint64(tc.toBlock),
 		}
 		clientMock.
 			On("FilterLogs", mock.Anything, query).
 			Return(tc.inputLogs, nil)
+		for _, b := range tc.expectedBlocks {
+			clientMock.
+				On("HeaderByNumber", mock.Anything, big.NewInt(int64(b.Num))).
+				Return(&types.Header{
+					Number:     big.NewInt(int64(b.Num)),
+					ParentHash: common.HexToHash("foo"),
+				}, nil)
+		}
 
 		actualBlocks := d.getEventsByBlockRange(ctx, tc.fromBlock, tc.toBlock)
 		require.Equal(t, tc.expectedBlocks, actualBlocks, tc.description)
 	}
 }
 
-func generateBridge(t *testing.T, blockNum uint32) (*types.Log, Bridge) {
-	b := Bridge{
-		LeafType:           1,
-		OriginNetwork:      blockNum,
-		OriginAddress:      contractAddr,
-		DestinationNetwork: blockNum,
-		DestinationAddress: contractAddr,
-		Amount:             big.NewInt(int64(blockNum)),
-		Metadata:           common.Hex2Bytes("01"),
-		DepositCount:       blockNum,
-	}
-	abi, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
-	require.NoError(t, err)
-	event, err := abi.EventByID(bridgeEventSignature)
-	require.NoError(t, err)
-	data, err := event.Inputs.Pack(
-		b.LeafType,
-		b.OriginNetwork,
-		b.OriginAddress,
-		b.DestinationNetwork,
-		b.DestinationAddress,
-		b.Amount,
-		b.Metadata,
-		b.DepositCount,
-	)
-	require.NoError(t, err)
+func generateEvent(blockNum uint32) (*types.Log, testEvent) {
+	h := common.HexToHash(strconv.Itoa(int(blockNum)))
 	log := &types.Log{
 		Address:     contractAddr,
 		BlockNumber: uint64(blockNum),
-		BlockHash:   common.BytesToHash(cdkcommon.BlockNum2Bytes(uint64(blockNum))),
-		Topics:      []common.Hash{bridgeEventSignature},
-		Data:        data,
+		BlockHash:   h,
+		Topics: []common.Hash{
+			eventSignature,
+			h,
+		},
+		Data: nil,
 	}
-	return log, b
-}
-
-func generateClaimV1(t *testing.T, blockNum uint32) (*types.Log, Claim) {
-	abi, err := polygonzkevmbridge.PolygonzkevmbridgeMetaData.GetAbi()
-	require.NoError(t, err)
-	event, err := abi.EventByID(claimEventSignaturePreEtrog)
-	require.NoError(t, err)
-	return generateClaim(t, blockNum, event, true)
-}
-
-func generateClaimV2(t *testing.T, blockNum uint32) (*types.Log, Claim) {
-	abi, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
-	require.NoError(t, err)
-	event, err := abi.EventByID(claimEventSignature)
-	require.NoError(t, err)
-	return generateClaim(t, blockNum, event, false)
-}
-
-func generateClaim(t *testing.T, blockNum uint32, event *abi.Event, isV1 bool) (*types.Log, Claim) {
-	c := Claim{
-		GlobalIndex:        big.NewInt(int64(blockNum)),
-		OriginNetwork:      blockNum,
-		OriginAddress:      contractAddr,
-		DestinationAddress: contractAddr,
-		Amount:             big.NewInt(int64(blockNum)),
-	}
-	var (
-		data      []byte
-		err       error
-		signature common.Hash
-	)
-	if isV1 {
-		data, err = event.Inputs.Pack(
-			uint32(c.GlobalIndex.Uint64()),
-			c.OriginNetwork,
-			c.OriginAddress,
-			c.DestinationAddress,
-			c.Amount,
-		)
-		signature = claimEventSignaturePreEtrog
-	} else {
-		data, err = event.Inputs.Pack(
-			c.GlobalIndex,
-			c.OriginNetwork,
-			c.OriginAddress,
-			c.DestinationAddress,
-			c.Amount,
-		)
-		signature = claimEventSignature
-	}
-	require.NoError(t, err)
-	log := &types.Log{
-		Address:     contractAddr,
-		BlockNumber: uint64(blockNum),
-		BlockHash:   common.BytesToHash(cdkcommon.BlockNum2Bytes(uint64(blockNum))),
-		Topics:      []common.Hash{signature},
-		Data:        data,
-	}
-	return log, c
+	return log, testEvent(h)
 }
 
 func TestDownload(t *testing.T) {
@@ -275,31 +200,29 @@ func TestDownload(t *testing.T) {
 		NOTE: due to the concurrent nature of this test (the function being tested runs through a goroutine)
 		if the mock doesn't match, the goroutine will get stuck and the test will timeout
 	*/
-	d := NewDownloaderMock(t)
-	downloadCh := make(chan block, 1)
+	d := NewEVMDownloaderMock(t)
+	downloadCh := make(chan EVMBlock, 1)
 	ctx := context.Background()
 	ctx1, cancel := context.WithCancel(ctx)
-	expectedBlocks := []block{}
-	clientMock := NewL2Mock(t)
-	dwnldr, err := newDownloader(contractAddr, clientMock, syncBlockChunck, etherman.LatestBlock)
-	require.NoError(t, err)
-	dwnldr.downloaderInterface = d
+	expectedBlocks := []EVMBlock{}
+	dwnldr, _ := NewTestDownloader(t)
+	dwnldr.evmDownloaderInterface = d
 
 	d.On("waitForNewBlocks", mock.Anything, uint64(0)).
 		Return(uint64(1))
 	// iteratiion 0:
 	// last block is 1, download that block (no events and wait)
-	b1 := block{
-		blockHeader: blockHeader{
+	b1 := EVMBlock{
+		EVMBlockHeader: EVMBlockHeader{
 			Num:  1,
 			Hash: common.HexToHash("01"),
 		},
 	}
 	expectedBlocks = append(expectedBlocks, b1)
 	d.On("getEventsByBlockRange", mock.Anything, uint64(0), uint64(1)).
-		Return([]block{})
+		Return([]EVMBlock{})
 	d.On("getBlockHeader", mock.Anything, uint64(1)).
-		Return(b1.blockHeader)
+		Return(b1.EVMBlockHeader)
 
 	// iteration 1: wait for next block to be created
 	d.On("waitForNewBlocks", mock.Anything, uint64(1)).
@@ -307,15 +230,15 @@ func TestDownload(t *testing.T) {
 		Return(uint64(2)).Once()
 
 	// iteration 2: block 2 has events
-	b2 := block{
-		blockHeader: blockHeader{
+	b2 := EVMBlock{
+		EVMBlockHeader: EVMBlockHeader{
 			Num:  2,
 			Hash: common.HexToHash("02"),
 		},
 	}
 	expectedBlocks = append(expectedBlocks, b2)
 	d.On("getEventsByBlockRange", mock.Anything, uint64(2), uint64(2)).
-		Return([]block{b2})
+		Return([]EVMBlock{b2})
 
 	// iteration 3: wait for next block to be created (jump to block 8)
 	d.On("waitForNewBlocks", mock.Anything, uint64(2)).
@@ -323,35 +246,31 @@ func TestDownload(t *testing.T) {
 		Return(uint64(8)).Once()
 
 	// iteration 4: blocks 6 and 7 have events
-	b6 := block{
-		blockHeader: blockHeader{
+	b6 := EVMBlock{
+		EVMBlockHeader: EVMBlockHeader{
 			Num:  6,
 			Hash: common.HexToHash("06"),
 		},
-		Events: []BridgeEvent{
-			{Claim: &Claim{OriginNetwork: 6}},
-		},
+		Events: []interface{}{"06"},
 	}
-	b7 := block{
-		blockHeader: blockHeader{
+	b7 := EVMBlock{
+		EVMBlockHeader: EVMBlockHeader{
 			Num:  7,
 			Hash: common.HexToHash("07"),
 		},
-		Events: []BridgeEvent{
-			{Bridge: &Bridge{DestinationNetwork: 7}},
-		},
+		Events: []interface{}{"07"},
 	}
-	b8 := block{
-		blockHeader: blockHeader{
+	b8 := EVMBlock{
+		EVMBlockHeader: EVMBlockHeader{
 			Num:  8,
 			Hash: common.HexToHash("08"),
 		},
 	}
 	expectedBlocks = append(expectedBlocks, b6, b7, b8)
 	d.On("getEventsByBlockRange", mock.Anything, uint64(3), uint64(8)).
-		Return([]block{b6, b7})
+		Return([]EVMBlock{b6, b7})
 	d.On("getBlockHeader", mock.Anything, uint64(8)).
-		Return(b8.blockHeader)
+		Return(b8.EVMBlockHeader)
 
 	// iteration 5: wait for next block to be created (jump to block 30)
 	d.On("waitForNewBlocks", mock.Anything, uint64(8)).
@@ -359,31 +278,29 @@ func TestDownload(t *testing.T) {
 		Return(uint64(30)).Once()
 
 	// iteration 6: from block 9 to 19, no events
-	b19 := block{
-		blockHeader: blockHeader{
+	b19 := EVMBlock{
+		EVMBlockHeader: EVMBlockHeader{
 			Num:  19,
 			Hash: common.HexToHash("19"),
 		},
 	}
 	expectedBlocks = append(expectedBlocks, b19)
 	d.On("getEventsByBlockRange", mock.Anything, uint64(9), uint64(19)).
-		Return([]block{})
+		Return([]EVMBlock{})
 	d.On("getBlockHeader", mock.Anything, uint64(19)).
-		Return(b19.blockHeader)
+		Return(b19.EVMBlockHeader)
 
 	// iteration 7: from block 20 to 30, events on last block
-	b30 := block{
-		blockHeader: blockHeader{
+	b30 := EVMBlock{
+		EVMBlockHeader: EVMBlockHeader{
 			Num:  30,
 			Hash: common.HexToHash("30"),
 		},
-		Events: []BridgeEvent{
-			{Bridge: &Bridge{DestinationNetwork: 30}},
-		},
+		Events: []interface{}{testEvent(common.HexToHash("30"))},
 	}
 	expectedBlocks = append(expectedBlocks, b30)
 	d.On("getEventsByBlockRange", mock.Anything, uint64(20), uint64(30)).
-		Return([]block{b30})
+		Return([]EVMBlock{b30})
 
 	// iteration 8: wait for next block to be created (jump to block 35)
 	d.On("waitForNewBlocks", mock.Anything, uint64(30)).
@@ -403,11 +320,8 @@ func TestDownload(t *testing.T) {
 }
 
 func TestWaitForNewBlocks(t *testing.T) {
-	retryAfterErrorPeriod = time.Millisecond * 100
-	clientMock := NewL2Mock(t)
 	ctx := context.Background()
-	d, err := newDownloader(contractAddr, clientMock, syncBlockChunck, etherman.LatestBlock)
-	require.NoError(t, err)
+	d, clientMock := NewTestDownloader(t)
 
 	// at first attempt
 	currentBlock := uint64(5)
@@ -438,18 +352,15 @@ func TestWaitForNewBlocks(t *testing.T) {
 }
 
 func TestGetBlockHeader(t *testing.T) {
-	retryAfterErrorPeriod = time.Millisecond * 100
-	clientMock := NewL2Mock(t)
 	ctx := context.Background()
-	d, err := newDownloader(contractAddr, clientMock, syncBlockChunck, etherman.LatestBlock)
-	require.NoError(t, err)
+	d, clientMock := NewTestDownloader(t)
 
 	blockNum := uint64(5)
 	blockNumBig := big.NewInt(5)
 	returnedBlock := &types.Header{
 		Number: blockNumBig,
 	}
-	expectedBlock := blockHeader{
+	expectedBlock := EVMBlockHeader{
 		Num:  5,
 		Hash: returnedBlock.Hash(),
 	}
@@ -464,4 +375,24 @@ func TestGetBlockHeader(t *testing.T) {
 	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(returnedBlock, nil).Once()
 	actualBlock = d.getBlockHeader(ctx, blockNum)
 	assert.Equal(t, expectedBlock, actualBlock)
+}
+
+func buildAppender() LogAppenderMap {
+	appender := make(LogAppenderMap)
+	appender[eventSignature] = func(b *EVMBlock, l types.Log) error {
+		b.Events = append(b.Events, testEvent(l.Topics[1]))
+		return nil
+	}
+	return appender
+}
+
+func NewTestDownloader(t *testing.T) (*EVMDownloader, *L2Mock) {
+	rh := &RetryHandler{
+		MaxRetryAttemptsAfterError: 5,
+		RetryAfterErrorPeriod:      time.Millisecond * 100,
+	}
+	clientMock := NewL2Mock(t)
+	d, err := NewEVMDownloader(clientMock, syncBlockChunck, etherman.LatestBlock, time.Millisecond, buildAppender(), []common.Address{contractAddr}, rh)
+	require.NoError(t, err)
+	return d, clientMock
 }
