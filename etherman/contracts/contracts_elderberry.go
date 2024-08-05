@@ -8,9 +8,20 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
-type GlobalExitRootElderberryType = ContractBase[polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2]
-type RollupElderberryType = ContractBase[polygonvalidiumetrog.Polygonvalidiumetrog]
-type RollupManagerElderberryType = ContractBase[polygonrollupmanager.Polygonrollupmanager]
+type GlobalExitRootElderberryType struct {
+	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
+	*ContractBase
+}
+
+type RollupElderberryType struct {
+	*polygonvalidiumetrog.Polygonvalidiumetrog
+	*ContractBase
+}
+
+type RollupManagerElderberryType struct {
+	*polygonrollupmanager.Polygonrollupmanager
+	*ContractBase
+}
 
 type ContractsElderberry struct {
 	GlobalExitRoot GlobalExitRootElderberryType
@@ -19,16 +30,16 @@ type ContractsElderberry struct {
 }
 
 func NewContractsElderberry(cfg config.L1Config, backend bind.ContractBackend) (*ContractsElderberry, error) {
-	ger, err := NewContractBase(polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2, cfg.GlobalExitRootManagerAddr, backend, ContractNameGlobalExitRoot, VersionElderberry)
+	ger, err := NewContractMagic[GlobalExitRootElderberryType](polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2, cfg.GlobalExitRootManagerAddr, backend, ContractNameGlobalExitRoot, VersionElderberry)
 	if err != nil {
 		return nil, err
 	}
-	rollup, err := NewContractBase(polygonvalidiumetrog.NewPolygonvalidiumetrog, cfg.ZkEVMAddr, backend, ContractNameRollup, VersionElderberry)
+	rollup, err := NewContractMagic[RollupElderberryType](polygonvalidiumetrog.NewPolygonvalidiumetrog, cfg.ZkEVMAddr, backend, ContractNameRollup, VersionElderberry)
 	if err != nil {
 		return nil, err
 	}
 
-	rollupManager, err := NewContractBase(polygonrollupmanager.NewPolygonrollupmanager, cfg.RollupManagerAddr, backend, ContractNameRollupManager, VersionElderberry)
+	rollupManager, err := NewContractMagic[RollupManagerElderberryType](polygonrollupmanager.NewPolygonrollupmanager, cfg.RollupManagerAddr, backend, ContractNameRollupManager, VersionElderberry)
 	if err != nil {
 		return nil, err
 	}

@@ -5,7 +5,6 @@ import (
 
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/etherman"
-	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
@@ -13,69 +12,30 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type TxBuilderBananaBase struct {
-	rollupContract         contracts.RollupBananaType
-	globalExitRootContract contracts.GlobalExitRootBananaType
-
-	opts          bind.TransactOpts
-	SenderAddress common.Address
+type rollupBananaBaseContractor interface {
+	LastAccInputHash(opts *bind.CallOpts) ([32]byte, error)
 }
 
-func NewTxBuilderBananaBase(rollupContract contracts.RollupBananaType,
-	gerContract contracts.GlobalExitRootBananaType,
-	opts bind.TransactOpts,
-	sender common.Address) *TxBuilderBananaBase {
+type globalExitRootBananaContractor interface {
+	L1InfoRootMap(opts *bind.CallOpts, index uint32) ([32]byte, error)
+	String() string
+}
+
+type TxBuilderBananaBase struct {
+	rollupContract         rollupBananaBaseContractor
+	globalExitRootContract globalExitRootBananaContractor
+	opts                   bind.TransactOpts
+}
+
+func NewTxBuilderBananaBase(rollupContract rollupBananaBaseContractor,
+	gerContract globalExitRootBananaContractor,
+	opts bind.TransactOpts) *TxBuilderBananaBase {
 	return &TxBuilderBananaBase{
 		rollupContract:         rollupContract,
 		globalExitRootContract: gerContract,
 		opts:                   opts,
-		SenderAddress:          sender,
 	}
 
-}
-
-func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.SequenceBanana, error) {
-	seqEth, ok := sequences.(*BananaSequence)
-	if !ok {
-		log.Error("sequences is not a BananaSequence")
-		return etherman.SequenceBanana{}, fmt.Errorf("sequences is not a BananaSequence")
-	}
-	seqEth.SequenceBanana.Batches = make([]etherman.Batch, len(sequences.Batches()))
-	for _, batch := range sequences.Batches() {
-		ethBatch, err := convertToEthermanBatch(batch)
-		if err != nil {
-			return etherman.SequenceBanana{}, err
-		}
-		seqEth.SequenceBanana.Batches = append(seqEth.SequenceBanana.Batches, ethBatch)
-	}
-	return seqEth.SequenceBanana, nil
-}
-
-func convertToEthermanBatch(batch seqsendertypes.Batch) (etherman.Batch, error) {
-	return etherman.Batch{
-		L2Data:               batch.L2Data(),
-		LastCoinbase:         batch.LastCoinbase(),
-		ForcedGlobalExitRoot: batch.ForcedGlobalExitRoot(),
-		ForcedBlockHashL1:    batch.ForcedBlockHashL1(),
-		ForcedBatchTimestamp: batch.ForcedBatchTimestamp(),
-		BatchNumber:          batch.BatchNumber(),
-		L1InfoTreeIndex:      batch.L1InfoTreeIndex(),
-		LastL2BLockTimestamp: batch.LastL2BLockTimestamp(),
-		GlobalExitRoot:       batch.GlobalExitRoot(),
-	}, nil
-}
-
-func convertToEthermanBatches(batch []seqsendertypes.Batch) ([]etherman.Batch, error) {
-	result := make([]etherman.Batch, len(batch))
-	for i, b := range batch {
-		var err error
-		result[i], err = convertToEthermanBatch(b)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return result, nil
 }
 
 func (t *TxBuilderBananaBase) NewBatchFromL2Block(l2Block *datastream.L2Block) seqsendertypes.Batch {
@@ -90,7 +50,7 @@ func (t *TxBuilderBananaBase) NewBatchFromL2Block(l2Block *datastream.L2Block) s
 }
 
 func (t *TxBuilderBananaBase) NewSequence(batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
-	ethBatches, err := convertToEthermanBatches(batches)
+	ethBatches, err := toEthermanBatches(batches)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +63,7 @@ func (t *TxBuilderBananaBase) NewSequence(batches []seqsendertypes.Batch, coinba
 
 	sequence.L1InfoRoot = l1InfoRoot
 
-	accInputHash, err := t.rollupContract.Contract().LastAccInputHash(&bind.CallOpts{Pending: false})
+	accInputHash, err := t.rollupContract.LastAccInputHash(&bind.CallOpts{Pending: false})
 	if err != nil {
 		return nil, err
 	}
@@ -141,11 +101,55 @@ func (t *TxBuilderBananaBase) getL1InfoRoot(indexL1InfoRoot uint32) (common.Hash
 	)
 
 	if indexL1InfoRoot > 0 {
-		lastL1InfoTreeRoot, err = t.globalExitRootContract.Contract().L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
+		lastL1InfoTreeRoot, err = t.globalExitRootContract.L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
 		if err != nil {
-			log.Errorf("error calling SC globalexitroot L1InfoLeafMap: %v", err)
+			log.Errorf("error calling SC globalexitroot L1InfoLeafMap (%s) Err: %w", t.globalExitRootContract.String(), err)
 		}
 	}
 
 	return lastL1InfoTreeRoot, err
+}
+
+func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.SequenceBanana, error) {
+	seqEth, ok := sequences.(*BananaSequence)
+	if !ok {
+		log.Error("sequences is not a BananaSequence")
+		return etherman.SequenceBanana{}, fmt.Errorf("sequences is not a BananaSequence")
+	}
+	seqEth.SequenceBanana.Batches = make([]etherman.Batch, len(sequences.Batches()))
+	for _, batch := range sequences.Batches() {
+		ethBatch, err := toEthermanBatch(batch)
+		if err != nil {
+			return etherman.SequenceBanana{}, err
+		}
+		seqEth.SequenceBanana.Batches = append(seqEth.SequenceBanana.Batches, ethBatch)
+	}
+	return seqEth.SequenceBanana, nil
+}
+
+func toEthermanBatch(batch seqsendertypes.Batch) (etherman.Batch, error) {
+	return etherman.Batch{
+		L2Data:               batch.L2Data(),
+		LastCoinbase:         batch.LastCoinbase(),
+		ForcedGlobalExitRoot: batch.ForcedGlobalExitRoot(),
+		ForcedBlockHashL1:    batch.ForcedBlockHashL1(),
+		ForcedBatchTimestamp: batch.ForcedBatchTimestamp(),
+		BatchNumber:          batch.BatchNumber(),
+		L1InfoTreeIndex:      batch.L1InfoTreeIndex(),
+		LastL2BLockTimestamp: batch.LastL2BLockTimestamp(),
+		GlobalExitRoot:       batch.GlobalExitRoot(),
+	}, nil
+}
+
+func toEthermanBatches(batch []seqsendertypes.Batch) ([]etherman.Batch, error) {
+	result := make([]etherman.Batch, len(batch))
+	for i, b := range batch {
+		var err error
+		result[i], err = toEthermanBatch(b)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
 }

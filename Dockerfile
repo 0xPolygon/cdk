@@ -1,7 +1,9 @@
 # CONTAINER FOR BUILDING BINARY
-FROM golang:1.22.4 AS build
+FROM golang:1.22.5-alpine3.20 AS build
 
 WORKDIR $GOPATH/src/github.com/0xPolygon/cdk
+
+RUN apk update && apk add --no-cache make build-base git
 
 # INSTALL DEPENDENCIES
 COPY go.mod go.sum ./
@@ -12,7 +14,7 @@ COPY . .
 RUN make build
 
 # CONTAINER FOR RUNNING BINARY
-FROM alpine:3.18.4
+FROM alpine:3.20
 
 COPY --from=build /go/src/github.com/0xPolygon/cdk/dist/cdk /app/cdk
 

@@ -11,7 +11,7 @@ else
 endif
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/dist
-GOENVVARS := GOBIN=$(GOBIN) CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH)
+GOENVVARS := GOBIN=$(GOBIN) CGO_ENABLED=1 GOOS=linux GOARCH=$(ARCH)
 GOBINARY := cdk
 GOCMD := $(GOBASE)/cmd
 
@@ -83,7 +83,12 @@ stop: ## Stops all services
 .PHONY: test
 test:
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -covermode=atomic -coverprofile=../coverage.out  -coverpkg ./... -timeout 200s ./...
+
+.PHONY: test-seq_sender
+test-seq_sender:
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1  -covermode=atomic -coverprofile=../coverage.out   -timeout 200s ./sequencesender/...
 	
+
 .PHONY: install-linter
 install-linter: ## Installs the linter
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.54.2

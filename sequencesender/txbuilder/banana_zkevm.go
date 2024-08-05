@@ -6,33 +6,49 @@ import (
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk/etherman"
-	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 type TxBuilderBananaZKEVM struct {
 	TxBuilderBananaBase
-	condNewSeq CondNewSequence
+	condNewSeq     CondNewSequence
+	rollupContract rollupBananaZKEVMContractor
 }
 
-func NewTxBuilderBananaZKEVM(rollupContract contracts.RollupBananaType, gerContract contracts.GlobalExitRootBananaType, opts bind.TransactOpts, sender common.Address, maxTxSizeForL1 uint64) *TxBuilderBananaZKEVM {
+type rollupBananaZKEVMContractor interface {
+	rollupBananaBaseContractor
+	SequenceBatches(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, indexL1InfoRoot uint32, maxSequenceTimestamp uint64, expectedFinalAccInputHash [32]byte, l2Coinbase common.Address) (*types.Transaction, error)
+}
+
+type globalExitRootBananaZKEVMContractor interface {
+	globalExitRootBananaContractor
+}
+
+func NewTxBuilderBananaZKEVM(rollupContract rollupBananaZKEVMContractor, gerContract globalExitRootBananaZKEVMContractor, opts bind.TransactOpts, maxTxSizeForL1 uint64) *TxBuilderBananaZKEVM {
 	return &TxBuilderBananaZKEVM{
-		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts, sender),
-		condNewSeq: &NewSequenceConditionalMaxSize{
-			maxTxSizeForL1: maxTxSizeForL1,
-		},
+		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts),
+		condNewSeq:          NewConditionalNewSequenceMaxSize(maxTxSizeForL1),
+		rollupContract:      rollupContract,
 	}
 }
 
 func (t *TxBuilderBananaZKEVM) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
-	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, t.SenderAddress, l2Coinbase, batchNumber)
+	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, l2Coinbase)
 }
 
-func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sender common.Address, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
+// SetCondNewSeq allow to override the default conditional for new sequence
+func (t *TxBuilderBananaZKEVM) SetCondNewSeq(cond CondNewSequence) CondNewSequence {
+	previous := t.condNewSeq
+	t.condNewSeq = cond
+	return previous
+}
+
+func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
 	var err error
 	ethseq, err := convertToSequenceBanana(sequences)
 	if err != nil {
@@ -71,7 +87,7 @@ func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, seq
 		}
 	}
 
-	tx, err := t.rollupContract.Contract().SequenceBatches(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase)
+	tx, err := t.rollupContract.SequenceBatches(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", sequence.L2Coinbase)

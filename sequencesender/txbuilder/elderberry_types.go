@@ -13,6 +13,13 @@ type ElderberrySequence struct {
 	batches    []seqsendertypes.Batch
 }
 
+func NewElderberrySequence(batches []seqsendertypes.Batch, l2Coinbase common.Address) *ElderberrySequence {
+	return &ElderberrySequence{
+		l2Coinbase: l2Coinbase,
+		batches:    batches,
+	}
+}
+
 func (b *ElderberrySequence) IndexL1InfoRoot() uint32 {
 	log.Fatal("Elderberry Sequence does not have IndexL1InfoRoot")
 	return 0
