@@ -2,7 +2,6 @@ package l1bridge2infoindexsync
 
 import (
 	"context"
-	"errors"
 	"math/big"
 
 	"github.com/0xPolygon/cdk/bridgesync"
@@ -63,5 +62,5 @@ func (d *downloader) getMainnetExitRootAtL1InfoTreeIndex(ctx context.Context, in
 }
 
 func (d *downloader) getBridgeIndex(ctx context.Context, mainnetExitRoot common.Hash) (uint32, error) {
-	return 0, errors.New("need to implement root -> index @ bridgesync")
+	return d.l1Bridge.GetBridgeIndexByRoot(ctx, mainnetExitRoot)
 }

@@ -104,6 +104,15 @@ func (t *AppendOnlyTree) GetRootByIndex(tx kv.Tx, index uint32) (common.Hash, er
 	return t.getRootByIndex(tx, uint64(index))
 }
 
+func (t *AppendOnlyTree) GetIndexByRoot(ctx context.Context, root common.Hash) (uint32, error) {
+	tx, err := t.db.BeginRo(ctx)
+	if err != nil {
+		return 0, err
+	}
+	index, err := t.getIndexByRoot(tx, root)
+	return uint32(index), err
+}
+
 // GetLastIndexAndRoot returns the last index and root added to the tree
 func (t *AppendOnlyTree) GetLastIndexAndRoot(ctx context.Context) (uint32, common.Hash, error) {
 	tx, err := t.db.BeginRo(ctx)

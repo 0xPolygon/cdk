@@ -142,7 +142,13 @@ func (s *BridgeSync) Start(ctx context.Context) {
 }
 
 func (s *BridgeSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
-	return s.GetLastProcessedBlock(ctx)
+	return s.processor.GetLastProcessedBlock(ctx)
 }
 
-// TODO: expose methods from the processor for consumers
+func (s *BridgeSync) GetBridgeIndexByRoot(ctx context.Context, root common.Hash) (uint32, error) {
+	return s.processor.exitTree.GetIndexByRoot(ctx, root)
+}
+
+func (s *BridgeSync) GetClaimsAndBridges(ctx context.Context, fromBlock, toBlock uint64) ([]Event, error) {
+	return s.processor.GetClaimsAndBridges(ctx, fromBlock, toBlock)
+}

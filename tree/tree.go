@@ -13,9 +13,10 @@ import (
 )
 
 const (
-	defaultHeight  uint8 = 32
-	rootTableSufix       = "-root"
-	rhtTableSufix        = "-rht"
+	defaultHeight   uint8 = 32
+	rootTableSufix        = "-root"
+	rhtTableSufix         = "-rht"
+	indexTableSufix       = "-index"
 )
 
 var (
@@ -31,6 +32,7 @@ type Tree struct {
 	db         kv.RwDB
 	rhtTable   string
 	rootTable  string
+	indexTable string
 	height     uint8
 	zeroHashes []common.Hash
 }
@@ -66,16 +68,20 @@ func (n *treeNode) UnmarshalBinary(data []byte) error {
 func AddTables(tableCfg map[string]kv.TableCfgItem, dbPrefix string) {
 	rootTable := dbPrefix + rootTableSufix
 	rhtTable := dbPrefix + rhtTableSufix
+	indexTable := dbPrefix + indexTableSufix
 	tableCfg[rootTable] = kv.TableCfgItem{}
 	tableCfg[rhtTable] = kv.TableCfgItem{}
+	tableCfg[indexTable] = kv.TableCfgItem{}
 }
 
 func newTree(db kv.RwDB, dbPrefix string) *Tree {
 	rootTable := dbPrefix + rootTableSufix
 	rhtTable := dbPrefix + rhtTableSufix
+	indexTable := dbPrefix + indexTableSufix
 	t := &Tree{
 		rhtTable:   rhtTable,
 		rootTable:  rootTable,
+		indexTable: indexTable,
 		db:         db,
 		height:     defaultHeight,
 		zeroHashes: generateZeroHashes(defaultHeight),
@@ -93,6 +99,17 @@ func (t *Tree) getRootByIndex(tx kv.Tx, index uint64) (common.Hash, error) {
 		return common.Hash{}, ErrNotFound
 	}
 	return common.BytesToHash(rootBytes), nil
+}
+
+func (t *Tree) getIndexByRoot(tx kv.Tx, root common.Hash) (uint64, error) {
+	indexBytes, err := tx.GetOne(t.indexTable, root[:])
+	if err != nil {
+		return 0, err
+	}
+	if indexBytes == nil {
+		return 0, ErrNotFound
+	}
+	return dbCommon.BytesToUint64(indexBytes), nil
 }
 
 func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
@@ -220,7 +237,10 @@ func (t *Tree) storeNodes(tx kv.RwTx, nodes []treeNode) error {
 }
 
 func (t *Tree) storeRoot(tx kv.RwTx, rootIndex uint64, root common.Hash) error {
-	return tx.Put(t.rootTable, dbCommon.Uint64ToBytes(rootIndex), root[:])
+	if err := tx.Put(t.rootTable, dbCommon.Uint64ToBytes(rootIndex), root[:]); err != nil {
+		return err
+	}
+	return tx.Put(t.indexTable, root[:], dbCommon.Uint64ToBytes(rootIndex))
 }
 
 // GetLastRoot returns the last processed root

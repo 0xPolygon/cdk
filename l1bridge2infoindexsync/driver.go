@@ -2,59 +2,122 @@ package l1bridge2infoindexsync
 
 import (
 	"context"
+	"time"
 
 	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/cdk/sync"
 )
 
 type driver struct {
-	downloader *downloader
-	processor  *processor
+	downloader           *downloader
+	processor            *processor
+	rh                   *sync.RetryHandler
+	waitForSyncersPeriod time.Duration
 }
 
 func newDriver(
 	downloader *downloader,
-	processor *processor) *driver {
+	processor *processor,
+	rh *sync.RetryHandler,
+	waitForSyncersPeriod time.Duration,
+) *driver {
 	return &driver{
-		downloader: downloader,
-		processor:  processor,
+		downloader:           downloader,
+		processor:            processor,
+		rh:                   rh,
+		waitForSyncersPeriod: waitForSyncersPeriod,
 	}
 }
 
 func (d *driver) sync(ctx context.Context) {
-	lpbProcessor, err := d.processor.GetLastProcessedBlock(ctx)
-	if err != nil {
-		log.Fatal("TODO")
-	}
-	lastProcessedL1InfoIndex, err := d.processor.getLastL1InfoTreeIndexProcessed(ctx)
-	if err != nil {
-		log.Fatal("TODO")
+	var (
+		attempts                 int
+		lpbProcessor             uint64
+		lastProcessedL1InfoIndex uint32
+		err                      error
+	)
+	for {
+		lpbProcessor, lastProcessedL1InfoIndex, err = d.processor.GetLastProcessedBlockAndL1InfoTreeIndex(ctx)
+		if err != nil {
+			attempts++
+			log.Errorf("error getting last processed block and index: %v", err)
+			d.rh.Handle("GetLastProcessedBlockAndL1InfoTreeIndex", attempts)
+			continue
+		}
+		break
 	}
 	for {
-		syncUntilBlock, shouldWait, err := d.getTargetSynchronizationBlock(ctx, lpbProcessor)
-		if err != nil {
-			log.Fatal("TODO")
+		attempts = 0
+		var (
+			syncUntilBlock uint64
+			shouldWait     bool
+		)
+		for {
+			syncUntilBlock, shouldWait, err = d.getTargetSynchronizationBlock(ctx, lpbProcessor)
+			if err != nil {
+				attempts++
+				log.Errorf("error getting target sync block: %v", err)
+				d.rh.Handle("getTargetSynchronizationBlock", attempts)
+				continue
+			}
+			break
 		}
 		if shouldWait {
 			// TODO: wait using ticker
+			log.Debugf("waiting for syncers to catch up")
+			time.Sleep(d.waitForSyncersPeriod)
 			continue
 		}
-		lastL1InfoTreeIndex, err := d.downloader.getLastL1InfoIndexUntilBlock(ctx, syncUntilBlock)
-		if err != nil {
-			log.Fatal("TODO")
-		}
-		relations := []bridge2L1InfoRelation{}
-		for i := lastProcessedL1InfoIndex + 1; i <= lastL1InfoTreeIndex; i++ {
-			relation, err := d.getRelation(ctx, i)
+
+		attempts = 0
+		var lastL1InfoTreeIndex uint32
+		for {
+			lastL1InfoTreeIndex, err = d.downloader.getLastL1InfoIndexUntilBlock(ctx, syncUntilBlock)
 			if err != nil {
-				log.Fatal("TODO")
+				attempts++
+				log.Errorf("error getting last l1 info tree index: %v", err)
+				d.rh.Handle("getLastL1InfoIndexUntilBlock", attempts)
+				continue
 			}
-			relations = append(relations, relation)
+			break
 		}
-		if err := d.processor.addBridge2L1InfoRelations(ctx, syncUntilBlock, relations); err != nil {
-			log.Fatal("TODO")
+
+		relations := []bridge2L1InfoRelation{}
+		var init uint32
+		if lastProcessedL1InfoIndex > 0 {
+			init = lastProcessedL1InfoIndex + 1
 		}
+		for i := init; i <= lastL1InfoTreeIndex; i++ {
+			attempts = 0
+			for {
+				relation, err := d.getRelation(ctx, i)
+				if err != nil {
+					attempts++
+					log.Errorf("error getting relation: %v", err)
+					d.rh.Handle("getRelation", attempts)
+					continue
+				}
+				relations = append(relations, relation)
+				break
+			}
+		}
+
+		attempts = 0
+		log.Debugf("processing until block %d: %+v", syncUntilBlock, relations)
+		for {
+			if err := d.processor.processUntilBlock(ctx, syncUntilBlock, relations); err != nil {
+				attempts++
+				log.Errorf("error processing block: %v", err)
+				d.rh.Handle("processUntilBlock", attempts)
+				continue
+			}
+			break
+		}
+
 		lpbProcessor = syncUntilBlock
-		lastProcessedL1InfoIndex = 0 // TODO
+		if len(relations) > 0 {
+			lastProcessedL1InfoIndex = relations[len(relations)-1].l1InfoTreeIndex
+		}
 	}
 }
 
