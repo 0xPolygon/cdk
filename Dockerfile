@@ -1,9 +1,7 @@
 # CONTAINER FOR BUILDING BINARY
-FROM golang:1.22.5-alpine3.20 AS build
+FROM golang:1.22.4 AS build
 
 WORKDIR $GOPATH/src/github.com/0xPolygon/cdk
-
-RUN apk update && apk add --no-cache make build-base git
 
 # INSTALL DEPENDENCIES
 COPY go.mod go.sum ./
@@ -45,6 +43,6 @@ FROM --platform=${BUILDPLATFORM} debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y ca-certificates postgresql-client
 COPY --from=builder /app/target/release/cdk /usr/local/bin/
-COPY --from=build /src/target/cdk-node /usr/local/bin/
+COPY --from=build /go/src/github.com/0xPolygon/cdk/target/cdk-node /usr/local/bin/
 
 CMD ["/bin/sh", "-c", "cdk"]
