@@ -9,15 +9,19 @@ import (
 )
 
 type evmDownloaderFull interface {
-	evmDownloaderInterface
-	download(ctx context.Context, fromBlock uint64, downloadedCh chan EVMBlock)
+	EVMDownloaderInterface
+	downloader
+}
+
+type downloader interface {
+	Download(ctx context.Context, fromBlock uint64, downloadedCh chan EVMBlock)
 }
 
 type EVMDriver struct {
 	reorgDetector      ReorgDetector
 	reorgSub           *reorgdetector.Subscription
 	processor          processorInterface
-	downloader         evmDownloaderFull
+	downloader         downloader
 	reorgDetectorID    string
 	downloadBufferSize int
 	rh                 *RetryHandler
@@ -37,7 +41,7 @@ type ReorgDetector interface {
 func NewEVMDriver(
 	reorgDetector ReorgDetector,
 	processor processorInterface,
-	downloader evmDownloaderFull,
+	downloader downloader,
 	reorgDetectorID string,
 	downloadBufferSize int,
 	rh *RetryHandler,
@@ -79,7 +83,7 @@ reset:
 
 	// start downloading
 	downloadCh := make(chan EVMBlock, d.downloadBufferSize)
-	go d.downloader.download(cancellableCtx, lastProcessedBlock, downloadCh)
+	go d.downloader.Download(cancellableCtx, lastProcessedBlock, downloadCh)
 
 	for {
 		select {

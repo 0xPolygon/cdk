@@ -172,7 +172,7 @@ func TestGetEventsByBlockRange(t *testing.T) {
 				}, nil)
 		}
 
-		actualBlocks := d.getEventsByBlockRange(ctx, tc.fromBlock, tc.toBlock)
+		actualBlocks := d.GetEventsByBlockRange(ctx, tc.fromBlock, tc.toBlock)
 		require.Equal(t, tc.expectedBlocks, actualBlocks, tc.description)
 	}
 }
@@ -208,7 +208,7 @@ func TestDownload(t *testing.T) {
 	ctx1, cancel := context.WithCancel(ctx)
 	expectedBlocks := []EVMBlock{}
 	dwnldr, _ := NewTestDownloader(t)
-	dwnldr.evmDownloaderInterface = d
+	dwnldr.EVMDownloaderInterface = d
 
 	d.On("waitForNewBlocks", mock.Anything, uint64(0)).
 		Return(uint64(1))
@@ -309,7 +309,7 @@ func TestDownload(t *testing.T) {
 		After(time.Millisecond * 100).
 		Return(uint64(35)).Once()
 
-	go dwnldr.download(ctx1, 0, downloadCh)
+	go dwnldr.Download(ctx1, 0, downloadCh)
 	for _, expectedBlock := range expectedBlocks {
 		actualBlock := <-downloadCh
 		log.Debugf("block %d received!", actualBlock.Num)
@@ -331,7 +331,7 @@ func TestWaitForNewBlocks(t *testing.T) {
 	clientMock.On("HeaderByNumber", ctx, mock.Anything).Return(&types.Header{
 		Number: big.NewInt(6),
 	}, nil).Once()
-	actualBlock := d.waitForNewBlocks(ctx, currentBlock)
+	actualBlock := d.WaitForNewBlocks(ctx, currentBlock)
 	assert.Equal(t, expectedBlock, actualBlock)
 
 	// 2 iterations
@@ -341,7 +341,7 @@ func TestWaitForNewBlocks(t *testing.T) {
 	clientMock.On("HeaderByNumber", ctx, mock.Anything).Return(&types.Header{
 		Number: big.NewInt(6),
 	}, nil).Once()
-	actualBlock = d.waitForNewBlocks(ctx, currentBlock)
+	actualBlock = d.WaitForNewBlocks(ctx, currentBlock)
 	assert.Equal(t, expectedBlock, actualBlock)
 
 	// after error from client
@@ -349,7 +349,7 @@ func TestWaitForNewBlocks(t *testing.T) {
 	clientMock.On("HeaderByNumber", ctx, mock.Anything).Return(&types.Header{
 		Number: big.NewInt(6),
 	}, nil).Once()
-	actualBlock = d.waitForNewBlocks(ctx, currentBlock)
+	actualBlock = d.WaitForNewBlocks(ctx, currentBlock)
 	assert.Equal(t, expectedBlock, actualBlock)
 }
 
@@ -369,13 +369,13 @@ func TestGetBlockHeader(t *testing.T) {
 
 	// at first attempt
 	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(returnedBlock, nil).Once()
-	actualBlock := d.getBlockHeader(ctx, blockNum)
+	actualBlock := d.GetBlockHeader(ctx, blockNum)
 	assert.Equal(t, expectedBlock, actualBlock)
 
 	// after error from client
 	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(nil, errors.New("foo")).Once()
 	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(returnedBlock, nil).Once()
-	actualBlock = d.getBlockHeader(ctx, blockNum)
+	actualBlock = d.GetBlockHeader(ctx, blockNum)
 	assert.Equal(t, expectedBlock, actualBlock)
 }
 
