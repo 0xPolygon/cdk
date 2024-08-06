@@ -26,7 +26,8 @@ func New(
 	l2Client EthClienter,
 	globalExitRootL2 common.Address,
 	l1InfoTreesync *l1infotreesync.L1InfoTreeSync,
-	rh *sync.RetryHandler,
+	retryAfterErrorPeriod time.Duration,
+	maxRetryAttemptsAfterError int,
 	blockFinality *big.Int,
 	waitForNewBlocksPeriod time.Duration,
 	downloadBufferSize int,
@@ -36,6 +37,10 @@ func New(
 		return nil, err
 	}
 
+	rh := &sync.RetryHandler{
+		RetryAfterErrorPeriod:      retryAfterErrorPeriod,
+		MaxRetryAttemptsAfterError: maxRetryAttemptsAfterError,
+	}
 	downloader, err := newDownloader(
 		l2Client,
 		globalExitRootL2,
@@ -58,4 +63,16 @@ func New(
 		driver:    driver,
 		processor: processor,
 	}, nil
+}
+
+func (s *LastGERSync) Start(ctx context.Context) {
+	s.driver.Sync(ctx)
+}
+
+func (s *LastGERSync) GetFirstGERAfterL1InfoTreeIndex(ctx context.Context, l1InfoTreeIndex uint32) (common.Hash, error) {
+	return s.processor.GetFirstGERAfterL1InfoTreeIndex(ctx, l1InfoTreeIndex)
+}
+
+func (s *LastGERSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
+	return s.processor.GetLastProcessedBlock(ctx)
 }

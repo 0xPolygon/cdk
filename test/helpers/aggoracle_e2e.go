@@ -38,11 +38,12 @@ type AggoracleWithEVMChainEnv struct {
 	AuthL2          *bind.TransactOpts
 	AggOracle       *aggoracle.AggOracle
 	AggOracleSender aggoracle.ChainSender
+	ReorgDetector   *reorgdetector.ReorgDetector
 }
 
 func SetupAggoracleWithEVMChain(t *testing.T) *AggoracleWithEVMChainEnv {
 	ctx := context.Background()
-	l1Client, syncer, gerL1Contract, gerL1Addr, authL1 := CommonSetup(t)
+	l1Client, syncer, gerL1Contract, gerL1Addr, authL1, rd := CommonSetup(t)
 	sender, l2Client, gerL2Contract, gerL2Addr, authL2 := EVMSetup(t)
 	oracle, err := aggoracle.New(sender, l1Client.Client(), syncer, etherman.LatestBlock, time.Millisecond)
 	require.NoError(t, err)
@@ -60,6 +61,7 @@ func SetupAggoracleWithEVMChain(t *testing.T) *AggoracleWithEVMChainEnv {
 		AuthL2:          authL2,
 		AggOracle:       oracle,
 		AggOracleSender: sender,
+		ReorgDetector:   rd,
 	}
 }
 
@@ -69,6 +71,7 @@ func CommonSetup(t *testing.T) (
 	*gerContractL1.Globalexitrootnopush0,
 	common.Address,
 	*bind.TransactOpts,
+	*reorgdetector.ReorgDetector,
 ) {
 	// Config and spin up
 	ctx := context.Background()
@@ -89,7 +92,7 @@ func CommonSetup(t *testing.T) (
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
-	return l1Client, syncer, gerL1Contract, gerL1Addr, authL1
+	return l1Client, syncer, gerL1Contract, gerL1Addr, authL1, reorg
 }
 
 func EVMSetup(t *testing.T) (

@@ -2,6 +2,7 @@ package lastgersync
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
+	"github.com/0xPolygon/cdk/tree"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -63,7 +65,9 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 	)
 	for {
 		lastIndex, err = d.processor.getLastIndex(ctx)
-		if err != nil {
+		if err == ErrNotFound {
+			lastIndex = 0
+		} else if err != nil {
 			log.Errorf("error getting last indes: %v", err)
 			attempts++
 			d.rh.Handle("getLastIndex", attempts)
@@ -115,15 +119,18 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 
 func (d *downloader) getGERsFromIndex(ctx context.Context, fromL1InfoTreeIndex uint32) ([]Event, error) {
 	lastIndex, _, err := d.l1InfoTreesync.GetLastL1InfoTreeRootAndIndex(ctx)
+	if err == tree.ErrNotFound {
+		return nil, nil
+	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error calling GetLastL1InfoTreeRootAndIndex: %v", err)
 	}
 
 	gers := []Event{}
 	for i := fromL1InfoTreeIndex; i <= lastIndex; i++ {
 		info, err := d.l1InfoTreesync.GetInfoByIndex(ctx, i)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error calling GetInfoByIndex: %v", err)
 		}
 		gers = append(gers, Event{
 			L1InfoTreeIndex: i,

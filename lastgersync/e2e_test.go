@@ -2,86 +2,71 @@ package lastgersync_test
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"math/big"
+	"strconv"
 	"testing"
 	"time"
 
-	gerContractL1 "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/globalexitrootnopush0"
-	gerContractEVMChain "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitrootnopush0"
-	"github.com/0xPolygon/cdk/aggoracle"
-	"github.com/0xPolygon/cdk/etherman"
+	"github.com/0xPolygon/cdk/lastgersync"
+	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient/simulated"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
 )
 
 func TestE2E(t *testing.T) {
-	// 1. AggOracle
 	ctx := context.Background()
-	l1Client, syncer, gerL1Contract, authL1 := CommonSetup(t)
-	sender := aggoracle.EVMSetup(t)
-	oracle, err := aggoracle.New(sender, l1Client.Client(), syncer, etherman.LatestBlock, time.Millisecond)
+	env := helpers.SetupAggoracleWithEVMChain(t)
+	dbPathSyncer := t.TempDir()
+	syncer, err := lastgersync.New(
+		ctx,
+		dbPathSyncer,
+		env.ReorgDetector,
+		env.L2Client.Client(),
+		env.GERL2Addr,
+		env.L1InfoTreeSync,
+		0,
+		0,
+		big.NewInt(int64(rpc.LatestBlockNumber)),
+		time.Millisecond*30,
+		10,
+	)
 	require.NoError(t, err)
-	go oracle.Start(ctx)
+	go syncer.Start(ctx)
 
-	// 2. lastgersync
-	// 3. update GER
-	// 4. lastgersync has the updates
-}
+	for i := 0; i < 10; i++ {
+		// Update GER on L1
+		_, err := env.GERL1Contract.UpdateExitRoot(env.AuthL1, common.HexToHash(strconv.Itoa(i)))
+		require.NoError(t, err)
+		env.L1Client.Commit()
+		time.Sleep(time.Millisecond * 50)
+		expectedGER, err := env.GERL1Contract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
+		require.NoError(t, err)
+		isInjected, err := env.AggOracleSender.IsGERAlreadyInjected(expectedGER)
+		require.NoError(t, err)
+		require.True(t, isInjected, fmt.Sprintf("iteration %d, GER: %s", i, common.Bytes2Hex(expectedGER[:])))
 
-func newSimulatedL1(auth *bind.TransactOpts) (
-	client *simulated.Backend,
-	gerAddr common.Address,
-	gerContract *gerContractL1.Globalexitrootnopush0,
-	err error,
-) {
-	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10) //nolint:gomnd
-	address := auth.From
-	genesisAlloc := map[common.Address]types.Account{
-		address: {
-			Balance: balance,
-		},
+		// Wait for syncer to catch up
+		syncerUpToDate := false
+		var errMsg string
+		for i := 0; i < 10; i++ {
+			lpb, err := syncer.GetLastProcessedBlock(ctx)
+			require.NoError(t, err)
+			lb, err := env.L2Client.Client().BlockNumber(ctx)
+			require.NoError(t, err)
+			if lpb == lb {
+				syncerUpToDate = true
+				break
+			}
+			time.Sleep(time.Millisecond * 10)
+			errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb, lpb)
+		}
+		require.True(t, syncerUpToDate, errMsg)
+
+		actualGER, err := syncer.GetFirstGERAfterL1InfoTreeIndex(ctx, uint32(i))
+		require.NoError(t, err)
+		require.Equal(t, common.Hash(expectedGER), actualGER)
 	}
-	blockGasLimit := uint64(999999999999999999) //nolint:gomnd
-	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
-
-	gerAddr, _, gerContract, err = gerContractL1.DeployGlobalexitrootnopush0(auth, client.Client(), auth.From, auth.From)
-
-	client.Commit()
-	return
-}
-
-func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
-	client *simulated.Backend,
-	gerAddr common.Address,
-	gerContract *gerContractEVMChain.Pessimisticglobalexitrootnopush0,
-	err error,
-) {
-	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10) //nolint:gomnd
-	address := auth.From
-	genesisAlloc := map[common.Address]types.Account{
-		address: {
-			Balance: balance,
-		},
-	}
-	blockGasLimit := uint64(999999999999999999) //nolint:gomnd
-	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
-
-	gerAddr, _, gerContract, err = gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(auth, client.Client(), auth.From)
-	if err != nil {
-		return
-	}
-	client.Commit()
-
-	_GLOBAL_EXIT_ROOT_SETTER_ROLE := common.HexToHash("0x7b95520991dfda409891be0afa2635b63540f92ee996fda0bf695a166e5c5176")
-	_, err = gerContract.GrantRole(auth, _GLOBAL_EXIT_ROOT_SETTER_ROLE, auth.From)
-	client.Commit()
-	hasRole, _ := gerContract.HasRole(&bind.CallOpts{Pending: false}, _GLOBAL_EXIT_ROOT_SETTER_ROLE, auth.From)
-	if !hasRole {
-		err = errors.New("failed to set role")
-	}
-	return
 }
