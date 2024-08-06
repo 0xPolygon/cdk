@@ -126,7 +126,7 @@ DBPath = "/tmp/reorgdetector"
 DBPath = "/tmp/L1InfoTreeSync"
 GlobalExitRootAddr="0x8464135c8F25Da09e49BC8782676a84730C318bC"
 SyncBlockChunkSize=10
-BlockFinality="latest"
+BlockFinality="LatestBlock"
 URLRPCL1="http://test-aggoracle-l1:8545"
 WaitForNewBlocksPeriod="100ms"
 InitialBlock=0
@@ -134,7 +134,7 @@ InitialBlock=0
 [AggOracle]
 TargetChainType="EVM"
 URLRPCL1="http://test-aggoracle-l1:8545"
-BlockFinality="latest"
+BlockFinality="LatestBlock"
 WaitPeriodNextGER="100ms"
 	[EVMSender]
 		GlobalExitRootL2="0x8464135c8F25Da09e49BC8782676a84730C318bC"
