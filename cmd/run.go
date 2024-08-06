@@ -117,9 +117,6 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 
 	c.Aggregator.ChainID = l2ChainID
 
-	// TODO: fix check aggregator migrations
-	// checkAggregatorMigrations(c.Aggregator.DB)
-
 	// Populate Network config
 	c.Aggregator.Synchronizer.Etherman.Contracts.GlobalExitRootManagerAddr = c.NetworkConfig.L1Config.GlobalExitRootManagerAddr
 	c.Aggregator.Synchronizer.Etherman.Contracts.RollupManagerAddr = c.NetworkConfig.L1Config.RollupManagerAddr
@@ -296,13 +293,6 @@ func newDataAvailability(c config.Config, etherman *etherman.Client) (*dataavail
 
 func runAggregatorMigrations(c db.Config) {
 	runMigrations(c, db.AggregatorMigrationName)
-}
-
-func checkAggregatorMigrations(c db.Config) {
-	err := db.CheckMigrations(c, db.AggregatorMigrationName)
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 func runMigrations(c db.Config, name string) {
