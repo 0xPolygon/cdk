@@ -11,7 +11,7 @@ else
 endif
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/target
-GOENVVARS := GOBIN=$(GOBIN) CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH)
+GOENVVARS := GOBIN=$(GOBIN) CGO_ENABLED=1 GOOS=linux GOARCH=$(ARCH)
 GOBINARY := cdk-node
 GOCMD := $(GOBASE)/cmd
 
