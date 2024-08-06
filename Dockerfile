@@ -4,13 +4,14 @@ FROM golang:1.22.5-alpine3.20 AS build
 WORKDIR $GOPATH/src/github.com/0xPolygon/cdk
 
 RUN apk update && apk add --no-cache make build-base git
+
 # INSTALL DEPENDENCIES
-COPY go.mod go.sum /src/
-RUN cd /src && go mod download
+COPY go.mod go.sum ./
+RUN go mod download
 
 # BUILD BINARY
-COPY . /src
-RUN cd /src && make build
+COPY . .
+RUN make build
 
 # BUILD RUST BIN
 FROM --platform=${BUILDPLATFORM} rust:slim-bullseye AS chef
