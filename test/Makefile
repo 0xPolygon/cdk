@@ -1,5 +1,5 @@
 .PHONY: generate-mocks
-generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-mocks-sequencesender generate-mocks-da generate-mocks-l1infotreesync generate-mocks-aggoracle generate-mocks-sync
+generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-mocks-sequencesender generate-mocks-da generate-mocks-l1infotreesync generate-mocks-helpers generate-mocks-sync
 
 
 .PHONY: generate-mocks-bridgesync
@@ -50,8 +50,8 @@ generate-mocks-l1infotreesync: ## Generates mocks for l1infotreesync , using moc
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../l1infotreesync --outpkg=l1infotreesync --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
 
 .PHONY: generate-mocks-aggoracle
-generate-mocks-aggoracle: ## Generates mocks for aggoracle , using mockery tool
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager --dir=../aggoracle/chaingersender --output=../aggoracle --outpkg=aggoracle --structname=EthTxManagerMock --filename=mock_ethtxmanager_test.go
+generate-mocks-helpers: ## Generates mocks for helpers , using mockery tool
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager --dir=../aggoracle/chaingersender --output=./helpers --outpkg=helpers --structname=EthTxManagerMock --filename=mock_ethtxmanager.go
 
 .PHONY: generate-mocks-sync
 generate-mocks-sync: ## Generates mocks for sync, using mockery tool
