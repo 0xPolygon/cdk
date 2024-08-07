@@ -12,7 +12,7 @@ import (
 // AppendOnlyTree is a tree where leaves are added sequentially (by index)
 type AppendOnlyTree struct {
 	*Tree
-	lastLeftCache []common.Hash
+	lastLeftCache [defaultHeight]common.Hash
 	lastIndex     int64
 }
 
@@ -36,8 +36,8 @@ func (t *AppendOnlyTree) AddLeaves(tx kv.RwTx, leaves []Leaf) (func(), error) {
 	}
 
 	backupIndx := t.lastIndex
-	backupCache := make([]common.Hash, len(t.lastLeftCache))
-	copy(backupCache, t.lastLeftCache)
+	backupCache := [defaultHeight]common.Hash{}
+	copy(backupCache[:], t.lastLeftCache[:])
 	rollback := func() {
 		t.lastIndex = backupIndx
 		t.lastLeftCache = backupCache
@@ -62,7 +62,7 @@ func (t *AppendOnlyTree) addLeaf(tx kv.RwTx, leaf Leaf) error {
 	// Calculate new tree nodes
 	currentChildHash := leaf.Hash
 	newNodes := []treeNode{}
-	for h := uint8(0); h < t.height; h++ {
+	for h := uint8(0); h < defaultHeight; h++ {
 		var parent treeNode
 		if leaf.Index&(1<<h) > 0 {
 			// Add child to the right
@@ -152,7 +152,7 @@ func (t *AppendOnlyTree) initLastIndex(tx kv.Tx) (common.Hash, error) {
 	return root, nil
 }
 func (t *AppendOnlyTree) initLastLeftCache(tx kv.Tx, lastIndex int64, lastRoot common.Hash) error {
-	siblings := make([]common.Hash, t.height, t.height)
+	siblings := [defaultHeight]common.Hash{}
 	if lastIndex == -1 {
 		t.lastLeftCache = siblings
 		return nil
@@ -161,7 +161,7 @@ func (t *AppendOnlyTree) initLastLeftCache(tx kv.Tx, lastIndex int64, lastRoot c
 
 	currentNodeHash := lastRoot
 	// It starts in height-1 because 0 is the level of the leafs
-	for h := int(t.height - 1); h >= 0; h-- {
+	for h := int(defaultHeight - 1); h >= 0; h-- {
 		currentNode, err := t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
 			return fmt.Errorf(
@@ -172,7 +172,7 @@ func (t *AppendOnlyTree) initLastLeftCache(tx kv.Tx, lastIndex int64, lastRoot c
 		if currentNode == nil {
 			return ErrNotFound
 		}
-		siblings = append(siblings, currentNode.left)
+		siblings[h] = currentNode.left
 		if index&(1<<h) > 0 {
 			currentNodeHash = currentNode.right
 		} else {

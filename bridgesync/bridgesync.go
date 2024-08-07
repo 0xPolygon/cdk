@@ -152,3 +152,7 @@ func (s *BridgeSync) GetBridgeIndexByRoot(ctx context.Context, root common.Hash)
 func (s *BridgeSync) GetClaimsAndBridges(ctx context.Context, fromBlock, toBlock uint64) ([]Event, error) {
 	return s.processor.GetClaimsAndBridges(ctx, fromBlock, toBlock)
 }
+
+func (s *BridgeSync) GetProof(ctx context.Context, depositCount uint32, localExitRoot common.Hash) ([32]common.Hash, error) {
+	return s.processor.exitTree.GetProof(ctx, depositCount, localExitRoot)
+}
