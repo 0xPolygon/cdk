@@ -112,7 +112,7 @@ func (bm blockMap) getClosestHigherBlock(blockNum uint64) (block, bool) {
 	return sorted[0], true
 }
 
-// removeRange removes blocks from from to to
+// removeRange removes blocks from "from" to "to"
 func (bm blockMap) removeRange(from, to uint64) {
 	for i := from; i <= to; i++ {
 		delete(bm, i)
@@ -391,8 +391,11 @@ func (r *ReorgDetector) addUnfinalisedBlocks(ctx context.Context) {
 				}
 
 				if previousBlock.Hash == lastBlockFromClient.ParentHash {
-					unfinalisedBlocksMap[i] = block{Num: lastBlockFromClient.Number.Uint64(), Hash: lastBlockFromClient.Hash()}
-				} else if previousBlock.Hash != lastBlockFromClient.ParentHash {
+					unfinalisedBlocksMap[i] = block{
+						Num:  lastBlockFromClient.Number.Uint64(),
+						Hash: lastBlockFromClient.Hash(),
+					}
+				} else {
 					// reorg happened, we will find out from where exactly and report this to subscribers
 					reorgBlock = i
 				}
@@ -534,7 +537,6 @@ func (r *ReorgDetector) saveTrackedBlock(ctx context.Context, id string, b block
 
 	raw, err := json.Marshal(subscriberBlockMap.getSorted())
 	if err != nil {
-
 		return err
 	}
 
