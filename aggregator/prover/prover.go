@@ -16,6 +16,11 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
+const (
+	stateRootStartIndex = 19
+	stateRootFinalIndex = stateRootStartIndex + 8
+)
+
 var (
 	ErrBadProverResponse    = errors.New("Prover returned wrong type for response")  //nolint:revive
 	ErrProverInternalError  = errors.New("Prover returned INTERNAL_ERROR response")  //nolint:revive
@@ -348,9 +353,12 @@ func GetStateRootFromProof(proof string) (common.Hash, error) {
 		return common.Hash{}, err
 	}
 
-	var v [8]uint64
-	var j = 0
-	for i := 19; i < 19+8; i++ {
+	var (
+		v [8]uint64
+		j = 0
+	)
+
+	for i := stateRootStartIndex; i < stateRootFinalIndex; i++ {
 		u64, err := strconv.ParseInt(publics.Publics[i], 10, 64)
 		if err != nil {
 			log.Fatal(err)
