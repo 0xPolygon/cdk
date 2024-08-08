@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
@@ -53,6 +54,10 @@ func NewEVMClaimSponsor(
 	sender common.Address,
 	maxGas, gasOffset uint64,
 	ethTxManager EthTxManager,
+	retryAfterErrorPeriod time.Duration,
+	maxRetryAttemptsAfterError int,
+	waitTxToBeMinedPeriod time.Duration,
+	waitOnEmptyQueue time.Duration,
 ) (*EVMClaimSponsor, error) {
 	contract, err := polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridge, l2Client)
 	if err != nil {
@@ -62,12 +67,7 @@ func NewEVMClaimSponsor(
 	if err != nil {
 		return nil, err
 	}
-	sponsor, err := newClaimSponsor(dbPath)
-	if err != nil {
-		return nil, err
-	}
-	return &EVMClaimSponsor{
-		ClaimSponsor:   sponsor,
+	evmSponsor := &EVMClaimSponsor{
 		l2Client:       l2Client,
 		bridgeABI:      abi,
 		bridgeAddr:     bridge,
@@ -76,7 +76,20 @@ func NewEVMClaimSponsor(
 		gasOffest:      gasOffset,
 		maxGas:         maxGas,
 		ethTxManager:   ethTxManager,
-	}, nil
+	}
+	baseSponsor, err := newClaimSponsor(
+		dbPath,
+		evmSponsor,
+		retryAfterErrorPeriod,
+		maxRetryAttemptsAfterError,
+		waitTxToBeMinedPeriod,
+		waitOnEmptyQueue,
+	)
+	if err != nil {
+		return nil, err
+	}
+	evmSponsor.ClaimSponsor = baseSponsor
+	return evmSponsor, nil
 }
 
 func (c *EVMClaimSponsor) checkClaim(ctx context.Context, claim *Claim) error {
@@ -98,7 +111,7 @@ func (c *EVMClaimSponsor) checkClaim(ctx context.Context, claim *Claim) error {
 	return nil
 }
 
-func (c *EVMClaimSponsor) sendTx(ctx context.Context, claim *Claim) (string, error) {
+func (c *EVMClaimSponsor) sendClaim(ctx context.Context, claim *Claim) (string, error) {
 	data, err := c.buildClaimTxData(claim)
 	if err != nil {
 		return "", err

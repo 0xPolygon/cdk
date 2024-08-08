@@ -60,7 +60,7 @@ func (c *Claim) Key() []byte {
 type ClaimSender interface {
 	checkClaim(ctx context.Context, claim *Claim) error
 	sendClaim(ctx context.Context, claim *Claim) (string, error)
-	claimStatus(id string) (ClaimStatus, error)
+	claimStatus(ctx context.Context, id string) (ClaimStatus, error)
 }
 
 type ClaimSponsor struct {
@@ -68,9 +68,17 @@ type ClaimSponsor struct {
 	sender                ClaimSender
 	rh                    *sync.RetryHandler
 	waitTxToBeMinedPeriod time.Duration
+	waitOnEmptyQueue      time.Duration
 }
 
-func newClaimSponsor(dbPath string) (*ClaimSponsor, error) {
+func newClaimSponsor(
+	dbPath string,
+	sender ClaimSender,
+	retryAfterErrorPeriod time.Duration,
+	maxRetryAttemptsAfterError int,
+	waitTxToBeMinedPeriod time.Duration,
+	waitOnEmptyQueue time.Duration,
+) (*ClaimSponsor, error) {
 	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
 		cfg := kv.TableCfg{
 			claimTable: {},
@@ -85,8 +93,16 @@ func newClaimSponsor(dbPath string) (*ClaimSponsor, error) {
 	if err != nil {
 		return nil, err
 	}
+	rh := &sync.RetryHandler{
+		MaxRetryAttemptsAfterError: maxRetryAttemptsAfterError,
+		RetryAfterErrorPeriod:      retryAfterErrorPeriod,
+	}
 	return &ClaimSponsor{
-		db: db,
+		db:                    db,
+		sender:                sender,
+		rh:                    rh,
+		waitTxToBeMinedPeriod: waitTxToBeMinedPeriod,
+		waitOnEmptyQueue:      waitOnEmptyQueue,
 	}, nil
 }
 
@@ -98,7 +114,7 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 	for {
 		if err != nil {
 			attempts++
-			c.rh.Handle("claimsponsor start", attempts)
+			c.rh.Handle("claimsponsor main loop", attempts)
 		}
 		tx, err2 := c.db.BeginRw(ctx)
 		if err2 != nil {
@@ -110,6 +126,12 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 		if err2 != nil {
 			err = err2
 			tx.Rollback()
+			if err == ErrNotFound {
+				log.Debugf("queue is empty")
+				err = nil
+				time.Sleep(c.waitOnEmptyQueue)
+				continue
+			}
 			log.Errorf("error calling getFirstQueueIndex: %v", err)
 			continue
 		}
@@ -182,6 +204,7 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 		}
 
 		attempts = 0
+		log.Error("wtf: ", err)
 	}
 }
 
@@ -192,7 +215,7 @@ func (c *ClaimSponsor) waitTxToBeSuccessOrFail(ctx context.Context, txID string)
 		case <-ctx.Done():
 			return "", errors.New("context cancelled")
 		case <-t.C:
-			status, err := c.sender.claimStatus(txID)
+			status, err := c.sender.claimStatus(ctx, txID)
 			if err != nil {
 				return "", err
 			}
@@ -216,8 +239,10 @@ func (c *ClaimSponsor) AddClaimToQueue(ctx context.Context, claim *Claim) error 
 	_, err = getClaim(tx, claim.GlobalIndex)
 	if err != ErrNotFound {
 		if err != nil {
+			tx.Rollback()
 			return err
 		} else {
+			tx.Rollback()
 			return errors.New("claim already added")
 		}
 	}
@@ -228,12 +253,16 @@ func (c *ClaimSponsor) AddClaimToQueue(ctx context.Context, claim *Claim) error 
 		return err
 	}
 
+	var queuePosition uint64
 	lastQueuePosition, _, err := getLastQueueIndex(tx)
-	if err != nil {
+	if err == ErrNotFound {
+		queuePosition = 0
+	} else if err != nil {
 		tx.Rollback()
 		return err
+	} else {
+		queuePosition = lastQueuePosition + 1
 	}
-	queuePosition := lastQueuePosition + 1
 	err = tx.Put(queueTable, dbCommon.Uint64ToBytes(queuePosition), claim.Key())
 	if err != nil {
 		tx.Rollback()

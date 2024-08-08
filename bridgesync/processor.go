@@ -296,3 +296,21 @@ func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error 
 	blockNumBytes := dbCommon.Uint64ToBytes(blockNum)
 	return tx.Put(p.lastBlockTable, lastBlokcKey, blockNumBytes)
 }
+
+func GenerateGlobalIndex(mainnetFlag bool, rollupIndex uint, localExitRootIndex uint32) *big.Int {
+	var (
+		globalIndexBytes []byte
+		buf              [4]byte
+	)
+	if mainnetFlag {
+		globalIndexBytes = append(globalIndexBytes, big.NewInt(1).Bytes()...)
+		ri := big.NewInt(0).FillBytes(buf[:])
+		globalIndexBytes = append(globalIndexBytes, ri...)
+	} else {
+		ri := big.NewInt(0).SetUint64(uint64(rollupIndex)).FillBytes(buf[:])
+		globalIndexBytes = append(globalIndexBytes, ri...)
+	}
+	leri := big.NewInt(0).SetUint64(uint64(localExitRootIndex)).FillBytes(buf[:])
+	globalIndexBytes = append(globalIndexBytes, leri...)
+	return big.NewInt(0).SetBytes(globalIndexBytes)
+}

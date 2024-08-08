@@ -3,28 +3,25 @@ package helpers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry-paris/polygonzkevmbridgev2"
 	gerContractL1 "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/globalexitrootnopush0"
 	gerContractEVMChain "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitrootnopush0"
 	"github.com/0xPolygon/cdk/aggoracle"
 	"github.com/0xPolygon/cdk/aggoracle/chaingersender"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
-	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,13 +47,14 @@ type AggoracleWithEVMChainEnv struct {
 	BridgeL2Contract *polygonzkevmbridgev2.Polygonzkevmbridgev2
 	BridgeL2Addr     common.Address
 	NetworkIDL2      uint32
+	EthTxManMockL2   *EthTxManagerMock
 }
 
 func SetupAggoracleWithEVMChain(t *testing.T) *AggoracleWithEVMChainEnv {
 	ctx := context.Background()
 	l1Client, syncer, gerL1Contract, gerL1Addr, bridgeL1Contract, bridgeL1Addr, authL1, rd := CommonSetup(t)
-	sender, l2Client, gerL2Contract, gerL2Addr, bridgeL2Contract, bridgeL2Addr, authL2 := EVMSetup(t)
-	oracle, err := aggoracle.New(sender, l1Client.Client(), syncer, etherman.LatestBlock, time.Millisecond)
+	sender, l2Client, gerL2Contract, gerL2Addr, bridgeL2Contract, bridgeL2Addr, authL2, ethTxManMockL2 := EVMSetup(t)
+	oracle, err := aggoracle.New(sender, l1Client.Client(), syncer, etherman.LatestBlock, time.Millisecond*20)
 	require.NoError(t, err)
 	go oracle.Start(ctx)
 
@@ -77,6 +75,8 @@ func SetupAggoracleWithEVMChain(t *testing.T) *AggoracleWithEVMChainEnv {
 		BridgeL1Addr:     bridgeL1Addr,
 		BridgeL2Contract: bridgeL2Contract,
 		BridgeL2Addr:     bridgeL2Addr,
+		NetworkIDL2:      NetworkIDL2,
+		EthTxManMockL2:   ethTxManMockL2,
 	}
 }
 
@@ -120,6 +120,7 @@ func EVMSetup(t *testing.T) (
 	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
 	common.Address,
 	*bind.TransactOpts,
+	*EthTxManagerMock,
 ) {
 	privateKeyL2, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -127,69 +128,11 @@ func EVMSetup(t *testing.T) (
 	require.NoError(t, err)
 	l2Client, gerL2Addr, gerL2Sc, bridgeL2Addr, bridgeL2Sc, err := newSimulatedEVMAggSovereignChain(authL2)
 	require.NoError(t, err)
-	ethTxManMock := NewEthTxManagerMock(t)
-	// id, err := c.ethTxMan.Add(ctx, &c.gerAddr, nil, big.NewInt(0), tx.Data(), c.gasOffset, nil)
-	ethTxManMock.On("Add", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) {
-			ctx := context.Background()
-			nonce, err := l2Client.Client().PendingNonceAt(ctx, authL2.From)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			gas, err := l2Client.Client().EstimateGas(ctx, ethereum.CallMsg{
-				From:  authL2.From,
-				To:    args.Get(1).(*common.Address),
-				Value: big.NewInt(0),
-				Data:  args.Get(4).([]byte),
-			})
-			if err != nil {
-				log.Error(err)
-				res, err := l2Client.Client().CallContract(ctx, ethereum.CallMsg{
-					From:  authL2.From,
-					To:    args.Get(1).(*common.Address),
-					Value: big.NewInt(0),
-					Data:  args.Get(4).([]byte),
-				}, nil)
-				log.Debugf("contract call: %s", res)
-				if err != nil {
-					log.Error(err)
-				}
-				return
-			}
-			price, err := l2Client.Client().SuggestGasPrice(ctx)
-			if err != nil {
-				log.Error(err)
-			}
-			tx := types.NewTx(&types.LegacyTx{
-				To:       args.Get(1).(*common.Address),
-				Nonce:    nonce,
-				Value:    big.NewInt(0),
-				Data:     args.Get(4).([]byte),
-				Gas:      gas,
-				GasPrice: price,
-			})
-			tx.Gas()
-			signedTx, err := authL2.Signer(authL2.From, tx)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			err = l2Client.Client().SendTransaction(ctx, signedTx)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			l2Client.Commit()
-		}).
-		Return(common.Hash{}, nil)
-	// res, err := c.ethTxMan.Result(ctx, id)
-	ethTxManMock.On("Result", mock.Anything, mock.Anything).
-		Return(ethtxmanager.MonitoredTxResult{Status: ethtxmanager.MonitoredTxStatusMined}, nil)
+	ethTxManMock := NewEthTxManMock(t, l2Client, authL2)
 	sender, err := chaingersender.NewEVMChainGERSender(gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50)
 	require.NoError(t, err)
 
-	return sender, l2Client, gerL2Sc, gerL2Addr, bridgeL2Sc, bridgeL2Addr, authL2
+	return sender, l2Client, gerL2Sc, gerL2Addr, bridgeL2Sc, bridgeL2Addr, authL2, ethTxManMock
 }
 
 func newSimulatedL1(auth *bind.TransactOpts) (
@@ -210,6 +153,9 @@ func newSimulatedL1(auth *bind.TransactOpts) (
 	address := auth.From
 	genesisAlloc := map[common.Address]types.Account{
 		address: {
+			Balance: balance,
+		},
+		authDeployer.From: {
 			Balance: balance,
 		},
 	}
@@ -261,19 +207,19 @@ func newSimulatedL1(auth *bind.TransactOpts) (
 	if err != nil {
 		return
 	}
-	checkGERAddr, err := bridgeContract.GlobalExitRootManager(&bind.CallOpts{})
+	checkGERAddr, err := bridgeContract.GlobalExitRootManager(&bind.CallOpts{Pending: false})
 	if err != nil {
 		return
 	}
 	if precalculatedAddr != checkGERAddr {
-		err = errors.New("error deploying bridge")
+		err = fmt.Errorf("error deploying bridge, unexpected GER addr. Expected %s. Actual %s", precalculatedAddr.Hex(), checkGERAddr.Hex())
 	}
 
-	gerAddr, _, gerContract, err = gerContractL1.DeployGlobalexitrootnopush0(auth, client.Client(), auth.From, auth.From)
+	gerAddr, _, gerContract, err = gerContractL1.DeployGlobalexitrootnopush0(authDeployer, client.Client(), auth.From, bridgeAddr)
 
 	client.Commit()
 	if precalculatedAddr != gerAddr {
-		err = errors.New("error calculating addr")
+		err = fmt.Errorf("error calculating addr. Expected %s. Actual %s", precalculatedAddr.Hex(), gerAddr.Hex())
 	}
 	return
 }
@@ -294,8 +240,15 @@ func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
 	authDeployer, err := bind.NewKeyedTransactorWithChainID(privateKeyL1, big.NewInt(1337))
 	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10) //nolint:gomnd
 	address := auth.From
+	precalculatedBridgeAddr := crypto.CreateAddress(authDeployer.From, 1)
 	genesisAlloc := map[common.Address]types.Account{
 		address: {
+			Balance: balance,
+		},
+		authDeployer.From: {
+			Balance: balance,
+		},
+		precalculatedBridgeAddr: {
 			Balance: balance,
 		},
 	}
@@ -342,6 +295,10 @@ func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
 	if err != nil {
 		return
 	}
+	if bridgeAddr != precalculatedBridgeAddr {
+		err = fmt.Errorf("error calculating bridge addr. Expected: %s. Actual: %s", precalculatedBridgeAddr, bridgeAddr)
+		return
+	}
 	client.Commit()
 	bridgeContract, err = polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeAddr, client.Client())
 	if err != nil {
@@ -355,14 +312,14 @@ func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
 		err = errors.New("error deploying bridge")
 	}
 
-	gerAddr, _, gerContract, err = gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(auth, client.Client(), auth.From)
+	gerAddr, _, gerContract, err = gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(authDeployer, client.Client(), auth.From)
 	if err != nil {
 		return
 	}
 	client.Commit()
 
 	_GLOBAL_EXIT_ROOT_SETTER_ROLE := common.HexToHash("0x7b95520991dfda409891be0afa2635b63540f92ee996fda0bf695a166e5c5176")
-	_, err = gerContract.GrantRole(auth, _GLOBAL_EXIT_ROOT_SETTER_ROLE, auth.From)
+	_, err = gerContract.GrantRole(authDeployer, _GLOBAL_EXIT_ROOT_SETTER_ROLE, auth.From)
 	client.Commit()
 	hasRole, _ := gerContract.HasRole(&bind.CallOpts{Pending: false}, _GLOBAL_EXIT_ROOT_SETTER_ROLE, auth.From)
 	if !hasRole {

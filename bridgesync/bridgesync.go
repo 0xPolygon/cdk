@@ -37,6 +37,7 @@ func NewL1(
 	rd sync.ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
+	waitForNewBlocksPeriod time.Duration,
 ) (*BridgeSync, error) {
 	return new(
 		ctx,
@@ -49,6 +50,7 @@ func NewL1(
 		initialBlock,
 		dbPrefixL1,
 		reorgDetectorIDL1,
+		waitForNewBlocksPeriod,
 	)
 }
 
@@ -62,6 +64,7 @@ func NewL2(
 	rd sync.ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
+	waitForNewBlocksPeriod time.Duration,
 ) (*BridgeSync, error) {
 	return new(
 		ctx,
@@ -74,6 +77,7 @@ func NewL2(
 		initialBlock,
 		dbPrefixL1,
 		reorgDetectorIDL1,
+		waitForNewBlocksPeriod,
 	)
 }
 
@@ -87,6 +91,7 @@ func new(
 	ethClient EthClienter,
 	initialBlock uint64,
 	dbPrefix, reorgDetectorID string,
+	waitForNewBlocksPeriod time.Duration,
 ) (*BridgeSync, error) {
 	processor, err := newProcessor(ctx, dbPath, dbPrefix)
 	if err != nil {

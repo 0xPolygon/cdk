@@ -3,7 +3,6 @@ package bridgesync
 import (
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
@@ -13,10 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-)
-
-const (
-	waitForNewBlocksPeriod = time.Millisecond * 100
 )
 
 var (
