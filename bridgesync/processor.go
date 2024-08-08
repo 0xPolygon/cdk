@@ -24,7 +24,7 @@ const (
 var (
 	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
 	ErrNotFound          = errors.New("not found")
-	lastBlokcKey         = []byte("lb")
+	lastBlockKey         = []byte("lb")
 )
 
 // Bridge is the representation of a bridge event
@@ -41,30 +41,29 @@ type Bridge struct {
 
 // Hash returns the hash of the bridge event as expected by the exit tree
 func (b *Bridge) Hash() common.Hash {
-	origNet := make([]byte, 4) //nolint:gomnd
+	const (
+		uint32ByteSize = 4
+		bigIntSize     = 32
+	)
+	origNet := make([]byte, uint32ByteSize)
 	binary.BigEndian.PutUint32(origNet, uint32(b.OriginNetwork))
-	destNet := make([]byte, 4) //nolint:gomnd
+	destNet := make([]byte, uint32ByteSize)
 	binary.BigEndian.PutUint32(destNet, uint32(b.DestinationNetwork))
 
 	metaHash := keccak256.Hash(b.Metadata)
-	hash := common.Hash{}
-	var buf [32]byte //nolint:gomnd
+	var buf [bigIntSize]byte
 	if b.Amount == nil {
 		b.Amount = big.NewInt(0)
 	}
-	copy(
-		hash[:],
-		keccak256.Hash(
-			[]byte{b.LeafType},
-			origNet,
-			b.OriginAddress[:],
-			destNet,
-			b.DestinationAddress[:],
-			b.Amount.FillBytes(buf[:]),
-			metaHash,
-		),
-	)
-	return hash
+	return common.BytesToHash(keccak256.Hash(
+		[]byte{b.LeafType},
+		origNet,
+		b.OriginAddress[:],
+		destNet,
+		b.DestinationAddress[:],
+		b.Amount.FillBytes(buf[:]),
+		metaHash,
+	))
 }
 
 // Claim representation of a claim event
@@ -162,7 +161,7 @@ func (p *processor) GetClaimsAndBridges(
 	return events, nil
 }
 
-// GetLastProcessedBlock returns the last processed block oby the processor, including blocks
+// GetLastProcessedBlock returns the last processed block by the processor, including blocks
 // that don't have events
 func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	tx, err := p.db.BeginRo(ctx)
@@ -174,7 +173,7 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 }
 
 func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
-	if blockNumBytes, err := tx.GetOne(p.lastBlockTable, lastBlokcKey); err != nil {
+	if blockNumBytes, err := tx.GetOne(p.lastBlockTable, lastBlockKey); err != nil {
 		return 0, err
 	} else if blockNumBytes == nil {
 		return 0, nil
@@ -183,7 +182,7 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	}
 }
 
-// Reorg triggers a purge and reset process on the processot to leave it on a state
+// Reorg triggers a purge and reset process on the processor to leaf it on a state
 // as if the last block processed was firstReorgedBlock-1
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	tx, err := p.db.BeginRw(ctx)
@@ -239,21 +238,24 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	return nil
 }
 
-// ProcessBlock procees the events of the block to build the exit tree
+// ProcessBlock process the events of the block to build the exit tree
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
 		return err
 	}
-	bridges := []Bridge{}
+	leaves := []tree.Leaf{}
 	if len(block.Events) > 0 {
 		events := []Event{}
 		for _, e := range block.Events {
 			event := e.(Event)
 			events = append(events, event)
 			if event.Bridge != nil {
-				bridges = append(bridges, *event.Bridge)
+				leaves = append(leaves, tree.Leaf{
+					Index: event.Bridge.DepositCount,
+					Hash:  event.Bridge.Hash(),
+				})
 			}
 		}
 		value, err := json.Marshal(events)
@@ -272,13 +274,6 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		return err
 	}
 
-	leaves := []tree.Leaf{}
-	for _, bridge := range bridges {
-		leaves = append(leaves, tree.Leaf{
-			Index: bridge.DepositCount,
-			Hash:  bridge.Hash(),
-		})
-	}
 	exitTreeRollback, err := p.exitTree.AddLeaves(tx, leaves)
 	if err != nil {
 		tx.Rollback()
@@ -294,5 +289,5 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 
 func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {
 	blockNumBytes := dbCommon.Uint64ToBytes(blockNum)
-	return tx.Put(p.lastBlockTable, lastBlokcKey, blockNumBytes)
+	return tx.Put(p.lastBlockTable, lastBlockKey, blockNumBytes)
 }

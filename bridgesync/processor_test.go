@@ -440,7 +440,7 @@ func TestHashBridge(t *testing.T) {
 			require.True(t, err)
 
 			bridge := Bridge{
-				OriginNetwork:      testVector.OriginalNetwork,
+				OriginNetwork:      testVector.OriginNetwork,
 				OriginAddress:      common.HexToAddress(testVector.TokenAddress),
 				Amount:             amount,
 				DestinationNetwork: testVector.DestinationNetwork,

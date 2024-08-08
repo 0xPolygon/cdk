@@ -47,7 +47,7 @@ func NewEVMDownloader(
 	if err != nil {
 		return nil, err
 	}
-	topicsToQuery := []common.Hash{}
+	topicsToQuery := make([]common.Hash, 0, len(appender))
 	for topic := range appender {
 		topicsToQuery = append(topicsToQuery, topic)
 	}
@@ -143,7 +143,7 @@ func (d *downloaderImplementation) getEventsByBlockRange(ctx context.Context, fr
 			b := d.getBlockHeader(ctx, l.BlockNumber)
 			if b.Hash != l.BlockHash {
 				log.Infof(
-					"there has been a block hash change between the event query and the block query for block %d: %s vs %s. Retrtying.",
+					"there has been a block hash change between the event query and the block query for block %d: %s vs %s. Retrying.",
 					l.BlockNumber, b.Hash, l.BlockHash)
 				return d.getEventsByBlockRange(ctx, fromBlock, toBlock)
 			}
@@ -180,8 +180,8 @@ func (d *downloaderImplementation) getLogs(ctx context.Context, fromBlock, toBlo
 		Addresses: d.adressessToQuery,
 		ToBlock:   new(big.Int).SetUint64(toBlock),
 	}
-	attempts := 0
 	var (
+		attempts       = 0
 		unfilteredLogs []types.Log
 		err            error
 	)
@@ -195,18 +195,13 @@ func (d *downloaderImplementation) getLogs(ctx context.Context, fromBlock, toBlo
 		}
 		break
 	}
-	logs := []types.Log{}
+	logs := make([]types.Log, 0, len(unfilteredLogs))
 	for _, l := range unfilteredLogs {
-		found := false
 		for _, topic := range d.topicsToQuery {
 			if l.Topics[0] == topic {
 				logs = append(logs, l)
-				found = true
 				break
 			}
-		}
-		if !found {
-			log.Debugf("ignoring log %+v because it's not under the list of topics to query", l)
 		}
 	}
 	return logs

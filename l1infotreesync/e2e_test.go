@@ -114,7 +114,7 @@ func TestE2E(t *testing.T) {
 			require.NoError(t, err)
 			client.Commit()
 			// Let the processor catch up
-			time.Sleep(time.Millisecond * 10)
+			time.Sleep(time.Millisecond * 30)
 			receipt, err := client.Client().TransactionReceipt(ctx, tx.Hash())
 			require.NoError(t, err)
 			require.Equal(t, receipt.Status, types.ReceiptStatusSuccessful)
@@ -201,7 +201,7 @@ func TestStressAndReorgs(t *testing.T) {
 			}
 		}
 		client.Commit()
-		time.Sleep(time.Microsecond * 10) // Sleep just enough for goroutine to switch
+		time.Sleep(time.Microsecond * 30) // Sleep just enough for goroutine to switch
 		if enableReorgs && i%reorgEveryXIterations == 0 {
 			reorgDepth := i%maxReorgDepth + 1
 			currentBlockNum, err := client.Client().BlockNumber(ctx)

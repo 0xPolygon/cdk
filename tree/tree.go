@@ -103,9 +103,9 @@ func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
 	siblings = make([]common.Hash, int(t.height))
 
 	currentNodeHash := root
+	var currentNode *treeNode
 	// It starts in height-1 because 0 is the level of the leafs
 	for h := int(t.height - 1); h >= 0; h-- {
-		var currentNode *treeNode
 		currentNode, err = t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
 			if err == ErrNotFound {

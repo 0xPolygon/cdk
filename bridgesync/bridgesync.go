@@ -10,10 +10,8 @@ import (
 )
 
 const (
-	reorgDetectorIDL1  = "bridgesyncl1"
-	reorgDetectorIDL2  = "bridgesyncl2"
-	dbPrefixL1         = "bridgesyncl1"
-	dbPrefixL2         = "bridgesyncl2"
+	bridgeSyncL1       = "bridgesyncl1"
+	bridgeSyncL2       = "bridgesyncl2"
 	downloadBufferSize = 1000
 )
 
@@ -47,8 +45,7 @@ func NewL1(
 		rd,
 		ethClient,
 		initialBlock,
-		dbPrefixL1,
-		reorgDetectorIDL1,
+		bridgeSyncL1,
 	)
 }
 
@@ -72,8 +69,7 @@ func NewL2(
 		rd,
 		ethClient,
 		initialBlock,
-		dbPrefixL1,
-		reorgDetectorIDL1,
+		bridgeSyncL2,
 	)
 }
 
@@ -86,9 +82,9 @@ func new(
 	rd sync.ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
-	dbPrefix, reorgDetectorID string,
+	l1OrL2ID string,
 ) (*LocalBridgeSync, error) {
-	processor, err := newProcessor(ctx, dbPath, dbPrefix)
+	processor, err := newProcessor(ctx, dbPath, l1OrL2ID)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +122,7 @@ func new(
 		return nil, err
 	}
 
-	driver, err := sync.NewEVMDriver(rd, processor, downloader, reorgDetectorID, downloadBufferSize, rh)
+	driver, err := sync.NewEVMDriver(rd, processor, downloader, l1OrL2ID, downloadBufferSize, rh)
 	if err != nil {
 		return nil, err
 	}
@@ -140,5 +136,3 @@ func new(
 func (s *LocalBridgeSync) Start(ctx context.Context) {
 	s.driver.Sync(ctx)
 }
-
-// TODO: expose methods from the processor for consumers

@@ -60,7 +60,6 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 				l, err,
 			)
 		}
-		fmt.Println(verifyBatches)
 		b.Events = append(b.Events, Event{VerifyBatches: &VerifyBatches{
 			RollupID:   verifyBatches.RollupID,
 			NumBatch:   verifyBatches.NumBatch,
@@ -78,7 +77,6 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 				l, err,
 			)
 		}
-		fmt.Println(verifyBatches)
 		b.Events = append(b.Events, Event{VerifyBatches: &VerifyBatches{
 			RollupID:   verifyBatches.RollupID,
 			NumBatch:   verifyBatches.NumBatch,

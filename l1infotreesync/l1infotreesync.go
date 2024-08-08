@@ -114,7 +114,7 @@ func (s *L1InfoTreeSync) GetLatestInfoUntilBlock(ctx context.Context, blockNum u
 	return s.processor.GetLatestInfoUntilBlock(ctx, blockNum)
 }
 
-// GetInfoByIndex returns the value of a leave (not the hash) of the L1 info tree
+// GetInfoByIndex returns the value of a leaf (not the hash) of the L1 info tree
 func (s *L1InfoTreeSync) GetInfoByIndex(ctx context.Context, index uint32) (*L1InfoTreeLeaf, error) {
 	return s.processor.GetInfoByIndex(ctx, index)
 }
