@@ -1,9 +1,6 @@
-<<<<<<< HEAD
 **/.DS_Store
 .vscode
 .env
 /dist/
 cmd/__debug_bin
-=======
 /target
->>>>>>> 45ebd72 (Scaffold command)

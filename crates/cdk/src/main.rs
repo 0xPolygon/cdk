@@ -38,20 +38,39 @@ fn main() -> anyhow::Result<()> {
 /// completed.
 pub fn node(config_path: PathBuf) -> anyhow::Result<()> {
     // Load the configuration file
-    let config: Arc<Config> = Arc::new(toml::from_str(&std::fs::read_to_string(
-        config_path.clone(),
-    )?)?);
+    let config_read = std::fs::read_to_string(config_path.clone());
+    let toml_str = match config_read {
+        Ok(toml) => toml,
+        Err(e) => {
+            eprintln!(
+                "Failed to read configuration file, from path: {}",
+                config_path.to_str().unwrap()
+            );
+            return Err(e.into());
+        }
+    };
+    let config: Arc<Config> = Arc::new(toml::from_str(&toml_str)?);
 
     let mut bin_path = env::var("CARGO_MANIFEST_DIR").unwrap_or(CDK_CLIENT_PATH.into());
     if bin_path != CDK_CLIENT_PATH {
         bin_path = format!("{}/../../{}", bin_path, CDK_CLIENT_PATH);
     }
 
-    // Run the node passing the parsed config values as flags
-    let mut command = Command::new(bin_path);
+    // Run the node passing the config file path as argument
+    let mut command = Command::new(bin_path.clone());
     command.args(&["run", "-cfg", config_path.canonicalize()?.to_str().unwrap()]);
 
-    let output = command.execute_output().unwrap();
+    let output_result = command.execute_output();
+    let output = match output_result {
+        Ok(output) => output,
+        Err(e) => {
+            eprintln!(
+                "Failed to execute command, trying to find executable in path: {}",
+                bin_path
+            );
+            return Err(e.into());
+        }
+    };
 
     if let Some(exit_code) = output.status.code() {
         if exit_code == 0 {
@@ -77,12 +96,12 @@ pub fn erigon(config_path: PathBuf) -> anyhow::Result<()> {
         config_path.clone(),
     )?)?);
 
-    let target = env::var("CARGO_TARGET_DIR")?;
-    let mut binpath = CDK_ERIGON_PATH.to_string();
-    if target != "" {
-        binpath = format!("{}/{}", target, CDK_ERIGON_PATH);
+    let mut bin_path = env::var("CARGO_MANIFEST_DIR").unwrap_or(CDK_ERIGON_PATH.into());
+    if bin_path != CDK_ERIGON_PATH {
+        bin_path = format!("{}/../../{}", bin_path, CDK_ERIGON_PATH);
     }
-    let mut command = Command::new(binpath);
+
+    let mut command = Command::new(bin_path);
 
     // TODO: 1. Prepare erigon config files or flags
 
