@@ -3,6 +3,7 @@ use cdk_config::Config;
 use clap::Parser;
 use cli::Cli;
 use execute::Execute;
+use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
@@ -10,8 +11,8 @@ use std::sync::Arc;
 mod cli;
 mod logging;
 
-const CDK_CLIENT_PATH: &str = "target/cdk-node";
-const CDK_ERIGON_PATH: &str = "target/cdk-erigon";
+const CDK_CLIENT_PATH: &str = "cdk-node";
+const CDK_ERIGON_PATH: &str = "cdk-erigon";
 
 fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
@@ -41,8 +42,13 @@ pub fn node(config_path: PathBuf) -> anyhow::Result<()> {
         config_path.clone(),
     )?)?);
 
+    let mut bin_path = env::var("CARGO_MANIFEST_DIR").unwrap_or(CDK_CLIENT_PATH.into());
+    if bin_path != CDK_CLIENT_PATH {
+        bin_path = format!("{}/../../{}", bin_path, CDK_CLIENT_PATH);
+    }
+
     // Run the node passing the parsed config values as flags
-    let mut command = Command::new(CDK_CLIENT_PATH);
+    let mut command = Command::new(bin_path);
     command.args(&["run", "-cfg", config_path.canonicalize()?.to_str().unwrap()]);
 
     let output = command.execute_output().unwrap();
@@ -71,7 +77,12 @@ pub fn erigon(config_path: PathBuf) -> anyhow::Result<()> {
         config_path.clone(),
     )?)?);
 
-    let mut command = Command::new(CDK_ERIGON_PATH);
+    let target = env::var("CARGO_TARGET_DIR")?;
+    let mut binpath = CDK_ERIGON_PATH.to_string();
+    if target != "" {
+        binpath = format!("{}/{}", target, CDK_ERIGON_PATH);
+    }
+    let mut command = Command::new(binpath);
 
     // TODO: 1. Prepare erigon config files or flags
 
