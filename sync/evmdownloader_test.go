@@ -210,7 +210,7 @@ func TestDownload(t *testing.T) {
 	dwnldr, _ := NewTestDownloader(t)
 	dwnldr.EVMDownloaderInterface = d
 
-	d.On("waitForNewBlocks", mock.Anything, uint64(0)).
+	d.On("WaitForNewBlocks", mock.Anything, uint64(0)).
 		Return(uint64(1))
 	// iteratiion 0:
 	// last block is 1, download that block (no events and wait)
@@ -221,13 +221,13 @@ func TestDownload(t *testing.T) {
 		},
 	}
 	expectedBlocks = append(expectedBlocks, b1)
-	d.On("getEventsByBlockRange", mock.Anything, uint64(0), uint64(1)).
+	d.On("GetEventsByBlockRange", mock.Anything, uint64(0), uint64(1)).
 		Return([]EVMBlock{})
-	d.On("getBlockHeader", mock.Anything, uint64(1)).
+	d.On("GetBlockHeader", mock.Anything, uint64(1)).
 		Return(b1.EVMBlockHeader)
 
 	// iteration 1: wait for next block to be created
-	d.On("waitForNewBlocks", mock.Anything, uint64(1)).
+	d.On("WaitForNewBlocks", mock.Anything, uint64(1)).
 		After(time.Millisecond * 100).
 		Return(uint64(2)).Once()
 
@@ -239,11 +239,11 @@ func TestDownload(t *testing.T) {
 		},
 	}
 	expectedBlocks = append(expectedBlocks, b2)
-	d.On("getEventsByBlockRange", mock.Anything, uint64(2), uint64(2)).
+	d.On("GetEventsByBlockRange", mock.Anything, uint64(2), uint64(2)).
 		Return([]EVMBlock{b2})
 
 	// iteration 3: wait for next block to be created (jump to block 8)
-	d.On("waitForNewBlocks", mock.Anything, uint64(2)).
+	d.On("WaitForNewBlocks", mock.Anything, uint64(2)).
 		After(time.Millisecond * 100).
 		Return(uint64(8)).Once()
 
@@ -269,13 +269,13 @@ func TestDownload(t *testing.T) {
 		},
 	}
 	expectedBlocks = append(expectedBlocks, b6, b7, b8)
-	d.On("getEventsByBlockRange", mock.Anything, uint64(3), uint64(8)).
+	d.On("GetEventsByBlockRange", mock.Anything, uint64(3), uint64(8)).
 		Return([]EVMBlock{b6, b7})
-	d.On("getBlockHeader", mock.Anything, uint64(8)).
+	d.On("GetBlockHeader", mock.Anything, uint64(8)).
 		Return(b8.EVMBlockHeader)
 
 	// iteration 5: wait for next block to be created (jump to block 30)
-	d.On("waitForNewBlocks", mock.Anything, uint64(8)).
+	d.On("WaitForNewBlocks", mock.Anything, uint64(8)).
 		After(time.Millisecond * 100).
 		Return(uint64(30)).Once()
 
@@ -287,9 +287,9 @@ func TestDownload(t *testing.T) {
 		},
 	}
 	expectedBlocks = append(expectedBlocks, b19)
-	d.On("getEventsByBlockRange", mock.Anything, uint64(9), uint64(19)).
+	d.On("GetEventsByBlockRange", mock.Anything, uint64(9), uint64(19)).
 		Return([]EVMBlock{})
-	d.On("getBlockHeader", mock.Anything, uint64(19)).
+	d.On("GetBlockHeader", mock.Anything, uint64(19)).
 		Return(b19.EVMBlockHeader)
 
 	// iteration 7: from block 20 to 30, events on last block
@@ -301,11 +301,11 @@ func TestDownload(t *testing.T) {
 		Events: []interface{}{testEvent(common.HexToHash("30"))},
 	}
 	expectedBlocks = append(expectedBlocks, b30)
-	d.On("getEventsByBlockRange", mock.Anything, uint64(20), uint64(30)).
+	d.On("GetEventsByBlockRange", mock.Anything, uint64(20), uint64(30)).
 		Return([]EVMBlock{b30})
 
 	// iteration 8: wait for next block to be created (jump to block 35)
-	d.On("waitForNewBlocks", mock.Anything, uint64(30)).
+	d.On("WaitForNewBlocks", mock.Anything, uint64(30)).
 		After(time.Millisecond * 100).
 		Return(uint64(35)).Once()
 
