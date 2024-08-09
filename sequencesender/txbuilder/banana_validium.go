@@ -76,7 +76,7 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, se
 	// Build sequence data
 	tx, err := t.internalBuildSequenceBatchesTx(ethseq, dataAvailabilityMessage)
 	if err != nil {
-		log.Errorf("[SeqSender] error estimating new sequenceBatches to add to ethtxmanager: ", err)
+		log.Errorf("error estimating new sequenceBatches to add to ethtxmanager: ", err)
 		return nil, err
 	}
 	return tx, nil
@@ -117,7 +117,6 @@ func (t *TxBuilderBananaValidium) sequenceBatchesValidium(opts bind.TransactOpts
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", sequence.L2Coinbase)
 		log.Debug("Sequencer address: ", opts.From)
-
 	}
 
 	return tx, err
