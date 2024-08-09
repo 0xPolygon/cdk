@@ -77,6 +77,9 @@ type Config struct {
 	// IntervalAfterWhichBatchConsolidateAnyway this is interval for the main sequencer, that will check if there is no transactions
 	IntervalAfterWhichBatchConsolidateAnyway types.Duration `mapstructure:"IntervalAfterWhichBatchConsolidateAnyway"`
 
+	// BatchProofSanityCheckEnabled is a flag to enable the sanity check of the batch proof
+	BatchProofSanityCheckEnabled bool `mapstructure:"BatchProofSanityCheckEnabled"`
+
 	// ChainID is the L2 ChainID provided by the Network Config
 	ChainID uint64
 

@@ -1337,9 +1337,8 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInt
 	log.Info("Batch proof generated")
 
 	// Sanity Check: state root from the proof must match the one from the batch
-	if stateRoot != batchToProve.StateRoot {
-		log.Fatalf("State root from the proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]",
-			batchToProve.BatchNumber, stateRoot.String(), batchToProve.StateRoot.String())
+	if a.cfg.BatchProofSanityCheckEnabled && (stateRoot != common.Hash{}) && (stateRoot != batchToProve.StateRoot) {
+		log.Fatalf("State root from the proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]", batchToProve.BatchNumber, stateRoot.String(), batchToProve.StateRoot.String())
 	}
 
 	proof.Proof = resGetProof

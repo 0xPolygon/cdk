@@ -48,6 +48,7 @@ ProofStatePollingInterval = "5s"
 SenderAddress = "0x3f2963d678442c4af27a797453b64ef6ce9443e9"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
+BatchProofSanityCheckEnabled = true
 ForkId = 9
 GasOffset = 0
 WitnessURL = "http://zkevm-erigon-seq:8123"
