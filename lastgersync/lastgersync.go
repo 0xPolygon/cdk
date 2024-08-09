@@ -33,7 +33,7 @@ type Config struct {
 	// WaitForNewBlocksPeriod time that will be waited when the synchronizer has reached the latest block
 	WaitForNewBlocksPeriod configTypes.Duration `mapstructure:"WaitForNewBlocksPeriod"`
 	// DownloadBufferSize buffer of events to be porcessed. When reached will stop downloading events until the processing catches up
-	DownloadBufferSize int `mapstructure:"WaitForNewBlocksPeriod"`
+	DownloadBufferSize int `mapstructure:"DownloadBufferSize"`
 }
 
 type LastGERSync struct {

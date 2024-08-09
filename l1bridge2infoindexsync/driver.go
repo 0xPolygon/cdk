@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 )
@@ -63,7 +64,6 @@ func (d *driver) sync(ctx context.Context) {
 			break
 		}
 		if shouldWait {
-			// TODO: wait using ticker
 			log.Debugf("waiting for syncers to catch up")
 			time.Sleep(d.waitForSyncersPeriod)
 			continue
@@ -73,6 +73,11 @@ func (d *driver) sync(ctx context.Context) {
 		var lastL1InfoTreeIndex uint32
 		for {
 			lastL1InfoTreeIndex, err = d.downloader.getLastL1InfoIndexUntilBlock(ctx, syncUntilBlock)
+			if err == l1infotreesync.ErrNotFound || err == l1infotreesync.ErrBlockNotProcessed {
+				log.Debugf("l1 info tree index not ready, querying until block %d: %s", syncUntilBlock, err)
+				time.Sleep(d.waitForSyncersPeriod)
+				continue
+			}
 			if err != nil {
 				attempts++
 				log.Errorf("error getting last l1 info tree index: %v", err)

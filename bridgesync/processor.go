@@ -8,6 +8,7 @@ import (
 	"math/big"
 
 	dbCommon "github.com/0xPolygon/cdk/common"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree"
 	"github.com/ethereum/go-ethereum/common"
@@ -289,6 +290,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		exitTreeRollback()
 		return err
 	}
+	log.Debugf("processed %d events until block %d", len(block.Events), block.Num)
 	return nil
 }
 

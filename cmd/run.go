@@ -437,6 +437,7 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 	if !isNeeded([]string{SEQUENCE_SENDER, AGGREGATOR, AGGORACLE, RPC}, components) {
 		return nil
 	}
+	log.Debugf("dialing L1 client at: %s", urlRPCL1)
 	l1CLient, err := ethclient.Dial(urlRPCL1)
 	if err != nil {
 		log.Fatal(err)
@@ -448,6 +449,7 @@ func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client
 	if !isNeeded([]string{AGGORACLE, RPC}, components) {
 		return nil
 	}
+	log.Debugf("dialing L2 client at: %s", urlRPCL2)
 	l2CLient, err := ethclient.Dial(urlRPCL2)
 	if err != nil {
 		log.Fatal(err)

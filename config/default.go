@@ -139,14 +139,14 @@ TargetChainType="EVM"
 URLRPCL1="http://test-aggoracle-l1:8545"
 BlockFinality="latest"
 WaitPeriodNextGER="100ms"
-	[EVMSender]
+	[AggOracle.EVMSender]
 		GlobalExitRootL2="0x8464135c8F25Da09e49BC8782676a84730C318bC"
 		URLRPCL2="http://test-aggoracle-l2:8545"
 		ChainIDL2=1337
 		GasOffset=0
 		WaitPeriodMonitorTx="100ms"
 		SenderAddr="0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
-		[SequenceSender.EthTxManager]
+		[AggOracle.EVMSender.EthTxManager]
 				FrequencyToMonitorTxs = "1s"
 				WaitTxToBeMined = "2s"
 				GetReceiptMaxTime = "250ms"
@@ -161,7 +161,7 @@ WaitPeriodNextGER="100ms"
 				ReadPendingL1Txs = false
 				SafeStatusL1NumberOfBlocks = 5
 				FinalizedStatusL1NumberOfBlocks = 10
-					[SequenceSender.EthTxManager.Etherman]
+					[AggOracle.EVMSender.EthTxManager.Etherman]
 						URL = "http://test-aggoracle-l2"
 						MultiGasProvider = false
 						L1ChainID = 1337
@@ -170,20 +170,20 @@ WaitPeriodNextGER="100ms"
 [RPC]
 Host = "0.0.0.0"
 Port = 5576
-ReadTimeout = 2s
-WriteTimeout = 2s
+ReadTimeout = "2s"
+WriteTimeout = "2s"
 MaxRequestsPerIPAndSecond = 10
 
 [ClaimSponsor]
 DBPath = "/tmp/claimsopnsor"
 Enabled = true
 SenderAddr = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
-BridgeAddrL2 = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8
+BridgeAddrL2 = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
 MaxGas = 200000
-RetryAfterErrorPeriod = 1s
+RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
-WaitTxToBeMinedPeriod = 3s
-WaitOnEmptyQueue = 3s
+WaitTxToBeMinedPeriod = "3s"
+WaitOnEmptyQueue = "3s"
 GasOffset = 0
 	[ClaimSponsor.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
@@ -208,9 +208,9 @@ GasOffset = 0
 
 [L1Bridge2InfoIndexSync]
 DBPath = "/tmp/l1bridge2infoindexsync"
-RetryAfterErrorPeriod = 1s
+RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
-WaitForSyncersPeriod = 3s
+WaitForSyncersPeriod = "3s"
 
 [BridgeL1Sync]
 DBPath = "/tmp/bridgel1sync"
@@ -218,9 +218,9 @@ BlockFinality = "latest"
 InitialBlockNum = 0
 BridgeAddr = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
 SyncBlockChunkSize = 100
-RetryAfterErrorPeriod = 1s
+RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
-WaitForNewBlocksPeriod = 3s
+WaitForNewBlocksPeriod = "3s"
 
 [BridgeL2Sync]
 DBPath = "/tmp/bridgel2sync"
@@ -228,17 +228,17 @@ BlockFinality = "latest"
 InitialBlockNum = 0
 BridgeAddr = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
 SyncBlockChunkSize = 100
-RetryAfterErrorPeriod = 1s
+RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
-WaitForNewBlocksPeriod = 3s
+WaitForNewBlocksPeriod = "3s"
 
 [LastGERSync]
 DBPath = "/tmp/lastgersync"
 BlockFinality = "latest"
 InitialBlockNum = 0
 GlobalExitRootL2Addr = "0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa"
-RetryAfterErrorPeriod = 1s
+RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
-WaitForNewBlocksPeriod = 1s
+WaitForNewBlocksPeriod = "1s"
 DownloadBufferSize = 100
 `
