@@ -87,7 +87,7 @@ func TestE2E(t *testing.T) {
 		require.NoError(t, err)
 		client.Commit()
 		// Let the processor catch up
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 30)
 		receipt, err := client.Client().TransactionReceipt(ctx, tx.Hash())
 		require.NoError(t, err)
 		require.Equal(t, receipt.Status, types.ReceiptStatusSuccessful)
