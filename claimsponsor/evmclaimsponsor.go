@@ -71,7 +71,6 @@ type EVMClaimSponsorConfig struct {
 	WaitOnEmptyQueue configTypes.Duration `mapstructure:"WaitOnEmptyQueue"`
 	// EthTxManager is the configuration of the EthTxManager to be used by the claim sponsor
 	EthTxManager ethtxmanager.Config `mapstructure:"EthTxManager"`
-
 	// GasOffset is the gas to add on top of the estimated gas when sending the claim txs
 	GasOffset uint64 `mapstructure:"GasOffset"`
 }
