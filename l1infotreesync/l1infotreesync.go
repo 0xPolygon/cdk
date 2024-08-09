@@ -2,6 +2,7 @@ package l1infotreesync
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/0xPolygon/cdk/config/types"
@@ -152,4 +153,11 @@ func (s *L1InfoTreeSync) GetLastL1InfoTreeRootAndIndex(ctx context.Context) (uin
 // GetLastProcessedBlock return the last processed block
 func (s *L1InfoTreeSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	return s.processor.GetLastProcessedBlock(ctx)
+}
+
+func (s *L1InfoTreeSync) GetLocalExitRoot(ctx context.Context, networkID uint32, rollupExitRoot common.Hash) (common.Hash, error) {
+	if networkID == 0 {
+		return common.Hash{}, errors.New("network 0 is not a rollup, and it's not part of the rollup exit tree")
+	}
+	return s.processor.rollupExitTree.GetLeaf(ctx, networkID-1, rollupExitRoot)
 }

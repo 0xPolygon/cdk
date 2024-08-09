@@ -228,23 +228,23 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 
 // GetFirstGERAfterL1InfoTreeIndex returns the first GER injected on the chain that is related to l1InfoTreeIndex
 // or greater
-func (p *processor) GetFirstGERAfterL1InfoTreeIndex(ctx context.Context, l1InfoTreeIndex uint32) (ethCommon.Hash, error) {
+func (p *processor) GetFirstGERAfterL1InfoTreeIndex(ctx context.Context, l1InfoTreeIndex uint32) (uint32, ethCommon.Hash, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
-		return ethCommon.Hash{}, err
+		return 0, ethCommon.Hash{}, err
 	}
 	defer tx.Rollback()
 
 	iter, err := tx.Range(gerTable, common.Uint32ToBytes(l1InfoTreeIndex), nil)
 	if err != nil {
-		return ethCommon.Hash{}, err
+		return 0, ethCommon.Hash{}, err
 	}
-	k, ger, err := iter.Next()
+	l1InfoIndexBytes, ger, err := iter.Next()
 	if err != nil {
-		return ethCommon.Hash{}, err
+		return 0, ethCommon.Hash{}, err
 	}
-	if k == nil {
-		return ethCommon.Hash{}, ErrNotFound
+	if l1InfoIndexBytes == nil {
+		return 0, ethCommon.Hash{}, ErrNotFound
 	}
-	return ethCommon.BytesToHash(ger), nil
+	return common.BytesToUint32(l1InfoIndexBytes), ethCommon.BytesToHash(ger), nil
 }

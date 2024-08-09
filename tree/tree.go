@@ -274,3 +274,26 @@ func (t *Tree) getLastIndexAndRootWithTx(tx kv.Tx) (int64, common.Hash, error) {
 	}
 	return int64(dbCommon.BytesToUint64(lastIndexBytes)), common.Hash(rootBytes), nil
 }
+
+func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (common.Hash, error) {
+	tx, err := t.db.BeginRo(ctx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	defer tx.Rollback()
+
+	currentNodeHash := root
+	for h := int(defaultHeight - 1); h >= 0; h-- {
+		currentNode, err := t.getRHTNode(tx, currentNodeHash)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		if index&(1<<h) > 0 {
+			currentNodeHash = currentNode.right
+		} else {
+			currentNodeHash = currentNode.left
+		}
+	}
+
+	return currentNodeHash, nil
+}

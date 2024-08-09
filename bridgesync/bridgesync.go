@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	configTypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,10 +18,26 @@ const (
 	downloadBufferSize = 1000
 )
 
-var (
-	retryAfterErrorPeriod      = time.Second * 10
-	maxRetryAttemptsAfterError = 5
-)
+type Config struct {
+	// DBPath path of the DB
+	DBPath string `mapstructure:"DBPath"`
+	// TODO: BlockFinality doesnt work as per the jsonschema
+	BlockFinality string `jsonschema:"enum=latest,enum=safe, enum=pending, enum=finalized" mapstructure:"BlockFinality"`
+	// InitialBlockNum is the first block that will be queried when starting the synchronization from scratch.
+	// It should be a number equal oir bellow the creation of the bridge contract
+	InitialBlockNum uint64 `mapstructure:"InitialBlockNum"`
+	// BridgeAddr is the address of the bridge smart contract
+	BridgeAddr common.Address `mapstructure:"BridgeAddr"`
+	// SyncBlockChunkSize is the amount of blocks that will be queried to the client on each request
+	SyncBlockChunkSize uint64 `mapstructure:"SyncBlockChunkSize"`
+	// RetryAfterErrorPeriod is the time that will be waited when an unexpected error happens before retry
+	RetryAfterErrorPeriod configTypes.Duration `mapstructure:"RetryAfterErrorPeriod"`
+	// MaxRetryAttemptsAfterError is the maximum number of consecutive attempts that will happen before panicing.
+	// Any number smaller than zero will be considered as unlimited retries
+	MaxRetryAttemptsAfterError int `mapstructure:"MaxRetryAttemptsAfterError"`
+	// WaitForNewBlocksPeriod time that will be waited when the synchronizer has reached the latest block
+	WaitForNewBlocksPeriod configTypes.Duration `mapstructure:"WaitForNewBlocksPeriod"`
+}
 
 type BridgeSync struct {
 	processor *processor
@@ -38,6 +55,8 @@ func NewL1(
 	ethClient EthClienter,
 	initialBlock uint64,
 	waitForNewBlocksPeriod time.Duration,
+	retryAfterErrorPeriod time.Duration,
+	maxRetryAttemptsAfterError int,
 ) (*BridgeSync, error) {
 	return new(
 		ctx,
@@ -51,6 +70,8 @@ func NewL1(
 		dbPrefixL1,
 		reorgDetectorIDL1,
 		waitForNewBlocksPeriod,
+		retryAfterErrorPeriod,
+		maxRetryAttemptsAfterError,
 	)
 }
 
@@ -65,6 +86,8 @@ func NewL2(
 	ethClient EthClienter,
 	initialBlock uint64,
 	waitForNewBlocksPeriod time.Duration,
+	retryAfterErrorPeriod time.Duration,
+	maxRetryAttemptsAfterError int,
 ) (*BridgeSync, error) {
 	return new(
 		ctx,
@@ -78,6 +101,8 @@ func NewL2(
 		dbPrefixL1,
 		reorgDetectorIDL1,
 		waitForNewBlocksPeriod,
+		retryAfterErrorPeriod,
+		maxRetryAttemptsAfterError,
 	)
 }
 
@@ -92,6 +117,8 @@ func new(
 	initialBlock uint64,
 	dbPrefix, reorgDetectorID string,
 	waitForNewBlocksPeriod time.Duration,
+	retryAfterErrorPeriod time.Duration,
+	maxRetryAttemptsAfterError int,
 ) (*BridgeSync, error) {
 	processor, err := newProcessor(ctx, dbPath, dbPrefix)
 	if err != nil {

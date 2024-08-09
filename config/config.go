@@ -5,11 +5,16 @@ import (
 	"path/filepath"
 	"strings"
 
+	jRPC "github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/aggoracle"
 	"github.com/0xPolygon/cdk/aggregator"
+	"github.com/0xPolygon/cdk/bridgesync"
+	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/common"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
+	"github.com/0xPolygon/cdk/l1bridge2infoindexsync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/sequencesender"
@@ -75,10 +80,32 @@ type Config struct {
 	Common common.Config
 	// Configuration of the reorg detector service to be used for the L1
 	ReorgDetectorL1 reorgdetector.Config
+	// Configuration of the reorg detector service to be used for the L2
+	ReorgDetectorL2 reorgdetector.Config
 	// Configuration of the aggOracle service
 	AggOracle aggoracle.Config
 	// Configuration of the L1 Info Treee Sync service
 	L1InfoTreeSync l1infotreesync.Config
+
+	// RPC is the config for the RPC server
+	RPC jRPC.Config
+
+	// ClaimSponsor is the config for the claim sponsor
+	ClaimSponsor claimsponsor.EVMClaimSponsorConfig
+
+	// L1Bridge2InfoIndexSync is the config for the synchronizers that maintains the relation of
+	// bridge from L1 --> L1 Info tree index. Needed for the bridge service (RPC)
+	L1Bridge2InfoIndexSync l1bridge2infoindexsync.Config
+
+	// BridgeL1Sync is the configuration for the synchronizer of the bridge of the L1
+	BridgeL1Sync bridgesync.Config
+
+	// BridgeL2Sync is the configuration for the synchronizer of the bridge of the L2
+	BridgeL2Sync bridgesync.Config
+
+	// LastGERSync is the config for the synchronizer in charge of syncing the last GER injected on L2.
+	// Needed for the bridge service (RPC)
+	LastGERSync lastgersync.Config
 }
 
 // Default parses the default configuration values.
