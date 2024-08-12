@@ -28,28 +28,29 @@ import (
 
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
-	cfg                 Config
-	ethTxManager        *ethtxmanager.Client
-	etherman            *etherman.Client
-	currentNonce        uint64
-	latestVirtualBatch  uint64                     // Latest virtualized batch obtained from L1
-	latestVirtualTime   time.Time                  // Latest virtual batch timestamp
-	latestSentToL1Batch uint64                     // Latest batch sent to L1
-	wipBatch            uint64                     // Work in progress batch
-	sequenceList        []uint64                   // Sequence of batch number to be send to L1
-	sequenceData        map[uint64]*sequenceData   // All the batch data indexed by batch number
-	mutexSequence       sync.Mutex                 // Mutex to access sequenceData and sequenceList
-	ethTransactions     map[common.Hash]*ethTxData // All the eth tx sent to L1 indexed by hash
-	ethTxData           map[common.Hash][]byte     // Tx data send to or received from L1
-	mutexEthTx          sync.Mutex                 // Mutex to access ethTransactions
-	sequencesTxFile     *os.File                   // Persistence of sent transactions
-	validStream         bool                       // Not valid while receiving data before the desired batch
-	fromStreamBatch     uint64                     // Initial batch to connect to the streaming
-	latestStreamBatch   uint64                     // Latest batch received by the streaming
-	seqSendingStopped   bool                       // If there is a critical error
-	prevStreamEntry     *datastreamer.FileEntry
-	streamClient        *datastreamer.StreamClient
-	TxBuilder           txbuilder.TxBuilder
+	cfg                    Config
+	ethTxManager           *ethtxmanager.Client
+	etherman               *etherman.Client
+	currentNonce           uint64
+	latestVirtualBatch     uint64                     // Latest virtualized batch obtained from L1
+	latestVirtualTime      time.Time                  // Latest virtual batch timestamp
+	latestSentToL1Batch    uint64                     // Latest batch sent to L1
+	wipBatch               uint64                     // Work in progress batch
+	sequenceList           []uint64                   // Sequence of batch number to be send to L1
+	sequenceData           map[uint64]*sequenceData   // All the batch data indexed by batch number
+	mutexSequence          sync.Mutex                 // Mutex to access sequenceData and sequenceList
+	ethTransactions        map[common.Hash]*ethTxData // All the eth tx sent to L1 indexed by hash
+	ethTxData              map[common.Hash][]byte     // Tx data send to or received from L1
+	mutexEthTx             sync.Mutex                 // Mutex to access ethTransactions
+	sequencesTxFile        *os.File                   // Persistence of sent transactions
+	validStream            bool                       // Not valid while receiving data before the desired batch
+	fromStreamBatch        uint64                     // Initial batch to connect to the streaming
+	latestStreamBatch      uint64                     // Latest batch received by the streaming
+	seqSendingStopped      bool                       // If there is a critical error
+	prevStreamEntry        *datastreamer.FileEntry
+	streamClient           *datastreamer.StreamClient
+	TxBuilder              txbuilder.TxBuilder
+	latestVirtualBatchLock sync.Mutex
 }
 
 type sequenceData struct {
@@ -71,6 +72,7 @@ type ethTxData struct {
 	To              common.Address                      `json:"to"`
 	StateHistory    []string                            `json:"stateHistory"`
 	Txs             map[common.Hash]ethTxAdditionalData `json:"txs"`
+	Gas             uint64                              `json:"gas"`
 }
 
 type ethTxAdditionalData struct {
@@ -418,7 +420,7 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 		log.Infof("transaction %v does not exist in ethtxmanager. Marking it", txHash)
 		txData.OnMonitor = false
 		// Resend tx
-		errSend := s.sendTx(ctx, true, &txHash, nil, 0, 0, nil)
+		errSend := s.sendTx(ctx, true, &txHash, nil, 0, 0, nil, txData.Gas)
 		if errSend == nil {
 			txData.OnMonitor = false
 		}
@@ -529,8 +531,28 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 		return
 	}
 
+	// Get latest virtual state batch from L1
+	err = s.updateLatestVirtualBatch()
+	if err != nil {
+		log.Fatalf("error getting latest sequenced batch, error: %v", err)
+	}
+
+	sequence.SetLastVirtualBatchNumber(s.latestVirtualBatch)
+
+	txToEstimateGas, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, sequence)
+	if err != nil {
+		log.Errorf("error building sequenceBatches tx to estimate gas: %v", err)
+		return
+	}
+
+	gas, err := s.etherman.EstimateGas(ctx, s.cfg.SenderAddress, tx.To(), nil, txToEstimateGas.Data())
+	if err != nil {
+		log.Errorf("error estimating gas: ", err)
+		return
+	}
+
 	// Add sequence tx
-	err = s.sendTx(ctx, false, nil, tx.To(), firstSequence.BatchNumber(), lastSequence.BatchNumber(), tx.Data())
+	err = s.sendTx(ctx, false, nil, tx.To(), firstSequence.BatchNumber(), lastSequence.BatchNumber(), tx.Data(), gas)
 	if err != nil {
 		return
 	}
@@ -540,7 +562,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 }
 
 // sendTx adds transaction to the ethTxManager to send it to L1
-func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *common.Hash, to *common.Address, fromBatch uint64, toBatch uint64, data []byte) error {
+func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *common.Hash, to *common.Address, fromBatch uint64, toBatch uint64, data []byte, gas uint64) error {
 	// Params if new tx to send or resend a previous tx
 	var paramTo *common.Address
 	var paramNonce *uint64
@@ -571,7 +593,7 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 	}
 
 	// Add sequence tx
-	txHash, err := s.ethTxManager.Add(ctx, paramTo, paramNonce, big.NewInt(0), paramData, s.cfg.GasOffset, nil)
+	txHash, err := s.ethTxManager.AddWithGas(ctx, paramTo, paramNonce, big.NewInt(0), paramData, s.cfg.GasOffset, nil, gas)
 	if err != nil {
 		log.Errorf("error adding sequence to ethtxmanager: %v", err)
 		return err
@@ -589,6 +611,7 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 		ToBatch:         valueToBatch,
 		OnMonitor:       true,
 		To:              valueToAddress,
+		Gas:             gas,
 	}
 
 	// Add tx to internal structure
@@ -1143,6 +1166,9 @@ func (s *SequenceSender) getWipL2Block() (uint64, *state.L2BlockRaw) {
 
 // updateLatestVirtualBatch queries the value in L1 and updates the latest virtual batch field
 func (s *SequenceSender) updateLatestVirtualBatch() error {
+	s.latestVirtualBatchLock.Lock()
+	defer s.latestVirtualBatchLock.Unlock()
+
 	// Get latest virtual state batch from L1
 	var err error
 
