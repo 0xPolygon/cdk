@@ -1278,7 +1278,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInt
 	log.Debug("tryGenerateBatchProof start")
 
 	batchToProve, witness, proof, err0 := a.getAndLockBatchToProve(ctx, prover)
-	if errors.Is(err0, state.ErrNotFound) {
+	if errors.Is(err0, state.ErrNotFound) || errors.Is(err0, entities.ErrNotFound) {
 		// nothing to proof, swallow the error
 		log.Debug("Nothing to generate proof")
 		return false, nil
