@@ -98,8 +98,8 @@ func NewL2(
 		rd,
 		ethClient,
 		initialBlock,
-		dbPrefixL1,
-		reorgDetectorIDL1,
+		dbPrefixL2,
+		reorgDetectorIDL2,
 		waitForNewBlocksPeriod,
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
@@ -146,6 +146,7 @@ func new(
 		return nil, err
 	}
 	downloader, err := sync.NewEVMDownloader(
+		dbPrefix,
 		ethClient,
 		syncBlockChunkSize,
 		blockFinalityType,

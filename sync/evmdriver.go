@@ -25,6 +25,7 @@ type EVMDriver struct {
 	reorgDetectorID    string
 	downloadBufferSize int
 	rh                 *RetryHandler
+	log                *log.Logger
 }
 
 type processorInterface interface {
@@ -46,6 +47,7 @@ func NewEVMDriver(
 	downloadBufferSize int,
 	rh *RetryHandler,
 ) (*EVMDriver, error) {
+	logger := log.WithFields("syncer", reorgDetectorID)
 	reorgSub, err := reorgDetector.Subscribe(reorgDetectorID)
 	if err != nil {
 		return nil, err
@@ -58,6 +60,7 @@ func NewEVMDriver(
 		reorgDetectorID:    reorgDetectorID,
 		downloadBufferSize: downloadBufferSize,
 		rh:                 rh,
+		log:                logger,
 	}, nil
 }
 
@@ -72,7 +75,7 @@ reset:
 		lastProcessedBlock, err = d.processor.GetLastProcessedBlock(ctx)
 		if err != nil {
 			attempts++
-			log.Error("error geting last processed block: ", err)
+			d.log.Error("error geting last processed block: ", err)
 			d.rh.Handle("Sync", attempts)
 			continue
 		}
@@ -88,10 +91,10 @@ reset:
 	for {
 		select {
 		case b := <-downloadCh:
-			log.Debug("handleNewBlock")
+			d.log.Debug("handleNewBlock")
 			d.handleNewBlock(ctx, b)
 		case firstReorgedBlock := <-d.reorgSub.FirstReorgedBlock:
-			log.Debug("handleReorg")
+			d.log.Debug("handleReorg")
 			d.handleReorg(ctx, cancel, downloadCh, firstReorgedBlock)
 			goto reset
 		}
@@ -104,7 +107,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
 		err := d.reorgDetector.AddBlockToTrack(ctx, d.reorgDetectorID, b.Num, b.Hash)
 		if err != nil {
 			attempts++
-			log.Errorf("error adding block %d to tracker: %v", b.Num, err)
+			d.log.Errorf("error adding block %d to tracker: %v", b.Num, err)
 			d.rh.Handle("handleNewBlock", attempts)
 			continue
 		}
@@ -119,7 +122,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
 		err := d.processor.ProcessBlock(ctx, blockToProcess)
 		if err != nil {
 			attempts++
-			log.Errorf("error processing events for blcok %d, err: ", b.Num, err)
+			d.log.Errorf("error processing events for blcok %d, err: ", b.Num, err)
 			d.rh.Handle("handleNewBlock", attempts)
 			continue
 		}
@@ -142,7 +145,7 @@ func (d *EVMDriver) handleReorg(
 		err := d.processor.Reorg(ctx, firstReorgedBlock)
 		if err != nil {
 			attempts++
-			log.Errorf(
+			d.log.Errorf(
 				"error processing reorg, last valid Block %d, err: %v",
 				firstReorgedBlock, err,
 			)

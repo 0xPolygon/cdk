@@ -78,6 +78,7 @@ func New(
 		return nil, err
 	}
 	downloader, err := sync.NewEVMDownloader(
+		"l1infotreesync",
 		l1Client,
 		syncBlockChunkSize,
 		blockFinalityType,
