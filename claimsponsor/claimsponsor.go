@@ -204,7 +204,6 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 		}
 
 		attempts = 0
-		log.Error("wtf: ", err)
 	}
 }
 

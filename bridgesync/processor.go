@@ -194,6 +194,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
 	c, err := tx.Cursor(p.eventsTable)
 	if err != nil {
 		return err

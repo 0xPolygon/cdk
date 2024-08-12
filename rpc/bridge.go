@@ -66,6 +66,7 @@ func NewBridgeEndpoints(
 }
 
 // L1InfoTreeIndexForBridge returns the first L1 Info Tree index in which the bridge was included.
+// networkID represents the origin network.
 // This call needs to be done to a client of the same network were the bridge tx was sent
 func (b *BridgeEndpoints) L1InfoTreeIndexForBridge(networkID uint32, depositCount uint32) (interface{}, rpc.Error) {
 	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
@@ -89,7 +90,7 @@ func (b *BridgeEndpoints) L1InfoTreeIndexForBridge(networkID uint32, depositCoun
 	if networkID == b.networkID {
 		// TODO: special treatment of the error when not found,
 		// as it's expected that it will take some time for the L1 Info tree to be updated
-		return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("TODO: batchsync / certificatesync missing"))
+		return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("TODO: batchsync / certificatesync missing implementation"))
 	}
 	return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("this client does not support network %d", networkID))
 }

@@ -77,7 +77,7 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 		return nil
 	}
 
-	appender[claimEventSignature] = func(b *sync.EVMBlock, l types.Log) error {
+	appender[claimEventSignaturePreEtrog] = func(b *sync.EVMBlock, l types.Log) error {
 		claim, err := bridgeContractV1.ParseClaimEvent(l)
 		if err != nil {
 			return fmt.Errorf(

@@ -272,6 +272,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
 	c, err := tx.Cursor(blockTable)
 	if err != nil {
 		return err
@@ -373,7 +374,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 					Timestamp:       event.UpdateL1InfoTree.Timestamp,
 				}
 				if err := p.storeLeafInfo(tx, leafToStore); err != nil {
-					tx.Rollback()
+					rollback()
 					return err
 				}
 				l1InfoTreeLeavesToAdd = append(l1InfoTreeLeavesToAdd, tree.Leaf{

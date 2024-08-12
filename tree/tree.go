@@ -241,6 +241,7 @@ func (t *Tree) GetLastRoot(ctx context.Context) (common.Hash, error) {
 	if err != nil {
 		return common.Hash{}, err
 	}
+	defer tx.Rollback()
 
 	i, root, err := t.getLastIndexAndRootWithTx(tx)
 	if err != nil {

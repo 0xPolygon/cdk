@@ -18,6 +18,9 @@ type BridgeClientInterface interface {
 	GetSponsoredClaimStatus(globalIndex *big.Int) (claimsponsor.ClaimStatus, error)
 }
 
+// L1InfoTreeIndexForBridge returns the first L1 Info Tree index in which the bridge was included.
+// networkID represents the origin network.
+// This call needs to be done to a client of the same network were the bridge tx was sent
 func (c *Client) L1InfoTreeIndexForBridge(networkID uint32, depositCount uint32) (uint32, error) {
 	response, err := rpc.JSONRPCCall(c.url, "bridge_l1InfoTreeIndexForBridge", networkID, depositCount)
 	if err != nil {
@@ -30,6 +33,9 @@ func (c *Client) L1InfoTreeIndexForBridge(networkID uint32, depositCount uint32)
 	return result, json.Unmarshal(response.Result, &result)
 }
 
+// InjectedInfoAfterIndex return the first GER injected onto the network that is linked
+// to the given index or greater. This call is usefull to understand when a bridge is ready to be claimed
+// on its destination network
 func (c *Client) InjectedInfoAfterIndex(networkID uint32, l1InfoTreeIndex uint32) (*l1infotreesync.L1InfoTreeLeaf, error) {
 	response, err := rpc.JSONRPCCall(c.url, "bridge_injectedInfoAfterIndex", networkID, l1InfoTreeIndex)
 	if err != nil {
@@ -42,6 +48,9 @@ func (c *Client) InjectedInfoAfterIndex(networkID uint32, l1InfoTreeIndex uint32
 	return &result, json.Unmarshal(response.Result, &result)
 }
 
+// ClaimProof returns the proofs needed to claim a bridge. NetworkID and depositCount refere to the bridge origin
+// while globalExitRoot should be already injected on the destination network.
+// This call needs to be done to a client of the same network were the bridge tx was sent
 func (c *Client) ClaimProof(networkID uint32, depositCount uint32, l1InfoTreeIndex uint32) (*ClaimProof, error) {
 	response, err := rpc.JSONRPCCall(c.url, "bridge_claimProof", networkID, depositCount, l1InfoTreeIndex)
 	if err != nil {
@@ -54,6 +63,8 @@ func (c *Client) ClaimProof(networkID uint32, depositCount uint32, l1InfoTreeInd
 	return &result, json.Unmarshal(response.Result, &result)
 }
 
+// SponsorClaim sends a claim tx on behalf of the user.
+// This call needs to be done to a client of the same network were the claim is going to be sent (bridge destination)
 func (c *Client) SponsorClaim(claim claimsponsor.Claim) error {
 	response, err := rpc.JSONRPCCall(c.url, "bridge_sponsorClaim", claim)
 	if err != nil {
@@ -65,6 +76,8 @@ func (c *Client) SponsorClaim(claim claimsponsor.Claim) error {
 	return nil
 }
 
+// GetSponsoredClaimStatus returns the status of a claim that has been previously requested to be sponsored.
+// This call needs to be done to the same client were it was requested to be sponsored
 func (c *Client) GetSponsoredClaimStatus(globalIndex *big.Int) (claimsponsor.ClaimStatus, error) {
 	response, err := rpc.JSONRPCCall(c.url, "bridge_getSponsoredClaimStatus", globalIndex)
 	if err != nil {

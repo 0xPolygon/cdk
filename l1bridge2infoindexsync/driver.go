@@ -71,12 +71,12 @@ func (d *driver) sync(ctx context.Context) {
 
 		attempts = 0
 		var lastL1InfoTreeIndex uint32
+		found := false
 		for {
 			lastL1InfoTreeIndex, err = d.downloader.getLastL1InfoIndexUntilBlock(ctx, syncUntilBlock)
 			if err == l1infotreesync.ErrNotFound || err == l1infotreesync.ErrBlockNotProcessed {
 				log.Debugf("l1 info tree index not ready, querying until block %d: %s", syncUntilBlock, err)
-				time.Sleep(d.waitForSyncersPeriod)
-				continue
+				break
 			}
 			if err != nil {
 				attempts++
@@ -84,13 +84,21 @@ func (d *driver) sync(ctx context.Context) {
 				d.rh.Handle("getLastL1InfoIndexUntilBlock", attempts)
 				continue
 			}
+			found = true
 			break
+		}
+		if !found {
+			time.Sleep(d.waitForSyncersPeriod)
+			continue
 		}
 
 		relations := []bridge2L1InfoRelation{}
 		var init uint32
 		if lastProcessedL1InfoIndex > 0 {
 			init = lastProcessedL1InfoIndex + 1
+		}
+		if init <= lastL1InfoTreeIndex {
+			log.Debugf("getting relations from index %d to %d", init, lastL1InfoTreeIndex)
 		}
 		for i := init; i <= lastL1InfoTreeIndex; i++ {
 			attempts = 0
@@ -122,6 +130,7 @@ func (d *driver) sync(ctx context.Context) {
 		lpbProcessor = syncUntilBlock
 		if len(relations) > 0 {
 			lastProcessedL1InfoIndex = relations[len(relations)-1].l1InfoTreeIndex
+			log.Debugf("last processed index %d", lastProcessedL1InfoIndex)
 		}
 	}
 }
@@ -132,6 +141,10 @@ func (d *driver) getTargetSynchronizationBlock(ctx context.Context, lpbProcessor
 		return
 	}
 	if lpbProcessor >= lastFinalised {
+		log.Debugf(
+			"should wait because the last processed block (%d) is greater or equal than the last finalised (%d)",
+			lpbProcessor, lastFinalised,
+		)
 		shouldWait = true
 		return
 	}
@@ -140,6 +153,10 @@ func (d *driver) getTargetSynchronizationBlock(ctx context.Context, lpbProcessor
 		return
 	}
 	if lpbProcessor >= lpbInfo {
+		log.Debugf(
+			"should wait because the last processed block (%d) is greater or equal than the last block from L1 Info tree sync (%d)",
+			lpbProcessor, lpbInfo,
+		)
 		shouldWait = true
 		return
 	}
@@ -148,17 +165,24 @@ func (d *driver) getTargetSynchronizationBlock(ctx context.Context, lpbProcessor
 		return
 	}
 	if lpbProcessor >= lpbBridge {
+		log.Debugf(
+			"should wait because the last processed block (%d) is greater or equal than the last block from l1 bridge sync (%d)",
+			lpbProcessor, lpbBridge,
+		)
 		shouldWait = true
 		return
 	}
 
 	// Bridge, L1Info and L1 ahead of procesor. Pick the smallest block num as target
 	if lastFinalised <= lpbInfo {
+		log.Debugf("target sync block is the last finalised block (%d)", lastFinalised)
 		syncUntilBlock = lastFinalised
 	} else {
+		log.Debugf("target sync block is the last processed block from L1 info tree (%d)", lpbInfo)
 		syncUntilBlock = lpbInfo
 	}
 	if lpbBridge < syncUntilBlock {
+		log.Debugf("target sync block is the last processed block from bridge (%d)", lpbBridge)
 		syncUntilBlock = lpbBridge
 	}
 	return

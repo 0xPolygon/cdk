@@ -6,6 +6,7 @@ ForkUpgradeBatchNumber = 0
 ForkUpgradeNewForkId = 0
 
 [Common]
+NetworkID = 1
 IsValidiumMode = false
 ContractVersions = "banana"
 

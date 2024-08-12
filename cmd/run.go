@@ -92,6 +92,7 @@ func start(cliCtx *cli.Context) error {
 		case RPC:
 			server := createRPC(
 				c.RPC,
+				c.Common.NetworkID,
 				claimSponsor,
 				l1InfoTreeSync,
 				l1Bridge2InfoIndexSync,
@@ -566,7 +567,7 @@ func runLastGERSyncIfNeeded(
 		log.Fatalf("error creating lastGERSync: %s", err)
 	}
 	go lastGERSync.Start(ctx)
-	return nil
+	return lastGERSync
 }
 
 func runBridgeSyncL1IfNeeded(
@@ -632,6 +633,7 @@ func runBridgeSyncL2IfNeeded(
 
 func createRPC(
 	cfg jRPC.Config,
+	cdkNetworkID uint32,
 	sponsor *claimsponsor.ClaimSponsor,
 	l1InfoTree *l1infotreesync.L1InfoTreeSync,
 	l1Bridge2Index *l1bridge2infoindexsync.L1Bridge2InfoIndexSync,
@@ -645,7 +647,7 @@ func createRPC(
 			Service: rpc.NewBridgeEndpoints(
 				cfg.WriteTimeout.Duration,
 				cfg.ReadTimeout.Duration,
-				0, // TODO: NetworkID
+				cdkNetworkID,
 				sponsor,
 				l1InfoTree,
 				l1Bridge2Index,
