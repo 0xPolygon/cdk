@@ -4,8 +4,11 @@ import (
 	"context"
 	"time"
 
+	"time"
+
 	configTypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
+
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum/common"

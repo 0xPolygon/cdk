@@ -98,19 +98,11 @@ func NewL2(
 		rd,
 		ethClient,
 		initialBlock,
-		dbPrefixL2,
-		reorgDetectorIDL2,
+		reorgDetectorIDL1,
 		waitForNewBlocksPeriod,
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
 	)
-}
-
-func new(
-	ctx context.Context,
-	dbPath string,
-	bridge common.Address,
-	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
 	rd sync.ReorgDetector,
 	ethClient EthClienter,
