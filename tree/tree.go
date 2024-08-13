@@ -20,6 +20,7 @@ const (
 )
 
 var (
+	EmptyProof  = [32]common.Hash{}
 	ErrNotFound = errors.New("not found")
 )
 
@@ -33,7 +34,6 @@ type Tree struct {
 	rhtTable   string
 	rootTable  string
 	indexTable string
-	height     uint8
 	zeroHashes []common.Hash
 }
 
@@ -83,7 +83,6 @@ func newTree(db kv.RwDB, dbPrefix string) *Tree {
 		rootTable:  rootTable,
 		indexTable: indexTable,
 		db:         db,
-		height:     defaultHeight,
 		zeroHashes: generateZeroHashes(defaultHeight),
 	}
 
@@ -113,21 +112,19 @@ func (t *Tree) getIndexByRoot(tx kv.Tx, root common.Hash) (uint64, error) {
 }
 
 func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
-	siblings []common.Hash,
+	siblings [32]common.Hash,
 	hasUsedZeroHashes bool,
 	err error,
 ) {
-	siblings = make([]common.Hash, int(t.height))
-
 	currentNodeHash := root
 	// It starts in height-1 because 0 is the level of the leafs
-	for h := int(t.height - 1); h >= 0; h-- {
+	for h := int(defaultHeight - 1); h >= 0; h-- {
 		var currentNode *treeNode
 		currentNode, err = t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
 			if err == ErrNotFound {
 				hasUsedZeroHashes = true
-				siblings = append(siblings, t.zeroHashes[h])
+				siblings[h] = t.zeroHashes[h]
 				err = nil
 				continue
 			} else {
@@ -160,35 +157,30 @@ func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
 		* Now, let's do AND operation => 100&100=100 which is higher than 0 so we need the left sibling (O5)
 		 */
 		if index&(1<<h) > 0 {
-			siblings = append(siblings, currentNode.left)
+			siblings[h] = currentNode.left
 			currentNodeHash = currentNode.right
 		} else {
-			siblings = append(siblings, currentNode.right)
+			siblings[h] = currentNode.right
 			currentNodeHash = currentNode.left
 		}
-	}
-
-	// Reverse siblings to go from leafs to root
-	for i, j := 0, len(siblings)-1; i < j; i, j = i+1, j-1 {
-		siblings[i], siblings[j] = siblings[j], siblings[i]
 	}
 
 	return
 }
 
 // GetProof returns the merkle proof for a given index and root.
-func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([]common.Hash, error) {
+func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([defaultHeight]common.Hash, error) {
 	tx, err := t.db.BeginRw(ctx)
 	if err != nil {
-		return nil, err
+		return [defaultHeight]common.Hash{}, err
 	}
 	defer tx.Rollback()
 	siblings, isErrNotFound, err := t.getSiblings(tx, index, root)
 	if err != nil {
-		return nil, err
+		return [defaultHeight]common.Hash{}, err
 	}
 	if isErrNotFound {
-		return nil, ErrNotFound
+		return [defaultHeight]common.Hash{}, ErrNotFound
 	}
 	return siblings, nil
 }
