@@ -4,3 +4,4 @@
 /dist/
 cmd/__debug_bin
 /target
+tmp
