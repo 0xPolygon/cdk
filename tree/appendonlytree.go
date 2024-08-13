@@ -27,7 +27,7 @@ func NewAppendOnlyTree(ctx context.Context, db kv.RwDB, dbPrefix string) (*Appen
 }
 
 // AddLeaves adds a list leaves into the tree. The indexes of the leaves must be consecutive,
-// starting by the index of the last leave added +1
+// starting by the index of the last leaf added +1
 // It returns a function that must be called to rollback the changes done by this interaction
 func (t *AppendOnlyTree) AddLeaves(tx kv.RwTx, leaves []Leaf) (func(), error) {
 	// Sanity check

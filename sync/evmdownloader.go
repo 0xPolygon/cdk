@@ -50,7 +50,7 @@ func NewEVMDownloader(
 	if err != nil {
 		return nil, err
 	}
-	topicsToQuery := []common.Hash{}
+	topicsToQuery := make([]common.Hash, 0, len(appender))
 	for topic := range appender {
 		topicsToQuery = append(topicsToQuery, topic)
 	}
@@ -212,8 +212,8 @@ func (d *EVMDownloaderImplementation) GetLogs(ctx context.Context, fromBlock, to
 		Addresses: d.adressessToQuery,
 		ToBlock:   new(big.Int).SetUint64(toBlock),
 	}
-	attempts := 0
 	var (
+		attempts       = 0
 		unfilteredLogs []types.Log
 		err            error
 	)
@@ -227,18 +227,13 @@ func (d *EVMDownloaderImplementation) GetLogs(ctx context.Context, fromBlock, to
 		}
 		break
 	}
-	logs := []types.Log{}
+	logs := make([]types.Log, 0, len(unfilteredLogs))
 	for _, l := range unfilteredLogs {
-		found := false
 		for _, topic := range d.topicsToQuery {
 			if l.Topics[0] == topic {
 				logs = append(logs, l)
-				found = true
 				break
 			}
-		}
-		if !found {
-			d.log.Debugf("ignoring log %+v because it's not under the list of topics to query", l)
 		}
 	}
 	return logs

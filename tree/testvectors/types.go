@@ -22,29 +22,24 @@ type DepositVectorRaw struct {
 
 func (d *DepositVectorRaw) Hash() common.Hash {
 	origNet := make([]byte, 4) //nolint:gomnd
-	binary.BigEndian.PutUint32(origNet, uint32(d.OriginalNetwork))
+	binary.BigEndian.PutUint32(origNet, d.OriginalNetwork)
 	destNet := make([]byte, 4) //nolint:gomnd
-	binary.BigEndian.PutUint32(destNet, uint32(d.DestinationNetwork))
+	binary.BigEndian.PutUint32(destNet, d.DestinationNetwork)
 
 	metaHash := keccak256.Hash(common.FromHex(d.Metadata))
-	hash := common.Hash{}
 	var buf [32]byte //nolint:gomnd
 	amount, _ := big.NewInt(0).SetString(d.Amount, 0)
 	origAddrBytes := common.HexToAddress(d.TokenAddress)
 	destAddrBytes := common.HexToAddress(d.DestinationAddress)
-	copy(
-		hash[:],
-		keccak256.Hash(
-			[]byte{0},
-			origNet,
-			origAddrBytes[:],
-			destNet,
-			destAddrBytes[:],
-			amount.FillBytes(buf[:]),
-			metaHash,
-		),
-	)
-	return hash
+	return common.BytesToHash(keccak256.Hash(
+		[]byte{0}, // LeafType
+		origNet,
+		origAddrBytes[:],
+		destNet,
+		destAddrBytes[:],
+		amount.FillBytes(buf[:]),
+		metaHash,
+	))
 }
 
 // MTClaimVectorRaw represents the merkle proof

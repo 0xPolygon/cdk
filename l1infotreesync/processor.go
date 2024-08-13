@@ -212,7 +212,7 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	return p.getInfoByIndexWithTx(tx, blk.LastIndex-1)
 }
 
-// GetInfoByIndex returns the value of a leave (not the hash) of the L1 info tree
+// GetInfoByIndex returns the value of a leaf (not the hash) of the L1 info tree
 func (p *processor) GetInfoByIndex(ctx context.Context, index uint32) (*L1InfoTreeLeaf, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
@@ -265,7 +265,7 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	return common.BytesToUint64(blockNumBytes), nil
 }
 
-// Reorg triggers a purge and reset process on the processot to leave it on a state
+// Reorg triggers a purge and reset process on the processor to leaf it on a state
 // as if the last block processed was firstReorgedBlock-1
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	tx, err := p.db.BeginRw(ctx)
@@ -331,7 +331,7 @@ func (p *processor) deleteLeaf(tx kv.RwTx, index uint32) error {
 	return nil
 }
 
-// ProcessBlock procees the events of the block to build the rollup exit tree and the l1 info tree
+// ProcessBlock process the events of the block to build the rollup exit tree and the l1 info tree
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	tx, err := p.db.BeginRw(ctx)

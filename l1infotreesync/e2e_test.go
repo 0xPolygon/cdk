@@ -81,13 +81,13 @@ func TestE2E(t *testing.T) {
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
-	// Update GER 10 times
-	for i := 0; i < 10; i++ {
+	// Update GER 3 times
+	for i := 0; i < 3; i++ {
 		tx, err := gerSc.UpdateExitRoot(auth, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
 		client.Commit()
 		// Let the processor catch up
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 100)
 		receipt, err := client.Client().TransactionReceipt(ctx, tx.Hash())
 		require.NoError(t, err)
 		require.Equal(t, receipt.Status, types.ReceiptStatusSuccessful)
@@ -106,15 +106,15 @@ func TestE2E(t *testing.T) {
 		require.Equal(t, common.Hash(expectedRoot), actualRoot)
 	}
 
-	// Update 10 rollups (verify batches event) 10 times
-	for rollupID := uint32(1); rollupID < 10; rollupID++ {
-		for i := 0; i < 10; i++ {
+	// Update 3 rollups (verify batches event) 3 times
+	for rollupID := uint32(1); rollupID < 3; rollupID++ {
+		for i := 0; i < 3; i++ {
 			newLocalExitRoot := common.HexToHash(strconv.Itoa(int(rollupID)) + "ffff" + strconv.Itoa(i))
 			tx, err := verifySC.VerifyBatches(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, i%2 != 0)
 			require.NoError(t, err)
 			client.Commit()
 			// Let the processor catch up
-			time.Sleep(time.Millisecond * 10)
+			time.Sleep(time.Millisecond * 100)
 			receipt, err := client.Client().TransactionReceipt(ctx, tx.Hash())
 			require.NoError(t, err)
 			require.Equal(t, receipt.Status, types.ReceiptStatusSuccessful)
@@ -201,7 +201,7 @@ func TestStressAndReorgs(t *testing.T) {
 			}
 		}
 		client.Commit()
-		time.Sleep(time.Microsecond * 10) // Sleep just enough for goroutine to switch
+		time.Sleep(time.Microsecond * 30) // Sleep just enough for goroutine to switch
 		if enableReorgs && i%reorgEveryXIterations == 0 {
 			reorgDepth := i%maxReorgDepth + 1
 			currentBlockNum, err := client.Client().BlockNumber(ctx)

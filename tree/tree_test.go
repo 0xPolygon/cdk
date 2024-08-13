@@ -124,6 +124,7 @@ func TestMTGetProof(t *testing.T) {
 			txRo, err := tree.db.BeginRo(ctx)
 			require.NoError(t, err)
 			_, actualRoot, err := tree.getLastIndexAndRootWithTx(txRo)
+			require.NoError(t, err)
 			txRo.Rollback()
 			expectedRoot := common.HexToHash(testVector.ExpectedRoot)
 			require.Equal(t, expectedRoot, actualRoot)
