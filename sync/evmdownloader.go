@@ -20,18 +20,18 @@ type EthClienter interface {
 	bind.ContractBackend
 }
 
-type evmDownloaderInterface interface {
-	waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64)
-	getEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) []EVMBlock
-	getLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log
-	getBlockHeader(ctx context.Context, blockNum uint64) EVMBlockHeader
+type EVMDownloaderInterface interface {
+	WaitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64)
+	GetEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) []EVMBlock
+	GetLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log
+	GetBlockHeader(ctx context.Context, blockNum uint64) EVMBlockHeader
 }
 
 type LogAppenderMap map[common.Hash]func(b *EVMBlock, l types.Log) error
 
 type EVMDownloader struct {
 	syncBlockChunkSize uint64
-	evmDownloaderInterface
+	EVMDownloaderInterface
 }
 
 func NewEVMDownloader(
@@ -53,7 +53,7 @@ func NewEVMDownloader(
 	}
 	return &EVMDownloader{
 		syncBlockChunkSize: syncBlockChunkSize,
-		evmDownloaderInterface: &downloaderImplementation{
+		EVMDownloaderInterface: &EVMDownloaderImplementation{
 			ethClient:              ethClient,
 			blockFinality:          finality,
 			waitForNewBlocksPeriod: waitForNewBlocksPeriod,
@@ -65,8 +65,8 @@ func NewEVMDownloader(
 	}, nil
 }
 
-func (d *EVMDownloader) download(ctx context.Context, fromBlock uint64, downloadedCh chan EVMBlock) {
-	lastBlock := d.waitForNewBlocks(ctx, 0)
+func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, downloadedCh chan EVMBlock) {
+	lastBlock := d.WaitForNewBlocks(ctx, 0)
 	for {
 		select {
 		case <-ctx.Done():
@@ -81,11 +81,11 @@ func (d *EVMDownloader) download(ctx context.Context, fromBlock uint64, download
 		}
 		if fromBlock > toBlock {
 			log.Debug("waiting for new blocks, last block ", toBlock)
-			lastBlock = d.waitForNewBlocks(ctx, toBlock)
+			lastBlock = d.WaitForNewBlocks(ctx, toBlock)
 			continue
 		}
 		log.Debugf("getting events from blocks %d to  %d", fromBlock, toBlock)
-		blocks := d.getEventsByBlockRange(ctx, fromBlock, toBlock)
+		blocks := d.GetEventsByBlockRange(ctx, fromBlock, toBlock)
 		for _, b := range blocks {
 			log.Debugf("sending block %d to the driver (with events)", b.Num)
 			downloadedCh <- b
@@ -94,14 +94,14 @@ func (d *EVMDownloader) download(ctx context.Context, fromBlock uint64, download
 			// Indicate the last downloaded block if there are not events on it
 			log.Debugf("sending block %d to the driver (without events)", toBlock)
 			downloadedCh <- EVMBlock{
-				EVMBlockHeader: d.getBlockHeader(ctx, toBlock),
+				EVMBlockHeader: d.GetBlockHeader(ctx, toBlock),
 			}
 		}
 		fromBlock = toBlock + 1
 	}
 }
 
-type downloaderImplementation struct {
+type EVMDownloaderImplementation struct {
 	ethClient              EthClienter
 	blockFinality          *big.Int
 	waitForNewBlocksPeriod time.Duration
@@ -111,7 +111,27 @@ type downloaderImplementation struct {
 	rh                     *RetryHandler
 }
 
-func (d *downloaderImplementation) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64) {
+func NewEVMDownloaderImplementation(
+	ethClient EthClienter,
+	blockFinality *big.Int,
+	waitForNewBlocksPeriod time.Duration,
+	appender LogAppenderMap,
+	topicsToQuery []common.Hash,
+	adressessToQuery []common.Address,
+	rh *RetryHandler,
+) *EVMDownloaderImplementation {
+	return &EVMDownloaderImplementation{
+		ethClient:              ethClient,
+		blockFinality:          blockFinality,
+		waitForNewBlocksPeriod: waitForNewBlocksPeriod,
+		appender:               appender,
+		topicsToQuery:          topicsToQuery,
+		adressessToQuery:       adressessToQuery,
+		rh:                     rh,
+	}
+}
+
+func (d *EVMDownloaderImplementation) WaitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64) {
 	attempts := 0
 	ticker := time.NewTicker(d.waitForNewBlocksPeriod)
 	defer ticker.Stop()
@@ -135,17 +155,17 @@ func (d *downloaderImplementation) waitForNewBlocks(ctx context.Context, lastBlo
 	}
 }
 
-func (d *downloaderImplementation) getEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) []EVMBlock {
+func (d *EVMDownloaderImplementation) GetEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) []EVMBlock {
 	blocks := []EVMBlock{}
-	logs := d.getLogs(ctx, fromBlock, toBlock)
+	logs := d.GetLogs(ctx, fromBlock, toBlock)
 	for _, l := range logs {
 		if len(blocks) == 0 || blocks[len(blocks)-1].Num < l.BlockNumber {
-			b := d.getBlockHeader(ctx, l.BlockNumber)
+			b := d.GetBlockHeader(ctx, l.BlockNumber)
 			if b.Hash != l.BlockHash {
 				log.Infof(
 					"there has been a block hash change between the event query and the block query for block %d: %s vs %s. Retrtying.",
 					l.BlockNumber, b.Hash, l.BlockHash)
-				return d.getEventsByBlockRange(ctx, fromBlock, toBlock)
+				return d.GetEventsByBlockRange(ctx, fromBlock, toBlock)
 			}
 			blocks = append(blocks, EVMBlock{
 				EVMBlockHeader: EVMBlockHeader{
@@ -174,7 +194,7 @@ func (d *downloaderImplementation) getEventsByBlockRange(ctx context.Context, fr
 	return blocks
 }
 
-func (d *downloaderImplementation) getLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log {
+func (d *EVMDownloaderImplementation) GetLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log {
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
 		Addresses: d.adressessToQuery,
@@ -212,7 +232,7 @@ func (d *downloaderImplementation) getLogs(ctx context.Context, fromBlock, toBlo
 	return logs
 }
 
-func (d *downloaderImplementation) getBlockHeader(ctx context.Context, blockNum uint64) EVMBlockHeader {
+func (d *EVMDownloaderImplementation) GetBlockHeader(ctx context.Context, blockNum uint64) EVMBlockHeader {
 	attempts := 0
 	for {
 		header, err := d.ethClient.HeaderByNumber(ctx, big.NewInt(int64(blockNum)))

@@ -135,7 +135,7 @@ func TestE2E(t *testing.T) {
 	rd, err := reorgdetector.New(ctx, client.Client(), dbPathReorg)
 	go rd.Start(ctx)
 
-	bridgeSync, err := bridgesync.NewL1(ctx, dbPathBridgeSync, bridgeAddr, 10, etherman.LatestBlock, rd, client.Client(), 0)
+	bridgeSync, err := bridgesync.NewL1(ctx, dbPathBridgeSync, bridgeAddr, 10, etherman.LatestBlock, rd, client.Client(), 0, time.Millisecond*10)
 	require.NoError(t, err)
 	go bridgeSync.Start(ctx)
 

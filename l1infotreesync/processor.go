@@ -153,21 +153,21 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 }
 
 // GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
-func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([]ethCommon.Hash, ethCommon.Hash, error) {
+func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([32]ethCommon.Hash, ethCommon.Hash, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
-		return nil, ethCommon.Hash{}, err
+		return [32]ethCommon.Hash{}, ethCommon.Hash{}, err
 	}
 	defer tx.Rollback()
 
 	root, err := p.l1InfoTree.GetRootByIndex(tx, index)
 	if err != nil {
-		return nil, ethCommon.Hash{}, err
+		return [32]ethCommon.Hash{}, ethCommon.Hash{}, err
 	}
 
 	proof, err := p.l1InfoTree.GetProof(ctx, index, root)
 	if err != nil {
-		return nil, ethCommon.Hash{}, err
+		return [32]ethCommon.Hash{}, ethCommon.Hash{}, err
 	}
 
 	// TODO: check if we need to return root or wat

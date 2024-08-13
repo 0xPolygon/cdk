@@ -7,6 +7,7 @@ import (
 	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sync"
+	"github.com/0xPolygon/cdk/tree"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -104,8 +105,16 @@ func (s *L1InfoTreeSync) Start(ctx context.Context) {
 }
 
 // GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
-func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([]common.Hash, common.Hash, error) {
+func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([32]common.Hash, common.Hash, error) {
 	return s.processor.GetL1InfoTreeMerkleProof(ctx, index)
+}
+
+// GetRollupExitTreeMerkleProof creates a merkle proof for the rollup exit tree
+func (s *L1InfoTreeSync) GetRollupExitTreeMerkleProof(ctx context.Context, networkID uint32, root common.Hash) ([32]common.Hash, error) {
+	if networkID == 0 {
+		return tree.EmptyProof, nil
+	}
+	return s.processor.rollupExitTree.GetProof(ctx, networkID-1, root)
 }
 
 // GetLatestInfoUntilBlock returns the most recent L1InfoTreeLeaf that occurred before or at blockNum.
