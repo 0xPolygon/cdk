@@ -24,6 +24,7 @@ generate-mocks-da: ## Generates mocks for dataavailability, using mockery tool
 
 .PHONY: test-e2e-elderberry-validium
 test-e2e-elderberry-validium: stop ## Runs e2e tests checking elderberry/validium
+	ls -la
 	./run-e2e.sh cdk-validium
 
 .PHONY: test-e2e-elderberry-rollup
