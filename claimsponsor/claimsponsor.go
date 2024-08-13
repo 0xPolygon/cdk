@@ -167,11 +167,11 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 			continue
 		}
 
-		log.Infof("waiting for tx %s with global index %s to success or fail", claim.TxID, globalIndex.String())
+		log.Infof("waiting for tx %s with global index %s to succeed or fail", claim.TxID, globalIndex.String())
 		status, err2 := c.waitTxToBeSuccessOrFail(ctx, claim.TxID)
 		if err2 != nil {
 			err = err2
-			log.Errorf("error calling waitTxToBeMinedOrFail for tx %s: %v", claim.TxID, err)
+			log.Errorf("error calling waitTxToBeSuccessOrFail for tx %s: %v", claim.TxID, err)
 			continue
 		}
 		log.Infof("tx %s with global index %s concluded with status: %s", claim.TxID, globalIndex.String(), status)

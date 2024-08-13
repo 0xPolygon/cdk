@@ -219,7 +219,7 @@ func (r *ReorgDetector) Subscribe(id string) (*Subscription, error) {
 
 func (r *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error {
 	return nil
-	// COMENTING THE CODE AS I"M SUSPECTING A DETAHLOCK
+	// COMENTING THE CODE AS I'M SUSPECTING A DEATHLOCK
 	// r.subscriptionsLock.RLock()
 	// if sub, ok := r.subscriptions[id]; !ok {
 	// 	r.subscriptionsLock.RUnlock()
