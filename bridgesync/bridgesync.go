@@ -11,10 +11,8 @@ import (
 )
 
 const (
-	reorgDetectorIDL1  = "bridgesyncl1"
-	reorgDetectorIDL2  = "bridgesyncl2"
-	dbPrefixL1         = "bridgesyncl1"
-	dbPrefixL2         = "bridgesyncl2"
+	bridgeSyncL1       = "bridgesyncl1"
+	bridgeSyncL2       = "bridgesyncl2"
 	downloadBufferSize = 1000
 )
 
@@ -67,8 +65,7 @@ func NewL1(
 		rd,
 		ethClient,
 		initialBlock,
-		dbPrefixL1,
-		reorgDetectorIDL1,
+		bridgeSyncL1,
 		waitForNewBlocksPeriod,
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
@@ -98,21 +95,28 @@ func NewL2(
 		rd,
 		ethClient,
 		initialBlock,
-		reorgDetectorIDL1,
+		bridgeSyncL2,
 		waitForNewBlocksPeriod,
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
 	)
+}
+
+func new(
+	ctx context.Context,
+	dbPath string,
+	bridge common.Address,
+	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
 	rd sync.ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
-	dbPrefix, reorgDetectorID string,
+	l1OrL2ID string,
 	waitForNewBlocksPeriod time.Duration,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 ) (*BridgeSync, error) {
-	processor, err := newProcessor(ctx, dbPath, dbPrefix)
+	processor, err := newProcessor(ctx, dbPath, l1OrL2ID)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +142,7 @@ func NewL2(
 		return nil, err
 	}
 	downloader, err := sync.NewEVMDownloader(
-		dbPrefix,
+		l1OrL2ID,
 		ethClient,
 		syncBlockChunkSize,
 		blockFinalityType,
@@ -151,7 +155,7 @@ func NewL2(
 		return nil, err
 	}
 
-	driver, err := sync.NewEVMDriver(rd, processor, downloader, reorgDetectorID, downloadBufferSize, rh)
+	driver, err := sync.NewEVMDriver(rd, processor, downloader, l1OrL2ID, downloadBufferSize, rh)
 	if err != nil {
 		return nil, err
 	}
