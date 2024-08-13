@@ -116,15 +116,25 @@ func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.Sequen
 		log.Error("sequences is not a BananaSequence")
 		return etherman.SequenceBanana{}, fmt.Errorf("sequences is not a BananaSequence")
 	}
-	seqEth.SequenceBanana.Batches = make([]etherman.Batch, len(sequences.Batches()))
+
+	ethermanSequence := etherman.SequenceBanana{
+		OldAccInputHash:      seqEth.SequenceBanana.OldAccInputHash,
+		AccInputHash:         seqEth.SequenceBanana.AccInputHash,
+		L1InfoRoot:           seqEth.SequenceBanana.L1InfoRoot,
+		MaxSequenceTimestamp: seqEth.SequenceBanana.MaxSequenceTimestamp,
+		IndexL1InfoRoot:      seqEth.SequenceBanana.IndexL1InfoRoot,
+		L2Coinbase:           seqEth.SequenceBanana.L2Coinbase,
+	}
+
 	for _, batch := range sequences.Batches() {
 		ethBatch, err := toEthermanBatch(batch)
 		if err != nil {
 			return etherman.SequenceBanana{}, err
 		}
-		seqEth.SequenceBanana.Batches = append(seqEth.SequenceBanana.Batches, ethBatch)
+		ethermanSequence.Batches = append(ethermanSequence.Batches, ethBatch)
 	}
-	return seqEth.SequenceBanana, nil
+
+	return ethermanSequence, nil
 }
 
 func toEthermanBatch(batch seqsendertypes.Batch) (etherman.Batch, error) {
