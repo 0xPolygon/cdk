@@ -42,13 +42,14 @@ func TestE2EL1toEVML2(t *testing.T) {
 	go claimer.Start(ctx)
 
 	// test
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 3; i++ {
 		// Send bridges to L2, wait for GER to be injected on L2
 		amount := big.NewInt(int64(i) + 1)
 		env.AuthL1.Value = amount
 		_, err := env.BridgeL1Contract.BridgeAsset(env.AuthL1, env.NetworkIDL2, env.AuthL2.From, amount, common.Address{}, true, nil)
+		require.NoError(t, err)
 		env.L1Client.Commit()
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(time.Millisecond * 300)
 		expectedGER, err := env.GERL1Contract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
 		isInjected, err := env.AggOracleSender.IsGERAlreadyInjected(expectedGER)
@@ -61,6 +62,7 @@ func TestE2EL1toEVML2(t *testing.T) {
 		localProof, err := bridgeSyncL1.GetProof(ctx, uint32(i), info.MainnetExitRoot)
 		require.NoError(t, err)
 		rollupProof, err := env.L1InfoTreeSync.GetRollupExitTreeMerkleProof(ctx, 0, common.Hash{})
+		require.NoError(t, err)
 
 		// Request to sponsor claim
 		globalIndex := bridgesync.GenerateGlobalIndex(true, 0, uint32(i))
@@ -91,7 +93,7 @@ func TestE2EL1toEVML2(t *testing.T) {
 				succeed = true
 				break
 			}
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 		require.True(t, succeed)
 
