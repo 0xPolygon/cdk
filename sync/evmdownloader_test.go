@@ -158,10 +158,7 @@ func TestGetEventsByBlockRange(t *testing.T) {
 		query := ethereum.FilterQuery{
 			FromBlock: new(big.Int).SetUint64(tc.fromBlock),
 			Addresses: []common.Address{contractAddr},
-			Topics: [][]common.Hash{
-				{eventSignature},
-			},
-			ToBlock: new(big.Int).SetUint64(tc.toBlock),
+			ToBlock:   new(big.Int).SetUint64(tc.toBlock),
 		}
 		clientMock.
 			On("FilterLogs", mock.Anything, query).
@@ -182,15 +179,20 @@ func TestGetEventsByBlockRange(t *testing.T) {
 
 func generateEvent(blockNum uint32) (*types.Log, testEvent) {
 	h := common.HexToHash(strconv.Itoa(int(blockNum)))
+	header := types.Header{
+		Number:     big.NewInt(int64(blockNum)),
+		ParentHash: common.HexToHash("foo"),
+	}
+	blockHash := header.Hash()
 	log := &types.Log{
 		Address:     contractAddr,
 		BlockNumber: uint64(blockNum),
-		BlockHash:   h,
 		Topics: []common.Hash{
 			eventSignature,
 			h,
 		},
-		Data: nil,
+		BlockHash: blockHash,
+		Data:      nil,
 	}
 	return log, testEvent(h)
 }

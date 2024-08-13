@@ -47,9 +47,9 @@ func NewEVMDownloader(
 	if err != nil {
 		return nil, err
 	}
-	topicsToQuery := [][]common.Hash{}
+	topicsToQuery := make([]common.Hash, 0, len(appender))
 	for topic := range appender {
-		topicsToQuery = append(topicsToQuery, []common.Hash{topic})
+		topicsToQuery = append(topicsToQuery, topic)
 	}
 	return &EVMDownloader{
 		syncBlockChunkSize: syncBlockChunkSize,
@@ -92,7 +92,7 @@ func (d *EVMDownloader) download(ctx context.Context, fromBlock uint64, download
 		}
 		if len(blocks) == 0 || blocks[len(blocks)-1].Num < toBlock {
 			// Indicate the last downloaded block if there are not events on it
-			log.Debugf("sending block %d to the driver (without evvents)", toBlock)
+			log.Debugf("sending block %d to the driver (without events)", toBlock)
 			downloadedCh <- EVMBlock{
 				EVMBlockHeader: d.getBlockHeader(ctx, toBlock),
 			}
@@ -106,7 +106,7 @@ type downloaderImplementation struct {
 	blockFinality          *big.Int
 	waitForNewBlocksPeriod time.Duration
 	appender               LogAppenderMap
-	topicsToQuery          [][]common.Hash
+	topicsToQuery          []common.Hash
 	adressessToQuery       []common.Address
 	rh                     *RetryHandler
 }
@@ -141,6 +141,12 @@ func (d *downloaderImplementation) getEventsByBlockRange(ctx context.Context, fr
 	for _, l := range logs {
 		if len(blocks) == 0 || blocks[len(blocks)-1].Num < l.BlockNumber {
 			b := d.getBlockHeader(ctx, l.BlockNumber)
+			if b.Hash != l.BlockHash {
+				log.Infof(
+					"there has been a block hash change between the event query and the block query for block %d: %s vs %s. Retrying.",
+					l.BlockNumber, b.Hash, l.BlockHash)
+				return d.getEventsByBlockRange(ctx, fromBlock, toBlock)
+			}
 			blocks = append(blocks, EVMBlock{
 				EVMBlockHeader: EVMBlockHeader{
 					Num:        l.BlockNumber,
@@ -172,20 +178,33 @@ func (d *downloaderImplementation) getLogs(ctx context.Context, fromBlock, toBlo
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
 		Addresses: d.adressessToQuery,
-		Topics:    d.topicsToQuery,
 		ToBlock:   new(big.Int).SetUint64(toBlock),
 	}
-	attempts := 0
+	var (
+		attempts       = 0
+		unfilteredLogs []types.Log
+		err            error
+	)
 	for {
-		logs, err := d.ethClient.FilterLogs(ctx, query)
+		unfilteredLogs, err = d.ethClient.FilterLogs(ctx, query)
 		if err != nil {
 			attempts++
 			log.Error("error calling FilterLogs to eth client: ", err)
 			d.rh.Handle("getLogs", attempts)
 			continue
 		}
-		return logs
+		break
 	}
+	logs := make([]types.Log, 0, len(unfilteredLogs))
+	for _, l := range unfilteredLogs {
+		for _, topic := range d.topicsToQuery {
+			if l.Topics[0] == topic {
+				logs = append(logs, l)
+				break
+			}
+		}
+	}
+	return logs
 }
 
 func (d *downloaderImplementation) getBlockHeader(ctx context.Context, blockNum uint64) EVMBlockHeader {
