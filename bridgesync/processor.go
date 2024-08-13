@@ -8,6 +8,7 @@ import (
 	"math/big"
 
 	dbCommon "github.com/0xPolygon/cdk/common"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree"
 	"github.com/ethereum/go-ethereum/common"
@@ -87,11 +88,13 @@ type processor struct {
 	eventsTable    string
 	lastBlockTable string
 	exitTree       *tree.AppendOnlyTree
+	log            *log.Logger
 }
 
 func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, error) {
 	eventsTable := dbPrefix + eventsTableSufix
 	lastBlockTable := dbPrefix + lastBlockTableSufix
+	logger := log.WithFields("syncer", dbPrefix)
 	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
 		cfg := kv.TableCfg{
 			eventsTable:    {},
@@ -116,6 +119,7 @@ func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, err
 		eventsTable:    eventsTable,
 		lastBlockTable: lastBlockTable,
 		exitTree:       exitTree,
+		log:            logger,
 	}, nil
 }
 
@@ -190,6 +194,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
 	c, err := tx.Cursor(p.eventsTable)
 	if err != nil {
 		return err
@@ -289,6 +294,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		exitTreeRollback()
 		return err
 	}
+	p.log.Debugf("processed %d events until block %d", len(block.Events), block.Num)
 	return nil
 }
 
@@ -297,7 +303,7 @@ func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error 
 	return tx.Put(p.lastBlockTable, lastBlokcKey, blockNumBytes)
 }
 
-func GenerateGlobalIndex(mainnetFlag bool, rollupIndex uint, localExitRootIndex uint32) *big.Int {
+func GenerateGlobalIndex(mainnetFlag bool, rollupIndex uint32, localExitRootIndex uint32) *big.Int {
 	var (
 		globalIndexBytes []byte
 		buf              [4]byte

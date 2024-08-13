@@ -18,6 +18,8 @@ const (
 	AGGREGATOR = "aggregator"
 	// AGGORACLE name to identify the aggoracle component
 	AGGORACLE = "aggoracle"
+	// RPC name to identify the rpc component
+	RPC = "rpc"
 )
 
 const (
@@ -49,7 +51,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(SEQUENCE_SENDER, AGGREGATOR, AGGORACLE),
+		Value:    cli.NewStringSlice(SEQUENCE_SENDER, AGGREGATOR, AGGORACLE, RPC),
 	}
 )
 

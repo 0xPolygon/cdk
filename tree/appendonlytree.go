@@ -109,6 +109,7 @@ func (t *AppendOnlyTree) GetIndexByRoot(ctx context.Context, root common.Hash) (
 	if err != nil {
 		return 0, err
 	}
+	defer tx.Rollback()
 	index, err := t.getIndexByRoot(tx, root)
 	return uint32(index), err
 }
@@ -119,6 +120,7 @@ func (t *AppendOnlyTree) GetLastIndexAndRoot(ctx context.Context) (uint32, commo
 	if err != nil {
 		return 0, common.Hash{}, err
 	}
+	defer tx.Rollback()
 	i, root, err := t.getLastIndexAndRootWithTx(tx)
 	if err != nil {
 		return 0, common.Hash{}, err
@@ -151,6 +153,7 @@ func (t *AppendOnlyTree) initLastIndex(tx kv.Tx) (common.Hash, error) {
 	t.lastIndex = ldc
 	return root, nil
 }
+
 func (t *AppendOnlyTree) initLastLeftCache(tx kv.Tx, lastIndex int64, lastRoot common.Hash) error {
 	siblings := [defaultHeight]common.Hash{}
 	if lastIndex == -1 {

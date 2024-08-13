@@ -3,16 +3,15 @@ package lastgersync_test
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +28,7 @@ func TestE2E(t *testing.T) {
 		env.L1InfoTreeSync,
 		0,
 		0,
-		big.NewInt(int64(rpc.LatestBlockNumber)),
+		etherman.LatestBlock,
 		time.Millisecond*30,
 		10,
 	)
@@ -65,7 +64,7 @@ func TestE2E(t *testing.T) {
 		}
 		require.True(t, syncerUpToDate, errMsg)
 
-		actualGER, err := syncer.GetFirstGERAfterL1InfoTreeIndex(ctx, uint32(i))
+		_, actualGER, err := syncer.GetFirstGERAfterL1InfoTreeIndex(ctx, uint32(i))
 		require.NoError(t, err)
 		require.Equal(t, common.Hash(expectedGER), actualGER)
 	}

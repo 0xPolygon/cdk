@@ -54,7 +54,7 @@ func TestBridgeEventE2E(t *testing.T) {
 	rd, err := reorgdetector.New(ctx, client.Client(), dbPathReorg)
 	go rd.Start(ctx)
 
-	syncer, err := bridgesync.NewL1(ctx, dbPathSyncer, bridgeAddr, 10, etherman.LatestBlock, rd, client.Client(), 0, time.Millisecond*10)
+	syncer, err := bridgesync.NewL1(ctx, dbPathSyncer, bridgeAddr, 10, etherman.LatestBlock, rd, client.Client(), 0, time.Millisecond*10, 0, 0)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 

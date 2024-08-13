@@ -10,19 +10,25 @@ import (
 
 	zkevm "github.com/0xPolygon/cdk"
 	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
+	jRPC "github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/aggoracle"
 	"github.com/0xPolygon/cdk/aggoracle/chaingersender"
 	"github.com/0xPolygon/cdk/aggregator"
 	"github.com/0xPolygon/cdk/aggregator/db"
+	"github.com/0xPolygon/cdk/bridgesync"
+	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/config"
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/dataavailability/datacommittee"
 	"github.com/0xPolygon/cdk/etherman"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/etherman/contracts"
+	"github.com/0xPolygon/cdk/l1bridge2infoindexsync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
+	"github.com/0xPolygon/cdk/rpc"
 	"github.com/0xPolygon/cdk/sequencesender"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
@@ -53,6 +59,16 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	components := cliCtx.StringSlice(config.FlagComponents)
+	l1Client := runL1ClientIfNeeded(components, c.Etherman.URL)
+	l2Client := runL2ClientIfNeeded(components, c.AggOracle.EVMSender.URLRPCL2)
+	reorgDetectorL1 := runReorgDetectorL1IfNeeded(cliCtx.Context, components, l1Client, c.ReorgDetectorL1.DBPath)
+	reorgDetectorL2 := runReorgDetectorL2IfNeeded(cliCtx.Context, components, l2Client, c.ReorgDetectorL2.DBPath)
+	l1InfoTreeSync := runL1InfoTreeSyncerIfNeeded(cliCtx.Context, components, *c, l1Client, reorgDetectorL1)
+	claimSponsor := runClaimSponsorIfNeeded(cliCtx.Context, components, l2Client, c.ClaimSponsor)
+	l1BridgeSync := runBridgeSyncL1IfNeeded(cliCtx.Context, components, c.BridgeL1Sync, reorgDetectorL1, l1Client)
+	l2BridgeSync := runBridgeSyncL2IfNeeded(cliCtx.Context, components, c.BridgeL2Sync, reorgDetectorL2, l2Client)
+	l1Bridge2InfoIndexSync := runL1Bridge2InfoIndexSyncIfNeeded(cliCtx.Context, components, c.L1Bridge2InfoIndexSync, l1BridgeSync, l1InfoTreeSync, l1Client)
+	lastGERSync := runLastGERSyncIfNeeded(cliCtx.Context, components, c.LastGERSync, reorgDetectorL2, l2Client, l1InfoTreeSync)
 
 	for _, component := range components {
 		switch component {
@@ -71,16 +87,24 @@ func start(cliCtx *cli.Context) error {
 				}
 			}()
 		case AGGORACLE:
-			l1Client, err := ethclient.Dial(c.AggOracle.URLRPCL1)
-			if err != nil {
-				log.Fatal(err)
-			}
-			reorgDetector := newReorgDetectorL1(cliCtx.Context, *c, l1Client)
-			go reorgDetector.Start(cliCtx.Context)
-			syncer := newL1InfoTreeSyncer(cliCtx.Context, *c, l1Client, reorgDetector)
-			go syncer.Start(cliCtx.Context)
-			aggOracle := createAggoracle(*c, l1Client, syncer)
+			aggOracle := createAggoracle(*c, l1Client, l2Client, l1InfoTreeSync)
 			go aggOracle.Start(cliCtx.Context)
+		case RPC:
+			server := createRPC(
+				c.RPC,
+				c.Common.NetworkID,
+				claimSponsor,
+				l1InfoTreeSync,
+				l1Bridge2InfoIndexSync,
+				lastGERSync,
+				l1BridgeSync,
+				l2BridgeSync,
+			)
+			go func() {
+				if err := server.Start(); err != nil {
+					log.Fatal(err)
+				}
+			}()
 		}
 	}
 
@@ -198,7 +222,7 @@ func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuild
 	return txBuilder, err
 }
 
-func createAggoracle(cfg config.Config, l1Client *ethclient.Client, syncer *l1infotreesync.L1InfoTreeSync) *aggoracle.AggOracle {
+func createAggoracle(cfg config.Config, l1Client, l2Client *ethclient.Client, syncer *l1infotreesync.L1InfoTreeSync) *aggoracle.AggOracle {
 	var sender aggoracle.ChainSender
 	switch cfg.AggOracle.TargetChainType {
 	case aggoracle.EVMChain:
@@ -212,14 +236,10 @@ func createAggoracle(cfg config.Config, l1Client *ethclient.Client, syncer *l1in
 			log.Fatal(err)
 		}
 		go ethTxManager.Start()
-		l2CLient, err := ethclient.Dial(cfg.AggOracle.EVMSender.URLRPCL2)
-		if err != nil {
-			log.Fatal(err)
-		}
 		sender, err = chaingersender.NewEVMChainGERSender(
 			cfg.AggOracle.EVMSender.GlobalExitRootL2Addr,
 			cfg.AggOracle.EVMSender.SenderAddr,
-			l2CLient,
+			l2Client,
 			ethTxManager,
 			cfg.AggOracle.EVMSender.GasOffset,
 			cfg.AggOracle.EVMSender.WaitPeriodMonitorTx.Duration,
@@ -360,25 +380,40 @@ func newState(c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.St
 	return st
 }
 
-func newReorgDetectorL1(
+func newReorgDetector(
 	ctx context.Context,
-	cfg config.Config,
-	l1Client *ethclient.Client,
+	dbPath string,
+	client *ethclient.Client,
 ) *reorgdetector.ReorgDetector {
-	rd, err := reorgdetector.New(ctx, l1Client, cfg.ReorgDetectorL1.DBPath)
+	rd, err := reorgdetector.New(ctx, client, dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return rd
 }
 
-func newL1InfoTreeSyncer(
+func isNeeded(casesWhereNeeded, actualCases []string) bool {
+	for _, actaulCase := range actualCases {
+		for _, caseWhereNeeded := range casesWhereNeeded {
+			if actaulCase == caseWhereNeeded {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func runL1InfoTreeSyncerIfNeeded(
 	ctx context.Context,
+	components []string,
 	cfg config.Config,
 	l1Client *ethclient.Client,
 	reorgDetector *reorgdetector.ReorgDetector,
 ) *l1infotreesync.L1InfoTreeSync {
-	syncer, err := l1infotreesync.New(
+	if !isNeeded([]string{AGGORACLE, RPC}, components) {
+		return nil
+	}
+	l1InfoTreeSync, err := l1infotreesync.New(
 		ctx,
 		cfg.L1InfoTreeSync.DBPath,
 		cfg.L1InfoTreeSync.GlobalExitRootAddr,
@@ -395,5 +430,231 @@ func newL1InfoTreeSyncer(
 	if err != nil {
 		log.Fatal(err)
 	}
-	return syncer
+	go l1InfoTreeSync.Start(ctx)
+	return l1InfoTreeSync
+}
+
+func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client {
+	if !isNeeded([]string{SEQUENCE_SENDER, AGGREGATOR, AGGORACLE, RPC}, components) {
+		return nil
+	}
+	log.Debugf("dialing L1 client at: %s", urlRPCL1)
+	l1CLient, err := ethclient.Dial(urlRPCL1)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return l1CLient
+}
+
+func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client {
+	if !isNeeded([]string{AGGORACLE, RPC}, components) {
+		return nil
+	}
+	log.Debugf("dialing L2 client at: %s", urlRPCL2)
+	l2CLient, err := ethclient.Dial(urlRPCL2)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return l2CLient
+}
+
+func runReorgDetectorL1IfNeeded(ctx context.Context, components []string, l1Client *ethclient.Client, dbPath string) *reorgdetector.ReorgDetector {
+	if !isNeeded([]string{SEQUENCE_SENDER, AGGREGATOR, AGGORACLE, RPC}, components) {
+		return nil
+	}
+	rd := newReorgDetector(ctx, dbPath, l1Client)
+	go rd.Start(ctx)
+	return rd
+}
+
+func runReorgDetectorL2IfNeeded(ctx context.Context, components []string, l2Client *ethclient.Client, dbPath string) *reorgdetector.ReorgDetector {
+	if !isNeeded([]string{AGGORACLE, RPC}, components) {
+		return nil
+	}
+	rd := newReorgDetector(ctx, dbPath, l2Client)
+	go rd.Start(ctx)
+	return rd
+}
+
+func runClaimSponsorIfNeeded(
+	ctx context.Context,
+	components []string,
+	l2Client *ethclient.Client,
+	cfg claimsponsor.EVMClaimSponsorConfig,
+) *claimsponsor.ClaimSponsor {
+	if !isNeeded([]string{RPC}, components) || !cfg.Enabled {
+		return nil
+	}
+	// In the future there may support different backends other than EVM, and this will require different config.
+	// But today only EVM is supported
+	ethTxManagerL2, err := ethtxmanager.New(cfg.EthTxManager)
+	if err != nil {
+		log.Fatal(err)
+	}
+	go ethTxManagerL2.Start()
+	cs, err := claimsponsor.NewEVMClaimSponsor(
+		cfg.DBPath,
+		l2Client,
+		cfg.BridgeAddrL2,
+		cfg.SenderAddr,
+		cfg.MaxGas,
+		cfg.GasOffset,
+		ethTxManagerL2,
+		cfg.RetryAfterErrorPeriod.Duration,
+		cfg.MaxRetryAttemptsAfterError,
+		cfg.WaitTxToBeMinedPeriod.Duration,
+		cfg.WaitTxToBeMinedPeriod.Duration,
+	)
+	if err != nil {
+		log.Fatalf("error creating claim sponsor: %s", err)
+	}
+	go cs.Start(ctx)
+	return cs
+}
+
+func runL1Bridge2InfoIndexSyncIfNeeded(
+	ctx context.Context,
+	components []string,
+	cfg l1bridge2infoindexsync.Config,
+	l1BridgeSync *bridgesync.BridgeSync,
+	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
+	l1Client *ethclient.Client,
+) *l1bridge2infoindexsync.L1Bridge2InfoIndexSync {
+	if !isNeeded([]string{RPC}, components) {
+		return nil
+	}
+	l1Bridge2InfoIndexSync, err := l1bridge2infoindexsync.New(
+		cfg.DBPath,
+		l1BridgeSync,
+		l1InfoTreeSync,
+		l1Client,
+		cfg.RetryAfterErrorPeriod.Duration,
+		cfg.MaxRetryAttemptsAfterError,
+		cfg.WaitForSyncersPeriod.Duration,
+	)
+	if err != nil {
+		log.Fatalf("error creating l1Bridge2InfoIndexSync: %s", err)
+	}
+	go l1Bridge2InfoIndexSync.Start(ctx)
+	return l1Bridge2InfoIndexSync
+}
+
+func runLastGERSyncIfNeeded(
+	ctx context.Context,
+	components []string,
+	cfg lastgersync.Config,
+	reorgDetectorL2 *reorgdetector.ReorgDetector,
+	l2Client *ethclient.Client,
+	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
+) *lastgersync.LastGERSync {
+	if !isNeeded([]string{RPC}, components) {
+		return nil
+	}
+	lastGERSync, err := lastgersync.New(
+		ctx,
+		cfg.DBPath,
+		reorgDetectorL2,
+		l2Client,
+		cfg.GlobalExitRootL2Addr,
+		l1InfoTreeSync,
+		cfg.RetryAfterErrorPeriod.Duration,
+		cfg.MaxRetryAttemptsAfterError,
+		etherman.BlockNumberFinality(cfg.BlockFinality),
+		cfg.WaitForNewBlocksPeriod.Duration,
+		cfg.DownloadBufferSize,
+	)
+	if err != nil {
+		log.Fatalf("error creating lastGERSync: %s", err)
+	}
+	go lastGERSync.Start(ctx)
+	return lastGERSync
+}
+
+func runBridgeSyncL1IfNeeded(
+	ctx context.Context,
+	components []string,
+	cfg bridgesync.Config,
+	reorgDetectorL1 *reorgdetector.ReorgDetector,
+	l1Client *ethclient.Client,
+) *bridgesync.BridgeSync {
+	if !isNeeded([]string{RPC}, components) {
+		return nil
+	}
+	bridgeSyncL1, err := bridgesync.NewL1(
+		ctx,
+		cfg.DBPath,
+		cfg.BridgeAddr,
+		cfg.SyncBlockChunkSize,
+		etherman.BlockNumberFinality(cfg.BlockFinality),
+		reorgDetectorL1,
+		l1Client,
+		cfg.InitialBlockNum,
+		cfg.WaitForNewBlocksPeriod.Duration,
+		cfg.RetryAfterErrorPeriod.Duration,
+		cfg.MaxRetryAttemptsAfterError,
+	)
+	if err != nil {
+		log.Fatalf("error creating bridgeSyncL1: %s", err)
+	}
+	go bridgeSyncL1.Start(ctx)
+	return bridgeSyncL1
+}
+
+func runBridgeSyncL2IfNeeded(
+	ctx context.Context,
+	components []string,
+	cfg bridgesync.Config,
+	reorgDetectorL2 *reorgdetector.ReorgDetector,
+	l2Client *ethclient.Client,
+) *bridgesync.BridgeSync {
+	// TODO: will be needed by AGGSENDER
+	if !isNeeded([]string{RPC}, components) {
+		return nil
+	}
+	bridgeSyncL2, err := bridgesync.NewL2(
+		ctx,
+		cfg.DBPath,
+		cfg.BridgeAddr,
+		cfg.SyncBlockChunkSize,
+		etherman.BlockNumberFinality(cfg.BlockFinality),
+		reorgDetectorL2,
+		l2Client,
+		cfg.InitialBlockNum,
+		cfg.WaitForNewBlocksPeriod.Duration,
+		cfg.RetryAfterErrorPeriod.Duration,
+		cfg.MaxRetryAttemptsAfterError,
+	)
+	if err != nil {
+		log.Fatalf("error creating bridgeSyncL2: %s", err)
+	}
+	go bridgeSyncL2.Start(ctx)
+	return bridgeSyncL2
+}
+
+func createRPC(
+	cfg jRPC.Config,
+	cdkNetworkID uint32,
+	sponsor *claimsponsor.ClaimSponsor,
+	l1InfoTree *l1infotreesync.L1InfoTreeSync,
+	l1Bridge2Index *l1bridge2infoindexsync.L1Bridge2InfoIndexSync,
+	injectedGERs *lastgersync.LastGERSync,
+	bridgeL1 *bridgesync.BridgeSync,
+	bridgeL2 *bridgesync.BridgeSync,
+) *jRPC.Server {
+	return jRPC.NewServer(cfg, []jRPC.Service{
+		{
+			Name: rpc.BRIDGE,
+			Service: rpc.NewBridgeEndpoints(
+				cfg.WriteTimeout.Duration,
+				cfg.ReadTimeout.Duration,
+				cdkNetworkID,
+				sponsor,
+				l1InfoTree,
+				l1Bridge2Index,
+				injectedGERs,
+				bridgeL1,
+				bridgeL2,
+			),
+		},
+	})
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
+	configTypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -47,6 +48,33 @@ type EVMClaimSponsor struct {
 	maxGas         uint64
 }
 
+type EVMClaimSponsorConfig struct {
+	// DBPath path of the DB
+	DBPath string `mapstructure:"DBPath"`
+	// Enabled indicates if the sponsor should be run or not
+	Enabled bool `mapstructure:"Enabled"`
+	// SenderAddr is the address that will be used to send the claim txs
+	SenderAddr common.Address `mapstructure:"SenderAddr"`
+	// BridgeAddrL2 is the address of the bridge smart contract on L2
+	BridgeAddrL2 common.Address `mapstructure:"BridgeAddrL2"`
+	// MaxGas is the max gas (limit) allowed for a claim to be sponsored
+	MaxGas uint64 `mapstructure:"MaxGas"`
+	// RetryAfterErrorPeriod is the time that will be waited when an unexpected error happens before retry
+	RetryAfterErrorPeriod configTypes.Duration `mapstructure:"RetryAfterErrorPeriod"`
+	// MaxRetryAttemptsAfterError is the maximum number of consecutive attempts that will happen before panicing.
+	// Any number smaller than zero will be considered as unlimited retries
+	MaxRetryAttemptsAfterError int `mapstructure:"MaxRetryAttemptsAfterError"`
+	// WaitTxToBeMinedPeriod is the period that will be used to ask if a given tx has been mined (or failed)
+	WaitTxToBeMinedPeriod configTypes.Duration `mapstructure:"WaitTxToBeMinedPeriod"`
+	// WaitOnEmptyQueue is the time that will be waited before trying to send the next claim of the queue
+	// if the queue is empty
+	WaitOnEmptyQueue configTypes.Duration `mapstructure:"WaitOnEmptyQueue"`
+	// EthTxManager is the configuration of the EthTxManager to be used by the claim sponsor
+	EthTxManager ethtxmanager.Config `mapstructure:"EthTxManager"`
+	// GasOffset is the gas to add on top of the estimated gas when sending the claim txs
+	GasOffset uint64 `mapstructure:"GasOffset"`
+}
+
 func NewEVMClaimSponsor(
 	dbPath string,
 	l2Client EthClienter,
@@ -58,7 +86,7 @@ func NewEVMClaimSponsor(
 	maxRetryAttemptsAfterError int,
 	waitTxToBeMinedPeriod time.Duration,
 	waitOnEmptyQueue time.Duration,
-) (*EVMClaimSponsor, error) {
+) (*ClaimSponsor, error) {
 	contract, err := polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridge, l2Client)
 	if err != nil {
 		return nil, err
@@ -89,7 +117,7 @@ func NewEVMClaimSponsor(
 		return nil, err
 	}
 	evmSponsor.ClaimSponsor = baseSponsor
-	return evmSponsor, nil
+	return baseSponsor, nil
 }
 
 func (c *EVMClaimSponsor) checkClaim(ctx context.Context, claim *Claim) error {
