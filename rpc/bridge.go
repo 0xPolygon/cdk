@@ -132,6 +132,7 @@ func (b *BridgeEndpoints) InjectedInfoAfterIndex(networkID uint32, l1InfoTreeInd
 type ClaimProof struct {
 	ProofLocalExitRoot  [32]common.Hash
 	ProofRollupExitRoot [32]common.Hash
+	L1InfoTreeLeaf      l1infotreesync.L1InfoTreeLeaf
 }
 
 // ClaimProof returns the proofs needed to claim a bridge. NetworkID and depositCount refere to the bridge origin
@@ -176,6 +177,7 @@ func (b *BridgeEndpoints) ClaimProof(networkID uint32, depositCount uint32, l1In
 	return ClaimProof{
 		ProofLocalExitRoot:  proofLocalExitRoot,
 		ProofRollupExitRoot: proofRollupExitRoot,
+		L1InfoTreeLeaf:      *info,
 	}, nil
 }
 
