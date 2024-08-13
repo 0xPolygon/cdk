@@ -338,6 +338,7 @@ func (c *ClaimSponsor) GetClaim(ctx context.Context, globalIndex *big.Int) (*Cla
 	if err != nil {
 		return nil, err
 	}
+	defer tx.Rollback()
 	return getClaim(tx, globalIndex)
 }
 
