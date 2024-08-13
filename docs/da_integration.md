@@ -42,7 +42,7 @@ And in particular this [piece of code](https://github.com/0xPolygonHermez/zkevm-
     );
 ```
 
-This is what the data availability committee uses, but the `PolygonDataCommittee` smart contract can be modified, as long as it follows the interface. The `dataAvailabilityMessage` is an input parameter that can be used in any arbitrary way. **So DAs could use this to add custom logic on L1.**
+It's expected that any protocol build their own contract that follows [this interface](https://github.com/0xPolygonHermez/zkevm-contracts/blob/feature/banana/contracts/v2/interfaces/IDataAvailabilityProtocol.sol#L5), in the same way that the `PolygonDataCommittee` does. The implementation of `verifyMessage` is dependant on each protocol, and in a first iteration could be "dummy", since the AggLayer will ensure that the DA is actually available anyway. That being said we expect protocol integrations to evolve towards "trustless verification"
 
 ## Setup the Node
 
@@ -62,11 +62,11 @@ These items would need to be implemented to have a successful integration:
 
 ## Test the integration
 
-1. Create an E2E test that uses your protocol, as it’s done for the DAC here
-2. Generate a docker image with your changes in the node: make build-docker
-3. Update the L1 config with values from the docker deployment (after successfully generating the docker image, a directory should be created under `docker/deploymentOutput`).
-4. Update the contracts docker image with the one you tagged before (in the example hermeznetwork/geth-cdk-validium-contracts:XXXX) here
-5. Modify the Makefile to be able to run your test, take the case of the DAC test as an example here
+1. Create an E2E test that uses your protocol by following the [test/e2e/datacommittee_test.go](https://github.com/0xPolygon/cdk-validium-node/blob/develop/test/e2e/datacommittee_test.go) example.
+2. Follow the instructions on [Local Debug](local_debug.md) to run Kurtosis enviroment for local testing
+4. Deploy the new contract contract to L1 running in Kurtosis
+4. Call `setDataAvailabilityProtocol` in validium consensus contract to use the newly deployed contract.
+5. Modify the `Makefile` to be able to run your test, take the case of the DAC test as an example here
 
 ### Example flow
 
