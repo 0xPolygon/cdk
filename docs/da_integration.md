@@ -16,7 +16,7 @@ The versions of the smart contracts that are being targeted for the DA integrati
 - Validium to implement a validium.
 - Adding a custom solution. 
 
-This document only considers the first approach, reusing the `PolygonValidium` consensus. That being said, the `PolygonValidium` implementation allows a custom smart contract to be used in the relevant interaction. This could be used by DAs to add custom on-chain verification logic, although this is optional, and the contracts can be reused as they are. 
+This document only considers the first approach, reusing the `PolygonValidium` consensus. That being said, the `PolygonValidium` implementation allows a custom smart contract to be used in the relevant interaction. This could be used by DAs to add custom on-chain verification logic. While verifying the DA integrity is optional, any new protocol will need to develop a custom smart contract in order to be successfully  integrated (more details bellow)
 
 This is by far the [most relevant part of the contract for DAs](https://github.com/0xPolygonHermez/zkevm-contracts/blob/533641301223a1e413b2e8f0323354671f310922/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol#L91C5-L98C36):
 

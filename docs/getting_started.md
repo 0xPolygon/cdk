@@ -1,6 +1,6 @@
 # Welcome to Polygon CDK Tech Docs
 
-Welcome to the official documentation for the Polygon CDK (Chain Development Kit). This guide will help you get started with building and deploying decentralized applications using the Polygon CDK.
+Welcome to the official documentation for the Polygon CDK (Chain Development Kit). This guide will help you get started with building and deploying rollups using the Polygon CDK.
 
 ## Getting Started
 
@@ -10,7 +10,7 @@ To get started with Polygon CDK, follow these steps:
 ## Documentation
 
 Explore the comprehensive documentation to understand the various features and capabilities of the Polygon CDK:
-- [API Reference](api_reference.md)
+- [3rd party data availability integration](da_integration.md)
 
 ## Support
 
