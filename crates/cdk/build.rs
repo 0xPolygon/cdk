@@ -22,7 +22,7 @@ fn main() {
     // If your Makefile is in a different directory, adjust `build_path` accordingly
 
     // Call the make command
-    let output = Command::new("/bin/make")
+    let output = Command::new("make")
         .arg("build") // Create a new make command
         .current_dir(build_path) // Set the current directory for the command
         .output() // Execute the command and capture the output
