@@ -1,20 +1,23 @@
-package localbridgesync
+package bridgesync
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
+	"os"
 	"slices"
 	"testing"
 
 	"github.com/0xPolygon/cdk/sync"
+	"github.com/0xPolygon/cdk/tree/testvectors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
 
 func TestProceessor(t *testing.T) {
 	path := t.TempDir()
-	p, err := newProcessor(path)
+	p, err := newProcessor(context.Background(), path, "foo")
 	require.NoError(t, err)
 	actions := []processAction{
 		// processed: ~
@@ -252,7 +255,7 @@ var (
 				DestinationAddress: common.HexToAddress("01"),
 				Amount:             big.NewInt(1),
 				Metadata:           common.Hex2Bytes("01"),
-				DepositCount:       1,
+				DepositCount:       0,
 			}},
 			Event{Claim: &Claim{
 				GlobalIndex:        big.NewInt(1),
@@ -274,7 +277,7 @@ var (
 				DestinationAddress: common.HexToAddress("02"),
 				Amount:             big.NewInt(2),
 				Metadata:           common.Hex2Bytes("02"),
-				DepositCount:       2,
+				DepositCount:       1,
 			}},
 			Event{Bridge: &Bridge{
 				LeafType:           3,
@@ -284,7 +287,7 @@ var (
 				DestinationAddress: common.HexToAddress("03"),
 				Amount:             nil,
 				Metadata:           common.Hex2Bytes("03"),
-				DepositCount:       3,
+				DepositCount:       2,
 			}},
 		},
 	}
@@ -389,7 +392,7 @@ func (a *reorgAction) desc() string {
 }
 
 func (a *reorgAction) execute(t *testing.T) {
-	actualErr := a.p.Reorg(a.firstReorgedBlock)
+	actualErr := a.p.Reorg(context.Background(), a.firstReorgedBlock)
 	require.Equal(t, a.expectedErr, actualErr)
 }
 
@@ -411,7 +414,7 @@ func (a *processBlockAction) desc() string {
 }
 
 func (a *processBlockAction) execute(t *testing.T) {
-	actualErr := a.p.ProcessBlock(a.block)
+	actualErr := a.p.ProcessBlock(context.Background(), a.block)
 	require.Equal(t, a.expectedErr, actualErr)
 }
 
@@ -421,4 +424,31 @@ func eventsToBridgeEvents(events []interface{}) []Event {
 		bridgeEvents = append(bridgeEvents, event.(Event))
 	}
 	return bridgeEvents
+}
+
+func TestHashBridge(t *testing.T) {
+	data, err := os.ReadFile("../tree/testvectors/leaf-vectors.json")
+	require.NoError(t, err)
+
+	var leafVectors []testvectors.DepositVectorRaw
+	err = json.Unmarshal(data, &leafVectors)
+	require.NoError(t, err)
+
+	for ti, testVector := range leafVectors {
+		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
+			amount, err := big.NewInt(0).SetString(testVector.Amount, 0)
+			require.True(t, err)
+
+			bridge := Bridge{
+				OriginNetwork:      testVector.OriginNetwork,
+				OriginAddress:      common.HexToAddress(testVector.TokenAddress),
+				Amount:             amount,
+				DestinationNetwork: testVector.DestinationNetwork,
+				DestinationAddress: common.HexToAddress(testVector.DestinationAddress),
+				DepositCount:       uint32(ti + 1),
+				Metadata:           common.FromHex(testVector.Metadata),
+			}
+			require.Equal(t, common.HexToHash(testVector.ExpectedHash), bridge.Hash())
+		})
+	}
 }

@@ -27,10 +27,6 @@ func (_m *SequenceRetriever) EXPECT() *SequenceRetriever_Expecter {
 func (_m *SequenceRetriever) GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
 	ret := _m.Called(ctx, batchHashes, dataAvailabilityMessage)
 
-	if len(ret) == 0 {
-		panic("no return value specified for GetSequence")
-	}
-
 	var r0 [][]byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, []common.Hash, []byte) ([][]byte, error)); ok {
@@ -83,12 +79,13 @@ func (_c *SequenceRetriever_GetSequence_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
-// NewSequenceRetriever creates a new instance of SequenceRetriever. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func NewSequenceRetriever(t interface {
+type mockConstructorTestingTNewSequenceRetriever interface {
 	mock.TestingT
 	Cleanup(func())
-}) *SequenceRetriever {
+}
+
+// NewSequenceRetriever creates a new instance of SequenceRetriever. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+func NewSequenceRetriever(t mockConstructorTestingTNewSequenceRetriever) *SequenceRetriever {
 	mock := &SequenceRetriever{}
 	mock.Mock.Test(t)
 

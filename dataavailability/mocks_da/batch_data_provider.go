@@ -25,10 +25,6 @@ func (_m *BatchDataProvider) EXPECT() *BatchDataProvider_Expecter {
 func (_m *BatchDataProvider) GetBatchL2Data(batchNum []uint64, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
 	ret := _m.Called(batchNum, batchHashes, dataAvailabilityMessage)
 
-	if len(ret) == 0 {
-		panic("no return value specified for GetBatchL2Data")
-	}
-
 	var r0 [][]byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func([]uint64, []common.Hash, []byte) ([][]byte, error)); ok {
@@ -81,12 +77,13 @@ func (_c *BatchDataProvider_GetBatchL2Data_Call) RunAndReturn(run func([]uint64,
 	return _c
 }
 
-// NewBatchDataProvider creates a new instance of BatchDataProvider. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func NewBatchDataProvider(t interface {
+type mockConstructorTestingTNewBatchDataProvider interface {
 	mock.TestingT
 	Cleanup(func())
-}) *BatchDataProvider {
+}
+
+// NewBatchDataProvider creates a new instance of BatchDataProvider. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+func NewBatchDataProvider(t mockConstructorTestingTNewBatchDataProvider) *BatchDataProvider {
 	mock := &BatchDataProvider{}
 	mock.Mock.Test(t)
 

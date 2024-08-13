@@ -24,10 +24,6 @@ func (_m *GlobalExitRootBananaZKEVMContractor) EXPECT() *GlobalExitRootBananaZKE
 func (_m *GlobalExitRootBananaZKEVMContractor) L1InfoRootMap(opts *bind.CallOpts, index uint32) ([32]byte, error) {
 	ret := _m.Called(opts, index)
 
-	if len(ret) == 0 {
-		panic("no return value specified for L1InfoRootMap")
-	}
-
 	var r0 [32]byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func(*bind.CallOpts, uint32) ([32]byte, error)); ok {
@@ -83,10 +79,6 @@ func (_c *GlobalExitRootBananaZKEVMContractor_L1InfoRootMap_Call) RunAndReturn(r
 func (_m *GlobalExitRootBananaZKEVMContractor) String() string {
 	ret := _m.Called()
 
-	if len(ret) == 0 {
-		panic("no return value specified for String")
-	}
-
 	var r0 string
 	if rf, ok := ret.Get(0).(func() string); ok {
 		r0 = rf()
@@ -124,12 +116,13 @@ func (_c *GlobalExitRootBananaZKEVMContractor_String_Call) RunAndReturn(run func
 	return _c
 }
 
-// NewGlobalExitRootBananaZKEVMContractor creates a new instance of GlobalExitRootBananaZKEVMContractor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func NewGlobalExitRootBananaZKEVMContractor(t interface {
+type mockConstructorTestingTNewGlobalExitRootBananaZKEVMContractor interface {
 	mock.TestingT
 	Cleanup(func())
-}) *GlobalExitRootBananaZKEVMContractor {
+}
+
+// NewGlobalExitRootBananaZKEVMContractor creates a new instance of GlobalExitRootBananaZKEVMContractor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+func NewGlobalExitRootBananaZKEVMContractor(t mockConstructorTestingTNewGlobalExitRootBananaZKEVMContractor) *GlobalExitRootBananaZKEVMContractor {
 	mock := &GlobalExitRootBananaZKEVMContractor{}
 	mock.Mock.Test(t)
 

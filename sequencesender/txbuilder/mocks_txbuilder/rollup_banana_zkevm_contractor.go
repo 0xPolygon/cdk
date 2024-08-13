@@ -30,10 +30,6 @@ func (_m *RollupBananaZKEVMContractor) EXPECT() *RollupBananaZKEVMContractor_Exp
 func (_m *RollupBananaZKEVMContractor) LastAccInputHash(opts *bind.CallOpts) ([32]byte, error) {
 	ret := _m.Called(opts)
 
-	if len(ret) == 0 {
-		panic("no return value specified for LastAccInputHash")
-	}
-
 	var r0 [32]byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func(*bind.CallOpts) ([32]byte, error)); ok {
@@ -87,10 +83,6 @@ func (_c *RollupBananaZKEVMContractor_LastAccInputHash_Call) RunAndReturn(run fu
 // SequenceBatches provides a mock function with given fields: opts, batches, indexL1InfoRoot, maxSequenceTimestamp, expectedFinalAccInputHash, l2Coinbase
 func (_m *RollupBananaZKEVMContractor) SequenceBatches(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, indexL1InfoRoot uint32, maxSequenceTimestamp uint64, expectedFinalAccInputHash [32]byte, l2Coinbase common.Address) (*types.Transaction, error) {
 	ret := _m.Called(opts, batches, indexL1InfoRoot, maxSequenceTimestamp, expectedFinalAccInputHash, l2Coinbase)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SequenceBatches")
-	}
 
 	var r0 *types.Transaction
 	var r1 error
@@ -147,12 +139,13 @@ func (_c *RollupBananaZKEVMContractor_SequenceBatches_Call) RunAndReturn(run fun
 	return _c
 }
 
-// NewRollupBananaZKEVMContractor creates a new instance of RollupBananaZKEVMContractor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func NewRollupBananaZKEVMContractor(t interface {
+type mockConstructorTestingTNewRollupBananaZKEVMContractor interface {
 	mock.TestingT
 	Cleanup(func())
-}) *RollupBananaZKEVMContractor {
+}
+
+// NewRollupBananaZKEVMContractor creates a new instance of RollupBananaZKEVMContractor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+func NewRollupBananaZKEVMContractor(t mockConstructorTestingTNewRollupBananaZKEVMContractor) *RollupBananaZKEVMContractor {
 	mock := &RollupBananaZKEVMContractor{}
 	mock.Mock.Test(t)
 
