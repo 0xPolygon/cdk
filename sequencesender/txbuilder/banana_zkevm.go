@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 type TxBuilderBananaZKEVM struct {
@@ -48,7 +47,7 @@ func (t *TxBuilderBananaZKEVM) SetCondNewSeq(cond CondNewSequence) CondNewSequen
 	return previous
 }
 
-func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
+func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
 	var err error
 	ethseq, err := convertToSequenceBanana(sequences)
 	if err != nil {
@@ -71,7 +70,7 @@ func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, seque
 	return tx, nil
 }
 
-func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, sequence etherman.SequenceBanana) (*ethtypes.Transaction, error) {
+func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, sequence etherman.SequenceBanana) (*types.Transaction, error) {
 	batches := make([]polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, len(sequence.Batches))
 	for i, batch := range sequence.Batches {
 		var ger common.Hash

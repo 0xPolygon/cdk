@@ -81,18 +81,18 @@ func TestSync(t *testing.T) {
 		Return(uint64(3), nil)
 	rdm.On("AddBlockToTrack", ctx, reorgDetectorID, expectedBlock1.Num, expectedBlock1.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", Block{Num: expectedBlock1.Num, Events: expectedBlock1.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: expectedBlock1.Num, Events: expectedBlock1.Events}).
 		Return(nil)
 	rdm.On("AddBlockToTrack", ctx, reorgDetectorID, expectedBlock2.Num, expectedBlock2.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", Block{Num: expectedBlock2.Num, Events: expectedBlock2.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: expectedBlock2.Num, Events: expectedBlock2.Events}).
 		Return(nil)
 	go driver.Sync(ctx)
 	time.Sleep(time.Millisecond * 200) // time to download expectedBlock1
 
 	// Trigger reorg 1
 	reorgedBlock1 := uint64(5)
-	pm.On("Reorg", reorgedBlock1).Return(nil)
+	pm.On("Reorg", ctx, reorgedBlock1).Return(nil)
 	firstReorgedBlock <- reorgedBlock1
 	ok := <-reorgProcessed
 	require.True(t, ok)
@@ -103,7 +103,7 @@ func TestSync(t *testing.T) {
 
 	// Trigger reorg 2: syncer restarts the porcess
 	reorgedBlock2 := uint64(7)
-	pm.On("Reorg", reorgedBlock2).Return(nil)
+	pm.On("Reorg", ctx, reorgedBlock2).Return(nil)
 	firstReorgedBlock <- reorgedBlock2
 	ok = <-reorgProcessed
 	require.True(t, ok)
@@ -132,7 +132,7 @@ func TestHandleNewBlock(t *testing.T) {
 	rdm.
 		On("AddBlockToTrack", ctx, reorgDetectorID, b1.Num, b1.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", Block{Num: b1.Num, Events: b1.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: b1.Num, Events: b1.Events}).
 		Return(nil)
 	driver.handleNewBlock(ctx, b1)
 
@@ -149,7 +149,7 @@ func TestHandleNewBlock(t *testing.T) {
 	rdm.
 		On("AddBlockToTrack", ctx, reorgDetectorID, b2.Num, b2.Hash).
 		Return(nil).Once()
-	pm.On("ProcessBlock", Block{Num: b2.Num, Events: b2.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: b2.Num, Events: b2.Events}).
 		Return(nil)
 	driver.handleNewBlock(ctx, b2)
 
@@ -163,9 +163,9 @@ func TestHandleNewBlock(t *testing.T) {
 	rdm.
 		On("AddBlockToTrack", ctx, reorgDetectorID, b3.Num, b3.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", Block{Num: b3.Num, Events: b3.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: b3.Num, Events: b3.Events}).
 		Return(errors.New("foo")).Once()
-	pm.On("ProcessBlock", Block{Num: b3.Num, Events: b3.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: b3.Num, Events: b3.Events}).
 		Return(nil).Once()
 	driver.handleNewBlock(ctx, b3)
 
@@ -191,8 +191,8 @@ func TestHandleReorg(t *testing.T) {
 	_, cancel := context.WithCancel(ctx)
 	downloadCh := make(chan EVMBlock)
 	firstReorgedBlock := uint64(5)
-	pm.On("Reorg", firstReorgedBlock).Return(nil)
-	go driver.handleReorg(cancel, downloadCh, firstReorgedBlock)
+	pm.On("Reorg", ctx, firstReorgedBlock).Return(nil)
+	go driver.handleReorg(ctx, cancel, downloadCh, firstReorgedBlock)
 	close(downloadCh)
 	done := <-reorgProcessed
 	require.True(t, done)
@@ -201,8 +201,8 @@ func TestHandleReorg(t *testing.T) {
 	_, cancel = context.WithCancel(ctx)
 	downloadCh = make(chan EVMBlock)
 	firstReorgedBlock = uint64(6)
-	pm.On("Reorg", firstReorgedBlock).Return(nil)
-	go driver.handleReorg(cancel, downloadCh, firstReorgedBlock)
+	pm.On("Reorg", ctx, firstReorgedBlock).Return(nil)
+	go driver.handleReorg(ctx, cancel, downloadCh, firstReorgedBlock)
 	downloadCh <- EVMBlock{}
 	downloadCh <- EVMBlock{}
 	downloadCh <- EVMBlock{}
@@ -214,10 +214,10 @@ func TestHandleReorg(t *testing.T) {
 	_, cancel = context.WithCancel(ctx)
 	downloadCh = make(chan EVMBlock)
 	firstReorgedBlock = uint64(7)
-	pm.On("Reorg", firstReorgedBlock).Return(errors.New("foo")).Once()
-	pm.On("Reorg", firstReorgedBlock).Return(errors.New("foo")).Once()
-	pm.On("Reorg", firstReorgedBlock).Return(nil).Once()
-	go driver.handleReorg(cancel, downloadCh, firstReorgedBlock)
+	pm.On("Reorg", ctx, firstReorgedBlock).Return(errors.New("foo")).Once()
+	pm.On("Reorg", ctx, firstReorgedBlock).Return(errors.New("foo")).Once()
+	pm.On("Reorg", ctx, firstReorgedBlock).Return(nil).Once()
+	go driver.handleReorg(ctx, cancel, downloadCh, firstReorgedBlock)
 	close(downloadCh)
 	done = <-reorgProcessed
 	require.True(t, done)

@@ -1,10 +1,10 @@
 .PHONY: generate-mocks
-generate-mocks: generate-mocks-localbridgesync generate-mocks-reorgdetector generate-mocks-sequencesender generate-mocks-da generate-mocks-l1infotreesync generate-mocks-aggoracle generate-mocks-sync
+generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-mocks-sequencesender generate-mocks-da generate-mocks-l1infotreesync generate-mocks-aggoracle generate-mocks-sync
 
 
-.PHONY: generate-mocks-localbridgesync
-generate-mocks-localbridgesync: ## Generates mocks for localbridgesync, using mockery tool
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthClienter --dir=../localbridgesync --output=../localbridgesync --outpkg=localbridgesync --inpackage --structname=L2Mock --filename=mock_l2_test.go
+.PHONY: generate-mocks-bridgesync
+generate-mocks-bridgesync: ## Generates mocks for bridgesync, using mockery tool
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthClienter --dir=../bridgesync --output=../bridgesync --outpkg=bridgesync --inpackage --structname=L2Mock --filename=mock_l2_test.go
 	
 .PHONY: generate-mocks-reorgdetector
 generate-mocks-reorgdetector: ## Generates mocks for reorgdetector, using mockery tool
@@ -24,11 +24,11 @@ generate-mocks-da: ## Generates mocks for dataavailability, using mockery tool
 
 .PHONY: test-e2e-elderberry-validium
 test-e2e-elderberry-validium: stop ## Runs e2e tests checking elderberry/validium
-	./run-e2e-seq_sender.sh cdk-validium
+	./run-e2e.sh cdk-validium
 
 .PHONY: test-e2e-elderberry-rollup
 test-e2e-elderberry-rollup: stop ## Runs e2e tests checking elderberry/rollup
-	./run-e2e-seq_sender.sh rollup
+	./run-e2e.sh rollup
 
 .PHONY: stop
 stop:

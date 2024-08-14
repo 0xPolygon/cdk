@@ -1,4 +1,4 @@
-package localbridgesync
+package bridgesync
 
 import (
 	"context"
@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	reorgDetectorID    = "localbridgesync"
+	bridgeSyncL1       = "bridgesyncl1"
+	bridgeSyncL2       = "bridgesyncl2"
 	downloadBufferSize = 1000
 )
 
@@ -24,17 +25,66 @@ type LocalBridgeSync struct {
 	driver    *sync.EVMDriver
 }
 
-func New(
+// NewL1 creates a bridge syncer that synchronizes the mainnet exit tree
+func NewL1(
 	ctx context.Context,
 	dbPath string,
 	bridge common.Address,
 	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
 	rd sync.ReorgDetector,
-	l2Client EthClienter,
+	ethClient EthClienter,
 	initialBlock uint64,
 ) (*LocalBridgeSync, error) {
-	processor, err := newProcessor(dbPath)
+	return new(
+		ctx,
+		dbPath,
+		bridge,
+		syncBlockChunkSize,
+		blockFinalityType,
+		rd,
+		ethClient,
+		initialBlock,
+		bridgeSyncL1,
+	)
+}
+
+// NewL2 creates a bridge syncer that synchronizes the local exit tree
+func NewL2(
+	ctx context.Context,
+	dbPath string,
+	bridge common.Address,
+	syncBlockChunkSize uint64,
+	blockFinalityType etherman.BlockNumberFinality,
+	rd sync.ReorgDetector,
+	ethClient EthClienter,
+	initialBlock uint64,
+) (*LocalBridgeSync, error) {
+	return new(
+		ctx,
+		dbPath,
+		bridge,
+		syncBlockChunkSize,
+		blockFinalityType,
+		rd,
+		ethClient,
+		initialBlock,
+		bridgeSyncL2,
+	)
+}
+
+func new(
+	ctx context.Context,
+	dbPath string,
+	bridge common.Address,
+	syncBlockChunkSize uint64,
+	blockFinalityType etherman.BlockNumberFinality,
+	rd sync.ReorgDetector,
+	ethClient EthClienter,
+	initialBlock uint64,
+	l1OrL2ID string,
+) (*LocalBridgeSync, error) {
+	processor, err := newProcessor(ctx, dbPath, l1OrL2ID)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +93,7 @@ func New(
 		return nil, err
 	}
 	if lastProcessedBlock < initialBlock {
-		err = processor.ProcessBlock(sync.Block{
+		err = processor.ProcessBlock(ctx, sync.Block{
 			Num: initialBlock,
 		})
 		if err != nil {
@@ -55,12 +105,12 @@ func New(
 		RetryAfterErrorPeriod:      retryAfterErrorPeriod,
 	}
 
-	appender, err := buildAppender(l2Client, bridge)
+	appender, err := buildAppender(ethClient, bridge)
 	if err != nil {
 		return nil, err
 	}
 	downloader, err := sync.NewEVMDownloader(
-		l2Client,
+		ethClient,
 		syncBlockChunkSize,
 		blockFinalityType,
 		waitForNewBlocksPeriod,
@@ -72,7 +122,7 @@ func New(
 		return nil, err
 	}
 
-	driver, err := sync.NewEVMDriver(rd, processor, downloader, reorgDetectorID, downloadBufferSize, rh)
+	driver, err := sync.NewEVMDriver(rd, processor, downloader, l1OrL2ID, downloadBufferSize, rh)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +132,7 @@ func New(
 	}, nil
 }
 
+// Start starts the synchronization process
 func (s *LocalBridgeSync) Start(ctx context.Context) {
 	s.driver.Sync(ctx)
 }
