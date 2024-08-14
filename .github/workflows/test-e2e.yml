@@ -55,8 +55,10 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: 0xPolygon/kurtosis-cdk
-        path: "../kurtosis-cdk"
+        path: "kurtosis-cdk"
 
     - name: Test
       run: make test-e2e-${{ matrix.e2e-group }}
       working-directory: test
+      env:
+        KURTOSIS_FOLDER: ${{ github.workspace }}/kurtosis-cdk
