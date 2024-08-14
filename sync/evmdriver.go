@@ -25,8 +25,8 @@ type EVMDriver struct {
 
 type processorInterface interface {
 	GetLastProcessedBlock(ctx context.Context) (uint64, error)
-	ProcessBlock(block Block) error
-	Reorg(firstReorgedBlock uint64) error
+	ProcessBlock(ctx context.Context, block Block) error
+	Reorg(ctx context.Context, firstReorgedBlock uint64) error
 }
 
 type ReorgDetector interface {
@@ -88,7 +88,7 @@ reset:
 			d.handleNewBlock(ctx, b)
 		case firstReorgedBlock := <-d.reorgSub.FirstReorgedBlock:
 			log.Debug("handleReorg")
-			d.handleReorg(cancel, downloadCh, firstReorgedBlock)
+			d.handleReorg(ctx, cancel, downloadCh, firstReorgedBlock)
 			goto reset
 		}
 	}
@@ -112,7 +112,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
 			Num:    b.Num,
 			Events: b.Events,
 		}
-		err := d.processor.ProcessBlock(blockToProcess)
+		err := d.processor.ProcessBlock(ctx, blockToProcess)
 		if err != nil {
 			attempts++
 			log.Errorf("error processing events for blcok %d, err: ", b.Num, err)
@@ -124,7 +124,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
 }
 
 func (d *EVMDriver) handleReorg(
-	cancel context.CancelFunc, downloadCh chan EVMBlock, firstReorgedBlock uint64,
+	ctx context.Context, cancel context.CancelFunc, downloadCh chan EVMBlock, firstReorgedBlock uint64,
 ) {
 	// stop downloader
 	cancel()
@@ -135,7 +135,7 @@ func (d *EVMDriver) handleReorg(
 	// handle reorg
 	attempts := 0
 	for {
-		err := d.processor.Reorg(firstReorgedBlock)
+		err := d.processor.Reorg(ctx, firstReorgedBlock)
 		if err != nil {
 			attempts++
 			log.Errorf(

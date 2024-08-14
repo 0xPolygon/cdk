@@ -31,10 +31,6 @@ func (_m *CondNewSequence) EXPECT() *CondNewSequence_Expecter {
 func (_m *CondNewSequence) NewSequenceIfWorthToSend(ctx context.Context, txBuilder txbuilder.TxBuilder, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address) (seqsendertypes.Sequence, error) {
 	ret := _m.Called(ctx, txBuilder, sequenceBatches, l2Coinbase)
 
-	if len(ret) == 0 {
-		panic("no return value specified for NewSequenceIfWorthToSend")
-	}
-
 	var r0 seqsendertypes.Sequence
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, txbuilder.TxBuilder, []seqsendertypes.Batch, common.Address) (seqsendertypes.Sequence, error)); ok {
@@ -88,12 +84,13 @@ func (_c *CondNewSequence_NewSequenceIfWorthToSend_Call) RunAndReturn(run func(c
 	return _c
 }
 
-// NewCondNewSequence creates a new instance of CondNewSequence. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func NewCondNewSequence(t interface {
+type mockConstructorTestingTNewCondNewSequence interface {
 	mock.TestingT
 	Cleanup(func())
-}) *CondNewSequence {
+}
+
+// NewCondNewSequence creates a new instance of CondNewSequence. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+func NewCondNewSequence(t mockConstructorTestingTNewCondNewSequence) *CondNewSequence {
 	mock := &CondNewSequence{}
 	mock.Mock.Test(t)
 

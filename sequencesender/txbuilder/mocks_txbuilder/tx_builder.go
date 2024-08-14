@@ -35,10 +35,6 @@ func (_m *TxBuilder) EXPECT() *TxBuilder_Expecter {
 func (_m *TxBuilder) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
 	ret := _m.Called(ctx, sequences)
 
-	if len(ret) == 0 {
-		panic("no return value specified for BuildSequenceBatchesTx")
-	}
-
 	var r0 *types.Transaction
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, seqsendertypes.Sequence) (*types.Transaction, error)); ok {
@@ -94,10 +90,6 @@ func (_c *TxBuilder_BuildSequenceBatchesTx_Call) RunAndReturn(run func(context.C
 func (_m *TxBuilder) NewBatchFromL2Block(l2Block *datastream.L2Block) seqsendertypes.Batch {
 	ret := _m.Called(l2Block)
 
-	if len(ret) == 0 {
-		panic("no return value specified for NewBatchFromL2Block")
-	}
-
 	var r0 seqsendertypes.Batch
 	if rf, ok := ret.Get(0).(func(*datastream.L2Block) seqsendertypes.Batch); ok {
 		r0 = rf(l2Block)
@@ -141,10 +133,6 @@ func (_c *TxBuilder_NewBatchFromL2Block_Call) RunAndReturn(run func(*datastream.
 // NewSequence provides a mock function with given fields: batches, coinbase
 func (_m *TxBuilder) NewSequence(batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
 	ret := _m.Called(batches, coinbase)
-
-	if len(ret) == 0 {
-		panic("no return value specified for NewSequence")
-	}
 
 	var r0 seqsendertypes.Sequence
 	var r1 error
@@ -200,10 +188,6 @@ func (_c *TxBuilder_NewSequence_Call) RunAndReturn(run func([]seqsendertypes.Bat
 // NewSequenceIfWorthToSend provides a mock function with given fields: ctx, sequenceBatches, l2Coinbase, batchNumber
 func (_m *TxBuilder) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
 	ret := _m.Called(ctx, sequenceBatches, l2Coinbase, batchNumber)
-
-	if len(ret) == 0 {
-		panic("no return value specified for NewSequenceIfWorthToSend")
-	}
 
 	var r0 seqsendertypes.Sequence
 	var r1 error
@@ -262,10 +246,6 @@ func (_c *TxBuilder_NewSequenceIfWorthToSend_Call) RunAndReturn(run func(context
 func (_m *TxBuilder) SetCondNewSeq(cond txbuilder.CondNewSequence) txbuilder.CondNewSequence {
 	ret := _m.Called(cond)
 
-	if len(ret) == 0 {
-		panic("no return value specified for SetCondNewSeq")
-	}
-
 	var r0 txbuilder.CondNewSequence
 	if rf, ok := ret.Get(0).(func(txbuilder.CondNewSequence) txbuilder.CondNewSequence); ok {
 		r0 = rf(cond)
@@ -310,10 +290,6 @@ func (_c *TxBuilder_SetCondNewSeq_Call) RunAndReturn(run func(txbuilder.CondNewS
 func (_m *TxBuilder) String() string {
 	ret := _m.Called()
 
-	if len(ret) == 0 {
-		panic("no return value specified for String")
-	}
-
 	var r0 string
 	if rf, ok := ret.Get(0).(func() string); ok {
 		r0 = rf()
@@ -351,12 +327,13 @@ func (_c *TxBuilder_String_Call) RunAndReturn(run func() string) *TxBuilder_Stri
 	return _c
 }
 
-// NewTxBuilder creates a new instance of TxBuilder. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func NewTxBuilder(t interface {
+type mockConstructorTestingTNewTxBuilder interface {
 	mock.TestingT
 	Cleanup(func())
-}) *TxBuilder {
+}
+
+// NewTxBuilder creates a new instance of TxBuilder. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+func NewTxBuilder(t mockConstructorTestingTNewTxBuilder) *TxBuilder {
 	mock := &TxBuilder{}
 	mock.Mock.Test(t)
 

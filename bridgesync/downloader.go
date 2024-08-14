@@ -1,4 +1,4 @@
-package localbridgesync
+package bridgesync
 
 import (
 	"fmt"

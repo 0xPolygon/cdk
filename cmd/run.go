@@ -377,6 +377,7 @@ func newL1InfoTreeSyncer(
 		ctx,
 		cfg.L1InfoTreeSync.DBPath,
 		cfg.L1InfoTreeSync.GlobalExitRootAddr,
+		cfg.L1InfoTreeSync.RollupManagerAddr,
 		cfg.L1InfoTreeSync.SyncBlockChunkSize,
 		etherman.BlockNumberFinality(cfg.L1InfoTreeSync.BlockFinality),
 		reorgDetector,

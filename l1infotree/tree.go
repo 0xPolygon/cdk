@@ -122,7 +122,7 @@ func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint32, leaves [][32]byte) ([]
 			nsi = append(nsi, [][]byte{hash[:], leaves[left][:], leaves[right][:]})
 			hashes = append(hashes, hash)
 		}
-		// Find the index of the leave in the next level of the tree.
+		// Find the index of the leaf in the next level of the tree.
 		// Divide the index by 2 to find the position in the upper level
 		index = uint32(float64(index) / 2) //nolint:gomnd
 		ns = nsi

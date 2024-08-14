@@ -27,10 +27,6 @@ func (_m *SequenceSenderBanana) EXPECT() *SequenceSenderBanana_Expecter {
 func (_m *SequenceSenderBanana) PostSequenceBanana(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
 	ret := _m.Called(ctx, sequence)
 
-	if len(ret) == 0 {
-		panic("no return value specified for PostSequenceBanana")
-	}
-
 	var r0 []byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, etherman.SequenceBanana) ([]byte, error)); ok {
@@ -82,12 +78,13 @@ func (_c *SequenceSenderBanana_PostSequenceBanana_Call) RunAndReturn(run func(co
 	return _c
 }
 
-// NewSequenceSenderBanana creates a new instance of SequenceSenderBanana. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func NewSequenceSenderBanana(t interface {
+type mockConstructorTestingTNewSequenceSenderBanana interface {
 	mock.TestingT
 	Cleanup(func())
-}) *SequenceSenderBanana {
+}
+
+// NewSequenceSenderBanana creates a new instance of SequenceSenderBanana. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+func NewSequenceSenderBanana(t mockConstructorTestingTNewSequenceSenderBanana) *SequenceSenderBanana {
 	mock := &SequenceSenderBanana{}
 	mock.Mock.Test(t)
 

@@ -3,5 +3,8 @@
 .env
 /dist/
 cmd/__debug_bin
-/target
+**__debug**
+target/
+book/
+index.html
 tmp

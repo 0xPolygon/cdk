@@ -24,10 +24,6 @@ func (_m *RollupBananaBaseContractor) EXPECT() *RollupBananaBaseContractor_Expec
 func (_m *RollupBananaBaseContractor) LastAccInputHash(opts *bind.CallOpts) ([32]byte, error) {
 	ret := _m.Called(opts)
 
-	if len(ret) == 0 {
-		panic("no return value specified for LastAccInputHash")
-	}
-
 	var r0 [32]byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func(*bind.CallOpts) ([32]byte, error)); ok {
@@ -78,12 +74,13 @@ func (_c *RollupBananaBaseContractor_LastAccInputHash_Call) RunAndReturn(run fun
 	return _c
 }
 
-// NewRollupBananaBaseContractor creates a new instance of RollupBananaBaseContractor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-// The first argument is typically a *testing.T value.
-func NewRollupBananaBaseContractor(t interface {
+type mockConstructorTestingTNewRollupBananaBaseContractor interface {
 	mock.TestingT
 	Cleanup(func())
-}) *RollupBananaBaseContractor {
+}
+
+// NewRollupBananaBaseContractor creates a new instance of RollupBananaBaseContractor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+func NewRollupBananaBaseContractor(t mockConstructorTestingTNewRollupBananaBaseContractor) *RollupBananaBaseContractor {
 	mock := &RollupBananaBaseContractor{}
 	mock.Mock.Test(t)
 
