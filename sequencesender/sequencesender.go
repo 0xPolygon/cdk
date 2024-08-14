@@ -1059,14 +1059,6 @@ func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
 	}
 }
 
-// printSequenceBatches prints data from slice of type sequence batches
-func printSequenceBatches(sequence *etherman.SequenceBanana) {
-	for i, b := range sequence.Batches {
-		log.Debugf("[SeqSender] // sequence(%d): batch: %d, ts: %v, lenData: %d, GER: %x..",
-			i, b.BatchNumber, b.LastL2BLockTimestamp, len(b.L2Data), b.GlobalExitRoot[:8])
-	}
-}
-
 // printBatch prints data from batch raw V2
 func printBatch(raw *state.BatchRawV2, showBlock bool, showTx bool) {
 	// Total amount of L2 tx in the batch

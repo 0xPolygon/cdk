@@ -7,3 +7,4 @@ cmd/__debug_bin
 target/
 book/
 index.html
+tmp
