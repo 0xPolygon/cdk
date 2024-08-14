@@ -60,6 +60,20 @@ type ethereumClient interface {
 	bind.DeployBackend
 }
 
+// L1Config represents the configuration of the network used in L1
+type L1Config struct {
+	// Chain ID of the L1 network
+	L1ChainID uint64 `json:"chainId" mapstructure:"ChainID"`
+	// ZkEVMAddr Address of the L1 contract polygonZkEVMAddress
+	ZkEVMAddr common.Address `json:"polygonZkEVMAddress" mapstructure:"ZkEVMAddr"`
+	// RollupManagerAddr Address of the L1 contract
+	RollupManagerAddr common.Address `json:"polygonRollupManagerAddress" mapstructure:"RollupManagerAddr"`
+	// PolAddr Address of the L1 Pol token Contract
+	PolAddr common.Address `json:"polTokenAddress" mapstructure:"PolAddr"`
+	// GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract
+	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress" mapstructure:"GlobalExitRootManagerAddr"`
+}
+
 // Client is a simple implementation of EtherMan.
 type Client struct {
 	EthClient  ethereumClient
