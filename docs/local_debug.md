@@ -13,7 +13,7 @@ KURTOSIS_FOLDER="/tmp/kurtosis/" ./test/scripts/clone_kurtosis.sh develop $KURTO
 Set KURTOSIS_FOLDER to the folder where do you clone `kurtosis_cdk`
 
 ```bash
-KURTOSIS_FOLDER="/tmp/kurtosis/" kurtosis run --enclave cdk-v1 --args-file  $KURTOSIS_FOLDER/cdk-erigon-sequencer-params.yml --image-download always $KURTOSIS_FOLDER
+KURTOSIS_FOLDER="/tmp/kurtosis/" kurtosis run --enclave cdk-v1 --args-file  $KURTOSIS_FOLDER/params.yml --image-download always $KURTOSIS_FOLDER
 ```
 
 ## Create configuration for this kurtosis environment
