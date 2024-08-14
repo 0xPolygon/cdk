@@ -126,14 +126,18 @@ func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.Sequen
 		L2Coinbase:           seqEth.SequenceBanana.L2Coinbase,
 	}
 
+	var greatestL1InfoTreeIndex uint32
 	for _, batch := range sequences.Batches() {
 		ethBatch, err := toEthermanBatch(batch)
 		if err != nil {
 			return etherman.SequenceBanana{}, err
 		}
 		ethermanSequence.Batches = append(ethermanSequence.Batches, ethBatch)
+		if batch.L1InfoTreeIndex() > greatestL1InfoTreeIndex {
+			greatestL1InfoTreeIndex = batch.L1InfoTreeIndex()
+		}
 	}
-
+	ethermanSequence.IndexL1InfoRoot = greatestL1InfoTreeIndex
 	return ethermanSequence, nil
 }
 

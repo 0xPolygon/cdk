@@ -51,6 +51,7 @@ func (t *TxBuilderBananaValidium) SetCondNewSeq(cond CondNewSequence) CondNewSeq
 }
 
 func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
+	log.Infof("using l1info index %d", sequences.IndexL1InfoRoot())
 	// TODO: param sender
 	// Post sequences to DA backend
 	var dataAvailabilityMessage []byte
