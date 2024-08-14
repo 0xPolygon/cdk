@@ -47,3 +47,10 @@ type Sequence struct {
 	FromBatchNumber uint64
 	ToBatchNumber   uint64
 }
+
+// DBBatch struct is a wrapper for the state.Batch and its metadata
+type DBBatch struct {
+	Batch      Batch
+	Datastream []byte
+	Witness    []byte
+}

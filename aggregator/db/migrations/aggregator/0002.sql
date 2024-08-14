@@ -5,4 +5,4 @@ ALTER TABLE aggregator.batch
 
 -- +migrate Down
 ALTER TABLE aggregator.batch
-    DROP COLUMN IF NOT EXISTS witness;
+    DROP COLUMN IF EXISTS witness;
