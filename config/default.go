@@ -130,7 +130,7 @@ DBPath = "/tmp/reorgdetectorl2"
 DBPath = "/tmp/L1InfoTreeSync"
 GlobalExitRootAddr="0x8464135c8F25Da09e49BC8782676a84730C318bC"
 SyncBlockChunkSize=10
-BlockFinality="latest"
+BlockFinality="LatestBlock"
 URLRPCL1="http://test-aggoracle-l1:8545"
 WaitForNewBlocksPeriod="100ms"
 InitialBlock=0
@@ -138,7 +138,7 @@ InitialBlock=0
 [AggOracle]
 TargetChainType="EVM"
 URLRPCL1="http://test-aggoracle-l1:8545"
-BlockFinality="latest"
+BlockFinality="FinalizedBlock"
 WaitPeriodNextGER="100ms"
 	[AggOracle.EVMSender]
 		GlobalExitRootL2="0x8464135c8F25Da09e49BC8782676a84730C318bC"
@@ -215,7 +215,7 @@ WaitForSyncersPeriod = "3s"
 
 [BridgeL1Sync]
 DBPath = "/tmp/bridgel1sync"
-BlockFinality = "latest"
+BlockFinality = "LatestBlock"
 InitialBlockNum = 0
 BridgeAddr = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
 SyncBlockChunkSize = 100
@@ -225,7 +225,7 @@ WaitForNewBlocksPeriod = "3s"
 
 [BridgeL2Sync]
 DBPath = "/tmp/bridgel2sync"
-BlockFinality = "latest"
+BlockFinality = "LatestBlock"
 InitialBlockNum = 0
 BridgeAddr = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
 SyncBlockChunkSize = 100
@@ -235,7 +235,7 @@ WaitForNewBlocksPeriod = "3s"
 
 [LastGERSync]
 DBPath = "/tmp/lastgersync"
-BlockFinality = "latest"
+BlockFinality = "LatestBlock"
 InitialBlockNum = 0
 GlobalExitRootL2Addr = "0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa"
 RetryAfterErrorPeriod = "1s"

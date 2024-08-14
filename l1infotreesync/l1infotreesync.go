@@ -22,8 +22,8 @@ type Config struct {
 	GlobalExitRootAddr common.Address `mapstructure:"GlobalExitRootAddr"`
 	RollupManagerAddr  common.Address `mapstructure:"RollupManagerAddr"`
 	SyncBlockChunkSize uint64         `mapstructure:"SyncBlockChunkSize"`
-	// TODO: BlockFinality doesnt work as per the jsonschema
-	BlockFinality              string         `jsonschema:"enum=latest,enum=safe, enum=pending, enum=finalized" mapstructure:"BlockFinality"`
+	// BlockFinality indicates the status of the blocks that will be queried in order to sync
+	BlockFinality              string         `jsonschema:"enum=LatestBlock, enum=SafeBlock, enum=PendingBlock, enum=FinalizedBlock, enum=EarliestBlock" mapstructure:"BlockFinality"`
 	URLRPCL1                   string         `mapstructure:"URLRPCL1"`
 	WaitForNewBlocksPeriod     types.Duration `mapstructure:"WaitForNewBlocksPeriod"`
 	InitialBlock               uint64         `mapstructure:"InitialBlock"`

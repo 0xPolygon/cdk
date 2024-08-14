@@ -20,8 +20,8 @@ const (
 type Config struct {
 	// DBPath path of the DB
 	DBPath string `mapstructure:"DBPath"`
-	// TODO: BlockFinality doesnt work as per the jsonschema
-	BlockFinality string `jsonschema:"enum=latest,enum=safe, enum=pending, enum=finalized" mapstructure:"BlockFinality"`
+	// BlockFinality indicates the status of the blocks that will be queried in order to sync
+	BlockFinality string `jsonschema:"enum=LatestBlock, enum=SafeBlock, enum=PendingBlock, enum=FinalizedBlock, enum=EarliestBlock" mapstructure:"BlockFinality"`
 	// InitialBlockNum is the first block that will be queried when starting the synchronization from scratch.
 	// It should be a number equal oir bellow the creation of the bridge contract
 	InitialBlockNum uint64 `mapstructure:"InitialBlockNum"`
