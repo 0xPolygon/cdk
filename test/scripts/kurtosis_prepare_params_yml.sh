@@ -23,6 +23,7 @@ if [ -z $DATA_AVAILABILITY_MODE ]; then
     exit 1
 fi
 
+mkdir -p $(dirname $DEST_KURTOSIS_PARAMS_YML)
 cp $KURTOSIS_FOLDER/params.yml $DEST_KURTOSIS_PARAMS_YML
 yq -Y --in-place ".args.data_availability_mode = \"$DATA_AVAILABILITY_MODE\"" $DEST_KURTOSIS_PARAMS_YML
 yq -Y --in-place ".args.zkevm_sequence_sender_image = \"cdk:latest\"" $DEST_KURTOSIS_PARAMS_YML
