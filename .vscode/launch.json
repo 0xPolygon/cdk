@@ -5,6 +5,20 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug cdk",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "cmd/",
+            "cwd": "${workspaceFolder}",
+            "args":[
+                "run",
+                "-cfg", "tmp/cdk/local_config/test.kurtosis.toml",
+                "-components", "sequence-sender,aggregator",
+                "-custom-network-file", "tmp/cdk/local_config/local_config/genesis.json"
+            ]
+        },
+        {
             "type": "lldb",
             "request": "launch",
             "name": "Debug executable 'cdk'",
