@@ -12,6 +12,8 @@ github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.3-0.20240712085301-0310358
 github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.3-0.20240712085301-0310358abb59/go.mod h1:/LHf8jPQeBYKABM1xUmN1dKaFVIJc9jMQDSGBDJ7CS0=
 github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.3 h1:C+jNYr/CDMMn8wn3HqZqLTPU0luNYIB35pnxVf9O8TM=
 github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.3/go.mod h1:/LHf8jPQeBYKABM1xUmN1dKaFVIJc9jMQDSGBDJ7CS0=
+github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.4 h1:6hk1NCKyR+JycmRFG7Uy7Ko3GghZ3DXYMf5muo3F29Q=
+github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.6.4/go.mod h1:/LHf8jPQeBYKABM1xUmN1dKaFVIJc9jMQDSGBDJ7CS0=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/DataDog/zstd v1.5.2 h1:vUG4lAyuPCXO0TLbXvPv7EB7cNK1QV/luu55UHLrrn8=
 github.com/DataDog/zstd v1.5.2/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwSAmyw=
