@@ -103,12 +103,14 @@ func TestBridgeEventE2E(t *testing.T) {
 	// Get bridges
 	lastBlcok, err := client.Client().BlockNumber(ctx)
 	require.NoError(t, err)
-	events, err := syncer.GetClaimsAndBridges(ctx, 0, lastBlcok)
+	blocks, err := syncer.GetClaimsAndBridges(ctx, 0, lastBlcok)
 	require.NoError(t, err)
 	actualBridges := []bridgesync.Bridge{}
-	for _, event := range events {
-		if event.Bridge != nil {
-			actualBridges = append(actualBridges, *event.Bridge)
+	for _, block := range blocks {
+		for _, event := range block.Events {
+			if event.Bridge != nil {
+				actualBridges = append(actualBridges, *event.Bridge)
+			}
 		}
 	}
 
