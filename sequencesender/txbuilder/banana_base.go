@@ -81,10 +81,7 @@ func (t *TxBuilderBananaBase) NewSequence(batches []seqsendertypes.Batch, coinba
 			blockHash = batch.ForcedBlockHashL1
 		}
 
-		accInputHash, err = cdkcommon.CalculateAccInputHash(accInputHash, batch.L2Data, infoRootHash, timestamp, batch.LastCoinbase, blockHash)
-		if err != nil {
-			return nil, err
-		}
+		accInputHash = cdkcommon.CalculateAccInputHash(accInputHash, batch.L2Data, infoRootHash, timestamp, batch.LastCoinbase, blockHash)
 	}
 
 	sequence.OldAccInputHash = oldAccInputHash

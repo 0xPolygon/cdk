@@ -334,12 +334,14 @@ func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, cli
 						a.currentStreamBatch.L1InfoRoot = a.currentStreamBatch.GlobalExitRoot
 					}
 
-					accInputHash, err := cdkcommon.CalculateAccInputHash(oldBatch.AccInputHash, a.currentStreamBatch.BatchL2Data, a.currentStreamBatch.L1InfoRoot, uint64(a.currentStreamBatch.Timestamp.Unix()), a.currentStreamBatch.Coinbase, forcedBlockhashL1)
-					if err != nil {
-						log.Errorf("Error calculating acc input hash: %v", err)
-						return err
-					}
-
+					accInputHash := cdkcommon.CalculateAccInputHash(
+						oldBatch.AccInputHash,
+						a.currentStreamBatch.BatchL2Data,
+						a.currentStreamBatch.L1InfoRoot,
+						uint64(a.currentStreamBatch.Timestamp.Unix()),
+						a.currentStreamBatch.Coinbase,
+						forcedBlockhashL1,
+					)
 					a.currentStreamBatch.AccInputHash = accInputHash
 
 					err = a.state.AddBatch(ctx, &a.currentStreamBatch, a.currentBatchStreamData, nil)

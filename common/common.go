@@ -40,7 +40,8 @@ func CalculateAccInputHash(
 	l1InfoRoot common.Hash,
 	timestampLimit uint64,
 	sequencerAddr common.Address,
-	forcedBlockhashL1 common.Hash) (common.Hash, error) {
+	forcedBlockhashL1 common.Hash,
+) common.Hash {
 	v1 := oldAccInputHash.Bytes()
 	v2 := batchData
 	v3 := l1InfoRoot.Bytes()
@@ -74,5 +75,5 @@ func CalculateAccInputHash(
 	log.Debugf("Sequencer Address: %v", sequencerAddr)
 	log.Debugf("Forced BlockHashL1: %v", forcedBlockhashL1)
 
-	return common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6)), nil
+	return common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6))
 }

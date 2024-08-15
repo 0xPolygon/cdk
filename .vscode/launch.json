@@ -13,9 +13,9 @@
             "cwd": "${workspaceFolder}",
             "args":[
                 "run",
-                "-cfg", "tmp/cdk/local_config/test.kurtosis.toml",
-                "-components", "sequence-sender,aggregator",
-                "-custom-network-file", "tmp/cdk/local_config/local_config/genesis.json"
+                "-cfg", "tmp/cdk/config.toml",
+                "-components", "sequence-sender",
+                "-custom-network-file", "tmp/cdk/genesis.json"
             ]
         },
         {

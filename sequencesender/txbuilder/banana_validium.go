@@ -2,6 +2,7 @@ package txbuilder
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -51,7 +52,6 @@ func (t *TxBuilderBananaValidium) SetCondNewSeq(cond CondNewSequence) CondNewSeq
 }
 
 func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
-	log.Infof("using l1info index %d", sequences.IndexL1InfoRoot())
 	// TODO: param sender
 	// Post sequences to DA backend
 	var dataAvailabilityMessage []byte
@@ -61,6 +61,10 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, se
 		log.Error("error converting sequences to etherman: ", err)
 		return nil, err
 	}
+	if sequences.IndexL1InfoRoot() == 0 {
+		return nil, errors.New("the smart contract does not support IndexL1InfoRoot == 0")
+	}
+	log.Infof("using l1info index %d", sequences.IndexL1InfoRoot())
 
 	dataAvailabilityMessage, err = t.da.PostSequenceBanana(ctx, ethseq)
 	if err != nil {
@@ -112,6 +116,7 @@ func (t *TxBuilderBananaValidium) sequenceBatchesValidium(opts bind.TransactOpts
 		}
 	}
 
+	log.Infof("building banana sequence tx. AccInputHash: %s", sequence.AccInputHash.Hex())
 	tx, err := t.rollupContract.SequenceBatchesValidium(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
