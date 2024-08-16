@@ -473,7 +473,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	lastL2BlockTimestamp := lastSequence.LastL2BLockTimestamp()
 
 	log.Infof("[SeqSender] sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber(), lastSequence.BatchNumber())
-	log.Infof(sequence.String())
+	log.Debugf(sequence.String())
 
 	// Wait until last L1 block timestamp is L1BlockTimestampMargin seconds above the timestamp of the last L2 block in the sequence
 	timeMargin := int64(s.cfg.L1BlockTimestampMargin.Seconds())
@@ -518,7 +518,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 
 	// Send sequences to L1
 	log.Infof("[SeqSender] sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber(), lastSequence.BatchNumber())
-	log.Infof(sequence.String())
+	log.Debugf(sequence.String())
 
 	tx, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, sequence)
 	if err != nil {

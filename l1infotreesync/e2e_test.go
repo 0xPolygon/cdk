@@ -94,14 +94,14 @@ func TestE2E(t *testing.T) {
 
 		expectedGER, err := gerSc.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		info, err := syncer.GetInfoByIndex(ctx, uint32(i))
+		info, err := syncer.GetInfoByIndex(ctx, uint32(i+1))
 		require.NoError(t, err)
 		require.Equal(t, common.Hash(expectedGER), info.GlobalExitRoot, fmt.Sprintf("index: %d", i))
 		require.Equal(t, receipt.BlockNumber.Uint64(), info.BlockNumber)
 
 		expectedRoot, err := gerSc.GetRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		actualRoot, err := syncer.GetL1InfoTreeRootByIndex(ctx, uint32(i))
+		actualRoot, err := syncer.GetL1InfoTreeRootByIndex(ctx, uint32(i+1))
 		require.NoError(t, err)
 		require.Equal(t, common.Hash(expectedRoot), actualRoot)
 	}

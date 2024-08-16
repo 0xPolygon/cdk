@@ -2,7 +2,6 @@ package txbuilder
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -29,11 +29,16 @@ type rollupBananaValidiumContractor interface {
 	SequenceBatchesValidium(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, indexL1InfoRoot uint32, maxSequenceTimestamp uint64, expectedFinalAccInputHash [32]byte, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error)
 }
 
-func NewTxBuilderBananaValidium(rollupContract rollupBananaValidiumContractor,
+func NewTxBuilderBananaValidium(
+	rollupContract rollupBananaValidiumContractor,
 	gerContract globalExitRootBananaContractor,
-	da dataavailability.SequenceSenderBanana, opts bind.TransactOpts, maxBatchesForL1 uint64) *TxBuilderBananaValidium {
+	da dataavailability.SequenceSenderBanana, opts bind.TransactOpts, maxBatchesForL1 uint64,
+	l1InfoTree l1InfoSyncer,
+	ethClient ethereum.ChainReader,
+	blockFinality *big.Int,
+) *TxBuilderBananaValidium {
 	return &TxBuilderBananaValidium{
-		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts),
+		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, l1InfoTree, ethClient, blockFinality, opts),
 		da:                  da,
 		condNewSeq:          NewConditionalNewSequenceNumBatches(maxBatchesForL1),
 		rollupContract:      rollupContract,
@@ -56,15 +61,11 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, se
 	// Post sequences to DA backend
 	var dataAvailabilityMessage []byte
 	var err error
-	ethseq, err := convertToSequenceBanana(sequences)
+	ethseq, err := t.convertToSequenceBanana(sequences)
 	if err != nil {
 		log.Error("error converting sequences to etherman: ", err)
 		return nil, err
 	}
-	if sequences.IndexL1InfoRoot() == 0 {
-		return nil, errors.New("the smart contract does not support IndexL1InfoRoot == 0")
-	}
-	log.Infof("using l1info index %d", sequences.IndexL1InfoRoot())
 
 	dataAvailabilityMessage, err = t.da.PostSequenceBanana(ctx, ethseq)
 	if err != nil {

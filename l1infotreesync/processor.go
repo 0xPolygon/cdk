@@ -352,7 +352,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		var l1InfoLeavesAdded uint32
 		lastIndex, err := p.getLastIndex(tx)
 		if err == ErrNotFound {
-			initialL1InfoIndex = 0
+			initialL1InfoIndex = 1
 		} else if err != nil {
 			rollback()
 			return err
@@ -428,7 +428,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		rollback()
 		return err
 	}
-	log.Debugf("block %d processed with events: %+v", b.Num, events)
+	log.Infof("block %d processed with events: %+v", b.Num, events)
 	return nil
 }
 

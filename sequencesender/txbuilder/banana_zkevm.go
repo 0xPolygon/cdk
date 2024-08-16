@@ -8,6 +8,7 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -28,9 +29,17 @@ type globalExitRootBananaZKEVMContractor interface {
 	globalExitRootBananaContractor
 }
 
-func NewTxBuilderBananaZKEVM(rollupContract rollupBananaZKEVMContractor, gerContract globalExitRootBananaZKEVMContractor, opts bind.TransactOpts, maxTxSizeForL1 uint64) *TxBuilderBananaZKEVM {
+func NewTxBuilderBananaZKEVM(
+	rollupContract rollupBananaZKEVMContractor,
+	gerContract globalExitRootBananaZKEVMContractor,
+	opts bind.TransactOpts,
+	maxTxSizeForL1 uint64,
+	l1InfoTree l1InfoSyncer,
+	ethClient ethereum.ChainReader,
+	blockFinality *big.Int,
+) *TxBuilderBananaZKEVM {
 	return &TxBuilderBananaZKEVM{
-		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts),
+		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, l1InfoTree, ethClient, blockFinality, opts),
 		condNewSeq:          NewConditionalNewSequenceMaxSize(maxTxSizeForL1),
 		rollupContract:      rollupContract,
 	}
@@ -49,7 +58,7 @@ func (t *TxBuilderBananaZKEVM) SetCondNewSeq(cond CondNewSequence) CondNewSequen
 
 func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
 	var err error
-	ethseq, err := convertToSequenceBanana(sequences)
+	ethseq, err := t.convertToSequenceBanana(sequences)
 	if err != nil {
 		log.Error("error converting sequences to etherman: ", err)
 		return nil, err

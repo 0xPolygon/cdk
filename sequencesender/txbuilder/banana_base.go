@@ -1,13 +1,17 @@
 package txbuilder
 
 import (
+	"context"
 	"fmt"
+	"math/big"
 
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/etherman"
+	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -21,18 +25,33 @@ type globalExitRootBananaContractor interface {
 	String() string
 }
 
+type l1InfoSyncer interface {
+	GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*l1infotreesync.L1InfoTreeLeaf, error)
+}
+
 type TxBuilderBananaBase struct {
 	rollupContract         rollupBananaBaseContractor
 	globalExitRootContract globalExitRootBananaContractor
+	l1InfoTree             l1InfoSyncer
+	ethClient              ethereum.ChainReader
+	blockFinality          *big.Int
 	opts                   bind.TransactOpts
 }
 
-func NewTxBuilderBananaBase(rollupContract rollupBananaBaseContractor,
+func NewTxBuilderBananaBase(
+	rollupContract rollupBananaBaseContractor,
 	gerContract globalExitRootBananaContractor,
-	opts bind.TransactOpts) *TxBuilderBananaBase {
+	l1InfoTree l1InfoSyncer,
+	ethClient ethereum.ChainReader,
+	blockFinality *big.Int,
+	opts bind.TransactOpts,
+) *TxBuilderBananaBase {
 	return &TxBuilderBananaBase{
 		rollupContract:         rollupContract,
 		globalExitRootContract: gerContract,
+		l1InfoTree:             l1InfoTree,
+		ethClient:              ethClient,
+		blockFinality:          blockFinality,
 		opts:                   opts,
 	}
 
@@ -50,11 +69,34 @@ func (t *TxBuilderBananaBase) NewBatchFromL2Block(l2Block *datastream.L2Block) s
 }
 
 func (t *TxBuilderBananaBase) NewSequence(batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
+	ctx := context.TODO()
 	ethBatches, err := toEthermanBatches(batches)
 	if err != nil {
 		return nil, err
 	}
 	sequence := etherman.NewSequenceBanana(ethBatches, coinbase)
+	var greatestL1Index uint32
+	for _, b := range sequence.Batches {
+		if greatestL1Index < b.L1InfoTreeIndex {
+			greatestL1Index = b.L1InfoTreeIndex
+		}
+	}
+	header, err := t.ethClient.HeaderByNumber(ctx, t.blockFinality)
+	if err != nil {
+		return nil, fmt.Errorf("error calling HeaderByNumber, with block finality %d: %v", t.blockFinality.Int64(), err)
+	}
+	info, err := t.l1InfoTree.GetLatestInfoUntilBlock(ctx, header.Number.Uint64())
+	if err != nil {
+		return nil, fmt.Errorf("error calling GetLatestInfoUntilBlock with block num %d: %v", header.Number.Uint64(), err)
+	}
+	if info.L1InfoTreeIndex >= greatestL1Index {
+		sequence.IndexL1InfoRoot = info.L1InfoTreeIndex
+	} else {
+		return nil, fmt.Errorf(
+			"sequence contained an L1 Info tree index (%d) that is greater than the one synced with the desired finality (%d)",
+			greatestL1Index, info.L1InfoTreeIndex,
+		)
+	}
 
 	l1InfoRoot, err := t.getL1InfoRoot(sequence.IndexL1InfoRoot)
 	if err != nil {
@@ -91,23 +133,10 @@ func (t *TxBuilderBananaBase) NewSequence(batches []seqsendertypes.Batch, coinba
 }
 
 func (t *TxBuilderBananaBase) getL1InfoRoot(indexL1InfoRoot uint32) (common.Hash, error) {
-	// Get lastL1InfoTreeRoot (if index==0 then root=0, no call is needed)
-	var (
-		lastL1InfoTreeRoot common.Hash
-		err                error
-	)
-
-	if indexL1InfoRoot > 0 {
-		lastL1InfoTreeRoot, err = t.globalExitRootContract.L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
-		if err != nil {
-			log.Errorf("error calling SC globalexitroot L1InfoLeafMap (%s) Err: %w", t.globalExitRootContract.String(), err)
-		}
-	}
-
-	return lastL1InfoTreeRoot, err
+	return t.globalExitRootContract.L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
 }
 
-func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.SequenceBanana, error) {
+func (t *TxBuilderBananaBase) convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.SequenceBanana, error) {
 	seqEth, ok := sequences.(*BananaSequence)
 	if !ok {
 		log.Error("sequences is not a BananaSequence")
@@ -123,18 +152,14 @@ func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.Sequen
 		L2Coinbase:           seqEth.SequenceBanana.L2Coinbase,
 	}
 
-	var greatestL1InfoTreeIndex uint32
 	for _, batch := range sequences.Batches() {
 		ethBatch, err := toEthermanBatch(batch)
 		if err != nil {
 			return etherman.SequenceBanana{}, err
 		}
 		ethermanSequence.Batches = append(ethermanSequence.Batches, ethBatch)
-		if batch.L1InfoTreeIndex() > greatestL1InfoTreeIndex {
-			greatestL1InfoTreeIndex = batch.L1InfoTreeIndex()
-		}
 	}
-	ethermanSequence.IndexL1InfoRoot = greatestL1InfoTreeIndex
+
 	return ethermanSequence, nil
 }
 

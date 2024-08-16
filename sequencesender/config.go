@@ -64,6 +64,8 @@ type Config struct {
 
 	// MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx
 	MaxBatchesForL1 uint64 `mapstructure:"MaxBatchesForL1"`
+	// BlockFinality indicates the status of the blocks that will be queried in order to sync
+	BlockFinality string `jsonschema:"enum=LatestBlock, enum=SafeBlock, enum=PendingBlock, enum=FinalizedBlock, enum=EarliestBlock" mapstructure:"BlockFinality"`
 }
 
 // StreamClientCfg contains the data streamer's configuration properties
