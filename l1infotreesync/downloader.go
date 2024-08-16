@@ -5,6 +5,7 @@ import (
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonrollupmanager"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -14,8 +15,8 @@ import (
 )
 
 var (
-	updateL1InfoTreeSignatureV1 = crypto.Keccak256Hash([]byte("UpdateL1InfoTree(bytes32,bytes32)"))
-	// updateL1InfoTreeSignatureV2             = crypto.Keccak256Hash([]byte("UpdateL1InfoTreeV2(bytes32,uint32,uint256,uint64)"))
+	updateL1InfoTreeSignatureV1             = crypto.Keccak256Hash([]byte("UpdateL1InfoTree(bytes32,bytes32)"))
+	updateL1InfoTreeSignatureV2             = crypto.Keccak256Hash([]byte("UpdateL1InfoTreeV2(bytes32,uint32,uint256,uint64)"))
 	verifyBatchesSignature                  = crypto.Keccak256Hash([]byte("VerifyBatches(uint32,uint64,bytes32,bytes32,address)"))
 	verifyBatchesTrustedAggregatorSignature = crypto.Keccak256Hash([]byte("VerifyBatchesTrustedAggregator(uint32,uint64,bytes32,bytes32,address)"))
 	initL1InfoRootMapSignature              = crypto.Keccak256Hash([]byte("InitL1InfoRootMap(uint32,bytes32)"))
@@ -42,7 +43,7 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 		init, err := ger.ParseInitL1InfoRootMap(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using ger.ParseUpdateL1InfoTree: %v",
+				"error parsing log %+v using ger.ParseInitL1InfoRootMap: %v",
 				l, err,
 			)
 		}
@@ -56,7 +57,7 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 		l1InfoTreeUpdate, err := ger.ParseUpdateL1InfoTree(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using gerV1.ParseUpdateL1InfoTree: %v",
+				"error parsing log %+v using ger.ParseUpdateL1InfoTree: %v",
 				l, err,
 			)
 		}
@@ -70,23 +71,17 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 	}
 
 	// TODO: integrate this event to perform sanity checks
-	// appender[updateL1InfoTreeSignatureV2] = func(b *sync.EVMBlock, l types.Log) error {
-	// 	l1InfoTreeUpdate, err := ger.ParseUpdateL1InfoTreeV2(l)
-	// 	if err != nil {
-	// 		return fmt.Errorf(
-	// 			"error parsing log %+v using gerV2.ParseUpdateL1InfoTree: %v",
-	// 			l, err,
-	// 		)
-	// 	}
-	// 	b.Events = append(b.Events, Event{UpdateL1InfoTree: &UpdateL1InfoTree{
-	// 		CurrentL1InfoRoot: l1InfoTreeUpdate.CurrentL1InfoRoot,
-	// 		MainnetExitRoot:   l1InfoTreeUpdate.MainnetExitRoot,
-	// 		RollupExitRoot:    l1InfoTreeUpdate.RollupExitRoot,
-	// 		ParentHash:        b.ParentHash,
-	// 		Timestamp:         b.Timestamp,
-	// 	}})
-	// 	return nil
-	// }
+	appender[updateL1InfoTreeSignatureV2] = func(b *sync.EVMBlock, l types.Log) error {
+		l1InfoTreeUpdate, err := ger.ParseUpdateL1InfoTreeV2(l)
+		if err != nil {
+			return fmt.Errorf(
+				"error parsing log %+v using ger.ParseUpdateL1InfoTreeV2: %v",
+				l, err,
+			)
+		}
+		log.Infof("updateL1InfoTreeSignatureV2: expected root: %s", common.Bytes2Hex(l1InfoTreeUpdate.CurrentL1InfoRoot[:]))
+		return nil
+	}
 	appender[verifyBatchesSignature] = func(b *sync.EVMBlock, l types.Log) error {
 		verifyBatches, err := rm.ParseVerifyBatches(l)
 		if err != nil {

@@ -83,10 +83,12 @@ func TestE2E(t *testing.T) {
 	go syncer.Start(ctx)
 
 	// Update GER 3 times
-	for i := 0; i < 3; i++ {
+	for i := 1; i < 3; i++ {
 		tx, err := gerSc.UpdateExitRoot(auth, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
 		client.Commit()
+		g, err := gerSc.L1InfoRootMap(nil, uint32(i))
+		require.NoError(t, err)
 		// Let the processor catch up
 		time.Sleep(time.Millisecond * 100)
 		receipt, err := client.Client().TransactionReceipt(ctx, tx.Hash())
@@ -95,14 +97,15 @@ func TestE2E(t *testing.T) {
 
 		expectedGER, err := gerSc.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		info, err := syncer.GetInfoByIndex(ctx, uint32(i+0))
+		info, err := syncer.GetInfoByIndex(ctx, uint32(i))
 		require.NoError(t, err)
 		require.Equal(t, common.Hash(expectedGER), info.GlobalExitRoot, fmt.Sprintf("index: %d", i))
 		require.Equal(t, receipt.BlockNumber.Uint64(), info.BlockNumber)
 
 		expectedRoot, err := gerSc.GetRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		actualRoot, err := syncer.GetL1InfoTreeRootByIndex(ctx, uint32(i+0))
+		require.Equal(t, g, expectedRoot)
+		actualRoot, err := syncer.GetL1InfoTreeRootByIndex(ctx, uint32(i))
 		require.NoError(t, err)
 		require.Equal(t, common.Hash(expectedRoot), actualRoot)
 	}
@@ -119,7 +122,7 @@ func TestE2E(t *testing.T) {
 			receipt, err := client.Client().TransactionReceipt(ctx, tx.Hash())
 			require.NoError(t, err)
 			require.Equal(t, receipt.Status, types.ReceiptStatusSuccessful)
-			require.True(t, len(receipt.Logs) == 1+i%2)
+			require.True(t, len(receipt.Logs) == 1+i%2+i%2)
 
 			expectedRollupExitRoot, err := verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
 			require.NoError(t, err)

@@ -201,6 +201,7 @@ func (d *downloaderImplementation) getLogs(ctx context.Context, fromBlock, toBlo
 			if l.Topics[0] == topic {
 				logs = append(logs, l)
 				break
+			} else {
 			}
 		}
 	}

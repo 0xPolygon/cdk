@@ -403,6 +403,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 					CurrentL1InfoRoot: event.InitL1InfoRootMap.CurrentL1InfoRoot,
 				}
 				if l1InfoLeavesAdded != 0 {
+					// TODO: we may need to remove this check for networks that have history...
 					log.Fatal("found leafs before init event")
 				}
 				if initL1InfoTree.LeafCount == 0 {
