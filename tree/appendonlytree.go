@@ -144,7 +144,7 @@ func (t *AppendOnlyTree) initLastIndex(tx kv.Tx) (common.Hash, error) {
 }
 func (t *AppendOnlyTree) initLastLeftCache(tx kv.Tx, lastIndex int64, lastRoot common.Hash) error {
 	siblings := make([]common.Hash, t.height, t.height)
-	if lastIndex == 0 {
+	if lastIndex == -1 {
 		t.lastLeftCache = siblings
 		return nil
 	}

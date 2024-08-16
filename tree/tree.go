@@ -258,7 +258,7 @@ func (t *Tree) getLastIndexAndRootWithTx(tx kv.Tx) (int64, common.Hash, error) {
 		return 0, common.Hash{}, err
 	}
 	if lastIndexBytes == nil {
-		return 0, common.Hash{}, nil
+		return -1, common.Hash{}, nil
 	}
 	return int64(dbCommon.BytesToUint64(lastIndexBytes)), common.Hash(rootBytes), nil
 }

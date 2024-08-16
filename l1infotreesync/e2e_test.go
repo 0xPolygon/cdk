@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/globalexitrootnopush0"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana-paris/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/reorgdetector"
@@ -27,7 +27,7 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 	client *simulated.Backend,
 	gerAddr common.Address,
 	verifyAddr common.Address,
-	gerContract *globalexitrootnopush0.Globalexitrootnopush0,
+	gerContract *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
 	verifyContract *verifybatchesmock.Verifybatchesmock,
 	err error,
 ) {
@@ -53,7 +53,8 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 	}
 	client.Commit()
 
-	gerAddr, _, gerContract, err = globalexitrootnopush0.DeployGlobalexitrootnopush0(auth, client.Client(), verifyAddr, auth.From)
+	// TODO: must call init for realisitic test
+	gerAddr, _, gerContract, err = polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(auth, client.Client(), verifyAddr, auth.From)
 	if err != nil {
 		return
 	}
@@ -94,14 +95,14 @@ func TestE2E(t *testing.T) {
 
 		expectedGER, err := gerSc.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		info, err := syncer.GetInfoByIndex(ctx, uint32(i+1))
+		info, err := syncer.GetInfoByIndex(ctx, uint32(i+0))
 		require.NoError(t, err)
 		require.Equal(t, common.Hash(expectedGER), info.GlobalExitRoot, fmt.Sprintf("index: %d", i))
 		require.Equal(t, receipt.BlockNumber.Uint64(), info.BlockNumber)
 
 		expectedRoot, err := gerSc.GetRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		actualRoot, err := syncer.GetL1InfoTreeRootByIndex(ctx, uint32(i+1))
+		actualRoot, err := syncer.GetL1InfoTreeRootByIndex(ctx, uint32(i+0))
 		require.NoError(t, err)
 		require.Equal(t, common.Hash(expectedRoot), actualRoot)
 	}
