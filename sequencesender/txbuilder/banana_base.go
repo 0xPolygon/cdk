@@ -90,7 +90,7 @@ func (t *TxBuilderBananaBase) NewSequence(batches []seqsendertypes.Batch, coinba
 		return nil, fmt.Errorf("error calling GetLatestInfoUntilBlock with block num %d: %v", header.Number.Uint64(), err)
 	}
 	if info.L1InfoTreeIndex >= greatestL1Index {
-		sequence.IndexL1InfoRoot = info.L1InfoTreeIndex
+		sequence.IndexL1InfoRoot = info.L1InfoTreeIndex + 1
 	} else {
 		return nil, fmt.Errorf(
 			"sequence contained an L1 Info tree index (%d) that is greater than the one synced with the desired finality (%d)",

@@ -359,7 +359,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		var l1InfoLeavesAdded uint32
 		lastIndex, err := p.getLastIndex(tx)
 		if err == ErrNotFound {
-			initialL1InfoIndex = 1
+			initialL1InfoIndex = 0
 		} else if err != nil {
 			rollback()
 			return err

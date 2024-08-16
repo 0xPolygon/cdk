@@ -83,11 +83,11 @@ func TestE2E(t *testing.T) {
 	go syncer.Start(ctx)
 
 	// Update GER 3 times
-	for i := 1; i < 3; i++ {
+	for i := 0; i < 3; i++ {
 		tx, err := gerSc.UpdateExitRoot(auth, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
 		client.Commit()
-		g, err := gerSc.L1InfoRootMap(nil, uint32(i))
+		g, err := gerSc.L1InfoRootMap(nil, uint32(i+1))
 		require.NoError(t, err)
 		// Let the processor catch up
 		time.Sleep(time.Millisecond * 100)
