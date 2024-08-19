@@ -9,8 +9,9 @@ import (
 )
 
 type ElderberrySequence struct {
-	l2Coinbase common.Address
-	batches    []seqsendertypes.Batch
+	l2Coinbase             common.Address
+	batches                []seqsendertypes.Batch
+	lastVirtualBatchNumber uint64
 }
 
 func NewElderberrySequence(batches []seqsendertypes.Batch, l2Coinbase common.Address) *ElderberrySequence {
@@ -53,10 +54,19 @@ func (b *ElderberrySequence) Len() int {
 func (b *ElderberrySequence) L2Coinbase() common.Address {
 	return b.l2Coinbase
 }
+
 func (b *ElderberrySequence) String() string {
 	res := fmt.Sprintf("Seq/Elderberry: L2Coinbase: %s, Batches: %d", b.l2Coinbase.String(), len(b.batches))
 	for i, batch := range b.Batches() {
 		res += fmt.Sprintf("\n\tBatch %d: %s", i, batch.String())
 	}
 	return res
+}
+
+func (b *ElderberrySequence) SetLastVirtualBatchNumber(batchNumber uint64) {
+	b.lastVirtualBatchNumber = batchNumber
+}
+
+func (b *ElderberrySequence) LastVirtualBatchNumber() uint64 {
+	return b.lastVirtualBatchNumber
 }
