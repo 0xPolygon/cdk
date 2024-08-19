@@ -16,7 +16,7 @@ func TestConditionalNumBatchesDisabled(t *testing.T) {
 	mockTxBuilder := mocks_txbuilder.NewTxBuilder(t)
 	sut := txbuilder.NewConditionalNewSequenceNumBatches(0)
 
-	tx, err := sut.NewSequenceIfWorthToSend(nil, mockTxBuilder, nil, common.Address{})
+	tx, err := sut.NewSequenceIfWorthToSend(context.TODO(), mockTxBuilder, nil, common.Address{})
 	require.NoError(t, err)
 	require.Nil(t, tx)
 }
@@ -27,7 +27,7 @@ func TestConditionalNumBatchesDontFulfillCondition(t *testing.T) {
 	sut := txbuilder.NewConditionalNewSequenceNumBatches(2)
 	var sequenceBatches []seqsendertypes.Batch
 	sequenceBatches = append(sequenceBatches, &txbuilder.BananaBatch{})
-	tx, err := sut.NewSequenceIfWorthToSend(nil, mockTxBuilder, sequenceBatches, common.Address{})
+	tx, err := sut.NewSequenceIfWorthToSend(context.TODO(), mockTxBuilder, sequenceBatches, common.Address{})
 	require.NoError(t, err)
 	require.Nil(t, tx)
 }
@@ -40,7 +40,7 @@ func TestConditionalNumBatchesFulfillCondition(t *testing.T) {
 	sequenceBatches = append(sequenceBatches, &txbuilder.BananaBatch{})
 	sequenceBatches = append(sequenceBatches, &txbuilder.BananaBatch{})
 	mockTxBuilder.EXPECT().NewSequence(context.TODO(), mock.Anything, mock.Anything).Return(nil, nil)
-	tx, err := sut.NewSequenceIfWorthToSend(nil, mockTxBuilder, sequenceBatches, common.Address{})
+	tx, err := sut.NewSequenceIfWorthToSend(context.TODO(), mockTxBuilder, sequenceBatches, common.Address{})
 	require.NoError(t, err)
 	require.Nil(t, tx)
 }

@@ -11,9 +11,9 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type rollupBananaBaseContractor interface {
@@ -29,11 +29,15 @@ type l1InfoSyncer interface {
 	GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*l1infotreesync.L1InfoTreeLeaf, error)
 }
 
+type l1Client interface {
+	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+}
+
 type TxBuilderBananaBase struct {
 	rollupContract         rollupBananaBaseContractor
 	globalExitRootContract globalExitRootBananaContractor
 	l1InfoTree             l1InfoSyncer
-	ethClient              ethereum.ChainReader
+	ethClient              l1Client
 	blockFinality          *big.Int
 	opts                   bind.TransactOpts
 }
@@ -42,7 +46,7 @@ func NewTxBuilderBananaBase(
 	rollupContract rollupBananaBaseContractor,
 	gerContract globalExitRootBananaContractor,
 	l1InfoTree l1InfoSyncer,
-	ethClient ethereum.ChainReader,
+	ethClient l1Client,
 	blockFinality *big.Int,
 	opts bind.TransactOpts,
 ) *TxBuilderBananaBase {

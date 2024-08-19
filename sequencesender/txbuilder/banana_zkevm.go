@@ -8,7 +8,6 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -35,7 +34,7 @@ func NewTxBuilderBananaZKEVM(
 	opts bind.TransactOpts,
 	maxTxSizeForL1 uint64,
 	l1InfoTree l1InfoSyncer,
-	ethClient ethereum.ChainReader,
+	ethClient l1Client,
 	blockFinality *big.Int,
 ) *TxBuilderBananaZKEVM {
 	return &TxBuilderBananaZKEVM{

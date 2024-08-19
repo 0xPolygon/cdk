@@ -18,7 +18,7 @@ func TestConditionalMaxSizeDisabled(t *testing.T) {
 	mockTxBuilder := mocks_txbuilder.NewTxBuilder(t)
 	sut := txbuilder.NewConditionalNewSequenceMaxSize(txbuilder.MaxTxSizeForL1Disabled)
 
-	tx, err := sut.NewSequenceIfWorthToSend(nil, mockTxBuilder, nil, common.Address{})
+	tx, err := sut.NewSequenceIfWorthToSend(context.TODO(), mockTxBuilder, nil, common.Address{})
 	require.NoError(t, err)
 	require.Nil(t, tx)
 }
@@ -29,7 +29,7 @@ func TestConditionalMaxSizeTxBuilderNewSequenceReturnsNil(t *testing.T) {
 	var sequenceBatches []seqsendertypes.Batch
 	sequenceBatches = append(sequenceBatches, &txbuilder.BananaBatch{})
 	mockTxBuilder.EXPECT().NewSequence(context.TODO(), sequenceBatches, common.Address{}).Return(nil, nil)
-	_, err := sut.NewSequenceIfWorthToSend(nil, mockTxBuilder, sequenceBatches, common.Address{})
+	_, err := sut.NewSequenceIfWorthToSend(context.TODO(), mockTxBuilder, sequenceBatches, common.Address{})
 	require.Error(t, err)
 }
 
@@ -41,7 +41,7 @@ func TestConditionalMaxSizeTxBuilderBuildSequenceBatchesTxReturnsNil(t *testing.
 	seq := &txbuilder.ElderberrySequence{}
 	mockTxBuilder.EXPECT().NewSequence(context.TODO(), sequenceBatches, common.Address{}).Return(seq, nil)
 	mockTxBuilder.EXPECT().BuildSequenceBatchesTx(mock.Anything, mock.Anything).Return(nil, nil)
-	_, err := sut.NewSequenceIfWorthToSend(nil, mockTxBuilder, sequenceBatches, common.Address{})
+	_, err := sut.NewSequenceIfWorthToSend(context.TODO(), mockTxBuilder, sequenceBatches, common.Address{})
 	require.Error(t, err)
 }
 
@@ -56,7 +56,7 @@ func TestConditionalMaxSizeTxBuilderDontFulFill(t *testing.T) {
 	tx := ethtypes.NewTx(inner)
 	mockTxBuilder.EXPECT().BuildSequenceBatchesTx(mock.Anything, mock.Anything).Return(tx, nil)
 
-	res, err := sut.NewSequenceIfWorthToSend(nil, mockTxBuilder, sequenceBatches, common.Address{})
+	res, err := sut.NewSequenceIfWorthToSend(context.TODO(), mockTxBuilder, sequenceBatches, common.Address{})
 
 	require.NoError(t, err)
 	require.Nil(t, res)
