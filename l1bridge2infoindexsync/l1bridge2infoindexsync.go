@@ -66,5 +66,5 @@ func (s *L1Bridge2InfoIndexSync) GetLastProcessedBlock(ctx context.Context) (uin
 }
 
 func (s *L1Bridge2InfoIndexSync) GetL1InfoTreeIndexByDepositCount(ctx context.Context, depositCount uint32) (uint32, error) {
-	return s.processor.getL1InfoTreeIndexByBrdigeIndex(ctx, depositCount)
+	return s.processor.getL1InfoTreeIndexByBridgeIndex(ctx, depositCount)
 }

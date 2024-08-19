@@ -86,10 +86,10 @@ func TestBridgeEventE2E(t *testing.T) {
 	// Wait for syncer to catch up
 	syncerUpToDate := false
 	var errMsg string
+	lb, err := client.Client().BlockNumber(ctx)
+	require.NoError(t, err)
 	for i := 0; i < 10; i++ {
 		lpb, err := syncer.GetLastProcessedBlock(ctx)
-		require.NoError(t, err)
-		lb, err := client.Client().BlockNumber(ctx)
 		require.NoError(t, err)
 		if lpb == lb {
 			syncerUpToDate = true
@@ -101,9 +101,9 @@ func TestBridgeEventE2E(t *testing.T) {
 	require.True(t, syncerUpToDate, errMsg)
 
 	// Get bridges
-	lastBlcok, err := client.Client().BlockNumber(ctx)
+	lastBlock, err := client.Client().BlockNumber(ctx)
 	require.NoError(t, err)
-	events, err := syncer.GetClaimsAndBridges(ctx, 0, lastBlcok)
+	events, err := syncer.GetClaimsAndBridges(ctx, 0, lastBlock)
 	require.NoError(t, err)
 	actualBridges := []bridgesync.Bridge{}
 	for _, event := range events {

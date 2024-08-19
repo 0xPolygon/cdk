@@ -123,7 +123,7 @@ func (p *processor) processUntilBlock(ctx context.Context, lastProcessedBlock ui
 	}
 
 	for _, relation := range relations {
-		if _, err := p.getL1InfoTreeIndexByBrdigeIndexWithTx(tx, relation.bridgeIndex); err != ErrNotFound {
+		if _, err := p.getL1InfoTreeIndexByBridgeIndexWithTx(tx, relation.bridgeIndex); err != ErrNotFound {
 			// Note that indexes could be repeated as the L1 Info tree update can be produced by a rollup and not mainnet.
 			// Hence if the index already exist, do not update as it's better to have the lowest index possible for the relation
 			continue
@@ -166,17 +166,17 @@ func (p *processor) processUntilBlock(ctx context.Context, lastProcessedBlock ui
 	return tx.Commit()
 }
 
-func (p *processor) getL1InfoTreeIndexByBrdigeIndex(ctx context.Context, depositCount uint32) (uint32, error) {
+func (p *processor) getL1InfoTreeIndexByBridgeIndex(ctx context.Context, depositCount uint32) (uint32, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
 		return 0, err
 	}
 	defer tx.Rollback()
 
-	return p.getL1InfoTreeIndexByBrdigeIndexWithTx(tx, depositCount)
+	return p.getL1InfoTreeIndexByBridgeIndexWithTx(tx, depositCount)
 }
 
-func (p *processor) getL1InfoTreeIndexByBrdigeIndexWithTx(tx kv.Tx, depositCount uint32) (uint32, error) {
+func (p *processor) getL1InfoTreeIndexByBridgeIndexWithTx(tx kv.Tx, depositCount uint32) (uint32, error) {
 	indexBytes, err := tx.GetOne(relationTable, common.Uint32ToBytes(depositCount))
 	if err != nil {
 		return 0, err

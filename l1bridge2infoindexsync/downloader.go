@@ -29,7 +29,7 @@ func newDownloader(
 	}
 }
 
-func (d *downloader) getLastFinalisedL1Block(ctx context.Context) (uint64, error) {
+func (d *downloader) getLastFinalizedL1Block(ctx context.Context) (uint64, error) {
 	b, err := d.l1Client.BlockByNumber(ctx, big.NewInt(int64(rpc.FinalizedBlockNumber)))
 	if err != nil {
 		return 0, err

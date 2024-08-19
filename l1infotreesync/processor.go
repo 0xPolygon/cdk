@@ -156,18 +156,18 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([32]ethCommon.Hash, ethCommon.Hash, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
-		return [32]ethCommon.Hash{}, ethCommon.Hash{}, err
+		return tree.EmptyProof, ethCommon.Hash{}, err
 	}
 	defer tx.Rollback()
 
 	root, err := p.l1InfoTree.GetRootByIndex(tx, index)
 	if err != nil {
-		return [32]ethCommon.Hash{}, ethCommon.Hash{}, err
+		return tree.EmptyProof, ethCommon.Hash{}, err
 	}
 
 	proof, err := p.l1InfoTree.GetProof(ctx, index, root)
 	if err != nil {
-		return [32]ethCommon.Hash{}, ethCommon.Hash{}, err
+		return tree.EmptyProof, ethCommon.Hash{}, err
 	}
 
 	// TODO: check if we need to return root or wat

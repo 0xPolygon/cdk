@@ -136,7 +136,7 @@ func (d *driver) sync(ctx context.Context) {
 }
 
 func (d *driver) getTargetSynchronizationBlock(ctx context.Context, lpbProcessor uint64) (syncUntilBlock uint64, shouldWait bool, err error) {
-	lastFinalised, err := d.downloader.getLastFinalisedL1Block(ctx) // TODO: configure finality, but then we need to deal with reorgs?
+	lastFinalised, err := d.downloader.getLastFinalizedL1Block(ctx) // TODO: configure finality, but then we need to deal with reorgs?
 	if err != nil {
 		return
 	}
