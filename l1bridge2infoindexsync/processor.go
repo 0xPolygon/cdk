@@ -49,11 +49,10 @@ func (lp *lastProcessed) UnmarshalBinary(data []byte) error {
 
 func newProcessor(dbPath string) (*processor, error) {
 	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
-		cfg := kv.TableCfg{
+		return kv.TableCfg{
 			lastProcessedTable: {},
 			relationTable:      {},
 		}
-		return cfg
 	}
 	db, err := mdbx.NewMDBX(nil).
 		Path(dbPath).
@@ -122,6 +121,23 @@ func (p *processor) processUntilBlock(ctx context.Context, lastProcessedBlock ui
 		return err
 	}
 
+	if len(relations) == 0 {
+		_, lastIndex, err := p.getLastProcessedBlockAndL1InfoTreeIndexWithTx(tx)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		if err := p.updateLastProcessedBlockAndL1InfoTreeIndexWithTx(
+			tx,
+			lastProcessedBlock,
+			lastIndex,
+		); err != nil {
+			tx.Rollback()
+			return err
+		}
+		return tx.Commit()
+	}
+
 	for _, relation := range relations {
 		if _, err := p.getL1InfoTreeIndexByBridgeIndexWithTx(tx, relation.bridgeIndex); err != ErrNotFound {
 			// Note that indexes could be repeated as the L1 Info tree update can be produced by a rollup and not mainnet.
@@ -138,29 +154,13 @@ func (p *processor) processUntilBlock(ctx context.Context, lastProcessedBlock ui
 		}
 	}
 
-	if len(relations) > 0 {
-		if err := p.updateLastProcessedBlockAndL1InfoTreeIndexWithTx(
-			tx,
-			lastProcessedBlock,
-			relations[len(relations)-1].l1InfoTreeIndex,
-		); err != nil {
-			tx.Rollback()
-			return err
-		}
-	} else {
-		_, lastIndex, err := p.getLastProcessedBlockAndL1InfoTreeIndexWithTx(tx)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-		if err := p.updateLastProcessedBlockAndL1InfoTreeIndexWithTx(
-			tx,
-			lastProcessedBlock,
-			lastIndex,
-		); err != nil {
-			tx.Rollback()
-			return err
-		}
+	if err := p.updateLastProcessedBlockAndL1InfoTreeIndexWithTx(
+		tx,
+		lastProcessedBlock,
+		relations[len(relations)-1].l1InfoTreeIndex,
+	); err != nil {
+		tx.Rollback()
+		return err
 	}
 
 	return tx.Commit()

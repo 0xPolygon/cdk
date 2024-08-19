@@ -93,7 +93,7 @@ type processor struct {
 func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, error) {
 	eventsTable := dbPrefix + eventsTableSufix
 	lastBlockTable := dbPrefix + lastBlockTableSufix
-	logger := log.WithFields("syncer", dbPrefix)
+	logger := log.WithFields("bridge-syncer", dbPrefix)
 	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
 		cfg := kv.TableCfg{
 			eventsTable:    {},

@@ -19,13 +19,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newSimulatedClient(auth *bind.TransactOpts) (
+func newSimulatedClient(t *testing.T, auth *bind.TransactOpts) (
 	client *simulated.Backend,
 	bridgeAddr common.Address,
 	bridgeContract *polygonzkevmbridgev2.Polygonzkevmbridgev2,
-	err error,
 ) {
-	// ctx := context.Background()
+	var err error
 	balance, _ := big.NewInt(0).SetString("10000000000000000000000000", 10) //nolint:gomnd
 	address := auth.From
 	genesisAlloc := map[common.Address]types.Account{
@@ -37,6 +36,7 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
 
 	bridgeAddr, _, bridgeContract, err = polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(auth, client.Client())
+	require.NoError(t, err)
 	client.Commit()
 	return
 }
