@@ -167,7 +167,7 @@ type SequenceBanana struct {
 	AccInputHash         common.Hash
 	L1InfoRoot           common.Hash
 	MaxSequenceTimestamp uint64
-	IndexL1InfoRoot      uint32
+	CounterL1InfoRoot    uint32
 	L2Coinbase           common.Address
 }
 
@@ -190,7 +190,7 @@ func NewSequenceBanana(batches []Batch, l2Coinbase common.Address) *SequenceBana
 	return &SequenceBanana{
 		Batches:              batches,
 		MaxSequenceTimestamp: maxSequenceTimestamp,
-		IndexL1InfoRoot:      indexL1InfoRoot,
+		CounterL1InfoRoot:    indexL1InfoRoot,
 		L2Coinbase:           l2Coinbase,
 	}
 }

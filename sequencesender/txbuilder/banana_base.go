@@ -93,7 +93,7 @@ func (t *TxBuilderBananaBase) NewSequence(ctx context.Context, batches []seqsend
 		return nil, fmt.Errorf("error calling GetLatestInfoUntilBlock with block num %d: %v", header.Number.Uint64(), err)
 	}
 	if info.L1InfoTreeIndex >= greatestL1Index {
-		sequence.IndexL1InfoRoot = info.L1InfoTreeIndex + 1
+		sequence.CounterL1InfoRoot = info.L1InfoTreeIndex + 1
 	} else {
 		return nil, fmt.Errorf(
 			"sequence contained an L1 Info tree index (%d) that is greater than the one synced with the desired finality (%d)",
@@ -101,7 +101,7 @@ func (t *TxBuilderBananaBase) NewSequence(ctx context.Context, batches []seqsend
 		)
 	}
 
-	l1InfoRoot, err := t.getL1InfoRoot(sequence.IndexL1InfoRoot)
+	l1InfoRoot, err := t.getL1InfoRoot(sequence.CounterL1InfoRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.Sequen
 		AccInputHash:         seqEth.SequenceBanana.AccInputHash,
 		L1InfoRoot:           seqEth.SequenceBanana.L1InfoRoot,
 		MaxSequenceTimestamp: seqEth.SequenceBanana.MaxSequenceTimestamp,
-		IndexL1InfoRoot:      seqEth.SequenceBanana.IndexL1InfoRoot,
+		CounterL1InfoRoot:    seqEth.SequenceBanana.CounterL1InfoRoot,
 		L2Coinbase:           seqEth.SequenceBanana.L2Coinbase,
 	}
 

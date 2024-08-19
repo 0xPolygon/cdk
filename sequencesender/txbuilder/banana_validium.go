@@ -117,7 +117,7 @@ func (t *TxBuilderBananaValidium) sequenceBatchesValidium(opts bind.TransactOpts
 	}
 
 	log.Infof("building banana sequence tx. AccInputHash: %s", sequence.AccInputHash.Hex())
-	tx, err := t.rollupContract.SequenceBatchesValidium(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase, dataAvailabilityMessage)
+	tx, err := t.rollupContract.SequenceBatchesValidium(&opts, batches, sequence.CounterL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", sequence.L2Coinbase)

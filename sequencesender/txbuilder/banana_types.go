@@ -25,7 +25,7 @@ func NewBananaSequence(ult etherman.SequenceBanana) *BananaSequence {
 }
 
 func (b *BananaSequence) IndexL1InfoRoot() uint32 {
-	return b.SequenceBanana.IndexL1InfoRoot
+	return b.SequenceBanana.CounterL1InfoRoot
 }
 
 func (b *BananaSequence) MaxSequenceTimestamp() uint64 {
