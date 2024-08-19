@@ -162,13 +162,14 @@ type Batch struct {
 }
 
 type SequenceBanana struct {
-	Batches              []Batch
-	OldAccInputHash      common.Hash
-	AccInputHash         common.Hash
-	L1InfoRoot           common.Hash
-	MaxSequenceTimestamp uint64
-	CounterL1InfoRoot    uint32
-	L2Coinbase           common.Address
+	Batches                []Batch
+	OldAccInputHash        common.Hash
+	AccInputHash           common.Hash
+	L1InfoRoot             common.Hash
+	MaxSequenceTimestamp   uint64
+	CounterL1InfoRoot      uint32
+	L2Coinbase             common.Address
+	LastVirtualBatchNumber uint64
 }
 
 func NewSequenceBanana(batches []Batch, l2Coinbase common.Address) *SequenceBanana {
@@ -197,4 +198,8 @@ func NewSequenceBanana(batches []Batch, l2Coinbase common.Address) *SequenceBana
 
 func (s *SequenceBanana) Len() int {
 	return len(s.Batches)
+}
+
+func (s *SequenceBanana) SetLastVirtualBatchNumber(batchNumber uint64) {
+	s.LastVirtualBatchNumber = batchNumber
 }

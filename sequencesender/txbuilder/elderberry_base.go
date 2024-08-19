@@ -51,5 +51,8 @@ func getLastSequencedBatchNumber(sequences seqsendertypes.Sequence) uint64 {
 	if sequences.FirstBatch().BatchNumber() == 0 {
 		panic("First batch number is 0, that is not allowed!")
 	}
+	if sequences.LastVirtualBatchNumber() != 0 {
+		return sequences.LastVirtualBatchNumber()
+	}
 	return sequences.FirstBatch().BatchNumber() - 1
 }

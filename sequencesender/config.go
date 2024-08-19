@@ -66,6 +66,9 @@ type Config struct {
 	MaxBatchesForL1 uint64 `mapstructure:"MaxBatchesForL1"`
 	// BlockFinality indicates the status of the blocks that will be queried in order to sync
 	BlockFinality string `jsonschema:"enum=LatestBlock, enum=SafeBlock, enum=PendingBlock, enum=FinalizedBlock, enum=EarliestBlock" mapstructure:"BlockFinality"`
+
+	// SanityCheckRPCURL is the URL of the RPC server to perform sanity check regarding the number of blocks in a batch
+	SanityCheckRPCURL string `mapstructure:"SanityCheckRPCURL"`
 }
 
 // StreamClientCfg contains the data streamer's configuration properties

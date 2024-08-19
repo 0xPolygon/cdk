@@ -100,19 +100,20 @@ func (b *BananaBatch) BatchNumber() uint64 {
 
 func (b BananaBatch) DeepCopy() seqsendertypes.Batch {
 	return &BananaBatch{b.Batch}
-
 }
 
 func (b *BananaBatch) SetL2Data(data []byte) {
 	b.Batch.L2Data = data
-
 }
+
 func (b *BananaBatch) SetLastCoinbase(address common.Address) {
 	b.Batch.LastCoinbase = address
 }
+
 func (b *BananaBatch) SetLastL2BLockTimestamp(ts uint64) {
 	b.Batch.LastL2BLockTimestamp = ts
 }
+
 func (b *BananaBatch) SetL1InfoTreeIndex(index uint32) {
 	b.Batch.L1InfoTreeIndex = index
 }
@@ -129,4 +130,12 @@ func (b *BananaBatch) String() string {
 	return fmt.Sprintf("Batch/Banana: LastCoinbase: %s, ForcedBatchTimestamp: %d, ForcedGlobalExitRoot: %x, ForcedBlockHashL1: %x, L2Data: %x, LastL2BLockTimestamp: %d, BatchNumber: %d, GlobalExitRoot: %x, L1InfoTreeIndex: %d",
 		b.LastCoinbase().String(), b.ForcedBatchTimestamp(), b.ForcedGlobalExitRoot().String(), b.ForcedBlockHashL1().String(), b.L2Data(), b.LastL2BLockTimestamp(), b.BatchNumber(), b.GlobalExitRoot().String(), b.L1InfoTreeIndex(),
 	)
+}
+
+func (b *BananaSequence) LastVirtualBatchNumber() uint64 {
+	return b.SequenceBanana.LastVirtualBatchNumber
+}
+
+func (b *BananaSequence) SetLastVirtualBatchNumber(batchNumber uint64) {
+	b.SequenceBanana.LastVirtualBatchNumber = batchNumber
 }
