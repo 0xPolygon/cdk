@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -35,19 +36,24 @@ func prepareRLPTxData(tx *types.Transaction) ([]byte, error) {
 	v, r, s := tx.RawSignatureValues()
 	sign := 1 - (v.Uint64() & 1)
 
-	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
-
 	rlpFieldsToEncode := []interface{}{
-		nonce,
-		gasPrice,
-		gas,
-		to,
-		value,
-		data,
+		tx.Nonce(),
 	}
 
-	if !IsPreEIP155Tx(tx) {
-		rlpFieldsToEncode = append(rlpFieldsToEncode, chainID)
+	if tx.Type() == types.DynamicFeeTxType {
+		rlpFieldsToEncode = append(rlpFieldsToEncode, tx.GasTipCap())
+		rlpFieldsToEncode = append(rlpFieldsToEncode, tx.GasFeeCap())
+	} else {
+		rlpFieldsToEncode = append(rlpFieldsToEncode, tx.GasPrice())
+	}
+
+	rlpFieldsToEncode = append(rlpFieldsToEncode, tx.Gas())
+	rlpFieldsToEncode = append(rlpFieldsToEncode, tx.To())
+	rlpFieldsToEncode = append(rlpFieldsToEncode, tx.Value())
+	rlpFieldsToEncode = append(rlpFieldsToEncode, tx.Data())
+
+	if !isPreEIP155Tx(tx) {
+		rlpFieldsToEncode = append(rlpFieldsToEncode, tx.ChainId())
 		rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
 		rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
 	}
@@ -61,11 +67,8 @@ func prepareRLPTxData(tx *types.Transaction) ([]byte, error) {
 	newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
 	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
 	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
-	txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
-	if err != nil {
-		return nil, err
-	}
-	return txData, nil
+
+	return hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
 }
 
 // DecodeTxs extracts Transactions for its encoded form
@@ -173,16 +176,19 @@ func DecodeTx(encodedTx string) (*types.Transaction, error) {
 		return nil, err
 	}
 
+	reader := bytes.NewReader(b)
+	stream := rlp.NewStream(reader, 0)
+
 	tx := new(types.Transaction)
-	if err := tx.UnmarshalBinary(b); err != nil {
+	if err := tx.DecodeRLP(stream); err != nil {
 		return nil, err
 	}
 	return tx, nil
 }
 
-// IsPreEIP155Tx checks if the tx is a tx that has a chainID as zero and
+// isPreEIP155Tx checks if the tx is a tx that has a chainID as zero and
 // V field is either 27 or 28
-func IsPreEIP155Tx(tx *types.Transaction) bool {
+func isPreEIP155Tx(tx *types.Transaction) bool {
 	v, _, _ := tx.RawSignatureValues()
 	return tx.ChainId().Uint64() == 0 && (v.Uint64() == 27 || v.Uint64() == 28)
 }
