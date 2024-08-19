@@ -1,31 +1,25 @@
 # Setup environment to local debug on VSCode
 
-## Clone kurtosis
+## Requirements
 
-Set KURTOSIS_FOLDER to the folder where do you want to clone `kurtosis_cdk`
+* Working and running [kurtosis-cdk](https://github.com/0xPolygon/kurtosis-cdk) environment setup.
+* In `test/scripts/env.sh` setup `KURTOSIS_FOLDER` pointing to your setup.
 
-```bash
-KURTOSIS_FOLDER="/tmp/kurtosis/" ./test/scripts/clone_kurtosis.sh develop $KURTOSIS_FOLDER
-```
-
-## Run kurtosis
-
-Set KURTOSIS_FOLDER to the folder where do you clone `kurtosis_cdk`
-
-```bash
-KURTOSIS_FOLDER="/tmp/kurtosis/" kurtosis run --enclave cdk-v1 --args-file  $KURTOSIS_FOLDER/cdk-erigon-sequencer-params.yml --image-download always $KURTOSIS_FOLDER
-```
+> [!TIP]
+> Use your WIP branch in Kurtosis as needed
 
 ## Create configuration for this kurtosis environment
 
-`./test/scripts/config_kurtosis_for_local_run.sh`
+```
+scripts/local_config
+```
 
-## Stop sequence-sender started by Kurtosis
+## Stop cdk-node started by Kurtosis
 
 ```bash
-kurtosis service stop cdk-v1 zkevm-node-sequence-sender-001
+kurtosis service stop cdk-v1 cdk-node-001
 ```
 
 ## Add to vscode launch.json
 
-After execution `config_kurtosis_for_local_run.sh` it suggest a entry for `launch.json` configurations
+After execution `scripts/local_config` it suggest an entry for `launch.json` configurations

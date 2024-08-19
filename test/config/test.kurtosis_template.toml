@@ -27,6 +27,7 @@ SequencesTxFileName = "sequencesender.json"
 GasOffset = 80000
 WaitPeriodPurgeTxFile = "15m"
 MaxPendingTx = 1
+SanityCheckRPCURL = "http://127.0.0.1:8123"
 	[SequenceSender.StreamClient]
 		Server = "127.0.0.1:${zkevm_data_streamer_port}"
 	[SequenceSender.EthTxManager]
@@ -59,6 +60,7 @@ ProofStatePollingInterval = "5s"
 SenderAddress = ""
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
+BatchProofSanityCheckEnabled = true
 ForkId = 9
 GasOffset = 0
 WitnessURL = "localhost:8123"

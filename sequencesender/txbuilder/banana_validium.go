@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -51,7 +50,7 @@ func (t *TxBuilderBananaValidium) SetCondNewSeq(cond CondNewSequence) CondNewSeq
 	return previous
 }
 
-func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
+func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
 	// TODO: param sender
 	// Post sequences to DA backend
 	var dataAvailabilityMessage []byte
@@ -76,7 +75,7 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, se
 	// Build sequence data
 	tx, err := t.internalBuildSequenceBatchesTx(ethseq, dataAvailabilityMessage)
 	if err != nil {
-		log.Errorf("[SeqSender] error estimating new sequenceBatches to add to ethtxmanager: ", err)
+		log.Errorf("error estimating new sequenceBatches to add to ethtxmanager: ", err)
 		return nil, err
 	}
 	return tx, nil
@@ -84,7 +83,7 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, se
 
 // BuildSequenceBatchesTx builds a tx to be sent to the PoE SC method SequenceBatches.
 func (t *TxBuilderBananaValidium) internalBuildSequenceBatchesTx(sequence etherman.SequenceBanana,
-	dataAvailabilityMessage []byte) (*ethtypes.Transaction, error) {
+	dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	newopts := t.opts
 	newopts.NoSend = true
 
@@ -96,7 +95,7 @@ func (t *TxBuilderBananaValidium) internalBuildSequenceBatchesTx(sequence etherm
 	return t.sequenceBatchesValidium(newopts, sequence, dataAvailabilityMessage)
 }
 
-func (t *TxBuilderBananaValidium) sequenceBatchesValidium(opts bind.TransactOpts, sequence etherman.SequenceBanana, dataAvailabilityMessage []byte) (*ethtypes.Transaction, error) {
+func (t *TxBuilderBananaValidium) sequenceBatchesValidium(opts bind.TransactOpts, sequence etherman.SequenceBanana, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	batches := make([]polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, len(sequence.Batches))
 	for i, batch := range sequence.Batches {
 		var ger common.Hash
@@ -117,7 +116,6 @@ func (t *TxBuilderBananaValidium) sequenceBatchesValidium(opts bind.TransactOpts
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", sequence.L2Coinbase)
 		log.Debug("Sequencer address: ", opts.From)
-
 	}
 
 	return tx, err

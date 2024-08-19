@@ -44,7 +44,7 @@ import (
 )
 
 func start(cliCtx *cli.Context) error {
-	c, err := config.Load(cliCtx, true)
+	c, err := config.Load(cliCtx)
 	if err != nil {
 		return err
 	}
@@ -140,8 +140,6 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 	st := newState(&c, l2ChainID, stateSqlDB)
 
 	c.Aggregator.ChainID = l2ChainID
-
-	checkAggregatorMigrations(c.Aggregator.DB)
 
 	// Populate Network config
 	c.Aggregator.Synchronizer.Etherman.Contracts.GlobalExitRootManagerAddr = c.NetworkConfig.L1Config.GlobalExitRootManagerAddr
@@ -317,13 +315,6 @@ func runAggregatorMigrations(c db.Config) {
 	runMigrations(c, db.AggregatorMigrationName)
 }
 
-func checkAggregatorMigrations(c db.Config) {
-	err := db.CheckMigrations(c, db.AggregatorMigrationName)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 func runMigrations(c db.Config, name string) {
 	log.Infof("running migrations for %v", name)
 	err := db.RunMigrationsUp(c, name)
@@ -333,10 +324,14 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	config := ethermanconfig.Config{
-		URL: c.Aggregator.EthTxManager.Etherman.URL,
-	}
-	return etherman.NewClient(config, c.NetworkConfig.L1Config, c.Common)
+	return etherman.NewClient(ethermanconfig.Config{
+		EthermanConfig: ethtxman.Config{
+			URL:              c.Aggregator.EthTxManager.Etherman.URL,
+			MultiGasProvider: c.Aggregator.EthTxManager.Etherman.MultiGasProvider,
+			L1ChainID:        c.Aggregator.EthTxManager.Etherman.L1ChainID,
+			HTTPHeaders:      c.Aggregator.EthTxManager.Etherman.HTTPHeaders,
+		},
+	}, c.NetworkConfig.L1Config, c.Common)
 }
 
 func logVersion() {
