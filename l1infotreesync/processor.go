@@ -353,7 +353,6 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	}
 	l1InfoTreeLeavesToAdd := []tree.Leaf{}
 	rollupExitTreeLeavesToAdd := []tree.Leaf{}
-	var initL1InfoTree *InitL1InfoRootMap
 	if len(b.Events) > 0 {
 		var initialL1InfoIndex uint32
 		var l1InfoLeavesAdded uint32
@@ -398,24 +397,9 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 			}
 
 			if event.InitL1InfoRootMap != nil {
-				initL1InfoTree = &InitL1InfoRootMap{
-					LeafCount:         event.InitL1InfoRootMap.LeafCount,
-					CurrentL1InfoRoot: event.InitL1InfoRootMap.CurrentL1InfoRoot,
-				}
-				if l1InfoLeavesAdded != 0 {
-					// TODO: we may need to remove this check for networks that have history...
-					log.Fatal("found leafs before init event")
-				}
-				if initL1InfoTree.LeafCount == 0 {
-					l1InfoTreeLeavesToAdd = append(l1InfoTreeLeavesToAdd, tree.Leaf{
-						Index: 0,
-						Hash:  ethCommon.Hash{},
-					})
-					l1InfoLeavesAdded++
-				} else {
-					// TODO: WE NEED TO SUPPORT THIS PATH, prolly assert CurrentL1InfoRoot as well
-					log.Fatal("tree was initialised before init evebt")
-				}
+				// TODO: indicate that l1 Info tree indexes before the one on this
+				// event are not safe to use
+				log.Debugf("TODO: handle InitL1InfoRootMap event")
 			}
 		}
 		if l1InfoLeavesAdded > 0 {
@@ -437,7 +421,6 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 				rollback()
 				return err
 			}
-			// TODO: assert with CurrentL1InfoRoot if included on the event
 		}
 
 		if len(rollupExitTreeLeavesToAdd) > 0 {

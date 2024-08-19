@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	dbCommon "github.com/0xPolygon/cdk/common"
-	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 )
@@ -97,7 +96,6 @@ func (t *AppendOnlyTree) addLeaf(tx kv.RwTx, leaf Leaf) error {
 		return err
 	}
 	t.lastIndex++
-	log.Infof("root after updating tree: %s", root.Hex())
 	return nil
 }
 

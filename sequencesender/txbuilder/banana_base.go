@@ -136,7 +136,7 @@ func (t *TxBuilderBananaBase) getL1InfoRoot(indexL1InfoRoot uint32) (common.Hash
 	return t.globalExitRootContract.L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
 }
 
-func (t *TxBuilderBananaBase) convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.SequenceBanana, error) {
+func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.SequenceBanana, error) {
 	seqEth, ok := sequences.(*BananaSequence)
 	if !ok {
 		log.Error("sequences is not a BananaSequence")

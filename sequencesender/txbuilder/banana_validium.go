@@ -61,7 +61,7 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(ctx context.Context, se
 	// Post sequences to DA backend
 	var dataAvailabilityMessage []byte
 	var err error
-	ethseq, err := t.convertToSequenceBanana(sequences)
+	ethseq, err := convertToSequenceBanana(sequences)
 	if err != nil {
 		log.Error("error converting sequences to etherman: ", err)
 		return nil, err

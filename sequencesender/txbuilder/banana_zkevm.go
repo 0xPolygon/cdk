@@ -58,7 +58,7 @@ func (t *TxBuilderBananaZKEVM) SetCondNewSeq(cond CondNewSequence) CondNewSequen
 
 func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
 	var err error
-	ethseq, err := t.convertToSequenceBanana(sequences)
+	ethseq, err := convertToSequenceBanana(sequences)
 	if err != nil {
 		log.Error("error converting sequences to etherman: ", err)
 		return nil, err

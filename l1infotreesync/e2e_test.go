@@ -53,7 +53,6 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 	}
 	client.Commit()
 
-	// TODO: must call init for realisitic test
 	gerAddr, _, gerContract, err = polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(auth, client.Client(), verifyAddr, auth.From)
 	if err != nil {
 		return
