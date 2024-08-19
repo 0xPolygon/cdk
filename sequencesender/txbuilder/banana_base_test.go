@@ -1,6 +1,7 @@
 package txbuilder_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
@@ -17,7 +18,7 @@ func TestBananaBaseNewSequenceEmpty(t *testing.T) {
 	testData := newBananaBaseTestData(t)
 	lastAcc := common.HexToHash("0x8aca9664752dbae36135fd0956c956fc4a370feeac67485b49bcd4b99608ae41")
 	testData.rollupContract.EXPECT().LastAccInputHash(mock.Anything).Return(lastAcc, nil)
-	seq, err := testData.sut.NewSequence(nil, common.Address{})
+	seq, err := testData.sut.NewSequence(context.TODO(), nil, common.Address{})
 	require.NotNil(t, seq)
 	require.NoError(t, err)
 	// TODO check values
@@ -58,7 +59,7 @@ func TestBananaBaseNewSequenceBatch(t *testing.T) {
 	l1infoRoot := common.HexToHash("0x66ca9664752dbae36135fd0956c956fc4a370feeac67485b49bcd4b99608ae41")
 	testData.getContract.EXPECT().L1InfoRootMap(mock.Anything, uint32(3)).Return(l1infoRoot, nil)
 
-	seq, err := testData.sut.NewSequence(batches, common.Address{})
+	seq, err := testData.sut.NewSequence(context.TODO(), batches, common.Address{})
 	require.NotNil(t, seq)
 	require.NoError(t, err)
 	// TODO: check that the seq have the right values

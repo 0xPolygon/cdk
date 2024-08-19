@@ -1,6 +1,7 @@
 package txbuilder_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
@@ -38,7 +39,7 @@ func TestConditionalNumBatchesFulfillCondition(t *testing.T) {
 	var sequenceBatches []seqsendertypes.Batch
 	sequenceBatches = append(sequenceBatches, &txbuilder.BananaBatch{})
 	sequenceBatches = append(sequenceBatches, &txbuilder.BananaBatch{})
-	mockTxBuilder.EXPECT().NewSequence(mock.Anything, mock.Anything).Return(nil, nil)
+	mockTxBuilder.EXPECT().NewSequence(context.TODO(), mock.Anything, mock.Anything).Return(nil, nil)
 	tx, err := sut.NewSequenceIfWorthToSend(nil, mockTxBuilder, sequenceBatches, common.Address{})
 	require.NoError(t, err)
 	require.Nil(t, tx)

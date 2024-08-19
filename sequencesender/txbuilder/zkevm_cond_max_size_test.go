@@ -28,7 +28,7 @@ func TestConditionalMaxSizeTxBuilderNewSequenceReturnsNil(t *testing.T) {
 	sut := txbuilder.NewConditionalNewSequenceMaxSize(1024)
 	var sequenceBatches []seqsendertypes.Batch
 	sequenceBatches = append(sequenceBatches, &txbuilder.BananaBatch{})
-	mockTxBuilder.EXPECT().NewSequence(sequenceBatches, common.Address{}).Return(nil, nil)
+	mockTxBuilder.EXPECT().NewSequence(context.TODO(), sequenceBatches, common.Address{}).Return(nil, nil)
 	_, err := sut.NewSequenceIfWorthToSend(nil, mockTxBuilder, sequenceBatches, common.Address{})
 	require.Error(t, err)
 }
@@ -39,7 +39,7 @@ func TestConditionalMaxSizeTxBuilderBuildSequenceBatchesTxReturnsNil(t *testing.
 	var sequenceBatches []seqsendertypes.Batch
 	sequenceBatches = append(sequenceBatches, &txbuilder.BananaBatch{})
 	seq := &txbuilder.ElderberrySequence{}
-	mockTxBuilder.EXPECT().NewSequence(sequenceBatches, common.Address{}).Return(seq, nil)
+	mockTxBuilder.EXPECT().NewSequence(context.TODO(), sequenceBatches, common.Address{}).Return(seq, nil)
 	mockTxBuilder.EXPECT().BuildSequenceBatchesTx(mock.Anything, mock.Anything).Return(nil, nil)
 	_, err := sut.NewSequenceIfWorthToSend(nil, mockTxBuilder, sequenceBatches, common.Address{})
 	require.Error(t, err)
@@ -51,7 +51,7 @@ func TestConditionalMaxSizeTxBuilderDontFulFill(t *testing.T) {
 	var sequenceBatches []seqsendertypes.Batch
 	sequenceBatches = append(sequenceBatches, &txbuilder.BananaBatch{})
 	seq := &txbuilder.ElderberrySequence{}
-	mockTxBuilder.EXPECT().NewSequence(sequenceBatches, common.Address{}).Return(seq, nil)
+	mockTxBuilder.EXPECT().NewSequence(context.TODO(), sequenceBatches, common.Address{}).Return(seq, nil)
 	inner := &ethtypes.LegacyTx{}
 	tx := ethtypes.NewTx(inner)
 	mockTxBuilder.EXPECT().BuildSequenceBatchesTx(mock.Anything, mock.Anything).Return(tx, nil)
@@ -69,7 +69,7 @@ func TestConditionalMaxSizeTxBuilderFulFill(t *testing.T) {
 	ctx := context.TODO()
 
 	newSeq := newTestSeq(3, 100, l2coinbase)
-	mockTxBuilder.EXPECT().NewSequence(newSeq.Batches(), l2coinbase).Return(newSeq, nil)
+	mockTxBuilder.EXPECT().NewSequence(context.TODO(), newSeq.Batches(), l2coinbase).Return(newSeq, nil)
 	inner := &ethtypes.LegacyTx{
 		Data: []byte{0x01, 0x02, 0x03, 0x04},
 	}
@@ -77,7 +77,7 @@ func TestConditionalMaxSizeTxBuilderFulFill(t *testing.T) {
 	mockTxBuilder.EXPECT().BuildSequenceBatchesTx(ctx, newSeq).Return(tx, nil)
 	// The size of result Tx is 14 that is > 10, so it reduce 1 batch
 	newSeqReduced := newTestSeq(2, 100, l2coinbase)
-	mockTxBuilder.EXPECT().NewSequence(newSeqReduced.Batches(), l2coinbase).Return(newSeqReduced, nil)
+	mockTxBuilder.EXPECT().NewSequence(context.TODO(), newSeqReduced.Batches(), l2coinbase).Return(newSeqReduced, nil)
 	mockTxBuilder.EXPECT().BuildSequenceBatchesTx(ctx, newSeqReduced).Return(tx, nil)
 
 	res, err := sut.NewSequenceIfWorthToSend(ctx, mockTxBuilder, newSeq.Batches(), l2coinbase)

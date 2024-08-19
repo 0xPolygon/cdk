@@ -105,5 +105,5 @@ func newSequenceBananaValidiumForTest(testData *testDataBananaValidium) (seqsend
 	testData.rollupContract.EXPECT().LastAccInputHash(mock.Anything).Return(lastAcc, nil).Once()
 	l1infoRoot := common.HexToHash("0x66ca9664752dbae36135fd0956c956fc4a370feeac67485b49bcd4b99608ae41")
 	testData.getContract.EXPECT().L1InfoRootMap(mock.Anything, uint32(3)).Return(l1infoRoot, nil).Once()
-	return testData.sut.NewSequence(batches, common.Address{})
+	return testData.sut.NewSequence(context.TODO(), batches, common.Address{})
 }

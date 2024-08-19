@@ -68,8 +68,7 @@ func (t *TxBuilderBananaBase) NewBatchFromL2Block(l2Block *datastream.L2Block) s
 	return NewBananaBatch(batch)
 }
 
-func (t *TxBuilderBananaBase) NewSequence(batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
-	ctx := context.TODO()
+func (t *TxBuilderBananaBase) NewSequence(ctx context.Context, batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
 	ethBatches, err := toEthermanBatches(batches)
 	if err != nil {
 		return nil, err

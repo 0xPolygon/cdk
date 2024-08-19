@@ -30,6 +30,10 @@ func (_m *RollupElderberryZKEVMContractor) EXPECT() *RollupElderberryZKEVMContra
 func (_m *RollupElderberryZKEVMContractor) SequenceBatches(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, maxSequenceTimestamp uint64, initSequencedBatch uint64, l2Coinbase common.Address) (*types.Transaction, error) {
 	ret := _m.Called(opts, batches, maxSequenceTimestamp, initSequencedBatch, l2Coinbase)
 
+	if len(ret) == 0 {
+		panic("no return value specified for SequenceBatches")
+	}
+
 	var r0 *types.Transaction
 	var r1 error
 	if rf, ok := ret.Get(0).(func(*bind.TransactOpts, []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, uint64, uint64, common.Address) (*types.Transaction, error)); ok {
@@ -84,13 +88,12 @@ func (_c *RollupElderberryZKEVMContractor_SequenceBatches_Call) RunAndReturn(run
 	return _c
 }
 
-type mockConstructorTestingTNewRollupElderberryZKEVMContractor interface {
+// NewRollupElderberryZKEVMContractor creates a new instance of RollupElderberryZKEVMContractor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewRollupElderberryZKEVMContractor(t interface {
 	mock.TestingT
 	Cleanup(func())
-}
-
-// NewRollupElderberryZKEVMContractor creates a new instance of RollupElderberryZKEVMContractor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-func NewRollupElderberryZKEVMContractor(t mockConstructorTestingTNewRollupElderberryZKEVMContractor) *RollupElderberryZKEVMContractor {
+}) *RollupElderberryZKEVMContractor {
 	mock := &RollupElderberryZKEVMContractor{}
 	mock.Mock.Test(t)
 
