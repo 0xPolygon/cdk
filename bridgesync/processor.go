@@ -47,9 +47,9 @@ func (b *Bridge) Hash() common.Hash {
 		bigIntSize     = 32
 	)
 	origNet := make([]byte, uint32ByteSize)
-	binary.BigEndian.PutUint32(origNet, uint32(b.OriginNetwork))
+	binary.BigEndian.PutUint32(origNet, b.OriginNetwork)
 	destNet := make([]byte, uint32ByteSize)
-	binary.BigEndian.PutUint32(destNet, uint32(b.DestinationNetwork))
+	binary.BigEndian.PutUint32(destNet, b.DestinationNetwork)
 
 	metaHash := keccak256.Hash(b.Metadata)
 	var buf [bigIntSize]byte

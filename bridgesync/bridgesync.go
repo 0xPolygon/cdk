@@ -34,7 +34,7 @@ func NewL1(
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 ) (*BridgeSync, error) {
-	return new(
+	return newBridgeSync(
 		ctx,
 		dbPath,
 		bridge,
@@ -64,7 +64,7 @@ func NewL2(
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 ) (*BridgeSync, error) {
-	return new(
+	return newBridgeSync(
 		ctx,
 		dbPath,
 		bridge,
@@ -80,7 +80,7 @@ func NewL2(
 	)
 }
 
-func new(
+func newBridgeSync(
 	ctx context.Context,
 	dbPath string,
 	bridge common.Address,

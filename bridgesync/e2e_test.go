@@ -24,6 +24,7 @@ func newSimulatedClient(t *testing.T, auth *bind.TransactOpts) (
 	bridgeAddr common.Address,
 	bridgeContract *polygonzkevmbridgev2.Polygonzkevmbridgev2,
 ) {
+	t.Helper()
 	var err error
 	balance, _ := big.NewInt(0).SetString("10000000000000000000000000", 10) //nolint:gomnd
 	address := auth.From
@@ -49,9 +50,9 @@ func TestBridgeEventE2E(t *testing.T) {
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
 	require.NoError(t, err)
-	client, bridgeAddr, bridgeSc, err := newSimulatedClient(auth)
-	require.NoError(t, err)
+	client, bridgeAddr, bridgeSc := newSimulatedClient(t, auth)
 	rd, err := reorgdetector.New(ctx, client.Client(), dbPathReorg)
+	require.NoError(t, err)
 	go rd.Start(ctx)
 
 	syncer, err := bridgesync.NewL1(ctx, dbPathSyncer, bridgeAddr, 10, etherman.LatestBlock, rd, client.Client(), 0, time.Millisecond*10, 0, 0)
@@ -76,6 +77,7 @@ func TestBridgeEventE2E(t *testing.T) {
 			bridge.OriginAddress,
 			false, nil,
 		)
+		require.NoError(t, err)
 		client.Commit()
 		receipt, err := client.Client().TransactionReceipt(ctx, tx.Hash())
 		require.NoError(t, err)
