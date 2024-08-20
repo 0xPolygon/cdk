@@ -135,8 +135,8 @@ func (t *TxBuilderBananaBase) NewSequence(ctx context.Context, batches []seqsend
 	return res, nil
 }
 
-func (t *TxBuilderBananaBase) getL1InfoRoot(indexL1InfoRoot uint32) (common.Hash, error) {
-	return t.globalExitRootContract.L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
+func (t *TxBuilderBananaBase) getL1InfoRoot(counterL1InfoRoot uint32) (common.Hash, error) {
+	return t.globalExitRootContract.L1InfoRootMap(&bind.CallOpts{Pending: false}, counterL1InfoRoot)
 }
 
 func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.SequenceBanana, error) {
