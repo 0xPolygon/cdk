@@ -27,6 +27,7 @@ import (
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/pgstatestorage"
+	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/translator"
 	ethtxman "github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman/etherscan"
@@ -75,7 +76,8 @@ func start(cliCtx *cli.Context) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			reorgDetector := newReorgDetectorL1(cliCtx.Context, *c, l1Client)
+			//reorgDetector := newReorgDetectorL1(cliCtx.Context, *c, l1Client)
+			reorgDetector := reorgdetector.NewReorgMonitor(l1Client, 100)
 			go reorgDetector.Start(cliCtx.Context)
 			syncer := newL1InfoTreeSyncer(cliCtx.Context, *c, l1Client, reorgDetector)
 			go syncer.Start(cliCtx.Context)
@@ -376,7 +378,7 @@ func newL1InfoTreeSyncer(
 	ctx context.Context,
 	cfg config.Config,
 	l1Client *ethclient.Client,
-	reorgDetector *reorgdetector.ReorgDetector,
+	reorgDetector sync.ReorgDetector,
 ) *l1infotreesync.L1InfoTreeSync {
 	syncer, err := l1infotreesync.New(
 		ctx,

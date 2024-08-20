@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-	types "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
 )
 
@@ -86,17 +86,29 @@ func (mon *ReorgMonitor) Subscribe(id string) (*Subscription, error) {
 }
 
 func (mon *ReorgMonitor) AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error {
+	mon.subscriptionsLock.RLock()
+	if sub, ok := mon.subscriptions[id]; !ok {
+		mon.subscriptionsLock.RUnlock()
+		return ErrNotSubscribed
+	} else {
+		// In case there are reorgs being processed, wait
+		// Note that this also makes any addition to trackedBlocks[id] safe
+		sub.pendingReorgsToBeProcessed.Wait()
+	}
+	mon.subscriptionsLock.RUnlock()
+
 	return nil
 }
 
 func (mon *ReorgMonitor) notifySubscribers(reorg *Reorg) {
-	// TODO: Add wg group
-	mon.subscriptionsLock.Lock()
+	mon.subscriptionsLock.RLock()
 	for _, sub := range mon.subscriptions {
+		sub.pendingReorgsToBeProcessed.Add(1)
 		sub.FirstReorgedBlock <- reorg.StartBlockHeight
 		<-sub.ReorgProcessed
+		sub.pendingReorgsToBeProcessed.Done()
 	}
-	mon.subscriptionsLock.Unlock()
+	mon.subscriptionsLock.RUnlock()
 }
 
 func (mon *ReorgMonitor) onNewHeader(header *types.Header) error {
@@ -250,9 +262,7 @@ func (mon *ReorgMonitor) ensureBlock(blockHash common.Hash, origin BlockOrigin) 
 	fmt.Printf("- block %s (%s) not found, downloading from...\n", blockHash, origin)
 	ethBlock, err := mon.client.HeaderByHash(context.Background(), blockHash)
 	if err != nil {
-		fmt.Println("- err block not found:", blockHash, err) // todo: try other clients
-		msg := fmt.Sprintf("EnsureBlock error for hash %s", blockHash)
-		return nil, false, errors.Wrap(err, msg)
+		return nil, false, errors.Wrapf(err, "EnsureBlock error for hash %s", blockHash)
 	}
 
 	block = NewBlock(ethBlock, origin)
@@ -279,8 +289,7 @@ func (mon *ReorgMonitor) AnalyzeTree(maxBlocks, distanceToLastBlockHeight uint64
 	for height := startBlockNumber; height <= endBlockNumber; height++ {
 		numBlocksAtHeight := len(mon.blocksByHeight[height])
 		if numBlocksAtHeight == 0 {
-			err := fmt.Errorf("error in monitor.AnalyzeTree: no blocks at height %d", height)
-			return nil, err
+			return nil, fmt.Errorf("error in monitor.AnalyzeTree: no blocks at height %d", height)
 		}
 
 		// Start tree only when 1 block at this height. If more blocks then skip.

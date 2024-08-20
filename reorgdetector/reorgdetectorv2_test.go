@@ -2,7 +2,6 @@ package reorgdetector
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -54,7 +53,7 @@ func Test_ReorgDetectorV2(t *testing.T) {
 	err = mon.Start(context.Background())
 	require.NoError(t, err)
 
-	expectedReorgBlocks := make(map[uint64]struct{})
+	expectedReorgBlocks := make(map[uint64]bool)
 	lastReorgOn := int64(0)
 	for i := 1; lastReorgOn <= produceBlocks; i++ {
 		block := clientL1.Commit()
@@ -71,7 +70,7 @@ func Test_ReorgDetectorV2(t *testing.T) {
 			reorgBlock, err := clientL1.Client().BlockByNumber(ctx, big.NewInt(headerNumber-reorgDepth))
 			require.NoError(t, err)
 
-			expectedReorgBlocks[reorgBlock.NumberU64()] = struct{}{}
+			expectedReorgBlocks[reorgBlock.NumberU64()] = false
 
 			err = clientL1.Fork(reorgBlock.Hash())
 			require.NoError(t, err)
@@ -83,18 +82,18 @@ func Test_ReorgDetectorV2(t *testing.T) {
 		clientL1.Commit()
 	}
 
-	fmt.Println("Expected reorg blocks", expectedReorgBlocks)
-
-	for firstReorgedBlock := range sub.FirstReorgedBlock {
+	for range expectedReorgBlocks {
+		firstReorgedBlock := <-sub.FirstReorgedBlock
 		sub.ReorgProcessed <- true
-		fmt.Println("reorg", firstReorgedBlock)
+
+		processed, ok := expectedReorgBlocks[firstReorgedBlock-1]
+		require.True(t, ok)
+		require.False(t, processed)
+
+		expectedReorgBlocks[firstReorgedBlock-1] = true
 	}
 
-	for range expectedReorgBlocks {
-		//reorg := <-sub.FirstReorgedBlock
-		//sub.ReorgProcessed <- true
-		//fmt.Println("reorg", reorg)
-		//_, ok := expectedReorgBlocks[reorg.StartBlockHeight-1]
-		//require.True(t, ok, "unexpected reorg starting from", reorg.StartBlockHeight-1)
+	for _, processed := range expectedReorgBlocks {
+		require.True(t, processed)
 	}
 }
