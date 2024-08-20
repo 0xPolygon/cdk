@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
+
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -42,6 +44,12 @@ func tableCfgFunc(defaultBuckets kv.TableCfg) kv.TableCfg {
 }
 
 type EthClient interface {
+	// V2
+	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
+	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
+	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
+	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
+
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	BlockNumber(ctx context.Context) (uint64, error)
 }

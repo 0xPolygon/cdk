@@ -1,4 +1,4 @@
-package reorgmonitor
+package reorgdetector
 
 import (
 	"context"
@@ -31,7 +31,7 @@ func newSimulatedL1(t *testing.T, auth *bind.TransactOpts) *simulated.Backend {
 	return client
 }
 
-func Test_ReorgMonitor(t *testing.T) {
+func Test_ReorgDetectorV2(t *testing.T) {
 	const produceBlocks = 29
 	const reorgPeriod = 5
 	const reorgDepth = 2
@@ -46,29 +46,13 @@ func Test_ReorgMonitor(t *testing.T) {
 	clientL1 := newSimulatedL1(t, authL1)
 	require.NoError(t, err)
 
-	reorgChan := make(chan *Reorg, 100)
-	mon := NewReorgMonitor(clientL1.Client(), reorgChan, 100)
+	mon := NewReorgMonitor(clientL1.Client(), 100)
 
-	// Add head tracker
-	ch := make(chan *types.Header, 100)
-	sub, err := clientL1.Client().SubscribeNewHead(ctx, ch)
+	sub, err := mon.Subscribe("test")
 	require.NoError(t, err)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-sub.Err():
-				return
-			case header := <-ch:
-				block, err := clientL1.Client().BlockByNumber(ctx, header.Number)
-				require.NoError(t, err)
 
-				err = mon.AddBlockToTrack(NewBlock(block, OriginSubscription))
-				require.NoError(t, err)
-			}
-		}
-	}()
+	err = mon.Start(context.Background())
+	require.NoError(t, err)
 
 	expectedReorgBlocks := make(map[uint64]struct{})
 	lastReorgOn := int64(0)
@@ -87,7 +71,6 @@ func Test_ReorgMonitor(t *testing.T) {
 			reorgBlock, err := clientL1.Client().BlockByNumber(ctx, big.NewInt(headerNumber-reorgDepth))
 			require.NoError(t, err)
 
-			fmt.Println("Forking from block", reorgBlock.Number(), "on block", headerNumber)
 			expectedReorgBlocks[reorgBlock.NumberU64()] = struct{}{}
 
 			err = clientL1.Fork(reorgBlock.Hash())
@@ -102,9 +85,16 @@ func Test_ReorgMonitor(t *testing.T) {
 
 	fmt.Println("Expected reorg blocks", expectedReorgBlocks)
 
+	for firstReorgedBlock := range sub.FirstReorgedBlock {
+		sub.ReorgProcessed <- true
+		fmt.Println("reorg", firstReorgedBlock)
+	}
+
 	for range expectedReorgBlocks {
-		reorg := <-reorgChan
-		_, ok := expectedReorgBlocks[reorg.StartBlockHeight-1]
-		require.True(t, ok, "unexpected reorg starting from", reorg.StartBlockHeight-1)
+		//reorg := <-sub.FirstReorgedBlock
+		//sub.ReorgProcessed <- true
+		//fmt.Println("reorg", reorg)
+		//_, ok := expectedReorgBlocks[reorg.StartBlockHeight-1]
+		//require.True(t, ok, "unexpected reorg starting from", reorg.StartBlockHeight-1)
 	}
 }

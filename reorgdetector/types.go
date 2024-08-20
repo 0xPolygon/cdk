@@ -1,9 +1,8 @@
-package reorgmonitor
+package reorgdetector
 
 import (
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -45,7 +44,7 @@ func NewReorg(parentNode *TreeNode) (*Reorg, error) {
 
 	reorg := Reorg{
 		CommonParent:     parentNode.Block,
-		StartBlockHeight: parentNode.Block.Number + 1,
+		StartBlockHeight: parentNode.Block.Header.Number.Uint64() + 1,
 
 		Chains:          make(map[common.Hash][]*Block),
 		BlocksInvolved:  make(map[common.Hash]*Block),
@@ -67,7 +66,7 @@ func NewReorg(parentNode *TreeNode) (*Reorg, error) {
 			}
 		}
 		addChildToChainRecursive(chainRootNode)
-		reorg.Chains[chainRootNode.Block.Hash] = chain
+		reorg.Chains[chainRootNode.Block.Header.Hash()] = chain
 	}
 
 	// Find depth of chains
@@ -99,15 +98,15 @@ func NewReorg(parentNode *TreeNode) (*Reorg, error) {
 	// Build final list of involved blocks, and get end blockheight
 	for chainHash, chain := range reorg.Chains {
 		for _, block := range chain {
-			reorg.BlocksInvolved[block.Hash] = block
+			reorg.BlocksInvolved[block.Header.Hash()] = block
 
 			if block.Origin != OriginSubscription && block.Origin != OriginGetParent {
 				reorg.SeenLive = false
 			}
 
 			if chainHash == reorg.MainChainHash {
-				reorg.MainChainBlocks[block.Hash] = block
-				reorg.EndBlockHeight = block.Number
+				reorg.MainChainBlocks[block.Header.Hash()] = block
+				reorg.EndBlockHeight = block.Header.Number.Uint64()
 			}
 		}
 	}
@@ -133,11 +132,11 @@ func (r *Reorg) MermaidSyntax() string {
 	ret := "stateDiagram-v2\n"
 
 	for _, block := range r.BlocksInvolved {
-		ret += fmt.Sprintf("    %s --> %s\n", block.ParentHash, block.Hash)
+		ret += fmt.Sprintf("    %s --> %s\n", block.Header.ParentHash, block.Header.Hash())
 	}
 
 	// Add first block after reorg
-	ret += fmt.Sprintf("    %s --> %s", r.FirstBlockAfterReorg.ParentHash, r.FirstBlockAfterReorg.Hash)
+	ret += fmt.Sprintf("    %s --> %s", r.FirstBlockAfterReorg.Header.ParentHash, r.FirstBlockAfterReorg.Header.Hash())
 	return ret
 }
 
@@ -160,7 +159,7 @@ func NewTreeNode(block *Block, parent *TreeNode) *TreeNode {
 }
 
 func (tn *TreeNode) String() string {
-	return fmt.Sprintf("TreeNode %d %s main=%5v \t first=%5v, %d children", tn.Block.Number, tn.Block.Hash, tn.IsMainChain, tn.IsFirst, len(tn.Children))
+	return fmt.Sprintf("TreeNode %d %s main=%5v \t first=%5v, %d children", tn.Block.Header.Number.Uint64(), tn.Block.Header.Hash(), tn.IsMainChain, tn.IsFirst, len(tn.Children))
 }
 
 func (tn *TreeNode) AddChild(node *TreeNode) {
@@ -191,8 +190,8 @@ func NewTreeAnalysis(t *BlockTree) (*TreeAnalysis, error) {
 		return &analysis, nil
 	}
 
-	analysis.StartBlockHeight = t.FirstNode.Block.Number
-	analysis.EndBlockHeight = t.LatestNodes[0].Block.Number
+	analysis.StartBlockHeight = t.FirstNode.Block.Header.Number.Uint64()
+	analysis.EndBlockHeight = t.LatestNodes[0].Block.Header.Number.Uint64()
 
 	if len(t.LatestNodes) > 1 {
 		analysis.IsSplitOngoing = true
@@ -224,7 +223,7 @@ func (a *TreeAnalysis) Print() {
 	for _, reorg := range a.Reorgs {
 		fmt.Println("")
 		fmt.Println(reorg.String())
-		fmt.Printf("- common parent: %d %s, first block after: %d %s\n", reorg.CommonParent.Number, reorg.CommonParent.Hash, reorg.FirstBlockAfterReorg.Number, reorg.FirstBlockAfterReorg.Hash)
+		fmt.Printf("- common parent: %d %s, first block after: %d %s\n", reorg.CommonParent.Header.Number.Uint64(), reorg.CommonParent.Header.Hash(), reorg.FirstBlockAfterReorg.Header.Number.Uint64(), reorg.FirstBlockAfterReorg.Header.Hash())
 
 		for chainKey, chain := range reorg.Chains {
 			if chainKey == reorg.MainChainHash {
@@ -233,7 +232,7 @@ func (a *TreeAnalysis) Print() {
 				fmt.Printf("- sidechain l=%d: ", len(chain))
 			}
 			for _, block := range chain {
-				fmt.Printf("%s ", block.Hash)
+				fmt.Printf("%s ", block.Header.Hash())
 			}
 			fmt.Print("\n")
 		}
@@ -263,28 +262,28 @@ func (t *BlockTree) AddBlock(block *Block) error {
 		node := NewTreeNode(block, nil)
 		t.FirstNode = node
 		t.LatestNodes = []*TreeNode{node}
-		t.NodeByHash[block.Hash] = node
+		t.NodeByHash[block.Header.Hash()] = node
 		return nil
 	}
 
 	// All other blocks are inserted as child of it's parent parent
-	parent, parentFound := t.NodeByHash[block.ParentHash]
+	parent, parentFound := t.NodeByHash[block.Header.ParentHash]
 	if !parentFound {
-		err := fmt.Errorf("error in BlockTree.AddBlock(): parent not found. block: %d %s, parent: %s", block.Number, block.Hash, block.ParentHash)
+		err := fmt.Errorf("error in BlockTree.AddBlock(): parent not found. block: %d %s, parent: %s", block.Header.Number.Uint64(), block.Header.Hash(), block.Header.ParentHash)
 		return err
 	}
 
 	node := NewTreeNode(block, parent)
-	t.NodeByHash[block.Hash] = node
+	t.NodeByHash[block.Header.Hash()] = node
 	parent.AddChild(node)
 
 	// Remember nodes at latest block height
 	if len(t.LatestNodes) == 0 {
 		t.LatestNodes = []*TreeNode{node}
 	} else {
-		if block.Number == t.LatestNodes[0].Block.Number { // add to list of latest nodes!
+		if block.Header.Number.Uint64() == t.LatestNodes[0].Block.Header.Number.Uint64() { // add to list of latest nodes!
 			t.LatestNodes = append(t.LatestNodes, node)
-		} else if block.Number > t.LatestNodes[0].Block.Number { // replace
+		} else if block.Header.Number.Uint64() > t.LatestNodes[0].Block.Header.Number.Uint64() { // replace
 			t.LatestNodes = []*TreeNode{node}
 		}
 	}
@@ -303,7 +302,7 @@ func (t *BlockTree) AddBlock(block *Block) error {
 				return
 			}
 			node.IsMainChain = true
-			t.MainChainNodeByHash[node.Block.Hash] = node
+			t.MainChainNodeByHash[node.Block.Header.Hash()] = node
 			TraverseMainChainFromLatestToEarliest(node.Parent)
 		}
 		TraverseMainChainFromLatestToEarliest(t.LatestNodes[0])
@@ -331,31 +330,15 @@ func (t *BlockTree) Print() {
 
 // Block is a geth Block and information about where it came from
 type Block struct {
-	Block                 *types.Block
-	Origin                BlockOrigin
-	ObservedUnixTimestamp int64
-
-	// some helpers
-	Number     uint64
-	Hash       common.Hash
-	ParentHash common.Hash
+	Header *types.Header
+	Origin BlockOrigin
 }
 
-func NewBlock(block *types.Block, origin BlockOrigin) *Block {
+func NewBlock(header *types.Header, origin BlockOrigin) *Block {
 	return &Block{
-		Block:                 block,
-		Origin:                origin,
-		ObservedUnixTimestamp: time.Now().UnixNano(),
-
-		Number:     block.NumberU64(),
-		Hash:       block.Hash(),
-		ParentHash: block.ParentHash(),
+		Header: header,
+		Origin: origin,
 	}
-}
-
-func (block *Block) String() string {
-	t := time.Unix(int64(block.Block.Time()), 0).UTC()
-	return fmt.Sprintf("Block %d %s / %s / tx: %4d, uncles: %d", block.Number, block.Hash, t, len(block.Block.Transactions()), len(block.Block.Uncles()))
 }
 
 func PrintNodeAndChildren(node *TreeNode, depth int) {
