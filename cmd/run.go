@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"runtime"
 
+	"github.com/0xPolygon/cdk/sync"
+
 	zkevm "github.com/0xPolygon/cdk"
 	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
 	"github.com/0xPolygon/cdk/aggoracle"
@@ -28,7 +30,6 @@ import (
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/pgstatestorage"
-	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/translator"
 	ethtxman "github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman/etherscan"
@@ -382,44 +383,6 @@ func newState(c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.St
 	return st
 }
 
-func newReorgDetectorL1(
-	ctx context.Context,
-	cfg config.Config,
-	l1Client *ethclient.Client,
-) *reorgdetector.ReorgDetector {
-	rd, err := reorgdetector.New(ctx, l1Client, cfg.ReorgDetectorL1.DBPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return rd
-}
-
-func newL1InfoTreeSyncer(
-	ctx context.Context,
-	cfg config.Config,
-	l1Client *ethclient.Client,
-	reorgDetector sync.ReorgDetector,
-) *l1infotreesync.L1InfoTreeSync {
-	syncer, err := l1infotreesync.New(
-		ctx,
-		cfg.L1InfoTreeSync.DBPath,
-		cfg.L1InfoTreeSync.GlobalExitRootAddr,
-		cfg.L1InfoTreeSync.RollupManagerAddr,
-		cfg.L1InfoTreeSync.SyncBlockChunkSize,
-		etherman.BlockNumberFinality(cfg.L1InfoTreeSync.BlockFinality),
-		reorgDetector,
-		l1Client,
-		cfg.L1InfoTreeSync.WaitForNewBlocksPeriod.Duration,
-		cfg.L1InfoTreeSync.InitialBlock,
-		cfg.L1InfoTreeSync.RetryAfterErrorPeriod.Duration,
-		cfg.L1InfoTreeSync.MaxRetryAttemptsAfterError,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return syncer
-}
-
 func isNeeded(casesWhereNeeded, actualCases []string) bool {
 	for _, actaulCase := range actualCases {
 		for _, caseWhereNeeded := range casesWhereNeeded {
@@ -436,7 +399,7 @@ func runL1InfoTreeSyncerIfNeeded(
 	components []string,
 	cfg config.Config,
 	l1Client *ethclient.Client,
-	reorgDetector *reorgdetector.ReorgDetector,
+	reorgDetector sync.ReorgDetector,
 ) *l1infotreesync.L1InfoTreeSync {
 	if !isNeeded([]string{AGGORACLE, SEQUENCE_SENDER}, components) {
 		return nil
@@ -474,12 +437,17 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 	return l1CLient
 }
 
-func runReorgDetectorL1IfNeeded(ctx context.Context, components []string, l1Client *ethclient.Client, dbPath string) *reorgdetector.ReorgDetector {
+func runReorgDetectorL1IfNeeded(ctx context.Context, components []string, l1Client *ethclient.Client, dbPath string) sync.ReorgDetector {
 	if !isNeeded([]string{SEQUENCE_SENDER, AGGREGATOR, AGGORACLE}, components) {
 		return nil
 	}
-	rd := newReorgDetector(ctx, dbPath, l1Client)
-	go rd.Start(ctx)
+	// rd := newReorgDetector(ctx, dbPath, l1Client)
+	rd := reorgdetector.NewReorgMonitor(l1Client, 100)
+	go func() {
+		if err := rd.Start(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}()
 	return rd
 }
 
