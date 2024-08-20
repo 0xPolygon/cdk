@@ -9,8 +9,6 @@ import (
 	"os/signal"
 	"runtime"
 
-	"github.com/0xPolygon/cdk/sync"
-
 	zkevm "github.com/0xPolygon/cdk"
 	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
 	"github.com/0xPolygon/cdk/aggoracle"
@@ -30,6 +28,7 @@ import (
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/pgstatestorage"
+	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/translator"
 	ethtxman "github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman/etherscan"
