@@ -96,10 +96,10 @@ type ForkID struct {
 type BlockNumberFinality string
 
 const (
-	FinalizedBlock = BlockNumberFinality("FinalizedBlock")
 	SafeBlock      = BlockNumberFinality("SafeBlock")
-	PendingBlock   = BlockNumberFinality("PendingBlock")
+	FinalizedBlock = BlockNumberFinality("FinalizedBlock")
 	LatestBlock    = BlockNumberFinality("LatestBlock")
+	PendingBlock   = BlockNumberFinality("PendingBlock")
 	EarliestBlock  = BlockNumberFinality("EarliestBlock")
 )
 
@@ -123,11 +123,11 @@ func (b *BlockNumberFinality) ToBlockNum() (*big.Int, error) {
 type BlockNumber int64
 
 const (
-	Finalized = BlockNumber(-5)
 	Safe      = BlockNumber(-4)
-	Pending   = BlockNumber(-3)
+	Finalized = BlockNumber(-3)
 	Latest    = BlockNumber(-2)
-	Earliest  = BlockNumber(-1)
+	Pending   = BlockNumber(-1)
+	Earliest  = BlockNumber(0)
 )
 
 // Sequence represents an operation sent to the PoE smart contract to be
