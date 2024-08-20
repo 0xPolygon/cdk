@@ -70,6 +70,7 @@ SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
 AggLayerURL = ""
 MaxWitnessRetrievalWorkers = 2
+SyncModeOnlyEnabled = false
 SequencerPrivateKey = {}
 	[Aggregator.DB]
 		Name = "aggregator_db"
