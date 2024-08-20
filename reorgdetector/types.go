@@ -13,7 +13,6 @@ type BlockOrigin string
 const (
 	OriginSubscription BlockOrigin = "Subscription"
 	OriginGetParent    BlockOrigin = "GetParent"
-	OriginUncle        BlockOrigin = "Uncle"
 )
 
 // Reorg is the analysis Summary of a specific reorg
@@ -44,7 +43,7 @@ func NewReorg(parentNode *TreeNode) (*Reorg, error) {
 
 	reorg := Reorg{
 		CommonParent:     parentNode.Block,
-		StartBlockHeight: parentNode.Block.Header.Number.Uint64() + 1,
+		StartBlockHeight: parentNode.Block.Number() + 1,
 
 		Chains:          make(map[common.Hash][]*Block),
 		BlocksInvolved:  make(map[common.Hash]*Block),
@@ -106,7 +105,7 @@ func NewReorg(parentNode *TreeNode) (*Reorg, error) {
 
 			if chainHash == reorg.MainChainHash {
 				reorg.MainChainBlocks[block.Header.Hash()] = block
-				reorg.EndBlockHeight = block.Header.Number.Uint64()
+				reorg.EndBlockHeight = block.Number()
 			}
 		}
 	}
@@ -159,7 +158,7 @@ func NewTreeNode(block *Block, parent *TreeNode) *TreeNode {
 }
 
 func (tn *TreeNode) String() string {
-	return fmt.Sprintf("TreeNode %d %s main=%5v \t first=%5v, %d children", tn.Block.Header.Number.Uint64(), tn.Block.Header.Hash(), tn.IsMainChain, tn.IsFirst, len(tn.Children))
+	return fmt.Sprintf("TreeNode %d %s main=%5v \t first=%5v, %d children", tn.Block.Number(), tn.Block.Header.Hash(), tn.IsMainChain, tn.IsFirst, len(tn.Children))
 }
 
 func (tn *TreeNode) AddChild(node *TreeNode) {
@@ -190,8 +189,8 @@ func NewTreeAnalysis(t *BlockTree) (*TreeAnalysis, error) {
 		return &analysis, nil
 	}
 
-	analysis.StartBlockHeight = t.FirstNode.Block.Header.Number.Uint64()
-	analysis.EndBlockHeight = t.LatestNodes[0].Block.Header.Number.Uint64()
+	analysis.StartBlockHeight = t.FirstNode.Block.Number()
+	analysis.EndBlockHeight = t.LatestNodes[0].Block.Number()
 
 	if len(t.LatestNodes) > 1 {
 		analysis.IsSplitOngoing = true
@@ -269,7 +268,7 @@ func (t *BlockTree) AddBlock(block *Block) error {
 	// All other blocks are inserted as child of it's parent parent
 	parent, parentFound := t.NodeByHash[block.Header.ParentHash]
 	if !parentFound {
-		err := fmt.Errorf("error in BlockTree.AddBlock(): parent not found. block: %d %s, parent: %s", block.Header.Number.Uint64(), block.Header.Hash(), block.Header.ParentHash)
+		err := fmt.Errorf("error in BlockTree.AddBlock(): parent not found. block: %d %s, parent: %s", block.Number(), block.Header.Hash(), block.Header.ParentHash)
 		return err
 	}
 
@@ -281,9 +280,9 @@ func (t *BlockTree) AddBlock(block *Block) error {
 	if len(t.LatestNodes) == 0 {
 		t.LatestNodes = []*TreeNode{node}
 	} else {
-		if block.Header.Number.Uint64() == t.LatestNodes[0].Block.Header.Number.Uint64() { // add to list of latest nodes!
+		if block.Number() == t.LatestNodes[0].Block.Number() { // add to list of latest nodes!
 			t.LatestNodes = append(t.LatestNodes, node)
-		} else if block.Header.Number.Uint64() > t.LatestNodes[0].Block.Header.Number.Uint64() { // replace
+		} else if block.Number() > t.LatestNodes[0].Block.Number() { // replace
 			t.LatestNodes = []*TreeNode{node}
 		}
 	}
@@ -339,6 +338,10 @@ func NewBlock(header *types.Header, origin BlockOrigin) *Block {
 		Header: header,
 		Origin: origin,
 	}
+}
+
+func (b *Block) Number() uint64 {
+	return b.Header.Number.Uint64()
 }
 
 func PrintNodeAndChildren(node *TreeNode, depth int) {

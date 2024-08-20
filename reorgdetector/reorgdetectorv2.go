@@ -142,13 +142,13 @@ func (mon *ReorgMonitor) addBlock(block *Block) bool {
 	defer mon.trimCache()
 
 	// If known, then only overwrite if known was by uncle
-	knownBlock, isKnown := mon.blockByHash[block.Header.Hash()]
-	if isKnown && knownBlock.Origin != OriginUncle {
+	_, isKnown := mon.blockByHash[block.Header.Hash()]
+	if isKnown {
 		return false
 	}
 
 	// Only accept blocks that are after the earliest known (some nodes might be further back)
-	if block.Header.Number.Uint64() < mon.EarliestBlockNumber {
+	if block.Number() < mon.EarliestBlockNumber {
 		return false
 	}
 
@@ -156,25 +156,25 @@ func (mon *ReorgMonitor) addBlock(block *Block) bool {
 	mon.blockByHash[block.Header.Hash()] = block
 
 	// Create array of blocks at this height, if necessary
-	if _, found := mon.blocksByHeight[block.Header.Number.Uint64()]; !found {
-		mon.blocksByHeight[block.Header.Number.Uint64()] = make(map[common.Hash]*Block)
+	if _, found := mon.blocksByHeight[block.Number()]; !found {
+		mon.blocksByHeight[block.Number()] = make(map[common.Hash]*Block)
 	}
 
 	// Add to map of blocks at this height
-	mon.blocksByHeight[block.Header.Number.Uint64()][block.Header.Hash()] = block
+	mon.blocksByHeight[block.Number()][block.Header.Hash()] = block
 
 	// Set earliest block
-	if mon.EarliestBlockNumber == 0 || block.Header.Number.Uint64() < mon.EarliestBlockNumber {
-		mon.EarliestBlockNumber = block.Header.Number.Uint64()
+	if mon.EarliestBlockNumber == 0 || block.Number() < mon.EarliestBlockNumber {
+		mon.EarliestBlockNumber = block.Number()
 	}
 
 	// Set latest block
-	if block.Header.Number.Uint64() > mon.LatestBlockNumber {
-		mon.LatestBlockNumber = block.Header.Number.Uint64()
+	if block.Number() > mon.LatestBlockNumber {
+		mon.LatestBlockNumber = block.Number()
 	}
 
 	// Check if further blocks can be downloaded from this one
-	if block.Header.Number.Uint64() > mon.EarliestBlockNumber { // check backhistory only if we are past the earliest block
+	if block.Number() > mon.EarliestBlockNumber { // check backhistory only if we are past the earliest block
 		err := mon.checkBlockForReferences(block)
 		if err != nil {
 			log.Println(err)
