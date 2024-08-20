@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 type TxBuilderElderberryZKEVM struct {
@@ -44,7 +43,7 @@ func (t *TxBuilderElderberryZKEVM) SetCondNewSeq(cond CondNewSequence) CondNewSe
 	return previous
 }
 
-func (t *TxBuilderElderberryZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
+func (t *TxBuilderElderberryZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
 	newopts := t.opts
 	newopts.NoSend = true
 

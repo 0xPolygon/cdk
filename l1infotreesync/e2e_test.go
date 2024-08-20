@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/globalexitrootnopush0"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana-paris/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/reorgdetector"
@@ -27,7 +27,7 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 	client *simulated.Backend,
 	gerAddr common.Address,
 	verifyAddr common.Address,
-	gerContract *globalexitrootnopush0.Globalexitrootnopush0,
+	gerContract *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
 	verifyContract *verifybatchesmock.Verifybatchesmock,
 	err error,
 ) {
@@ -53,7 +53,7 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 	}
 	client.Commit()
 
-	gerAddr, _, gerContract, err = globalexitrootnopush0.DeployGlobalexitrootnopush0(auth, client.Client(), verifyAddr, auth.From)
+	gerAddr, _, gerContract, err = polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(auth, client.Client(), verifyAddr, auth.From)
 	if err != nil {
 		return
 	}
@@ -86,6 +86,8 @@ func TestE2E(t *testing.T) {
 		tx, err := gerSc.UpdateExitRoot(auth, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
 		client.Commit()
+		g, err := gerSc.L1InfoRootMap(nil, uint32(i+1))
+		require.NoError(t, err)
 		// Let the processor catch up
 		time.Sleep(time.Millisecond * 100)
 		receipt, err := client.Client().TransactionReceipt(ctx, tx.Hash())
@@ -101,6 +103,7 @@ func TestE2E(t *testing.T) {
 
 		expectedRoot, err := gerSc.GetRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
+		require.Equal(t, g, expectedRoot)
 		actualRoot, err := syncer.GetL1InfoTreeRootByIndex(ctx, uint32(i))
 		require.NoError(t, err)
 		require.Equal(t, common.Hash(expectedRoot), actualRoot)
@@ -118,7 +121,7 @@ func TestE2E(t *testing.T) {
 			receipt, err := client.Client().TransactionReceipt(ctx, tx.Hash())
 			require.NoError(t, err)
 			require.Equal(t, receipt.Status, types.ReceiptStatusSuccessful)
-			require.True(t, len(receipt.Logs) == 1+i%2)
+			require.True(t, len(receipt.Logs) == 1+i%2+i%2)
 
 			expectedRollupExitRoot, err := verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
 			require.NoError(t, err)

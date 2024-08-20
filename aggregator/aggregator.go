@@ -374,12 +374,14 @@ func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, cli
 						a.currentStreamBatch.L1InfoRoot = a.currentStreamBatch.GlobalExitRoot
 					}
 
-					accInputHash, err := cdkcommon.CalculateAccInputHash(oldDBBatch.Batch.AccInputHash, a.currentStreamBatch.BatchL2Data, a.currentStreamBatch.L1InfoRoot, uint64(a.currentStreamBatch.Timestamp.Unix()), a.currentStreamBatch.Coinbase, forcedBlockhashL1)
-					if err != nil {
-						log.Errorf("Error calculating acc input hash: %v", err)
-						return err
-					}
-
+					accInputHash := cdkcommon.CalculateAccInputHash(
+						oldDBBatch.Batch.AccInputHash,
+						a.currentStreamBatch.BatchL2Data,
+						a.currentStreamBatch.L1InfoRoot,
+						uint64(a.currentStreamBatch.Timestamp.Unix()),
+						a.currentStreamBatch.Coinbase,
+						forcedBlockhashL1,
+					)
 					a.currentStreamBatch.AccInputHash = accInputHash
 
 					dbBatch := state.DBBatch{
@@ -409,7 +411,7 @@ func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, cli
 					}
 
 					// Retrieve the witness
-					if dbBatch.Witness == nil || len(dbBatch.Witness) == 0 {
+					if len(dbBatch.Witness) == 0 {
 						a.witnessRetrievalChan <- dbBatch
 					}
 				}

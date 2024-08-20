@@ -215,6 +215,13 @@ func (d *Backend) PostSequenceBanana(ctx context.Context, sequence etherman.Sequ
 		L1InfoRoot:           sequence.L1InfoRoot,
 		MaxSequenceTimestamp: daTypes.ArgUint64(sequence.MaxSequenceTimestamp),
 	}
+	hashToSign := common.BytesToHash(sequenceBanana.HashToSign())
+	if hashToSign != sequence.AccInputHash {
+		return nil, fmt.Errorf(
+			"calculated accInputHash diverges: DA = %s vs Seq = %s",
+			hashToSign, sequence.AccInputHash,
+		)
+	}
 
 	signature, err := sequenceBanana.Sign(d.privKey)
 	if err != nil {

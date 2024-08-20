@@ -37,8 +37,8 @@ func testSequenceIfWorthToSendErr(t *testing.T, sut txbuilder.TxBuilder) {
 
 func testSetCondNewSeq(t *testing.T, sut txbuilder.TxBuilder) {
 	cond := mocks_txbuilder.NewCondNewSequence(t)
-	previous := sut.SetCondNewSeq(cond)
+	sut.SetCondNewSeq(cond)
 	cond2 := mocks_txbuilder.NewCondNewSequence(t)
-	previous = sut.SetCondNewSeq(cond2)
+	previous := sut.SetCondNewSeq(cond2)
 	require.Equal(t, cond, previous)
 }

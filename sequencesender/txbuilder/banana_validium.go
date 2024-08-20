@@ -28,11 +28,16 @@ type rollupBananaValidiumContractor interface {
 	SequenceBatchesValidium(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, indexL1InfoRoot uint32, maxSequenceTimestamp uint64, expectedFinalAccInputHash [32]byte, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error)
 }
 
-func NewTxBuilderBananaValidium(rollupContract rollupBananaValidiumContractor,
+func NewTxBuilderBananaValidium(
+	rollupContract rollupBananaValidiumContractor,
 	gerContract globalExitRootBananaContractor,
-	da dataavailability.SequenceSenderBanana, opts bind.TransactOpts, maxBatchesForL1 uint64) *TxBuilderBananaValidium {
+	da dataavailability.SequenceSenderBanana, opts bind.TransactOpts, maxBatchesForL1 uint64,
+	l1InfoTree l1InfoSyncer,
+	ethClient l1Client,
+	blockFinality *big.Int,
+) *TxBuilderBananaValidium {
 	return &TxBuilderBananaValidium{
-		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts),
+		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, l1InfoTree, ethClient, blockFinality, opts),
 		da:                  da,
 		condNewSeq:          NewConditionalNewSequenceNumBatches(maxBatchesForL1),
 		rollupContract:      rollupContract,
@@ -111,7 +116,8 @@ func (t *TxBuilderBananaValidium) sequenceBatchesValidium(opts bind.TransactOpts
 		}
 	}
 
-	tx, err := t.rollupContract.SequenceBatchesValidium(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase, dataAvailabilityMessage)
+	log.Infof("building banana sequence tx. AccInputHash: %s", sequence.AccInputHash.Hex())
+	tx, err := t.rollupContract.SequenceBatchesValidium(&opts, batches, sequence.CounterL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", sequence.L2Coinbase)

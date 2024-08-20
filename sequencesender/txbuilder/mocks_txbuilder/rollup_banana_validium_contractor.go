@@ -30,6 +30,10 @@ func (_m *RollupBananaValidiumContractor) EXPECT() *RollupBananaValidiumContract
 func (_m *RollupBananaValidiumContractor) LastAccInputHash(opts *bind.CallOpts) ([32]byte, error) {
 	ret := _m.Called(opts)
 
+	if len(ret) == 0 {
+		panic("no return value specified for LastAccInputHash")
+	}
+
 	var r0 [32]byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func(*bind.CallOpts) ([32]byte, error)); ok {
@@ -83,6 +87,10 @@ func (_c *RollupBananaValidiumContractor_LastAccInputHash_Call) RunAndReturn(run
 // SequenceBatchesValidium provides a mock function with given fields: opts, batches, indexL1InfoRoot, maxSequenceTimestamp, expectedFinalAccInputHash, l2Coinbase, dataAvailabilityMessage
 func (_m *RollupBananaValidiumContractor) SequenceBatchesValidium(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, indexL1InfoRoot uint32, maxSequenceTimestamp uint64, expectedFinalAccInputHash [32]byte, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	ret := _m.Called(opts, batches, indexL1InfoRoot, maxSequenceTimestamp, expectedFinalAccInputHash, l2Coinbase, dataAvailabilityMessage)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SequenceBatchesValidium")
+	}
 
 	var r0 *types.Transaction
 	var r1 error
@@ -140,13 +148,12 @@ func (_c *RollupBananaValidiumContractor_SequenceBatchesValidium_Call) RunAndRet
 	return _c
 }
 
-type mockConstructorTestingTNewRollupBananaValidiumContractor interface {
+// NewRollupBananaValidiumContractor creates a new instance of RollupBananaValidiumContractor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewRollupBananaValidiumContractor(t interface {
 	mock.TestingT
 	Cleanup(func())
-}
-
-// NewRollupBananaValidiumContractor creates a new instance of RollupBananaValidiumContractor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-func NewRollupBananaValidiumContractor(t mockConstructorTestingTNewRollupBananaValidiumContractor) *RollupBananaValidiumContractor {
+}) *RollupBananaValidiumContractor {
 	mock := &RollupBananaValidiumContractor{}
 	mock.Mock.Test(t)
 

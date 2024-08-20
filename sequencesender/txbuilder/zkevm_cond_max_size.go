@@ -32,7 +32,7 @@ func (c *ConditionalNewSequenceMaxSize) NewSequenceIfWorthToSend(ctx context.Con
 		log.Debugf("maxTxSizeForL1 is %d, so is disabled", MaxTxSizeForL1Disabled)
 		return nil, nil
 	}
-	sequence, err := txBuilder.NewSequence(sequenceBatches, l2Coinbase)
+	sequence, err := txBuilder.NewSequence(ctx, sequenceBatches, l2Coinbase)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (c *ConditionalNewSequenceMaxSize) NewSequenceIfWorthToSend(ctx context.Con
 		if sequenceBatches != nil {
 			// Handling the error gracefully, re-processing the sequence as a sanity check
 			//sequence, err = s.newSequenceBanana(sequenceBatches, s.cfg.L2Coinbase)
-			sequence, err = txBuilder.NewSequence(sequenceBatches, l2Coinbase)
+			sequence, err = txBuilder.NewSequence(ctx, sequenceBatches, l2Coinbase)
 			if err != nil {
 				return nil, err
 			}
