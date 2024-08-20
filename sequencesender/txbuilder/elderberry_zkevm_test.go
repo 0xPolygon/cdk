@@ -31,7 +31,7 @@ func TestElderberryZkevmNewSequence(t *testing.T) {
 	opts := bind.TransactOpts{}
 	sut := txbuilder.NewTxBuilderElderberryZKEVM(zkevmContract, opts, 100)
 	require.NotNil(t, sut)
-	seq, err := sut.NewSequence(nil, common.Address{})
+	seq, err := sut.NewSequence(context.TODO(), nil, common.Address{})
 	require.NoError(t, err)
 	require.NotNil(t, seq)
 }
@@ -42,7 +42,7 @@ func TestElderberryZkevmBuildSequenceBatchesTxEmtpySequence(t *testing.T) {
 	_, err := sut.BuildSequenceBatchesTx(ctx, nil)
 	require.Error(t, err)
 
-	seq, err := sut.NewSequence(nil, common.Address{})
+	seq, err := sut.NewSequence(context.TODO(), nil, common.Address{})
 	require.NoError(t, err)
 	_, err = sut.BuildSequenceBatchesTx(ctx, seq)
 	require.Error(t, err)
@@ -62,7 +62,7 @@ func TestElderberryZkevmBuildSequenceBatchesTxSequence1Batch(t *testing.T) {
 	batches := []seqsendertypes.Batch{
 		batchElder,
 	}
-	seq, err := sut.NewSequence(batches, common.Address{})
+	seq, err := sut.NewSequence(context.TODO(), batches, common.Address{})
 	require.NoError(t, err)
 	_, err = sut.BuildSequenceBatchesTx(ctx, seq)
 	require.NoError(t, err)
@@ -84,7 +84,7 @@ func TestElderberryZkevmBuildSequenceBatchesTxSequence1BatchError(t *testing.T) 
 	batches := []seqsendertypes.Batch{
 		batchElder,
 	}
-	seq, err := sut.NewSequence(batches, common.Address{})
+	seq, err := sut.NewSequence(context.TODO(), batches, common.Address{})
 	require.NoError(t, err)
 	_, err = sut.BuildSequenceBatchesTx(ctx, seq)
 	require.Error(t, err)

@@ -18,6 +18,7 @@ const (
 type Config struct {
 	DBPath             string         `mapstructure:"DBPath"`
 	GlobalExitRootAddr common.Address `mapstructure:"GlobalExitRootAddr"`
+	RollupManagerAddr  common.Address `mapstructure:"RollupManagerAddr"`
 	SyncBlockChunkSize uint64         `mapstructure:"SyncBlockChunkSize"`
 	// TODO: BlockFinality doesnt work as per the jsonschema
 	BlockFinality              string         `jsonschema:"enum=latest,enum=safe, enum=pending, enum=finalized" mapstructure:"BlockFinality"`
@@ -33,10 +34,12 @@ type L1InfoTreeSync struct {
 	driver    *sync.EVMDriver
 }
 
+// New creates a L1 Info tree syncer that syncs the L1 info tree
+// and the rollup exit tree
 func New(
 	ctx context.Context,
 	dbPath string,
-	globalExitRoot common.Address,
+	globalExitRoot, rollupManager common.Address,
 	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
 	rd sync.ReorgDetector,
@@ -56,7 +59,7 @@ func New(
 		return nil, err
 	}
 	if initialBlock > 0 && lastProcessedBlock < initialBlock-1 {
-		err = processor.ProcessBlock(sync.Block{
+		err = processor.ProcessBlock(ctx, sync.Block{
 			Num: initialBlock - 1,
 		})
 		if err != nil {
@@ -68,7 +71,7 @@ func New(
 		MaxRetryAttemptsAfterError: maxRetryAttemptsAfterError,
 	}
 
-	appender, err := buildAppender(l1Client, globalExitRoot)
+	appender, err := buildAppender(l1Client, globalExitRoot, rollupManager)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +81,7 @@ func New(
 		blockFinalityType,
 		waitForNewBlocksPeriod,
 		appender,
-		[]common.Address{globalExitRoot},
+		[]common.Address{globalExitRoot, rollupManager},
 		rh,
 	)
 	if err != nil {
@@ -95,30 +98,49 @@ func New(
 	}, nil
 }
 
+// Start starts the synchronization process
 func (s *L1InfoTreeSync) Start(ctx context.Context) {
 	s.driver.Sync(ctx)
 }
 
-func (s *L1InfoTreeSync) ComputeMerkleProofByIndex(ctx context.Context, index uint32) ([][32]byte, common.Hash, error) {
-	return s.processor.ComputeMerkleProofByIndex(ctx, index)
+// GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
+func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([]common.Hash, common.Hash, error) {
+	return s.processor.GetL1InfoTreeMerkleProof(ctx, index)
 }
 
-func (s *L1InfoTreeSync) ComputeMerkleProofByRoot(ctx context.Context, root common.Hash) ([][32]byte, common.Hash, error) {
-	return s.processor.ComputeMerkleProofByRoot(ctx, root)
-}
-
-func (s *L1InfoTreeSync) GetInfoByRoot(ctx context.Context, root common.Hash) (*L1InfoTreeLeaf, error) {
-	return s.processor.GetInfoByRoot(ctx, root)
-}
-
+// GetLatestInfoUntilBlock returns the most recent L1InfoTreeLeaf that occurred before or at blockNum.
+// If the blockNum has not been processed yet the error ErrBlockNotProcessed will be returned
 func (s *L1InfoTreeSync) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*L1InfoTreeLeaf, error) {
 	return s.processor.GetLatestInfoUntilBlock(ctx, blockNum)
 }
 
+// GetInfoByIndex returns the value of a leaf (not the hash) of the L1 info tree
 func (s *L1InfoTreeSync) GetInfoByIndex(ctx context.Context, index uint32) (*L1InfoTreeLeaf, error) {
 	return s.processor.GetInfoByIndex(ctx, index)
 }
 
-func (s *L1InfoTreeSync) GetInfoByHash(ctx context.Context, hash []byte) (*L1InfoTreeLeaf, error) {
-	return s.processor.GetInfoByHash(ctx, hash)
+// GetL1InfoTreeRootByIndex returns the root of the L1 info tree at the moment the leaf with the given index was added
+func (s *L1InfoTreeSync) GetL1InfoTreeRootByIndex(ctx context.Context, index uint32) (common.Hash, error) {
+	tx, err := s.processor.db.BeginRo(ctx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	defer tx.Rollback()
+
+	return s.processor.l1InfoTree.GetRootByIndex(tx, index)
+}
+
+// GetLastRollupExitRoot return the last rollup exit root processed
+func (s *L1InfoTreeSync) GetLastRollupExitRoot(ctx context.Context) (common.Hash, error) {
+	return s.processor.rollupExitTree.GetLastRoot(ctx)
+}
+
+// GetLastL1InfoTreeRootAndIndex return the last root and index processed from the L1 Info tree
+func (s *L1InfoTreeSync) GetLastL1InfoTreeRootAndIndex(ctx context.Context) (uint32, common.Hash, error) {
+	return s.processor.l1InfoTree.GetLastIndexAndRoot(ctx)
+}
+
+// GetLastProcessedBlock return the last processed block
+func (s *L1InfoTreeSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
+	return s.processor.GetLastProcessedBlock(ctx)
 }

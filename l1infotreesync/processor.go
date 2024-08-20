@@ -2,45 +2,36 @@ package l1infotreesync
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/0xPolygon/cdk/common"
-	"github.com/0xPolygon/cdk/l1infotree"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
+	"github.com/0xPolygon/cdk/tree"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"golang.org/x/crypto/sha3"
 )
 
 const (
-	// rootTable stores the L1 info tree roots
-	// Key: root (common.Hash)
-	// Value: hash of the leaf that caused the update (common.Hash)
-	rootTable = "l1infotreesync-root"
-	// indexTable stores the L1 info tree indexes
+	dbPrefix             = "l1infotreesync"
+	l1InfoTreeSuffix     = "-l1infotree"
+	rollupExitTreeSuffix = "-rollupexittree"
+
+	// infoTable stores the information of L1 Info Tree (the leaves)
 	// Key: index (uint32 converted to bytes)
-	// Value: hash of the leaf that caused the update (common.Hash)
-	indexTable = "l1infotreesync-index"
-	// infoTable stores the information of the tree (the leaves). Note that the value
-	// of rootTable and indexTable references the key of the infoTable
-	// Key: hash of the leaf that caused the update (common.Hash)
 	// Value: JSON of storeLeaf struct
-	infoTable = "l1infotreesync-info"
+	infoTable = dbPrefix + "-info"
 	// blockTable stores the first and last index of L1 Info Tree that have been updated on
-	// a block. This is useful in case there are blocks with multiple updates and a reorg is needed.
-	// Or for when querying by block number
-	// Key: block number (uint64 converted to bytes)
 	// Value: JSON of blockWithLeafs
-	blockTable = "l1infotreesync-block"
+	blockTable = dbPrefix + "-block"
 	// lastBlockTable used to store the last block processed. This is needed to know the last processed blcok
-	// when it doesn't have events that make other tables get populated
-	// Key: it's always lastBlockKey
-	// Value: block number (uint64 converted to bytes)
-	lastBlockTable = "l1infotreesync-lastBlock"
+	lastBlockTable = dbPrefix + "-lastBlock"
 
 	treeHeight uint8 = 32
 )
@@ -53,19 +44,41 @@ var (
 )
 
 type processor struct {
-	db   kv.RwDB
-	tree *l1infotree.L1InfoTree
+	db             kv.RwDB
+	l1InfoTree     *tree.AppendOnlyTree
+	rollupExitTree *tree.UpdatableTree
 }
 
-type Event struct {
+// UpdateL1InfoTree representation of the UpdateL1InfoTree event
+type UpdateL1InfoTree struct {
 	MainnetExitRoot ethCommon.Hash
 	RollupExitRoot  ethCommon.Hash
 	ParentHash      ethCommon.Hash
 	Timestamp       uint64
 }
 
+// VerifyBatches representation of the VerifyBatches and VerifyBatchesTrustedAggregator events
+type VerifyBatches struct {
+	RollupID   uint32
+	NumBatch   uint64
+	StateRoot  ethCommon.Hash
+	ExitRoot   ethCommon.Hash
+	Aggregator ethCommon.Address
+}
+
+type InitL1InfoRootMap struct {
+	LeafCount         uint32
+	CurrentL1InfoRoot ethCommon.Hash
+}
+
+type Event struct {
+	UpdateL1InfoTree  *UpdateL1InfoTree
+	VerifyBatches     *VerifyBatches
+	InitL1InfoRootMap *InitL1InfoRootMap
+}
+
+// L1InfoTreeLeaf representation of a leaf of the L1 Info tree
 type L1InfoTreeLeaf struct {
-	L1InfoTreeRoot    ethCommon.Hash
 	L1InfoTreeIndex   uint32
 	PreviousBlockHash ethCommon.Hash
 	BlockNumber       uint64
@@ -76,13 +89,21 @@ type L1InfoTreeLeaf struct {
 }
 
 type storeLeaf struct {
+	BlockNumber     uint64
 	MainnetExitRoot ethCommon.Hash
 	RollupExitRoot  ethCommon.Hash
 	ParentHash      ethCommon.Hash
-	InfoRoot        ethCommon.Hash
 	Index           uint32
 	Timestamp       uint64
-	BlockNumber     uint64
+}
+
+// Hash as expected by the tree
+func (l *storeLeaf) Hash() ethCommon.Hash {
+	var res [32]byte
+	t := make([]byte, 8) //nolint:gomnd
+	binary.BigEndian.PutUint64(t, l.Timestamp)
+	copy(res[:], keccak256.Hash(l.GlobalExitRoot().Bytes(), l.ParentHash.Bytes(), t))
+	return res
 }
 
 type blockWithLeafs struct {
@@ -92,6 +113,7 @@ type blockWithLeafs struct {
 	LastIndex uint32
 }
 
+// GlobalExitRoot returns the GER
 func (l *storeLeaf) GlobalExitRoot() ethCommon.Hash {
 	var gerBytes [32]byte
 	hasher := sha3.NewLegacyKeccak256()
@@ -101,17 +123,17 @@ func (l *storeLeaf) GlobalExitRoot() ethCommon.Hash {
 	return gerBytes
 }
 
-func tableCfgFunc(defaultBuckets kv.TableCfg) kv.TableCfg {
-	return kv.TableCfg{
-		rootTable:      {},
-		indexTable:     {},
-		infoTable:      {},
-		blockTable:     {},
-		lastBlockTable: {},
-	}
-}
-
 func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
+	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
+		cfg := kv.TableCfg{
+			infoTable:      {},
+			blockTable:     {},
+			lastBlockTable: {},
+		}
+		tree.AddTables(cfg, dbPrefix+rollupExitTreeSuffix)
+		tree.AddTables(cfg, dbPrefix+l1InfoTreeSuffix)
+		return cfg
+	}
 	db, err := mdbx.NewMDBX(nil).
 		Path(dbPath).
 		WithTableCfg(tableCfgFunc).
@@ -123,88 +145,39 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 		db: db,
 	}
 
-	tx, err := p.db.BeginRo(ctx)
+	l1InfoTree, err := tree.NewAppendOnlyTree(ctx, db, dbPrefix+l1InfoTreeSuffix)
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
-	leaves, err := p.getAllLeavesHashed(tx)
+	p.l1InfoTree = l1InfoTree
+	rollupExitTree, err := tree.NewUpdatableTree(ctx, db, dbPrefix+rollupExitTreeSuffix)
 	if err != nil {
 		return nil, err
 	}
-	tree, err := l1infotree.NewL1InfoTree(treeHeight, leaves)
-	if err != nil {
-		return nil, err
-	}
-	p.tree = tree
+	p.rollupExitTree = rollupExitTree
 	return p, nil
 }
 
-func (p *processor) getAllLeavesHashed(tx kv.Tx) ([][32]byte, error) {
-	// TODO: same coment about refactor that appears at ComputeMerkleProofByIndex
-	index, err := p.getLastIndex(tx)
-	if err == ErrNotFound || index == 0 {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return p.getHashedLeaves(tx, index)
-}
-
-func (p *processor) ComputeMerkleProofByIndex(ctx context.Context, index uint32) ([][32]byte, ethCommon.Hash, error) {
-	// TODO: refactor the tree to store the nodes so it's not neede to load all the leaves and compute the tree
-	// every time this function is called. Since it's not a sparse MT, an alternative could be to store the proofs
-	// as part of the info
+// GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
+func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([]ethCommon.Hash, ethCommon.Hash, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
 		return nil, ethCommon.Hash{}, err
 	}
 	defer tx.Rollback()
 
-	leaves, err := p.getHashedLeaves(tx, index)
+	root, err := p.l1InfoTree.GetRootByIndex(tx, index)
 	if err != nil {
 		return nil, ethCommon.Hash{}, err
 	}
-	return p.tree.ComputeMerkleProof(index, leaves)
-}
 
-func (p *processor) getHashedLeaves(tx kv.Tx, untilIndex uint32) ([][32]byte, error) {
-	leaves := [][32]byte{}
-	for i := uint32(0); i <= untilIndex; i++ {
-		info, err := p.getInfoByIndexWithTx(tx, i)
-		if err != nil {
-			return nil, err
-		}
-		h := l1infotree.HashLeafData(info.GlobalExitRoot, info.PreviousBlockHash, info.Timestamp)
-		leaves = append(leaves, h)
-	}
-	return leaves, nil
-}
-
-func (p *processor) ComputeMerkleProofByRoot(ctx context.Context, root ethCommon.Hash) ([][32]byte, ethCommon.Hash, error) {
-	info, err := p.GetInfoByRoot(ctx, root)
+	proof, err := p.l1InfoTree.GetProof(ctx, index, root)
 	if err != nil {
 		return nil, ethCommon.Hash{}, err
 	}
-	return p.ComputeMerkleProofByIndex(ctx, info.L1InfoTreeIndex)
-}
 
-func (p *processor) GetInfoByRoot(ctx context.Context, root ethCommon.Hash) (*L1InfoTreeLeaf, error) {
-	tx, err := p.db.BeginRo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	hash, err := tx.GetOne(rootTable, root[:])
-	if err != nil {
-		return nil, err
-	}
-	if hash == nil {
-		return nil, ErrNotFound
-	}
-	return p.getInfoByHashWithTx(tx, hash)
+	// TODO: check if we need to return root or wat
+	return proof, root, nil
 }
 
 // GetLatestInfoUntilBlock returns the most recent L1InfoTreeLeaf that occurred before or at blockNum.
@@ -242,13 +215,10 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	if err := json.Unmarshal(v, &blk); err != nil {
 		return nil, err
 	}
-	hash, err := tx.GetOne(indexTable, common.Uint32ToBytes(blk.LastIndex-1))
-	if err != nil {
-		return nil, err
-	}
-	return p.getInfoByHashWithTx(tx, hash)
+	return p.getInfoByIndexWithTx(tx, blk.LastIndex-1)
 }
 
+// GetInfoByIndex returns the value of a leaf (not the hash) of the L1 info tree
 func (p *processor) GetInfoByIndex(ctx context.Context, index uint32) (*L1InfoTreeLeaf, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
@@ -259,27 +229,7 @@ func (p *processor) GetInfoByIndex(ctx context.Context, index uint32) (*L1InfoTr
 }
 
 func (p *processor) getInfoByIndexWithTx(tx kv.Tx, index uint32) (*L1InfoTreeLeaf, error) {
-	hash, err := tx.GetOne(indexTable, common.Uint32ToBytes(index))
-	if err != nil {
-		return nil, err
-	}
-	if hash == nil {
-		return nil, ErrNotFound
-	}
-	return p.getInfoByHashWithTx(tx, hash)
-}
-
-func (p *processor) GetInfoByHash(ctx context.Context, hash []byte) (*L1InfoTreeLeaf, error) {
-	tx, err := p.db.BeginRo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	return p.getInfoByHashWithTx(tx, hash)
-}
-
-func (p *processor) getInfoByHashWithTx(tx kv.Tx, hash []byte) (*L1InfoTreeLeaf, error) {
-	infoBytes, err := tx.GetOne(infoTable, hash)
+	infoBytes, err := tx.GetOne(infoTable, common.Uint32ToBytes(index))
 	if err != nil {
 		return nil, err
 	}
@@ -290,9 +240,7 @@ func (p *processor) getInfoByHashWithTx(tx kv.Tx, hash []byte) (*L1InfoTreeLeaf,
 	if err := json.Unmarshal(infoBytes, &info); err != nil {
 		return nil, err
 	}
-
 	return &L1InfoTreeLeaf{
-		L1InfoTreeRoot:    info.InfoRoot,
 		L1InfoTreeIndex:   info.Index,
 		PreviousBlockHash: info.ParentHash,
 		BlockNumber:       info.BlockNumber,
@@ -303,6 +251,7 @@ func (p *processor) getInfoByHashWithTx(tx kv.Tx, hash []byte) (*L1InfoTreeLeaf,
 	}, nil
 }
 
+// GetLastProcessedBlock returns the last processed block
 func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
@@ -322,8 +271,10 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	return common.BytesToUint64(blockNumBytes), nil
 }
 
-func (p *processor) Reorg(firstReorgedBlock uint64) error {
-	tx, err := p.db.BeginRw(context.Background())
+// Reorg triggers a purge and reset process on the processor to leaf it on a state
+// as if the last block processed was firstReorgedBlock-1
+func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
+	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
 		return err
 	}
@@ -333,6 +284,7 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 	}
 	defer c.Close()
 	firstKey := common.Uint64ToBytes(firstReorgedBlock)
+	firstReorgedL1InfoTreeIndex := int64(-1)
 	for blkKey, blkValue, err := c.Seek(firstKey); blkKey != nil; blkKey, blkValue, err = c.Next() {
 		if err != nil {
 			tx.Rollback()
@@ -344,6 +296,9 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 			return err
 		}
 		for i := blk.FirstIndex; i < blk.LastIndex; i++ {
+			if firstReorgedL1InfoTreeIndex == -1 {
+				firstReorgedL1InfoTreeIndex = int64(i)
+			}
 			if err := p.deleteLeaf(tx, i); err != nil {
 				tx.Rollback()
 				return err
@@ -358,110 +313,135 @@ func (p *processor) Reorg(firstReorgedBlock uint64) error {
 		tx.Rollback()
 		return err
 	}
-	leaves, err := p.getAllLeavesHashed(tx)
-	if err != nil {
-		tx.Rollback()
-		return err
+	var rollbackL1InfoTree func()
+	if firstReorgedL1InfoTreeIndex != -1 {
+		rollbackL1InfoTree, err = p.l1InfoTree.Reorg(tx, uint32(firstReorgedL1InfoTreeIndex))
+		if err != nil {
+			tx.Rollback()
+			rollbackL1InfoTree()
+			return err
+		}
 	}
-	tree, err := l1infotree.NewL1InfoTree(treeHeight, leaves)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	p.tree = tree
-	return tx.Commit()
-}
-
-func (p *processor) deleteLeaf(tx kv.RwTx, index uint32) error {
-	// TODO: do we need to do something with p.tree here?
-	// Get leaf info to delete all relations
-	hash, err := tx.GetOne(indexTable, common.Uint32ToBytes(index))
-	if err != nil {
-		return err
-	}
-	if hash == nil {
-		return ErrNotFound
-	}
-	infoBytes, err := tx.GetOne(infoTable, hash)
-	if err != nil {
-		return err
-	}
-	if infoBytes == nil {
-		return ErrNotFound
-	}
-	var info storeLeaf
-	if err := json.Unmarshal(infoBytes, &info); err != nil {
-		return err
-	}
-
-	// Delete
-	if err := tx.Delete(rootTable, info.InfoRoot[:]); err != nil {
-		return err
-	}
-	if err := tx.Delete(indexTable, common.Uint32ToBytes(index)); err != nil {
-		return err
-	}
-	if err := tx.Delete(infoTable, hash); err != nil {
+	if err := tx.Commit(); err != nil {
+		rollbackL1InfoTree()
 		return err
 	}
 	return nil
 }
 
-// ProcessBlock process the leafs of the L1 info tree found on a block
-// this function can be called without leafs with the intention to track the last processed block
-func (p *processor) ProcessBlock(b sync.Block) error {
-	tx, err := p.db.BeginRw(context.Background())
+func (p *processor) deleteLeaf(tx kv.RwTx, index uint32) error {
+	if err := tx.Delete(infoTable, common.Uint32ToBytes(index)); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ProcessBlock process the events of the block to build the rollup exit tree and the l1 info tree
+// and updates the last processed block (can be called without events for that purpose)
+func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
+	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
 		return err
 	}
 	events := make([]Event, len(b.Events))
+	rollupExitTreeRollback := func() {}
+	l1InfoTreeRollback := func() {}
+	rollback := func() {
+		tx.Rollback()
+		rollupExitTreeRollback()
+		l1InfoTreeRollback()
+	}
+	l1InfoTreeLeavesToAdd := []tree.Leaf{}
+	rollupExitTreeLeavesToAdd := []tree.Leaf{}
 	if len(b.Events) > 0 {
-		var initialIndex uint32
+		var initialL1InfoIndex uint32
+		var l1InfoLeavesAdded uint32
 		lastIndex, err := p.getLastIndex(tx)
 		if err == ErrNotFound {
-			initialIndex = 0
+			initialL1InfoIndex = 0
 		} else if err != nil {
-			tx.Rollback()
+			rollback()
 			return err
 		} else {
-			initialIndex = lastIndex + 1
+			initialL1InfoIndex = lastIndex + 1
 		}
-		for i, e := range b.Events {
+		for _, e := range b.Events {
 			event := e.(Event)
 			events = append(events, event)
-			leafToStore := storeLeaf{
-				Index:           initialIndex + uint32(i),
-				MainnetExitRoot: event.MainnetExitRoot,
-				RollupExitRoot:  event.RollupExitRoot,
-				ParentHash:      event.ParentHash,
-				Timestamp:       event.Timestamp,
-				BlockNumber:     b.Num,
+			if event.UpdateL1InfoTree != nil {
+				index := initialL1InfoIndex + l1InfoLeavesAdded
+				leafToStore := storeLeaf{
+					BlockNumber:     b.Num,
+					Index:           index,
+					MainnetExitRoot: event.UpdateL1InfoTree.MainnetExitRoot,
+					RollupExitRoot:  event.UpdateL1InfoTree.RollupExitRoot,
+					ParentHash:      event.UpdateL1InfoTree.ParentHash,
+					Timestamp:       event.UpdateL1InfoTree.Timestamp,
+				}
+				if err := p.storeLeafInfo(tx, leafToStore); err != nil {
+					tx.Rollback()
+					return err
+				}
+				l1InfoTreeLeavesToAdd = append(l1InfoTreeLeavesToAdd, tree.Leaf{
+					Index: leafToStore.Index,
+					Hash:  leafToStore.Hash(),
+				})
+				l1InfoLeavesAdded++
 			}
-			if err := p.addLeaf(tx, leafToStore); err != nil {
-				tx.Rollback()
+
+			if event.VerifyBatches != nil {
+				rollupExitTreeLeavesToAdd = append(rollupExitTreeLeavesToAdd, tree.Leaf{
+					Index: event.VerifyBatches.RollupID - 1,
+					Hash:  event.VerifyBatches.ExitRoot,
+				})
+			}
+
+			if event.InitL1InfoRootMap != nil {
+				// TODO: indicate that l1 Info tree indexes before the one on this
+				// event are not safe to use
+				log.Debugf("TODO: handle InitL1InfoRootMap event")
+			}
+		}
+		if l1InfoLeavesAdded > 0 {
+			bwl := blockWithLeafs{
+				FirstIndex: initialL1InfoIndex,
+				LastIndex:  initialL1InfoIndex + l1InfoLeavesAdded,
+			}
+			blockValue, err := json.Marshal(bwl)
+			if err != nil {
+				rollback()
+				return err
+			}
+			if err := tx.Put(blockTable, common.Uint64ToBytes(b.Num), blockValue); err != nil {
+				rollback()
+				return err
+			}
+			l1InfoTreeRollback, err = p.l1InfoTree.AddLeaves(tx, l1InfoTreeLeavesToAdd)
+			if err != nil {
+				rollback()
 				return err
 			}
 		}
-		bwl := blockWithLeafs{
-			FirstIndex: initialIndex,
-			LastIndex:  initialIndex + uint32(len(b.Events)),
-		}
-		blockValue, err := json.Marshal(bwl)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-		if err := tx.Put(blockTable, common.Uint64ToBytes(b.Num), blockValue); err != nil {
-			tx.Rollback()
-			return err
+
+		if len(rollupExitTreeLeavesToAdd) > 0 {
+			rollupExitTreeRollback, err = p.rollupExitTree.UpseartLeaves(tx, rollupExitTreeLeavesToAdd, b.Num)
+			if err != nil {
+				rollback()
+				return err
+			}
 		}
 	}
 	if err := p.updateLastProcessedBlock(tx, b.Num); err != nil {
-		tx.Rollback()
+		rollback()
 		return err
 	}
-	log.Debugf("block %d processed with events: %+v", b.Num, events)
-	return tx.Commit()
+
+	if err := tx.Commit(); err != nil {
+		rollback()
+		return err
+	}
+	log.Infof("block %d processed with events: %+v", b.Num, events)
+	return nil
 }
 
 func (p *processor) getLastIndex(tx kv.Tx) (uint32, error) {
@@ -490,31 +470,12 @@ func (p *processor) getLastIndex(tx kv.Tx) (uint32, error) {
 	return blk.LastIndex - 1, nil
 }
 
-func (p *processor) addLeaf(tx kv.RwTx, leaf storeLeaf) error {
-	// Update tree
-	hash := l1infotree.HashLeafData(leaf.GlobalExitRoot(), leaf.ParentHash, leaf.Timestamp)
-	root, err := p.tree.AddLeaf(leaf.Index, hash)
-	if err != nil {
-		return err
-	}
-	leaf.InfoRoot = root
-	// store info
+func (p *processor) storeLeafInfo(tx kv.RwTx, leaf storeLeaf) error {
 	leafValue, err := json.Marshal(leaf)
 	if err != nil {
 		return err
 	}
-	if err := tx.Put(infoTable, hash[:], leafValue); err != nil {
-		return err
-	}
-	// store index relation
-	if err := tx.Put(indexTable, common.Uint32ToBytes(leaf.Index), hash[:]); err != nil {
-		return err
-	}
-	// store root relation
-	if err := tx.Put(rootTable, root.Bytes(), hash[:]); err != nil {
-		return err
-	}
-	return nil
+	return tx.Put(infoTable, common.Uint32ToBytes(leaf.Index), leafValue)
 }
 
 func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {

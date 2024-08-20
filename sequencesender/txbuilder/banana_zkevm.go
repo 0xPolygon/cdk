@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 type TxBuilderBananaZKEVM struct {
@@ -29,9 +28,17 @@ type globalExitRootBananaZKEVMContractor interface {
 	globalExitRootBananaContractor
 }
 
-func NewTxBuilderBananaZKEVM(rollupContract rollupBananaZKEVMContractor, gerContract globalExitRootBananaZKEVMContractor, opts bind.TransactOpts, maxTxSizeForL1 uint64) *TxBuilderBananaZKEVM {
+func NewTxBuilderBananaZKEVM(
+	rollupContract rollupBananaZKEVMContractor,
+	gerContract globalExitRootBananaZKEVMContractor,
+	opts bind.TransactOpts,
+	maxTxSizeForL1 uint64,
+	l1InfoTree l1InfoSyncer,
+	ethClient l1Client,
+	blockFinality *big.Int,
+) *TxBuilderBananaZKEVM {
 	return &TxBuilderBananaZKEVM{
-		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, opts),
+		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, l1InfoTree, ethClient, blockFinality, opts),
 		condNewSeq:          NewConditionalNewSequenceMaxSize(maxTxSizeForL1),
 		rollupContract:      rollupContract,
 	}
@@ -48,7 +55,7 @@ func (t *TxBuilderBananaZKEVM) SetCondNewSeq(cond CondNewSequence) CondNewSequen
 	return previous
 }
 
-func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
+func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
 	var err error
 	ethseq, err := convertToSequenceBanana(sequences)
 	if err != nil {
@@ -65,13 +72,13 @@ func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, seque
 	// Build sequence data
 	tx, err := t.sequenceBatchesRollup(newopts, ethseq)
 	if err != nil {
-		log.Errorf("[SeqSender] error estimating new sequenceBatches to add to ethtxmanager: ", err)
+		log.Errorf("error estimating new sequenceBatches to add to ethtxmanager: ", err)
 		return nil, err
 	}
 	return tx, nil
 }
 
-func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, sequence etherman.SequenceBanana) (*ethtypes.Transaction, error) {
+func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, sequence etherman.SequenceBanana) (*types.Transaction, error) {
 	batches := make([]polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, len(sequence.Batches))
 	for i, batch := range sequence.Batches {
 		var ger common.Hash
@@ -87,12 +94,11 @@ func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, seq
 		}
 	}
 
-	tx, err := t.rollupContract.SequenceBatches(&opts, batches, sequence.IndexL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase)
+	tx, err := t.rollupContract.SequenceBatches(&opts, batches, sequence.CounterL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", sequence.L2Coinbase)
 		log.Debug("Sequencer address: ", opts.From)
-
 	}
 
 	return tx, err

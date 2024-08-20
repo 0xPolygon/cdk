@@ -25,6 +25,8 @@ SequencesTxFileName = "sequencesender.json"
 GasOffset = 80000
 WaitPeriodPurgeTxFile = "15m"
 MaxPendingTx = 1
+MaxBatchesForL1 = 300
+BlockFinality = "FinalizedBlock"
 	[SequenceSender.StreamClient]
 		Server = "127.0.0.1:6900"
 	[SequenceSender.EthTxManager]
@@ -57,6 +59,8 @@ ProofStatePollingInterval = "5s"
 SenderAddress = ""
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
+BatchProofSanityCheckEnabled = true
+FinalProofSanityCheckEnabled = true
 ForkId = 9
 GasOffset = 0
 WitnessURL = "localhost:8123"
@@ -65,6 +69,7 @@ UseFullWitness = false
 SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
 AggLayerURL = ""
+MaxWitnessRetrievalWorkers = 2
 SequencerPrivateKey = {}
 	[Aggregator.DB]
 		Name = "aggregator_db"
@@ -136,14 +141,14 @@ TargetChainType="EVM"
 URLRPCL1="http://test-aggoracle-l1:8545"
 BlockFinality="latest"
 WaitPeriodNextGER="100ms"
-	[EVMSender]
+	[AggOracle.EVMSender]
 		GlobalExitRootL2="0x8464135c8F25Da09e49BC8782676a84730C318bC"
 		URLRPCL2="http://test-aggoracle-l2:8545"
 		ChainIDL2=1337
 		GasOffset=0
 		WaitPeriodMonitorTx="100ms"
 		SenderAddr="0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
-		[SequenceSender.EthTxManager]
+		[AggOracle.EVMSender.EthTxManager]
 				FrequencyToMonitorTxs = "1s"
 				WaitTxToBeMined = "2s"
 				GetReceiptMaxTime = "250ms"
@@ -158,7 +163,7 @@ WaitPeriodNextGER="100ms"
 				ReadPendingL1Txs = false
 				SafeStatusL1NumberOfBlocks = 5
 				FinalizedStatusL1NumberOfBlocks = 10
-					[SequenceSender.EthTxManager.Etherman]
+					[AggOracle.EVMSender.EthTxManager.Etherman]
 						URL = "http://test-aggoracle-l2"
 						MultiGasProvider = false
 						L1ChainID = 1337

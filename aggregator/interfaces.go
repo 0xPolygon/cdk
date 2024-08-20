@@ -22,7 +22,7 @@ type proverInterface interface {
 	BatchProof(input *prover.StatelessInputProver) (*string, error)
 	AggregatedProof(inputProof1, inputProof2 string) (*string, error)
 	FinalProof(inputProof string, aggregatorAddr string) (*string, error)
-	WaitRecursiveProof(ctx context.Context, proofID string) (string, error)
+	WaitRecursiveProof(ctx context.Context, proofID string) (string, common.Hash, error)
 	WaitFinalProof(ctx context.Context, proofID string) (*prover.FinalProof, error)
 }
 
@@ -55,8 +55,8 @@ type stateInterface interface {
 	CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error)
 	CheckProofExistsForBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (bool, error)
 	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
-	AddBatch(ctx context.Context, batch *state.Batch, datastream []byte, dbTx pgx.Tx) error
-	GetBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, []byte, error)
+	AddBatch(ctx context.Context, dbBatch *state.DBBatch, dbTx pgx.Tx) error
+	GetBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.DBBatch, error)
 	DeleteBatchesOlderThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	DeleteBatchesNewerThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 }

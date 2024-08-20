@@ -23,10 +23,10 @@ func NewConditionalNewSequenceNumBatches(maxBatchesForL1 uint64) *ConditionalNew
 func (c *ConditionalNewSequenceNumBatches) NewSequenceIfWorthToSend(ctx context.Context, txBuilder TxBuilder, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address) (seqsendertypes.Sequence, error) {
 	if c.maxBatchesForL1 != MaxBatchesForL1Disabled && len(sequenceBatches) >= int(c.maxBatchesForL1) {
 		log.Infof(
-			"[SeqSender] sequence should be sent to L1, because MaxBatchesForL1 (%d) has been reached",
+			"sequence should be sent to L1, because MaxBatchesForL1 (%d) has been reached",
 			c.maxBatchesForL1,
 		)
-		return txBuilder.NewSequence(sequenceBatches, l2Coinbase)
+		return txBuilder.NewSequence(ctx, sequenceBatches, l2Coinbase)
 	}
 	return nil, nil
 }

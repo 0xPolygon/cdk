@@ -138,9 +138,9 @@ func (_c *TxBuilder_NewBatchFromL2Block_Call) RunAndReturn(run func(*datastream.
 	return _c
 }
 
-// NewSequence provides a mock function with given fields: batches, coinbase
-func (_m *TxBuilder) NewSequence(batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
-	ret := _m.Called(batches, coinbase)
+// NewSequence provides a mock function with given fields: ctx, batches, coinbase
+func (_m *TxBuilder) NewSequence(ctx context.Context, batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
+	ret := _m.Called(ctx, batches, coinbase)
 
 	if len(ret) == 0 {
 		panic("no return value specified for NewSequence")
@@ -148,19 +148,19 @@ func (_m *TxBuilder) NewSequence(batches []seqsendertypes.Batch, coinbase common
 
 	var r0 seqsendertypes.Sequence
 	var r1 error
-	if rf, ok := ret.Get(0).(func([]seqsendertypes.Batch, common.Address) (seqsendertypes.Sequence, error)); ok {
-		return rf(batches, coinbase)
+	if rf, ok := ret.Get(0).(func(context.Context, []seqsendertypes.Batch, common.Address) (seqsendertypes.Sequence, error)); ok {
+		return rf(ctx, batches, coinbase)
 	}
-	if rf, ok := ret.Get(0).(func([]seqsendertypes.Batch, common.Address) seqsendertypes.Sequence); ok {
-		r0 = rf(batches, coinbase)
+	if rf, ok := ret.Get(0).(func(context.Context, []seqsendertypes.Batch, common.Address) seqsendertypes.Sequence); ok {
+		r0 = rf(ctx, batches, coinbase)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(seqsendertypes.Sequence)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func([]seqsendertypes.Batch, common.Address) error); ok {
-		r1 = rf(batches, coinbase)
+	if rf, ok := ret.Get(1).(func(context.Context, []seqsendertypes.Batch, common.Address) error); ok {
+		r1 = rf(ctx, batches, coinbase)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -174,15 +174,16 @@ type TxBuilder_NewSequence_Call struct {
 }
 
 // NewSequence is a helper method to define mock.On call
+//   - ctx context.Context
 //   - batches []seqsendertypes.Batch
 //   - coinbase common.Address
-func (_e *TxBuilder_Expecter) NewSequence(batches interface{}, coinbase interface{}) *TxBuilder_NewSequence_Call {
-	return &TxBuilder_NewSequence_Call{Call: _e.mock.On("NewSequence", batches, coinbase)}
+func (_e *TxBuilder_Expecter) NewSequence(ctx interface{}, batches interface{}, coinbase interface{}) *TxBuilder_NewSequence_Call {
+	return &TxBuilder_NewSequence_Call{Call: _e.mock.On("NewSequence", ctx, batches, coinbase)}
 }
 
-func (_c *TxBuilder_NewSequence_Call) Run(run func(batches []seqsendertypes.Batch, coinbase common.Address)) *TxBuilder_NewSequence_Call {
+func (_c *TxBuilder_NewSequence_Call) Run(run func(ctx context.Context, batches []seqsendertypes.Batch, coinbase common.Address)) *TxBuilder_NewSequence_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].([]seqsendertypes.Batch), args[1].(common.Address))
+		run(args[0].(context.Context), args[1].([]seqsendertypes.Batch), args[2].(common.Address))
 	})
 	return _c
 }
@@ -192,7 +193,7 @@ func (_c *TxBuilder_NewSequence_Call) Return(_a0 seqsendertypes.Sequence, _a1 er
 	return _c
 }
 
-func (_c *TxBuilder_NewSequence_Call) RunAndReturn(run func([]seqsendertypes.Batch, common.Address) (seqsendertypes.Sequence, error)) *TxBuilder_NewSequence_Call {
+func (_c *TxBuilder_NewSequence_Call) RunAndReturn(run func(context.Context, []seqsendertypes.Batch, common.Address) (seqsendertypes.Sequence, error)) *TxBuilder_NewSequence_Call {
 	_c.Call.Return(run)
 	return _c
 }

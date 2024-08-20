@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
 	"os"
 	"os/signal"
 	"runtime"
@@ -39,7 +40,7 @@ import (
 )
 
 func start(cliCtx *cli.Context) error {
-	c, err := config.Load(cliCtx, true)
+	c, err := config.Load(cliCtx)
 	if err != nil {
 		return err
 	}
@@ -54,12 +55,14 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	components := cliCtx.StringSlice(config.FlagComponents)
-
+	l1Client := runL1ClientIfNeeded(components, c.SequenceSender.EthTxManager.Etherman.URL)
+	reorgDetectorL1 := runReorgDetectorL1IfNeeded(cliCtx.Context, components, l1Client, c.ReorgDetectorL1.DBPath)
+	l1InfoTreeSync := runL1InfoTreeSyncerIfNeeded(cliCtx.Context, components, *c, l1Client, reorgDetectorL1)
 	for _, component := range components {
 		switch component {
 		case SEQUENCE_SENDER:
 			c.SequenceSender.Log = c.Log
-			seqSender := createSequenceSender(*c)
+			seqSender := createSequenceSender(*c, l1Client, l1InfoTreeSync)
 			// start sequence sender in a goroutine, checking for errors
 			go seqSender.Start(cliCtx.Context)
 
@@ -72,16 +75,7 @@ func start(cliCtx *cli.Context) error {
 				}
 			}()
 		case AGGORACLE:
-			l1Client, err := ethclient.Dial(c.AggOracle.URLRPCL1)
-			if err != nil {
-				log.Fatal(err)
-			}
-			//reorgDetector := newReorgDetectorL1(cliCtx.Context, *c, l1Client)
-			reorgDetector := reorgdetector.NewReorgMonitor(l1Client, 100)
-			go reorgDetector.Start(cliCtx.Context)
-			syncer := newL1InfoTreeSyncer(cliCtx.Context, *c, l1Client, reorgDetector)
-			go syncer.Start(cliCtx.Context)
-			aggOracle := createAggoracle(*c, l1Client, syncer)
+			aggOracle := createAggoracle(*c, l1Client, l1InfoTreeSync)
 			go aggOracle.Start(cliCtx.Context)
 		}
 	}
@@ -119,8 +113,6 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 
 	c.Aggregator.ChainID = l2ChainID
 
-	checkAggregatorMigrations(c.Aggregator.DB)
-
 	// Populate Network config
 	c.Aggregator.Synchronizer.Etherman.Contracts.GlobalExitRootManagerAddr = c.NetworkConfig.L1Config.GlobalExitRootManagerAddr
 	c.Aggregator.Synchronizer.Etherman.Contracts.RollupManagerAddr = c.NetworkConfig.L1Config.RollupManagerAddr
@@ -134,7 +126,11 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 	return aggregator
 }
 
-func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
+func createSequenceSender(
+	cfg config.Config,
+	l1Client *ethclient.Client,
+	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
+) *sequencesender.SequenceSender {
 	ethman, err := etherman.NewClient(ethermanconfig.Config{
 		EthermanConfig: ethtxman.Config{
 			URL:              cfg.SequenceSender.EthTxManager.Etherman.URL,
@@ -156,8 +152,12 @@ func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 		log.Fatal(err)
 	}
 	cfg.SequenceSender.SenderAddress = auth.From
-
-	txBuilder, err := newTxBuilder(cfg, ethman)
+	blockFialityType := etherman.BlockNumberFinality(cfg.SequenceSender.BlockFinality)
+	blockFinality, err := blockFialityType.ToBlockNum()
+	if err != nil {
+		log.Fatalf("Failed to create block finality. Err: %w, ", err)
+	}
+	txBuilder, err := newTxBuilder(cfg, ethman, l1Client, l1InfoTreeSync, blockFinality)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -169,7 +169,13 @@ func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 	return seqSender
 }
 
-func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuilder, error) {
+func newTxBuilder(
+	cfg config.Config,
+	ethman *etherman.Client,
+	l1Client *ethclient.Client,
+	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
+	blockFinality *big.Int,
+) (txbuilder.TxBuilder, error) {
 	auth, _, err := ethman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
 	if err != nil {
 		log.Fatal(err)
@@ -183,9 +189,26 @@ func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuild
 	switch contracts.VersionType(cfg.Common.ContractVersions) {
 	case contracts.VersionBanana:
 		if cfg.Common.IsValidiumMode {
-			txBuilder = txbuilder.NewTxBuilderBananaValidium(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, da, *auth, cfg.SequenceSender.MaxBatchesForL1)
+			txBuilder = txbuilder.NewTxBuilderBananaValidium(
+				ethman.Contracts.Banana.Rollup,
+				ethman.Contracts.Banana.GlobalExitRoot,
+				da,
+				*auth,
+				cfg.SequenceSender.MaxBatchesForL1,
+				l1InfoTreeSync,
+				l1Client,
+				blockFinality,
+			)
 		} else {
-			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, *auth, cfg.SequenceSender.MaxTxSizeForL1)
+			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(
+				ethman.Contracts.Banana.Rollup,
+				ethman.Contracts.Banana.GlobalExitRoot,
+				*auth,
+				cfg.SequenceSender.MaxTxSizeForL1,
+				l1InfoTreeSync,
+				l1Client,
+				blockFinality,
+			)
 		}
 	case contracts.VersionElderberry:
 		if cfg.Common.IsValidiumMode {
@@ -299,13 +322,6 @@ func runAggregatorMigrations(c db.Config) {
 	runMigrations(c, db.AggregatorMigrationName)
 }
 
-func checkAggregatorMigrations(c db.Config) {
-	err := db.CheckMigrations(c, db.AggregatorMigrationName)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 func runMigrations(c db.Config, name string) {
 	log.Infof("running migrations for %v", name)
 	err := db.RunMigrationsUp(c, name)
@@ -315,10 +331,14 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	config := ethermanconfig.Config{
-		URL: c.Aggregator.EthTxManager.Etherman.URL,
-	}
-	return etherman.NewClient(config, c.NetworkConfig.L1Config, c.Common)
+	return etherman.NewClient(ethermanconfig.Config{
+		EthermanConfig: ethtxman.Config{
+			URL:              c.Aggregator.EthTxManager.Etherman.URL,
+			MultiGasProvider: c.Aggregator.EthTxManager.Etherman.MultiGasProvider,
+			L1ChainID:        c.Aggregator.EthTxManager.Etherman.L1ChainID,
+			HTTPHeaders:      c.Aggregator.EthTxManager.Etherman.HTTPHeaders,
+		},
+	}, c.NetworkConfig.L1Config, c.Common)
 }
 
 func logVersion() {
@@ -384,6 +404,7 @@ func newL1InfoTreeSyncer(
 		ctx,
 		cfg.L1InfoTreeSync.DBPath,
 		cfg.L1InfoTreeSync.GlobalExitRootAddr,
+		cfg.L1InfoTreeSync.RollupManagerAddr,
 		cfg.L1InfoTreeSync.SyncBlockChunkSize,
 		etherman.BlockNumberFinality(cfg.L1InfoTreeSync.BlockFinality),
 		reorgDetector,
@@ -397,4 +418,79 @@ func newL1InfoTreeSyncer(
 		log.Fatal(err)
 	}
 	return syncer
+}
+
+func isNeeded(casesWhereNeeded, actualCases []string) bool {
+	for _, actaulCase := range actualCases {
+		for _, caseWhereNeeded := range casesWhereNeeded {
+			if actaulCase == caseWhereNeeded {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func runL1InfoTreeSyncerIfNeeded(
+	ctx context.Context,
+	components []string,
+	cfg config.Config,
+	l1Client *ethclient.Client,
+	reorgDetector *reorgdetector.ReorgDetector,
+) *l1infotreesync.L1InfoTreeSync {
+	if !isNeeded([]string{AGGORACLE, SEQUENCE_SENDER}, components) {
+		return nil
+	}
+	l1InfoTreeSync, err := l1infotreesync.New(
+		ctx,
+		cfg.L1InfoTreeSync.DBPath,
+		cfg.L1InfoTreeSync.GlobalExitRootAddr,
+		cfg.L1InfoTreeSync.RollupManagerAddr,
+		cfg.L1InfoTreeSync.SyncBlockChunkSize,
+		etherman.BlockNumberFinality(cfg.L1InfoTreeSync.BlockFinality),
+		reorgDetector,
+		l1Client,
+		cfg.L1InfoTreeSync.WaitForNewBlocksPeriod.Duration,
+		cfg.L1InfoTreeSync.InitialBlock,
+		cfg.L1InfoTreeSync.RetryAfterErrorPeriod.Duration,
+		cfg.L1InfoTreeSync.MaxRetryAttemptsAfterError,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	go l1InfoTreeSync.Start(ctx)
+	return l1InfoTreeSync
+}
+
+func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client {
+	if !isNeeded([]string{SEQUENCE_SENDER, AGGREGATOR, AGGORACLE}, components) {
+		return nil
+	}
+	log.Debugf("dialing L1 client at: %s", urlRPCL1)
+	l1CLient, err := ethclient.Dial(urlRPCL1)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return l1CLient
+}
+
+func runReorgDetectorL1IfNeeded(ctx context.Context, components []string, l1Client *ethclient.Client, dbPath string) *reorgdetector.ReorgDetector {
+	if !isNeeded([]string{SEQUENCE_SENDER, AGGREGATOR, AGGORACLE}, components) {
+		return nil
+	}
+	rd := newReorgDetector(ctx, dbPath, l1Client)
+	go rd.Start(ctx)
+	return rd
+}
+
+func newReorgDetector(
+	ctx context.Context,
+	dbPath string,
+	client *ethclient.Client,
+) *reorgdetector.ReorgDetector {
+	rd, err := reorgdetector.New(ctx, client, dbPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return rd
 }

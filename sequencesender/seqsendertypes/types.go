@@ -34,11 +34,12 @@ type Sequence interface {
 	FirstBatch() Batch
 	LastBatch() Batch
 	Len() int
-
 	L2Coinbase() common.Address
+	LastVirtualBatchNumber() uint64
 
 	String() string
 	// WRITE
+	SetLastVirtualBatchNumber(batchNumber uint64)
 	//SetL1InfoRoot(hash common.Hash)
 	//SetOldAccInputHash(hash common.Hash)
 	//SetAccInputHash(hash common.Hash)

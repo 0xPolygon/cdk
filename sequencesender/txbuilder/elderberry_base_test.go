@@ -1,6 +1,7 @@
 package txbuilder
 
 import (
+	"context"
 	"testing"
 
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
@@ -14,7 +15,7 @@ func TestElderberryBaseNewSequence(t *testing.T) {
 	opts := bind.TransactOpts{}
 	sut := NewTxBuilderElderberryBase(opts)
 	require.NotNil(t, sut)
-	seq, err := sut.NewSequence(nil, common.Address{})
+	seq, err := sut.NewSequence(context.TODO(), nil, common.Address{})
 	require.NotNil(t, seq)
 	require.NoError(t, err)
 }
@@ -40,7 +41,7 @@ func TestElderberryBaseNewBatchFromL2Block(t *testing.T) {
 
 func TestElderberryBasegetLastSequencedBatchNumberEmpty(t *testing.T) {
 	sut := newElderberryBaseSUT(t)
-	seq, err := sut.NewSequence(nil, common.Address{})
+	seq, err := sut.NewSequence(context.TODO(), nil, common.Address{})
 	require.NoError(t, err)
 
 	require.Equal(t, uint64(0), getLastSequencedBatchNumber(seq))
@@ -60,7 +61,7 @@ func TestElderberryBasegetLastSequencedBatch1Batch(t *testing.T) {
 		batchElder,
 	}
 
-	seq, err := sut.NewSequence(batches, common.Address{})
+	seq, err := sut.NewSequence(context.TODO(), batches, common.Address{})
 	require.NoError(t, err)
 
 	require.Equal(t, l2Block.BatchNumber-1, getLastSequencedBatchNumber(seq))
@@ -80,7 +81,7 @@ func TestElderberryBaseGetLastSequencedBatchFirstBatchIsZeroThrowAPanic(t *testi
 		batchElder,
 	}
 
-	seq, err := sut.NewSequence(batches, common.Address{})
+	seq, err := sut.NewSequence(context.TODO(), batches, common.Address{})
 	require.NoError(t, err)
 	defer func() {
 		if r := recover(); r == nil {
