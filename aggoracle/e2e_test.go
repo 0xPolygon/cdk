@@ -55,8 +55,9 @@ func commonSetup(t *testing.T) (
 	l1Client, gerL1Addr, gerL1Contract, err := newSimulatedL1(authL1)
 	require.NoError(t, err)
 	// Reorg detector
-	dbPathReorgDetector := t.TempDir()
-	reorg, err := reorgdetector.New(ctx, l1Client.Client(), dbPathReorgDetector)
+	// dbPathReorgDetector := t.TempDir()
+	//reorg, err := reorgdetector.New(ctx, l1Client.Client(), dbPathReorgDetector)
+	reorg := reorgdetector.NewReorgMonitor(l1Client.Client(), 100)
 	require.NoError(t, err)
 	// Syncer
 	dbPathSyncer := t.TempDir()
