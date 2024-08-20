@@ -8,3 +8,4 @@ target/
 book/
 index.html
 tmp
+.vscode
