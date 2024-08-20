@@ -874,6 +874,12 @@ func (s *SequenceSender) handleReceivedDataStream(entry *datastreamer.FileEntry,
 				entry.Number, l2Tx.L2BlockNumber, l2Tx.Index, s.entryTypeToString(prevEntryType), s.prevStreamEntry.Number)
 		}
 
+		// Sanity check: tx should be decodable
+		_, err = state.DecodeTx(common.Bytes2Hex(l2Tx.Encoded))
+		if err != nil {
+			log.Fatalf("error decoding tx during sanity check: %v", err)
+		}
+
 		// Add tx data
 		s.addNewBlockTx(l2Tx)
 
