@@ -2,11 +2,12 @@ package l1infotreesync
 
 import (
 	"context"
+	"errors"
 	"time"
 
-	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sync"
+	"github.com/0xPolygon/cdk/tree"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -14,20 +15,6 @@ const (
 	reorgDetectorID    = "l1infotreesync"
 	downloadBufferSize = 1000
 )
-
-type Config struct {
-	DBPath             string         `mapstructure:"DBPath"`
-	GlobalExitRootAddr common.Address `mapstructure:"GlobalExitRootAddr"`
-	RollupManagerAddr  common.Address `mapstructure:"RollupManagerAddr"`
-	SyncBlockChunkSize uint64         `mapstructure:"SyncBlockChunkSize"`
-	// TODO: BlockFinality doesnt work as per the jsonschema
-	BlockFinality              string         `jsonschema:"enum=latest,enum=safe, enum=pending, enum=finalized" mapstructure:"BlockFinality"`
-	URLRPCL1                   string         `mapstructure:"URLRPCL1"`
-	WaitForNewBlocksPeriod     types.Duration `mapstructure:"WaitForNewBlocksPeriod"`
-	InitialBlock               uint64         `mapstructure:"InitialBlock"`
-	RetryAfterErrorPeriod      types.Duration `mapstructure:"RetryAfterErrorPeriod"`
-	MaxRetryAttemptsAfterError int            `mapstructure:"MaxRetryAttemptsAfterError"`
-}
 
 type L1InfoTreeSync struct {
 	processor *processor
@@ -76,6 +63,7 @@ func New(
 		return nil, err
 	}
 	downloader, err := sync.NewEVMDownloader(
+		"l1infotreesync",
 		l1Client,
 		syncBlockChunkSize,
 		blockFinalityType,
@@ -104,8 +92,16 @@ func (s *L1InfoTreeSync) Start(ctx context.Context) {
 }
 
 // GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
-func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([]common.Hash, common.Hash, error) {
+func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([32]common.Hash, common.Hash, error) {
 	return s.processor.GetL1InfoTreeMerkleProof(ctx, index)
+}
+
+// GetRollupExitTreeMerkleProof creates a merkle proof for the rollup exit tree
+func (s *L1InfoTreeSync) GetRollupExitTreeMerkleProof(ctx context.Context, networkID uint32, root common.Hash) ([32]common.Hash, error) {
+	if networkID == 0 {
+		return tree.EmptyProof, nil
+	}
+	return s.processor.rollupExitTree.GetProof(ctx, networkID-1, root)
 }
 
 // GetLatestInfoUntilBlock returns the most recent L1InfoTreeLeaf that occurred before or at blockNum.
@@ -143,4 +139,11 @@ func (s *L1InfoTreeSync) GetLastL1InfoTreeRootAndIndex(ctx context.Context) (uin
 // GetLastProcessedBlock return the last processed block
 func (s *L1InfoTreeSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	return s.processor.GetLastProcessedBlock(ctx)
+}
+
+func (s *L1InfoTreeSync) GetLocalExitRoot(ctx context.Context, networkID uint32, rollupExitRoot common.Hash) (common.Hash, error) {
+	if networkID == 0 {
+		return common.Hash{}, errors.New("network 0 is not a rollup, and it's not part of the rollup exit tree")
+	}
+	return s.processor.rollupExitTree.GetLeaf(ctx, networkID-1, rollupExitRoot)
 }

@@ -15,12 +15,7 @@ const (
 	downloadBufferSize = 1000
 )
 
-var (
-	retryAfterErrorPeriod      = time.Second * 10
-	maxRetryAttemptsAfterError = 5
-)
-
-type LocalBridgeSync struct {
+type BridgeSync struct {
 	processor *processor
 	driver    *sync.EVMDriver
 }
@@ -35,8 +30,11 @@ func NewL1(
 	rd sync.ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
-) (*LocalBridgeSync, error) {
-	return new(
+	waitForNewBlocksPeriod time.Duration,
+	retryAfterErrorPeriod time.Duration,
+	maxRetryAttemptsAfterError int,
+) (*BridgeSync, error) {
+	return newBridgeSync(
 		ctx,
 		dbPath,
 		bridge,
@@ -46,6 +44,9 @@ func NewL1(
 		ethClient,
 		initialBlock,
 		bridgeSyncL1,
+		waitForNewBlocksPeriod,
+		retryAfterErrorPeriod,
+		maxRetryAttemptsAfterError,
 	)
 }
 
@@ -59,8 +60,11 @@ func NewL2(
 	rd sync.ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
-) (*LocalBridgeSync, error) {
-	return new(
+	waitForNewBlocksPeriod time.Duration,
+	retryAfterErrorPeriod time.Duration,
+	maxRetryAttemptsAfterError int,
+) (*BridgeSync, error) {
+	return newBridgeSync(
 		ctx,
 		dbPath,
 		bridge,
@@ -70,10 +74,13 @@ func NewL2(
 		ethClient,
 		initialBlock,
 		bridgeSyncL2,
+		waitForNewBlocksPeriod,
+		retryAfterErrorPeriod,
+		maxRetryAttemptsAfterError,
 	)
 }
 
-func new(
+func newBridgeSync(
 	ctx context.Context,
 	dbPath string,
 	bridge common.Address,
@@ -83,7 +90,10 @@ func new(
 	ethClient EthClienter,
 	initialBlock uint64,
 	l1OrL2ID string,
-) (*LocalBridgeSync, error) {
+	waitForNewBlocksPeriod time.Duration,
+	retryAfterErrorPeriod time.Duration,
+	maxRetryAttemptsAfterError int,
+) (*BridgeSync, error) {
 	processor, err := newProcessor(ctx, dbPath, l1OrL2ID)
 	if err != nil {
 		return nil, err
@@ -110,6 +120,7 @@ func new(
 		return nil, err
 	}
 	downloader, err := sync.NewEVMDownloader(
+		l1OrL2ID,
 		ethClient,
 		syncBlockChunkSize,
 		blockFinalityType,
@@ -126,13 +137,29 @@ func new(
 	if err != nil {
 		return nil, err
 	}
-	return &LocalBridgeSync{
+	return &BridgeSync{
 		processor: processor,
 		driver:    driver,
 	}, nil
 }
 
 // Start starts the synchronization process
-func (s *LocalBridgeSync) Start(ctx context.Context) {
+func (s *BridgeSync) Start(ctx context.Context) {
 	s.driver.Sync(ctx)
+}
+
+func (s *BridgeSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
+	return s.processor.GetLastProcessedBlock(ctx)
+}
+
+func (s *BridgeSync) GetBridgeIndexByRoot(ctx context.Context, root common.Hash) (uint32, error) {
+	return s.processor.exitTree.GetIndexByRoot(ctx, root)
+}
+
+func (s *BridgeSync) GetClaimsAndBridges(ctx context.Context, fromBlock, toBlock uint64) ([]Event, error) {
+	return s.processor.GetClaimsAndBridges(ctx, fromBlock, toBlock)
+}
+
+func (s *BridgeSync) GetProof(ctx context.Context, depositCount uint32, localExitRoot common.Hash) ([32]common.Hash, error) {
+	return s.processor.exitTree.GetProof(ctx, depositCount, localExitRoot)
 }

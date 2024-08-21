@@ -52,7 +52,7 @@ func TestSync(t *testing.T) {
 		green bool
 	}
 	reorg1Completed := reorgSemaphore{}
-	dm.On("download", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	dm.On("Download", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		ctx := args.Get(0).(context.Context)
 		downloadedCh := args.Get(2).(chan EVMBlock)
 		log.Info("entering mock loop")

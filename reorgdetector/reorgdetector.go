@@ -218,34 +218,36 @@ func (r *ReorgDetector) Subscribe(id string) (*Subscription, error) {
 }
 
 func (r *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error {
-	r.subscriptionsLock.RLock()
-	if sub, ok := r.subscriptions[id]; !ok {
-		r.subscriptionsLock.RUnlock()
-		return ErrNotSubscribed
-	} else {
-		// In case there are reorgs being processed, wait
-		// Note that this also makes any addition to trackedBlocks[id] safe
-		sub.pendingReorgsToBeProcessed.Wait()
-	}
+	return nil
+	// COMENTING THE CODE AS I'M SUSPECTING A DEATHLOCK
+	// r.subscriptionsLock.RLock()
+	// if sub, ok := r.subscriptions[id]; !ok {
+	// 	r.subscriptionsLock.RUnlock()
+	// 	return ErrNotSubscribed
+	// } else {
+	// 	// In case there are reorgs being processed, wait
+	// 	// Note that this also makes any addition to trackedBlocks[id] safe
+	// 	sub.pendingReorgsToBeProcessed.Wait()
+	// }
 
-	r.subscriptionsLock.RUnlock()
+	// r.subscriptionsLock.RUnlock()
 
-	if actualHash, ok := r.getUnfinalisedBlocksMap()[blockNum]; ok {
-		if actualHash.Hash == blockHash {
-			return r.saveTrackedBlock(ctx, id, block{Num: blockNum, Hash: blockHash})
-		} else {
-			return ErrInvalidBlockHash
-		}
-	} else {
-		// ReorgDetector has not added the requested block yet,
-		// so we add it to the unfinalised blocks and then to the subscriber blocks as well
-		block := block{Num: blockNum, Hash: blockHash}
-		if err := r.saveTrackedBlock(ctx, unfinalisedBlocksID, block); err != nil {
-			return err
-		}
+	// if actualHash, ok := r.getUnfinalisedBlocksMap()[blockNum]; ok {
+	// 	if actualHash.Hash == blockHash {
+	// 		return r.saveTrackedBlock(ctx, id, block{Num: blockNum, Hash: blockHash})
+	// 	} else {
+	// 		return ErrInvalidBlockHash
+	// 	}
+	// } else {
+	// 	// ReorgDetector has not added the requested block yet,
+	// 	// so we add it to the unfinalised blocks and then to the subscriber blocks as well
+	// 	block := block{Num: blockNum, Hash: blockHash}
+	// 	if err := r.saveTrackedBlock(ctx, unfinalisedBlocksID, block); err != nil {
+	// 		return err
+	// 	}
 
-		return r.saveTrackedBlock(ctx, id, block)
-	}
+	// 	return r.saveTrackedBlock(ctx, id, block)
+	// }
 }
 
 func (r *ReorgDetector) cleanStoredSubsBeforeStart(ctx context.Context, latestFinalisedBlock uint64) error {
