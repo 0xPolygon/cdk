@@ -10,7 +10,7 @@ import (
 
 // DepositVectorRaw represents the deposit vector
 type DepositVectorRaw struct {
-	OriginalNetwork    uint32 `json:"originNetwork"`
+	OriginNetwork      uint32 `json:"originNetwork"`
 	TokenAddress       string `json:"tokenAddress"`
 	Amount             string `json:"amount"`
 	DestinationNetwork uint32 `json:"destinationNetwork"`
@@ -22,7 +22,7 @@ type DepositVectorRaw struct {
 
 func (d *DepositVectorRaw) Hash() common.Hash {
 	origNet := make([]byte, 4) //nolint:gomnd
-	binary.BigEndian.PutUint32(origNet, d.OriginalNetwork)
+	binary.BigEndian.PutUint32(origNet, d.OriginNetwork)
 	destNet := make([]byte, 4) //nolint:gomnd
 	binary.BigEndian.PutUint32(destNet, d.DestinationNetwork)
 

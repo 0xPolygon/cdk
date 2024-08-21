@@ -76,11 +76,6 @@ type Claim struct {
 	Amount             *big.Int
 }
 
-type EventsWithBlock struct {
-	Events   []Event
-	BlockNum uint64
-}
-
 // Event combination of bridge and claim events
 type Event struct {
 	Bridge *Bridge
@@ -131,7 +126,7 @@ func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, err
 // If toBlock has not been porcessed yet, ErrBlockNotProcessed will be returned
 func (p *processor) GetClaimsAndBridges(
 	ctx context.Context, fromBlock, toBlock uint64,
-) ([]EventsWithBlock, error) {
+) ([]Event, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
 		return nil, err
@@ -149,23 +144,20 @@ func (p *processor) GetClaimsAndBridges(
 		return nil, err
 	}
 
-	eventsWithBlocks := []EventsWithBlock{}
+	events := []Event{}
 	for k, v, err := iter.Next(); k != nil; k, v, err = iter.Next() {
 		if err != nil {
 			return nil, err
 		}
-		eventsWithBlock := EventsWithBlock{
-			BlockNum: dbCommon.BytesToUint64(k),
-			Events:   []Event{},
-		}
-		err := json.Unmarshal(v, &eventsWithBlock.Events)
+		blockEvents := []Event{}
+		err := json.Unmarshal(v, &blockEvents)
 		if err != nil {
 			return nil, err
 		}
-		eventsWithBlocks = append(eventsWithBlocks, eventsWithBlock)
+		events = append(events, blockEvents...)
 	}
 
-	return eventsWithBlocks, nil
+	return events, nil
 }
 
 // GetLastProcessedBlock returns the last processed block by the processor, including blocks

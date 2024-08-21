@@ -83,11 +83,11 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 func (d *downloader) getDepositCountsInBlock(ctx context.Context, blockNum uint64) []uint32 {
 	var (
 		attempts int
-		blocks   []bridgesync.EventsWithBlock
+		events   []bridgesync.Event
 		err      error
 	)
 	for {
-		blocks, err = d.l2BridgeSync.GetClaimsAndBridges(ctx, blockNum, blockNum+1)
+		events, err = d.l2BridgeSync.GetClaimsAndBridges(ctx, blockNum, blockNum+1)
 		if err != nil {
 			attempts++
 			log.Error(err)
@@ -96,15 +96,9 @@ func (d *downloader) getDepositCountsInBlock(ctx context.Context, blockNum uint6
 		}
 		break
 	}
-	if len(blocks) == 0 {
-		// block doesnt have events
-		return nil
-	}
-	if len(blocks) > 1 {
-		log.Fatalf("unexpected amount of returned blocks. Expected 1 or 0, actual %d", len(blocks))
-	}
+
 	depositCounts := []uint32{}
-	for _, event := range blocks[0].Events {
+	for _, event := range events {
 		if event.Bridge != nil {
 			depositCounts = append(depositCounts, event.Bridge.DepositCount)
 		}
