@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk/bridgesync"
-	configTypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum"
@@ -14,18 +13,6 @@ import (
 type L1Bridge2InfoIndexSync struct {
 	processor *processor
 	driver    *driver
-}
-
-type Config struct {
-	// DBPath path of the DB
-	DBPath string `mapstructure:"DBPath"`
-	// RetryAfterErrorPeriod is the time that will be waited when an unexpected error happens before retry
-	RetryAfterErrorPeriod configTypes.Duration `mapstructure:"RetryAfterErrorPeriod"`
-	// MaxRetryAttemptsAfterError is the maximum number of consecutive attempts that will happen before panicing.
-	// Any number smaller than zero will be considered as unlimited retries
-	MaxRetryAttemptsAfterError int `mapstructure:"MaxRetryAttemptsAfterError"`
-	// WaitForSyncersPeriod time that will be waited when the synchronizer has reached the latest state
-	WaitForSyncersPeriod configTypes.Duration `mapstructure:"WaitForSyncersPeriod"`
 }
 
 func New(
@@ -66,5 +53,5 @@ func (s *L1Bridge2InfoIndexSync) GetLastProcessedBlock(ctx context.Context) (uin
 }
 
 func (s *L1Bridge2InfoIndexSync) GetL1InfoTreeIndexByDepositCount(ctx context.Context, depositCount uint32) (uint32, error) {
-	return s.processor.getL1InfoTreeIndexByBrdigeIndex(ctx, depositCount)
+	return s.processor.getL1InfoTreeIndexByBridgeIndex(ctx, depositCount)
 }

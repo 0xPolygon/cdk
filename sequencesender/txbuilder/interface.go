@@ -13,7 +13,7 @@ type TxBuilder interface {
 	// BuildSequenceBatchesTx  Builds a sequence of batches transaction
 	BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error)
 	// NewSequence  Creates a new sequence
-	NewSequence(batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error)
+	NewSequence(ctx context.Context, batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error)
 	// NewSequenceIfWorthToSend  Creates a new sequence if it is worth sending
 	NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error)
 	// NewBatchFromL2Block  Creates a new batch from the L2 block from a datastream

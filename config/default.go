@@ -26,6 +26,8 @@ SequencesTxFileName = "sequencesender.json"
 GasOffset = 80000
 WaitPeriodPurgeTxFile = "15m"
 MaxPendingTx = 1
+MaxBatchesForL1 = 300
+BlockFinality = "FinalizedBlock"
 	[SequenceSender.StreamClient]
 		Server = "127.0.0.1:6900"
 	[SequenceSender.EthTxManager]
@@ -58,6 +60,8 @@ ProofStatePollingInterval = "5s"
 SenderAddress = ""
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
+BatchProofSanityCheckEnabled = true
+FinalProofSanityCheckEnabled = true
 ForkId = 9
 GasOffset = 0
 WitnessURL = "localhost:8123"
@@ -66,6 +70,7 @@ UseFullWitness = false
 SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
 AggLayerURL = ""
+MaxWitnessRetrievalWorkers = 2
 SequencerPrivateKey = {}
 	[Aggregator.DB]
 		Name = "aggregator_db"

@@ -74,11 +74,11 @@ func (d *driver) sync(ctx context.Context) {
 		found := false
 		for {
 			lastL1InfoTreeIndex, err = d.downloader.getLastL1InfoIndexUntilBlock(ctx, syncUntilBlock)
-			if err == l1infotreesync.ErrNotFound || err == l1infotreesync.ErrBlockNotProcessed {
-				log.Debugf("l1 info tree index not ready, querying until block %d: %s", syncUntilBlock, err)
-				break
-			}
 			if err != nil {
+				if err == l1infotreesync.ErrNotFound || err == l1infotreesync.ErrBlockNotProcessed {
+					log.Debugf("l1 info tree index not ready, querying until block %d: %s", syncUntilBlock, err)
+					break
+				}
 				attempts++
 				log.Errorf("error getting last l1 info tree index: %v", err)
 				d.rh.Handle("getLastL1InfoIndexUntilBlock", attempts)
@@ -136,40 +136,35 @@ func (d *driver) sync(ctx context.Context) {
 }
 
 func (d *driver) getTargetSynchronizationBlock(ctx context.Context, lpbProcessor uint64) (syncUntilBlock uint64, shouldWait bool, err error) {
-	lastFinalised, err := d.downloader.getLastFinalisedL1Block(ctx) // TODO: configure finality, but then we need to deal with reorgs?
+	lastFinalised, err := d.downloader.getLastFinalizedL1Block(ctx) // NOTE: if this had configurable finality, it would be needed to deal with reorgs
 	if err != nil {
 		return
 	}
-	if lpbProcessor >= lastFinalised {
-		log.Debugf(
-			"should wait because the last processed block (%d) is greater or equal than the last finalised (%d)",
-			lpbProcessor, lastFinalised,
-		)
-		shouldWait = true
+	checkProcessedBlockFn := func(blockToCheck, lastProcessed uint64, blockType string) bool {
+		if blockToCheck >= lastProcessed {
+			log.Debugf(
+				"should wait because the last processed block (%d) is greater or equal than the %s (%d)",
+				blockToCheck, blockType, lastProcessed)
+			shouldWait = true
+			return true
+		}
+		return false
+	}
+	if checkProcessedBlockFn(lpbProcessor, lastFinalised, "last finalised") {
 		return
 	}
 	lpbInfo, err := d.downloader.getLastProcessedBlockL1InfoTree(ctx)
 	if err != nil {
 		return
 	}
-	if lpbProcessor >= lpbInfo {
-		log.Debugf(
-			"should wait because the last processed block (%d) is greater or equal than the last block from L1 Info tree sync (%d)",
-			lpbProcessor, lpbInfo,
-		)
-		shouldWait = true
+	if checkProcessedBlockFn(lpbProcessor, lastFinalised, "last block from L1 Info tree sync") {
 		return
 	}
 	lpbBridge, err := d.downloader.getLastProcessedBlockBridge(ctx)
 	if err != nil {
 		return
 	}
-	if lpbProcessor >= lpbBridge {
-		log.Debugf(
-			"should wait because the last processed block (%d) is greater or equal than the last block from l1 bridge sync (%d)",
-			lpbProcessor, lpbBridge,
-		)
-		shouldWait = true
+	if checkProcessedBlockFn(lpbProcessor, lastFinalised, "last block from l1 bridge sync") {
 		return
 	}
 

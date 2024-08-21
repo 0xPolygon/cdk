@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
 	"os"
 	"os/signal"
 	"runtime"
@@ -44,7 +45,7 @@ import (
 )
 
 func start(cliCtx *cli.Context) error {
-	c, err := config.Load(cliCtx, true)
+	c, err := config.Load(cliCtx)
 	if err != nil {
 		return err
 	}
@@ -74,7 +75,7 @@ func start(cliCtx *cli.Context) error {
 		switch component {
 		case SEQUENCE_SENDER:
 			c.SequenceSender.Log = c.Log
-			seqSender := createSequenceSender(*c)
+			seqSender := createSequenceSender(*c, l1Client, l1InfoTreeSync)
 			// start sequence sender in a goroutine, checking for errors
 			go seqSender.Start(cliCtx.Context)
 
@@ -141,8 +142,6 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 
 	c.Aggregator.ChainID = l2ChainID
 
-	checkAggregatorMigrations(c.Aggregator.DB)
-
 	// Populate Network config
 	c.Aggregator.Synchronizer.Etherman.Contracts.GlobalExitRootManagerAddr = c.NetworkConfig.L1Config.GlobalExitRootManagerAddr
 	c.Aggregator.Synchronizer.Etherman.Contracts.RollupManagerAddr = c.NetworkConfig.L1Config.RollupManagerAddr
@@ -156,7 +155,11 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 	return aggregator
 }
 
-func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
+func createSequenceSender(
+	cfg config.Config,
+	l1Client *ethclient.Client,
+	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
+) *sequencesender.SequenceSender {
 	ethman, err := etherman.NewClient(ethermanconfig.Config{
 		EthermanConfig: ethtxman.Config{
 			URL:              cfg.SequenceSender.EthTxManager.Etherman.URL,
@@ -178,8 +181,12 @@ func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 		log.Fatal(err)
 	}
 	cfg.SequenceSender.SenderAddress = auth.From
-
-	txBuilder, err := newTxBuilder(cfg, ethman)
+	blockFialityType := etherman.BlockNumberFinality(cfg.SequenceSender.BlockFinality)
+	blockFinality, err := blockFialityType.ToBlockNum()
+	if err != nil {
+		log.Fatalf("Failed to create block finality. Err: %w, ", err)
+	}
+	txBuilder, err := newTxBuilder(cfg, ethman, l1Client, l1InfoTreeSync, blockFinality)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -191,7 +198,13 @@ func createSequenceSender(cfg config.Config) *sequencesender.SequenceSender {
 	return seqSender
 }
 
-func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuilder, error) {
+func newTxBuilder(
+	cfg config.Config,
+	ethman *etherman.Client,
+	l1Client *ethclient.Client,
+	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
+	blockFinality *big.Int,
+) (txbuilder.TxBuilder, error) {
 	auth, _, err := ethman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
 	if err != nil {
 		log.Fatal(err)
@@ -205,9 +218,26 @@ func newTxBuilder(cfg config.Config, ethman *etherman.Client) (txbuilder.TxBuild
 	switch contracts.VersionType(cfg.Common.ContractVersions) {
 	case contracts.VersionBanana:
 		if cfg.Common.IsValidiumMode {
-			txBuilder = txbuilder.NewTxBuilderBananaValidium(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, da, *auth, cfg.SequenceSender.MaxBatchesForL1)
+			txBuilder = txbuilder.NewTxBuilderBananaValidium(
+				ethman.Contracts.Banana.Rollup,
+				ethman.Contracts.Banana.GlobalExitRoot,
+				da,
+				*auth,
+				cfg.SequenceSender.MaxBatchesForL1,
+				l1InfoTreeSync,
+				l1Client,
+				blockFinality,
+			)
 		} else {
-			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(ethman.Contracts.Banana.Rollup, ethman.Contracts.Banana.GlobalExitRoot, *auth, cfg.SequenceSender.MaxTxSizeForL1)
+			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(
+				ethman.Contracts.Banana.Rollup,
+				ethman.Contracts.Banana.GlobalExitRoot,
+				*auth,
+				cfg.SequenceSender.MaxTxSizeForL1,
+				l1InfoTreeSync,
+				l1Client,
+				blockFinality,
+			)
 		}
 	case contracts.VersionElderberry:
 		if cfg.Common.IsValidiumMode {
@@ -317,13 +347,6 @@ func runAggregatorMigrations(c db.Config) {
 	runMigrations(c, db.AggregatorMigrationName)
 }
 
-func checkAggregatorMigrations(c db.Config) {
-	err := db.CheckMigrations(c, db.AggregatorMigrationName)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 func runMigrations(c db.Config, name string) {
 	log.Infof("running migrations for %v", name)
 	err := db.RunMigrationsUp(c, name)
@@ -333,10 +356,14 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	config := ethermanconfig.Config{
-		URL: c.Aggregator.EthTxManager.Etherman.URL,
-	}
-	return etherman.NewClient(config, c.NetworkConfig.L1Config, c.Common)
+	return etherman.NewClient(ethermanconfig.Config{
+		EthermanConfig: ethtxman.Config{
+			URL:              c.Aggregator.EthTxManager.Etherman.URL,
+			MultiGasProvider: c.Aggregator.EthTxManager.Etherman.MultiGasProvider,
+			L1ChainID:        c.Aggregator.EthTxManager.Etherman.L1ChainID,
+			HTTPHeaders:      c.Aggregator.EthTxManager.Etherman.HTTPHeaders,
+		},
+	}, c.NetworkConfig.L1Config, c.Common)
 }
 
 func logVersion() {

@@ -30,6 +30,10 @@ func (_m *RollupElderberryValidiumContractor) EXPECT() *RollupElderberryValidium
 func (_m *RollupElderberryValidiumContractor) SequenceBatchesValidium(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, maxSequenceTimestamp uint64, initSequencedBatch uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	ret := _m.Called(opts, batches, maxSequenceTimestamp, initSequencedBatch, l2Coinbase, dataAvailabilityMessage)
 
+	if len(ret) == 0 {
+		panic("no return value specified for SequenceBatchesValidium")
+	}
+
 	var r0 *types.Transaction
 	var r1 error
 	if rf, ok := ret.Get(0).(func(*bind.TransactOpts, []polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, uint64, uint64, common.Address, []byte) (*types.Transaction, error)); ok {
@@ -85,13 +89,12 @@ func (_c *RollupElderberryValidiumContractor_SequenceBatchesValidium_Call) RunAn
 	return _c
 }
 
-type mockConstructorTestingTNewRollupElderberryValidiumContractor interface {
+// NewRollupElderberryValidiumContractor creates a new instance of RollupElderberryValidiumContractor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewRollupElderberryValidiumContractor(t interface {
 	mock.TestingT
 	Cleanup(func())
-}
-
-// NewRollupElderberryValidiumContractor creates a new instance of RollupElderberryValidiumContractor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-func NewRollupElderberryValidiumContractor(t mockConstructorTestingTNewRollupElderberryValidiumContractor) *RollupElderberryValidiumContractor {
+}) *RollupElderberryValidiumContractor {
 	mock := &RollupElderberryValidiumContractor{}
 	mock.Mock.Test(t)
 

@@ -146,11 +146,11 @@ func (t *AppendOnlyTree) initLastLeftCacheAndLastDepositCount(ctx context.Contex
 }
 
 func (t *AppendOnlyTree) initLastIndex(tx kv.Tx) (common.Hash, error) {
-	ldc, root, err := t.getLastIndexAndRootWithTx(tx)
+	lastIndex, root, err := t.getLastIndexAndRootWithTx(tx)
 	if err != nil {
 		return common.Hash{}, err
 	}
-	t.lastIndex = ldc
+	t.lastIndex = lastIndex
 	return root, nil
 }
 

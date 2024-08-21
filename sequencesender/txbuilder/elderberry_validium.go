@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -51,7 +50,7 @@ func (t *TxBuilderElderberryValidium) SetCondNewSeq(cond CondNewSequence) CondNe
 	return previous
 }
 
-func (t *TxBuilderElderberryValidium) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*ethtypes.Transaction, error) {
+func (t *TxBuilderElderberryValidium) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
 	if sequences == nil || sequences.Len() == 0 {
 		return nil, fmt.Errorf("can't sequence an empty sequence")
 	}

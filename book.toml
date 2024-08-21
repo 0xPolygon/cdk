@@ -1,0 +1,14 @@
+[book]
+authors = ["CDK Team - Polygon Labs"]
+language = "en"
+multilingual = false
+src = "docs"
+title = "CDK Docs"
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output.html]
+additional-js = ["docs/assets/mermaid.min.js", "docs/assets/mermaid-init.js"]
+
+[preprocessor.alerts]

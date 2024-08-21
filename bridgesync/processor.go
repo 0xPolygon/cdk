@@ -47,9 +47,9 @@ func (b *Bridge) Hash() common.Hash {
 		bigIntSize     = 32
 	)
 	origNet := make([]byte, uint32ByteSize)
-	binary.BigEndian.PutUint32(origNet, uint32(b.OriginNetwork))
+	binary.BigEndian.PutUint32(origNet, b.OriginNetwork)
 	destNet := make([]byte, uint32ByteSize)
-	binary.BigEndian.PutUint32(destNet, uint32(b.DestinationNetwork))
+	binary.BigEndian.PutUint32(destNet, b.DestinationNetwork)
 
 	metaHash := keccak256.Hash(b.Metadata)
 	var buf [bigIntSize]byte
@@ -98,7 +98,7 @@ type processor struct {
 func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, error) {
 	eventsTable := dbPrefix + eventsTableSufix
 	lastBlockTable := dbPrefix + lastBlockTableSufix
-	logger := log.WithFields("syncer", dbPrefix)
+	logger := log.WithFields("bridge-syncer", dbPrefix)
 	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
 		cfg := kv.TableCfg{
 			eventsTable:    {},
@@ -144,33 +144,24 @@ func (p *processor) GetClaimsAndBridges(
 	if lpb < toBlock {
 		return nil, ErrBlockNotProcessed
 	}
-	c, err := tx.Cursor(p.eventsTable)
+	iter, err := tx.Range(p.eventsTable, dbCommon.Uint64ToBytes(fromBlock), dbCommon.Uint64ToBytes(toBlock))
 	if err != nil {
 		return nil, err
 	}
-	defer c.Close()
 
 	eventsWithBlocks := []EventsWithBlock{}
-	for k, v, err := c.Seek(dbCommon.Uint64ToBytes(fromBlock)); k != nil; k, v, err = c.Next() {
+	for k, v, err := iter.Next(); k != nil; k, v, err = iter.Next() {
 		if err != nil {
 			return nil, err
-		}
-		blockNum := dbCommon.BytesToUint64(k)
-		if blockNum > toBlock {
-			break
-		}
-		blockEvents := []Event{}
-		err := json.Unmarshal(v, &blockEvents)
-		if err != nil {
-			return nil, err
-		}
-		if len(blockEvents) == 0 {
-			continue
 		}
 		eventsWithBlock := EventsWithBlock{
-			BlockNum: blockNum,
+			BlockNum: dbCommon.BytesToUint64(k),
+			Events:   []Event{},
 		}
-		copy(eventsWithBlock.Events, blockEvents)
+		err := json.Unmarshal(v, &eventsWithBlock.Events)
+		if err != nil {
+			return nil, err
+		}
 		eventsWithBlocks = append(eventsWithBlocks, eventsWithBlock)
 	}
 

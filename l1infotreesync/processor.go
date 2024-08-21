@@ -66,9 +66,15 @@ type VerifyBatches struct {
 	Aggregator ethCommon.Address
 }
 
+type InitL1InfoRootMap struct {
+	LeafCount         uint32
+	CurrentL1InfoRoot ethCommon.Hash
+}
+
 type Event struct {
-	UpdateL1InfoTree *UpdateL1InfoTree
-	VerifyBatches    *VerifyBatches
+	UpdateL1InfoTree  *UpdateL1InfoTree
+	VerifyBatches     *VerifyBatches
+	InitL1InfoRootMap *InitL1InfoRootMap
 }
 
 // L1InfoTreeLeaf representation of a leaf of the L1 Info tree
@@ -156,18 +162,18 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([32]ethCommon.Hash, ethCommon.Hash, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
-		return [32]ethCommon.Hash{}, ethCommon.Hash{}, err
+		return tree.EmptyProof, ethCommon.Hash{}, err
 	}
 	defer tx.Rollback()
 
 	root, err := p.l1InfoTree.GetRootByIndex(tx, index)
 	if err != nil {
-		return [32]ethCommon.Hash{}, ethCommon.Hash{}, err
+		return tree.EmptyProof, ethCommon.Hash{}, err
 	}
 
 	proof, err := p.l1InfoTree.GetProof(ctx, index, root)
 	if err != nil {
-		return [32]ethCommon.Hash{}, ethCommon.Hash{}, err
+		return tree.EmptyProof, ethCommon.Hash{}, err
 	}
 
 	// TODO: check if we need to return root or wat
@@ -390,6 +396,12 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 					Hash:  event.VerifyBatches.ExitRoot,
 				})
 			}
+
+			if event.InitL1InfoRootMap != nil {
+				// TODO: indicate that l1 Info tree indexes before the one on this
+				// event are not safe to use
+				log.Debugf("TODO: handle InitL1InfoRootMap event")
+			}
 		}
 		if l1InfoLeavesAdded > 0 {
 			bwl := blockWithLeafs{
@@ -429,7 +441,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		rollback()
 		return err
 	}
-	log.Debugf("block %d processed with events: %+v", b.Num, events)
+	log.Infof("block %d processed with events: %+v", b.Num, events)
 	return nil
 }
 
