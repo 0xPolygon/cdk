@@ -51,7 +51,7 @@ func TestBridgeEventE2E(t *testing.T) {
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
 	require.NoError(t, err)
 	client, bridgeAddr, bridgeSc := newSimulatedClient(t, auth)
-	rd, err := reorgdetector.New(ctx, client.Client(), dbPathReorg)
+	rd, err := reorgdetector.New(client.Client(), dbPathReorg)
 	require.NoError(t, err)
 	go rd.Start(ctx)
 

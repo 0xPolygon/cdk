@@ -132,7 +132,7 @@ func TestE2E(t *testing.T) {
 	require.NotEqual(t, authDeployer.From, auth.From)
 	client, gerAddr, bridgeAddr, gerSc, bridgeSc, err := newSimulatedClient(authDeployer, auth)
 	require.NoError(t, err)
-	rd, err := reorgdetector.New(ctx, client.Client(), dbPathReorg)
+	rd, err := reorgdetector.New(client.Client(), dbPathReorg)
 	go rd.Start(ctx)
 
 	bridgeSync, err := bridgesync.NewL1(ctx, dbPathBridgeSync, bridgeAddr, 10, etherman.LatestBlock, rd, client.Client(), 0, time.Millisecond*10, 0, 0)
