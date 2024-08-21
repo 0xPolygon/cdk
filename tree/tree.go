@@ -13,12 +13,14 @@ import (
 )
 
 const (
-	defaultHeight  uint8 = 32
-	rootTableSufix       = "-root"
-	rhtTableSufix        = "-rht"
+	defaultHeight   uint8 = 32
+	rootTableSufix        = "-root"
+	rhtTableSufix         = "-rht"
+	indexTableSufix       = "-index"
 )
 
 var (
+	EmptyProof  = [32]common.Hash{}
 	ErrNotFound = errors.New("not found")
 )
 
@@ -31,7 +33,7 @@ type Tree struct {
 	db         kv.RwDB
 	rhtTable   string
 	rootTable  string
-	height     uint8
+	indexTable string
 	zeroHashes []common.Hash
 }
 
@@ -66,18 +68,21 @@ func (n *treeNode) UnmarshalBinary(data []byte) error {
 func AddTables(tableCfg map[string]kv.TableCfgItem, dbPrefix string) {
 	rootTable := dbPrefix + rootTableSufix
 	rhtTable := dbPrefix + rhtTableSufix
+	indexTable := dbPrefix + indexTableSufix
 	tableCfg[rootTable] = kv.TableCfgItem{}
 	tableCfg[rhtTable] = kv.TableCfgItem{}
+	tableCfg[indexTable] = kv.TableCfgItem{}
 }
 
 func newTree(db kv.RwDB, dbPrefix string) *Tree {
 	rootTable := dbPrefix + rootTableSufix
 	rhtTable := dbPrefix + rhtTableSufix
+	indexTable := dbPrefix + indexTableSufix
 	t := &Tree{
 		rhtTable:   rhtTable,
 		rootTable:  rootTable,
+		indexTable: indexTable,
 		db:         db,
-		height:     defaultHeight,
 		zeroHashes: generateZeroHashes(defaultHeight),
 	}
 
@@ -95,22 +100,31 @@ func (t *Tree) getRootByIndex(tx kv.Tx, index uint64) (common.Hash, error) {
 	return common.BytesToHash(rootBytes), nil
 }
 
+func (t *Tree) getIndexByRoot(tx kv.Tx, root common.Hash) (uint64, error) {
+	indexBytes, err := tx.GetOne(t.indexTable, root[:])
+	if err != nil {
+		return 0, err
+	}
+	if indexBytes == nil {
+		return 0, ErrNotFound
+	}
+	return dbCommon.BytesToUint64(indexBytes), nil
+}
+
 func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
-	siblings []common.Hash,
+	siblings [32]common.Hash,
 	hasUsedZeroHashes bool,
 	err error,
 ) {
-	siblings = make([]common.Hash, int(t.height))
-
 	currentNodeHash := root
-	var currentNode *treeNode
 	// It starts in height-1 because 0 is the level of the leafs
-	for h := int(t.height - 1); h >= 0; h-- {
+	for h := int(defaultHeight - 1); h >= 0; h-- {
+		var currentNode *treeNode
 		currentNode, err = t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
 			if err == ErrNotFound {
 				hasUsedZeroHashes = true
-				siblings = append(siblings, t.zeroHashes[h])
+				siblings[h] = t.zeroHashes[h]
 				err = nil
 				continue
 			} else {
@@ -143,35 +157,30 @@ func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
 		* Now, let's do AND operation => 100&100=100 which is higher than 0 so we need the left sibling (O5)
 		 */
 		if index&(1<<h) > 0 {
-			siblings = append(siblings, currentNode.left)
+			siblings[h] = currentNode.left
 			currentNodeHash = currentNode.right
 		} else {
-			siblings = append(siblings, currentNode.right)
+			siblings[h] = currentNode.right
 			currentNodeHash = currentNode.left
 		}
-	}
-
-	// Reverse siblings to go from leafs to root
-	for i, j := 0, len(siblings)-1; i < j; i, j = i+1, j-1 {
-		siblings[i], siblings[j] = siblings[j], siblings[i]
 	}
 
 	return
 }
 
 // GetProof returns the merkle proof for a given index and root.
-func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([]common.Hash, error) {
+func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([defaultHeight]common.Hash, error) {
 	tx, err := t.db.BeginRw(ctx)
 	if err != nil {
-		return nil, err
+		return [defaultHeight]common.Hash{}, err
 	}
 	defer tx.Rollback()
 	siblings, isErrNotFound, err := t.getSiblings(tx, index, root)
 	if err != nil {
-		return nil, err
+		return [defaultHeight]common.Hash{}, err
 	}
 	if isErrNotFound {
-		return nil, ErrNotFound
+		return [defaultHeight]common.Hash{}, ErrNotFound
 	}
 	return siblings, nil
 }
@@ -220,7 +229,10 @@ func (t *Tree) storeNodes(tx kv.RwTx, nodes []treeNode) error {
 }
 
 func (t *Tree) storeRoot(tx kv.RwTx, rootIndex uint64, root common.Hash) error {
-	return tx.Put(t.rootTable, dbCommon.Uint64ToBytes(rootIndex), root[:])
+	if err := tx.Put(t.rootTable, dbCommon.Uint64ToBytes(rootIndex), root[:]); err != nil {
+		return err
+	}
+	return tx.Put(t.indexTable, root[:], dbCommon.Uint64ToBytes(rootIndex))
 }
 
 // GetLastRoot returns the last processed root
@@ -229,6 +241,7 @@ func (t *Tree) GetLastRoot(ctx context.Context) (common.Hash, error) {
 	if err != nil {
 		return common.Hash{}, err
 	}
+	defer tx.Rollback()
 
 	i, root, err := t.getLastIndexAndRootWithTx(tx)
 	if err != nil {
@@ -261,4 +274,27 @@ func (t *Tree) getLastIndexAndRootWithTx(tx kv.Tx) (int64, common.Hash, error) {
 		return -1, common.Hash{}, nil
 	}
 	return int64(dbCommon.BytesToUint64(lastIndexBytes)), common.Hash(rootBytes), nil
+}
+
+func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (common.Hash, error) {
+	tx, err := t.db.BeginRo(ctx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	defer tx.Rollback()
+
+	currentNodeHash := root
+	for h := int(defaultHeight - 1); h >= 0; h-- {
+		currentNode, err := t.getRHTNode(tx, currentNodeHash)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		if index&(1<<h) > 0 {
+			currentNodeHash = currentNode.right
+		} else {
+			currentNodeHash = currentNode.left
+		}
+	}
+
+	return currentNodeHash, nil
 }
