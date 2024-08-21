@@ -59,7 +59,7 @@ func TestE2E(t *testing.T) {
 				syncerUpToDate = true
 				break
 			}
-			time.Sleep(time.Millisecond * 10)
+			time.Sleep(time.Millisecond * 100)
 			errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb, lpb)
 		}
 		require.True(t, syncerUpToDate, errMsg)
