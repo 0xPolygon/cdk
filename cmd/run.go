@@ -408,11 +408,10 @@ func newState(c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.St
 }
 
 func newReorgDetector(
-	ctx context.Context,
 	dbPath string,
 	client *ethclient.Client,
 ) *reorgdetector.ReorgDetector {
-	rd, err := reorgdetector.New(ctx, client, dbPath)
+	rd, err := reorgdetector.New(client, dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -489,7 +488,7 @@ func runReorgDetectorL1IfNeeded(ctx context.Context, components []string, l1Clie
 	if !isNeeded([]string{SEQUENCE_SENDER, AGGREGATOR, AGGORACLE, RPC}, components) {
 		return nil
 	}
-	rd := newReorgDetector(ctx, dbPath, l1Client)
+	rd := newReorgDetector(dbPath, l1Client)
 	go rd.Start(ctx)
 	return rd
 }
@@ -498,7 +497,7 @@ func runReorgDetectorL2IfNeeded(ctx context.Context, components []string, l2Clie
 	if !isNeeded([]string{AGGORACLE, RPC}, components) {
 		return nil
 	}
-	rd := newReorgDetector(ctx, dbPath, l2Client)
+	rd := newReorgDetector(dbPath, l2Client)
 	go rd.Start(ctx)
 	return rd
 }
