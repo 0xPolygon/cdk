@@ -8,6 +8,7 @@ import (
 	"math/big"
 
 	dbCommon "github.com/0xPolygon/cdk/common"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree"
 	"github.com/ethereum/go-ethereum/common"
@@ -46,9 +47,9 @@ func (b *Bridge) Hash() common.Hash {
 		bigIntSize     = 32
 	)
 	origNet := make([]byte, uint32ByteSize)
-	binary.BigEndian.PutUint32(origNet, uint32(b.OriginNetwork))
+	binary.BigEndian.PutUint32(origNet, b.OriginNetwork)
 	destNet := make([]byte, uint32ByteSize)
-	binary.BigEndian.PutUint32(destNet, uint32(b.DestinationNetwork))
+	binary.BigEndian.PutUint32(destNet, b.DestinationNetwork)
 
 	metaHash := keccak256.Hash(b.Metadata)
 	var buf [bigIntSize]byte
@@ -86,11 +87,13 @@ type processor struct {
 	eventsTable    string
 	lastBlockTable string
 	exitTree       *tree.AppendOnlyTree
+	log            *log.Logger
 }
 
 func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, error) {
 	eventsTable := dbPrefix + eventsTableSufix
 	lastBlockTable := dbPrefix + lastBlockTableSufix
+	logger := log.WithFields("bridge-syncer", dbPrefix)
 	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
 		cfg := kv.TableCfg{
 			eventsTable:    {},
@@ -115,6 +118,7 @@ func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, err
 		eventsTable:    eventsTable,
 		lastBlockTable: lastBlockTable,
 		exitTree:       exitTree,
+		log:            logger,
 	}, nil
 }
 
@@ -189,6 +193,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
 	c, err := tx.Cursor(p.eventsTable)
 	if err != nil {
 		return err
@@ -284,10 +289,29 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		exitTreeRollback()
 		return err
 	}
+	p.log.Debugf("processed %d events until block %d", len(block.Events), block.Num)
 	return nil
 }
 
 func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {
 	blockNumBytes := dbCommon.Uint64ToBytes(blockNum)
 	return tx.Put(p.lastBlockTable, lastBlockKey, blockNumBytes)
+}
+
+func GenerateGlobalIndex(mainnetFlag bool, rollupIndex uint32, localExitRootIndex uint32) *big.Int {
+	var (
+		globalIndexBytes []byte
+		buf              [4]byte
+	)
+	if mainnetFlag {
+		globalIndexBytes = append(globalIndexBytes, big.NewInt(1).Bytes()...)
+		ri := big.NewInt(0).FillBytes(buf[:])
+		globalIndexBytes = append(globalIndexBytes, ri...)
+	} else {
+		ri := big.NewInt(0).SetUint64(uint64(rollupIndex)).FillBytes(buf[:])
+		globalIndexBytes = append(globalIndexBytes, ri...)
+	}
+	leri := big.NewInt(0).SetUint64(uint64(localExitRootIndex)).FillBytes(buf[:])
+	globalIndexBytes = append(globalIndexBytes, leri...)
+	return big.NewInt(0).SetBytes(globalIndexBytes)
 }

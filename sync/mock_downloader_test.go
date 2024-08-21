@@ -14,13 +14,13 @@ type EVMDownloaderMock struct {
 	mock.Mock
 }
 
-// download provides a mock function with given fields: ctx, fromBlock, downloadedCh
-func (_m *EVMDownloaderMock) download(ctx context.Context, fromBlock uint64, downloadedCh chan EVMBlock) {
+// Download provides a mock function with given fields: ctx, fromBlock, downloadedCh
+func (_m *EVMDownloaderMock) Download(ctx context.Context, fromBlock uint64, downloadedCh chan EVMBlock) {
 	_m.Called(ctx, fromBlock, downloadedCh)
 }
 
-// getBlockHeader provides a mock function with given fields: ctx, blockNum
-func (_m *EVMDownloaderMock) getBlockHeader(ctx context.Context, blockNum uint64) EVMBlockHeader {
+// GetBlockHeader provides a mock function with given fields: ctx, blockNum
+func (_m *EVMDownloaderMock) GetBlockHeader(ctx context.Context, blockNum uint64) EVMBlockHeader {
 	ret := _m.Called(ctx, blockNum)
 
 	if len(ret) == 0 {
@@ -37,8 +37,8 @@ func (_m *EVMDownloaderMock) getBlockHeader(ctx context.Context, blockNum uint64
 	return r0
 }
 
-// getEventsByBlockRange provides a mock function with given fields: ctx, fromBlock, toBlock
-func (_m *EVMDownloaderMock) getEventsByBlockRange(ctx context.Context, fromBlock uint64, toBlock uint64) []EVMBlock {
+// GetEventsByBlockRange provides a mock function with given fields: ctx, fromBlock, toBlock
+func (_m *EVMDownloaderMock) GetEventsByBlockRange(ctx context.Context, fromBlock uint64, toBlock uint64) []EVMBlock {
 	ret := _m.Called(ctx, fromBlock, toBlock)
 
 	if len(ret) == 0 {
@@ -57,8 +57,8 @@ func (_m *EVMDownloaderMock) getEventsByBlockRange(ctx context.Context, fromBloc
 	return r0
 }
 
-// getLogs provides a mock function with given fields: ctx, fromBlock, toBlock
-func (_m *EVMDownloaderMock) getLogs(ctx context.Context, fromBlock uint64, toBlock uint64) []types.Log {
+// GetLogs provides a mock function with given fields: ctx, fromBlock, toBlock
+func (_m *EVMDownloaderMock) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64) []types.Log {
 	ret := _m.Called(ctx, fromBlock, toBlock)
 
 	if len(ret) == 0 {
@@ -77,8 +77,8 @@ func (_m *EVMDownloaderMock) getLogs(ctx context.Context, fromBlock uint64, toBl
 	return r0
 }
 
-// waitForNewBlocks provides a mock function with given fields: ctx, lastBlockSeen
-func (_m *EVMDownloaderMock) waitForNewBlocks(ctx context.Context, lastBlockSeen uint64) uint64 {
+// WaitForNewBlocks provides a mock function with given fields: ctx, lastBlockSeen
+func (_m *EVMDownloaderMock) WaitForNewBlocks(ctx context.Context, lastBlockSeen uint64) uint64 {
 	ret := _m.Called(ctx, lastBlockSeen)
 
 	if len(ret) == 0 {

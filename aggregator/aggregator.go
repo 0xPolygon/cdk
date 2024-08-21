@@ -308,7 +308,7 @@ func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, cli
 					}
 
 					// Encode batch
-					if a.currentStreamBatch.Type != datastream.BatchType_BATCH_TYPE_INVALID {
+					if a.currentStreamBatch.Type != datastream.BatchType_BATCH_TYPE_INVALID && a.currentStreamBatch.Type != datastream.BatchType_BATCH_TYPE_INJECTED {
 						batchl2Data, err = state.EncodeBatchV2(&a.currentStreamBatchRaw)
 						if err != nil {
 							log.Errorf("Error encoding batch: %v", err)
@@ -317,14 +317,14 @@ func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, cli
 					}
 
 					// If the batch is marked as Invalid in the DS we enforce retrieve the data from L1
-					if a.cfg.UseL1BatchData || a.currentStreamBatch.Type == datastream.BatchType_BATCH_TYPE_INVALID {
+					if a.cfg.UseL1BatchData || a.currentStreamBatch.Type == datastream.BatchType_BATCH_TYPE_INVALID || a.currentStreamBatch.Type == datastream.BatchType_BATCH_TYPE_INJECTED {
 						a.currentStreamBatch.BatchL2Data = virtualBatch.BatchL2Data
 					} else {
 						a.currentStreamBatch.BatchL2Data = batchl2Data
 					}
 
 					// Compare BatchL2Data from L1 and DataStream
-					if common.Bytes2Hex(batchl2Data) != common.Bytes2Hex(virtualBatch.BatchL2Data) {
+					if common.Bytes2Hex(batchl2Data) != common.Bytes2Hex(virtualBatch.BatchL2Data) && a.currentStreamBatch.Type != datastream.BatchType_BATCH_TYPE_INJECTED {
 						log.Warnf("BatchL2Data from L1 and data stream are different for batch %d", a.currentStreamBatch.BatchNumber)
 
 						if a.currentStreamBatch.Type == datastream.BatchType_BATCH_TYPE_INVALID {
@@ -744,6 +744,7 @@ func (a *Aggregator) settleWithAggLayer(
 		return false
 	}
 
+	log.Debug("final proof: %+v", tx)
 	log.Debug("final proof signedTx: ", signedTx.Tx.ZKP.Proof.Hex())
 	txHash, err := a.aggLayerClient.SendTx(*signedTx)
 	if err != nil {
@@ -855,7 +856,7 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 
 		if common.BytesToHash(finalProof.Public.NewStateRoot).String() != finalDBBatch.Batch.StateRoot.String() {
 			for {
-				log.Errorf("State root from the final proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]", proof.BatchNumberFinal, string(finalProof.Public.NewStateRoot), finalDBBatch.Batch.StateRoot.String())
+				log.Errorf("State root from the final proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]", proof.BatchNumberFinal, common.BytesToHash(finalProof.Public.NewStateRoot).String(), finalDBBatch.Batch.StateRoot.String())
 				time.Sleep(a.cfg.RetryTime.Duration)
 			}
 		} else {

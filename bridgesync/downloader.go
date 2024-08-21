@@ -3,7 +3,6 @@ package bridgesync
 import (
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
@@ -13,10 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-)
-
-const (
-	waitForNewBlocksPeriod = time.Millisecond * 100
 )
 
 var (
@@ -82,7 +77,7 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 		return nil
 	}
 
-	appender[claimEventSignature] = func(b *sync.EVMBlock, l types.Log) error {
+	appender[claimEventSignaturePreEtrog] = func(b *sync.EVMBlock, l types.Log) error {
 		claim, err := bridgeContractV1.ParseClaimEvent(l)
 		if err != nil {
 			return fmt.Errorf(

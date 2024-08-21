@@ -900,14 +900,6 @@ func (s *SequenceSender) handleReceivedDataStream(entry *datastreamer.FileEntry,
 
 		log.Infof("received BatchStart entry, batchStart.Number: %d, entry.Number: %d", batch.Number, entry.Number)
 
-		// Sanity checks
-		if !(prevEntryType == datastream.EntryType_ENTRY_TYPE_BATCH_END) {
-			log.Fatalf("unexpected BatchStart entry received, entry.Number: %d, batchStart.Number: %d, prevEntry.Type: %s, prevEntry.Number: %d",
-				entry.Number, batch.Number, s.entryTypeToString(prevEntryType), s.prevStreamEntry.Number)
-		} else if batch.Number != s.wipBatch+1 {
-			log.Fatalf("unexpected BatchStart.Number %d received, if should be wipBatch %d+1, entry.Number: %d", s.wipBatch, batch.Number, entry.Number)
-		}
-
 		// Add batch start data
 		s.addInfoSequenceBatchStart(batch)
 
