@@ -33,7 +33,7 @@ func TestElderberryValidiumBuildSequenceBatchesTxEmtpySequence(t *testing.T) {
 	_, err := testData.sut.BuildSequenceBatchesTx(ctx, nil)
 	require.Error(t, err)
 
-	seq, err := testData.sut.NewSequence(nil, common.Address{})
+	seq, err := testData.sut.NewSequence(context.TODO(), nil, common.Address{})
 	require.NoError(t, err)
 	_, err = testData.sut.BuildSequenceBatchesTx(ctx, seq)
 	require.Error(t, err)
@@ -53,7 +53,7 @@ func TestElderberryValidiumBuildSequenceBatchesTxSequenceErrorsFromDA(t *testing
 	batches := []seqsendertypes.Batch{
 		batchElder,
 	}
-	seq, err := testData.sut.NewSequence(batches, common.Address{})
+	seq, err := testData.sut.NewSequence(context.TODO(), batches, common.Address{})
 	require.NoError(t, err)
 	testData.mockDA.EXPECT().PostSequenceElderberry(ctx, mock.Anything).Return(nil, nil)
 	_, err = testData.sut.BuildSequenceBatchesTx(ctx, seq)
@@ -77,7 +77,7 @@ func TestElderberryValidiumBuildSequenceBatchesTxSequenceDAOk(t *testing.T) {
 	batches := []seqsendertypes.Batch{
 		batchElder,
 	}
-	seq, err := testData.sut.NewSequence(batches, common.Address{})
+	seq, err := testData.sut.NewSequence(context.TODO(), batches, common.Address{})
 	require.NoError(t, err)
 	testData.mockDA.EXPECT().PostSequenceElderberry(ctx, mock.Anything).Return([]byte{1}, nil)
 	tx, err := testData.sut.BuildSequenceBatchesTx(ctx, seq)

@@ -1,6 +1,8 @@
 package txbuilder
 
 import (
+	"context"
+
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
@@ -23,7 +25,7 @@ func (t *TxBuilderElderberryBase) SetAuth(auth *bind.TransactOpts) {
 	t.opts = *auth
 }
 
-func (t *TxBuilderElderberryBase) NewSequence(batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
+func (t *TxBuilderElderberryBase) NewSequence(ctx context.Context, batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
 	seq := ElderberrySequence{
 		l2Coinbase: coinbase,
 		batches:    batches,

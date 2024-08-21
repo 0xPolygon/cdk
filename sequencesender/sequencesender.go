@@ -477,8 +477,8 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	lastSequence := sequence.LastBatch()
 	lastL2BlockTimestamp := lastSequence.LastL2BLockTimestamp()
 
+	log.Debugf(sequence.String())
 	log.Infof("sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber(), lastSequence.BatchNumber())
-	log.Infof(sequence.String())
 
 	// Wait until last L1 block timestamp is L1BlockTimestampMargin seconds above the timestamp of the last L2 block in the sequence
 	timeMargin := int64(s.cfg.L1BlockTimestampMargin.Seconds())
@@ -522,8 +522,8 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	}
 
 	// Send sequences to L1
+	log.Debugf(sequence.String())
 	log.Infof("sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber(), lastSequence.BatchNumber())
-	log.Infof(sequence.String())
 
 	tx, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, sequence)
 	if err != nil {
@@ -666,7 +666,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 		// If the coinbase changes, the sequence ends here
 		if len(sequenceBatches) > 0 && batch.LastCoinbase() != prevCoinbase {
 			log.Infof("batch with different coinbase (batch %v, sequence %v), sequence will be sent to this point", prevCoinbase, batch.LastCoinbase)
-			return s.TxBuilder.NewSequence(sequenceBatches, s.cfg.L2Coinbase)
+			return s.TxBuilder.NewSequence(ctx, sequenceBatches, s.cfg.L2Coinbase)
 		}
 		prevCoinbase = batch.LastCoinbase()
 
@@ -684,7 +684,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 		// Check if the current batch is the last before a change to a new forkid, in this case we need to close and send the sequence to L1
 		if (s.cfg.ForkUpgradeBatchNumber != 0) && (batchNumber == (s.cfg.ForkUpgradeBatchNumber)) {
 			log.Infof("sequence should be sent to L1, as we have reached the batch %d from which a new forkid is applied (upgrade)", s.cfg.ForkUpgradeBatchNumber)
-			return s.TxBuilder.NewSequence(sequenceBatches, s.cfg.L2Coinbase)
+			return s.TxBuilder.NewSequence(ctx, sequenceBatches, s.cfg.L2Coinbase)
 		}
 	}
 
@@ -696,7 +696,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 
 	if s.latestVirtualTime.Before(time.Now().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
 		log.Infof("sequence should be sent, too much time without sending anything to L1")
-		return s.TxBuilder.NewSequence(sequenceBatches, s.cfg.L2Coinbase)
+		return s.TxBuilder.NewSequence(ctx, sequenceBatches, s.cfg.L2Coinbase)
 	}
 
 	log.Infof("not enough time has passed since last batch was virtualized and the sequence could be bigger")
@@ -872,6 +872,12 @@ func (s *SequenceSender) handleReceivedDataStream(entry *datastreamer.FileEntry,
 		if !(prevEntryType == datastream.EntryType_ENTRY_TYPE_L2_BLOCK || prevEntryType == datastream.EntryType_ENTRY_TYPE_TRANSACTION) {
 			log.Fatalf("unexpected Transaction entry received, entry.Number: %d, transaction.L2BlockNumber: %d, transaction.Index: %d, prevEntry: %s, prevEntry.Number: %d",
 				entry.Number, l2Tx.L2BlockNumber, l2Tx.Index, s.entryTypeToString(prevEntryType), s.prevStreamEntry.Number)
+		}
+
+		// Sanity check: tx should be decodable
+		_, err = state.DecodeTx(common.Bytes2Hex(l2Tx.Encoded))
+		if err != nil {
+			log.Fatalf("error decoding tx during sanity check: %v", err)
 		}
 
 		// Add tx data
