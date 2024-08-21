@@ -159,21 +159,21 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 }
 
 // GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
-func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([]ethCommon.Hash, ethCommon.Hash, error) {
+func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([32]ethCommon.Hash, ethCommon.Hash, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
-		return nil, ethCommon.Hash{}, err
+		return tree.EmptyProof, ethCommon.Hash{}, err
 	}
 	defer tx.Rollback()
 
 	root, err := p.l1InfoTree.GetRootByIndex(tx, index)
 	if err != nil {
-		return nil, ethCommon.Hash{}, err
+		return tree.EmptyProof, ethCommon.Hash{}, err
 	}
 
 	proof, err := p.l1InfoTree.GetProof(ctx, index, root)
 	if err != nil {
-		return nil, ethCommon.Hash{}, err
+		return tree.EmptyProof, ethCommon.Hash{}, err
 	}
 
 	// TODO: check if we need to return root or wat
@@ -278,6 +278,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
 	c, err := tx.Cursor(blockTable)
 	if err != nil {
 		return err
@@ -379,7 +380,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 					Timestamp:       event.UpdateL1InfoTree.Timestamp,
 				}
 				if err := p.storeLeafInfo(tx, leafToStore); err != nil {
-					tx.Rollback()
+					rollback()
 					return err
 				}
 				l1InfoTreeLeavesToAdd = append(l1InfoTreeLeavesToAdd, tree.Leaf{

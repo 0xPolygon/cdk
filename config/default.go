@@ -6,6 +6,7 @@ ForkUpgradeBatchNumber = 0
 ForkUpgradeNewForkId = 0
 
 [Common]
+NetworkID = 1
 IsValidiumMode = false
 ContractVersions = "banana"
 
@@ -125,13 +126,16 @@ SequencerPrivateKey = {}
 				Enabled = false
 
 [ReorgDetectorL1]
-DBPath = "/tmp/reorgdetector"
+DBPath = "/tmp/reorgdetectorl1"
+
+[ReorgDetectorL2]
+DBPath = "/tmp/reorgdetectorl2"
 
 [L1InfoTreeSync]
 DBPath = "/tmp/L1InfoTreeSync"
 GlobalExitRootAddr="0x8464135c8F25Da09e49BC8782676a84730C318bC"
 SyncBlockChunkSize=10
-BlockFinality="latest"
+BlockFinality="LatestBlock"
 URLRPCL1="http://test-aggoracle-l1:8545"
 WaitForNewBlocksPeriod="100ms"
 InitialBlock=0
@@ -139,7 +143,7 @@ InitialBlock=0
 [AggOracle]
 TargetChainType="EVM"
 URLRPCL1="http://test-aggoracle-l1:8545"
-BlockFinality="latest"
+BlockFinality="FinalizedBlock"
 WaitPeriodNextGER="100ms"
 	[AggOracle.EVMSender]
 		GlobalExitRootL2="0x8464135c8F25Da09e49BC8782676a84730C318bC"
@@ -159,7 +163,7 @@ WaitPeriodNextGER="100ms"
 				ForcedGas = 0
 				GasPriceMarginFactor = 1
 				MaxGasPriceLimit = 0
-				PersistenceFilename = "/tmp/ethtxmanager.json"
+				PersistenceFilename = "/tmp/ethtxmanager-sequencesender.json"
 				ReadPendingL1Txs = false
 				SafeStatusL1NumberOfBlocks = 5
 				FinalizedStatusL1NumberOfBlocks = 10
@@ -168,4 +172,79 @@ WaitPeriodNextGER="100ms"
 						MultiGasProvider = false
 						L1ChainID = 1337
 						HTTPHeaders = []
+
+[RPC]
+Host = "0.0.0.0"
+Port = 5576
+ReadTimeout = "2s"
+WriteTimeout = "2s"
+MaxRequestsPerIPAndSecond = 10
+
+[ClaimSponsor]
+DBPath = "/tmp/claimsopnsor"
+Enabled = true
+SenderAddr = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
+BridgeAddrL2 = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
+MaxGas = 200000
+RetryAfterErrorPeriod = "1s"
+MaxRetryAttemptsAfterError = -1
+WaitTxToBeMinedPeriod = "3s"
+WaitOnEmptyQueue = "3s"
+GasOffset = 0
+	[ClaimSponsor.EthTxManager]
+		FrequencyToMonitorTxs = "1s"
+		WaitTxToBeMined = "2s"
+		GetReceiptMaxTime = "250ms"
+		GetReceiptWaitInterval = "1s"
+		PrivateKeys = [
+			{Path = "/app/keystore/claimsopnsor.keystore", Password = "testonly"},
+		]
+		ForcedGas = 0
+		GasPriceMarginFactor = 1
+		MaxGasPriceLimit = 0
+		PersistenceFilename = "/tmp/ethtxmanager-claimsopnsor.json"
+		ReadPendingL1Txs = false
+		SafeStatusL1NumberOfBlocks = 5
+		FinalizedStatusL1NumberOfBlocks = 10
+			[ClaimSponsor.EthTxManager.Etherman]
+				URL = "http://test-aggoracle-l2"
+				MultiGasProvider = false
+				L1ChainID = 1337
+				HTTPHeaders = []
+
+[L1Bridge2InfoIndexSync]
+DBPath = "/tmp/l1bridge2infoindexsync"
+RetryAfterErrorPeriod = "1s"
+MaxRetryAttemptsAfterError = -1
+WaitForSyncersPeriod = "3s"
+
+[BridgeL1Sync]
+DBPath = "/tmp/bridgel1sync"
+BlockFinality = "LatestBlock"
+InitialBlockNum = 0
+BridgeAddr = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
+SyncBlockChunkSize = 100
+RetryAfterErrorPeriod = "1s"
+MaxRetryAttemptsAfterError = -1
+WaitForNewBlocksPeriod = "3s"
+
+[BridgeL2Sync]
+DBPath = "/tmp/bridgel2sync"
+BlockFinality = "LatestBlock"
+InitialBlockNum = 0
+BridgeAddr = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
+SyncBlockChunkSize = 100
+RetryAfterErrorPeriod = "1s"
+MaxRetryAttemptsAfterError = -1
+WaitForNewBlocksPeriod = "3s"
+
+[LastGERSync]
+DBPath = "/tmp/lastgersync"
+BlockFinality = "LatestBlock"
+InitialBlockNum = 0
+GlobalExitRootL2Addr = "0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa"
+RetryAfterErrorPeriod = "1s"
+MaxRetryAttemptsAfterError = -1
+WaitForNewBlocksPeriod = "1s"
+DownloadBufferSize = 100
 `
