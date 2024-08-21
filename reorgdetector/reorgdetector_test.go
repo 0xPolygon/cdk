@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
@@ -31,6 +32,20 @@ func newSimulatedL1(t *testing.T, auth *bind.TransactOpts) *simulated.Backend {
 	return client
 }
 
+func newTestDir(tb testing.TB) string {
+	tb.Helper()
+
+	dir := fmt.Sprintf("/tmp/reorgdetector-temp_%v", time.Now().UTC().Format(time.RFC3339Nano))
+	err := os.Mkdir(dir, 0775)
+	require.NoError(tb, err)
+
+	tb.Cleanup(func() {
+		require.NoError(tb, os.RemoveAll(dir))
+	})
+
+	return dir
+}
+
 func Test_ReorgDetector(t *testing.T) {
 	const produceBlocks = 29
 	const reorgPeriod = 5
@@ -46,7 +61,14 @@ func Test_ReorgDetector(t *testing.T) {
 	clientL1 := newSimulatedL1(t, authL1)
 	require.NoError(t, err)
 
-	reorgDetector := New(clientL1.Client())
+	// Create test DB dir
+	testDir := newTestDir(t)
+
+	reorgDetector, err := New(clientL1.Client(), testDir)
+	require.NoError(t, err)
+
+	err = reorgDetector.Start(ctx)
+	require.NoError(t, err)
 
 	reorgSub, err := reorgDetector.Subscribe("test")
 	require.NoError(t, err)

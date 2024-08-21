@@ -440,24 +440,17 @@ func runReorgDetectorL1IfNeeded(ctx context.Context, components []string, l1Clie
 	if !isNeeded([]string{SEQUENCE_SENDER, AGGREGATOR, AGGORACLE}, components) {
 		return nil
 	}
-	// rd := newReorgDetector(ctx, dbPath, l1Client)
-	rd := reorgdetector.NewReorgMonitor(l1Client, 100)
-	go func() {
-		if err := rd.Start(ctx); err != nil {
-			log.Fatal(err)
-		}
-	}()
-	return rd
-}
 
-func newReorgDetector(
-	ctx context.Context,
-	dbPath string,
-	client *ethclient.Client,
-) *reorgdetector.ReorgDetector {
-	rd, err := reorgdetector.New(ctx, client, dbPath)
+	rd, err := reorgdetector.New(l1Client, dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	go func() {
+		if err = rd.Start(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
 	return rd
 }

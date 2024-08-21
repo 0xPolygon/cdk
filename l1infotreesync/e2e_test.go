@@ -181,7 +181,7 @@ func TestStressAndReorgs(t *testing.T) {
 	require.NoError(t, err)
 	client, gerAddr, verifyAddr, gerSc, verifySC, err := newSimulatedClient(auth)
 	require.NoError(t, err)
-	rd, err := reorgdetector.New(ctx, client.Client(), dbPathReorg)
+	rd, err := reorgdetector.New(client.Client(), dbPathReorg)
 	go rd.Start(ctx)
 	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3)
 	require.NoError(t, err)

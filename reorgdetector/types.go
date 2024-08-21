@@ -3,7 +3,7 @@ package reorgdetector
 import (
 	"sort"
 
-	common "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type block struct {
@@ -78,4 +78,39 @@ func (bm blockMap) removeRange(from, to uint64) {
 	for i := from; i <= to; i++ {
 		delete(bm, i)
 	}
+}
+
+// detectReorg detects a reorg in the given block list.
+// Returns the first reorged block or nil.
+func (bm blockMap) detectReorg() *block {
+	// Find the highest block number
+	maxBlockNum := uint64(0)
+	for blockNum := range bm {
+		if blockNum > maxBlockNum {
+			maxBlockNum = blockNum
+		}
+	}
+
+	// Iterate from the highest block number to the lowest
+	reorgDetected := false
+	for i := maxBlockNum; i > 1; i-- {
+		currentBlock, currentExists := bm[i]
+		previousBlock, previousExists := bm[i-1]
+
+		// Check if both blocks exist (sanity check)
+		if !currentExists || !previousExists {
+			continue
+		}
+
+		// Check if the current block's parent hash matches the previous block's hash
+		if currentBlock.ParentHash != previousBlock.Hash {
+			reorgDetected = true
+		} else if reorgDetected {
+			// When reorg is detected, and we find the first match, return the previous block
+			return &previousBlock
+		}
+	}
+
+	// No reorg detected
+	return nil
 }
