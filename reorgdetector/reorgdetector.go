@@ -146,6 +146,24 @@ func (rd *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, blockNu
 		return blocks, nil
 	}
 
+	processReorg := func() error {
+		trackedBlocks[newBlock.Num] = newBlock
+		reorgedBlock := findStartReorgBlock(trackedBlocks)
+		if reorgedBlock != nil {
+			rd.notifySubscribers(*reorgedBlock)
+
+			newBlocksMap, err := rebuildBlocksMap(trackedBlocks, reorgedBlock.Num, newBlock.Num)
+			if err != nil {
+				return err
+			}
+			rd.trackedBlocks[id] = newBlocksMap
+		} else {
+			// Should not happen
+		}
+
+		return nil
+	}
+
 	closestHigherBlock, ok := trackedBlocks.getClosestHigherBlock(newBlock.Num)
 	if !ok {
 		// No same or higher blocks, only lower blocks exist. Check hashes.
@@ -159,20 +177,7 @@ func (rd *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, blockNu
 			if closestBlock.Hash != newBlock.ParentHash {
 				// Block hashes do not match, reorg happened
 				// TODO: Reorg happened
-
-				trackedBlocks[newBlock.Num] = newBlock
-				reorgedBlock := findStartReorgBlock(trackedBlocks)
-				if reorgedBlock != nil {
-					fmt.Println("Reorg detected at block", reorgedBlock.Num)
-					rd.notifySubscribers(*reorgedBlock)
-					newBlocksMap, err := rebuildBlocksMap(trackedBlocks, reorgedBlock.Num, newBlock.Num)
-					if err != nil {
-						return err
-					}
-					rd.trackedBlocks[id] = newBlocksMap
-				} else {
-					// Should not happen
-				}
+				return processReorg()
 			} else {
 				// All good, add the block to the map
 				rd.trackedBlocks[id][newBlock.Num] = newBlock
@@ -188,57 +193,18 @@ func (rd *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, blockNu
 			if closestHigherBlock.Hash != newBlock.Hash {
 				// Block hashes have changed, reorg happened
 				// TODO: Handle happened
-
-				trackedBlocks[newBlock.Num] = newBlock
-				reorgedBlock := findStartReorgBlock(trackedBlocks)
-				if reorgedBlock != nil {
-					fmt.Println("Reorg detected at block", reorgedBlock.Num)
-					rd.notifySubscribers(*reorgedBlock)
-					newBlocksMap, err := rebuildBlocksMap(trackedBlocks, reorgedBlock.Num, newBlock.Num)
-					if err != nil {
-						return err
-					}
-					rd.trackedBlocks[id] = newBlocksMap
-				} else {
-					// Should not happen
-				}
+				return processReorg()
 			}
 		} else if closestHigherBlock.Num == newBlock.Num+1 {
 			// The given block is lower than the closest higher block:
 			// Current tracked blocks: N-2, N-1, N (given block), N+1, N+2
 			// TODO: Reorg happened
-
-			trackedBlocks[newBlock.Num] = newBlock
-			reorgedBlock := findStartReorgBlock(trackedBlocks)
-			if reorgedBlock != nil {
-				fmt.Println("Reorg detected at block", reorgedBlock.Num)
-				rd.notifySubscribers(*reorgedBlock)
-				newBlocksMap, err := rebuildBlocksMap(trackedBlocks, reorgedBlock.Num, newBlock.Num)
-				if err != nil {
-					return err
-				}
-				rd.trackedBlocks[id] = newBlocksMap
-			} else {
-				// Should not happen
-			}
+			return processReorg()
 		} else if closestHigherBlock.Num > newBlock.Num+1 {
 			// There is a gap between the current block and the closest higher block
 			// Current tracked blocks: N-2, N-1, N (given block), <gap>, N+i
 			// TODO: Reorg happened
-
-			trackedBlocks[newBlock.Num] = newBlock
-			reorgedBlock := findStartReorgBlock(trackedBlocks)
-			if reorgedBlock != nil {
-				fmt.Println("Reorg detected at block", reorgedBlock.Num)
-				rd.notifySubscribers(*reorgedBlock)
-				newBlocksMap, err := rebuildBlocksMap(trackedBlocks, reorgedBlock.Num, newBlock.Num)
-				if err != nil {
-					return err
-				}
-				rd.trackedBlocks[id] = newBlocksMap
-			} else {
-				// Should not happen
-			}
+			return processReorg()
 		} else {
 			// This should not happen
 			log.Fatal("Unexpected block number comparison")
@@ -252,9 +218,11 @@ func (rd *ReorgDetector) notifySubscribers(startingBlock block) {
 	rd.subscriptionsLock.RLock()
 	for _, sub := range rd.subscriptions {
 		sub.pendingReorgsToBeProcessed.Add(1)
-		sub.FirstReorgedBlock <- startingBlock.Num
-		<-sub.ReorgProcessed
-		sub.pendingReorgsToBeProcessed.Done()
+		go func(sub *Subscription) {
+			sub.FirstReorgedBlock <- startingBlock.Num
+			<-sub.ReorgProcessed
+			sub.pendingReorgsToBeProcessed.Done()
+		}(sub)
 	}
 	rd.subscriptionsLock.RUnlock()
 }
