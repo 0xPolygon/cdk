@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 
@@ -50,21 +52,14 @@ type EthClient interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 }
 
-type Subscription struct {
-	FirstReorgedBlock          chan uint64
-	ReorgProcessed             chan bool
-	pendingReorgsToBeProcessed sync.WaitGroup
-}
-
 type ReorgDetector struct {
 	client EthClient
 	db     kv.RwDB
 
-	canonicalBlocksLock sync.RWMutex
-	canonicalBlocks     blockMap
+	canonicalBlocks *headersList
 
 	trackedBlocksLock sync.RWMutex
-	trackedBlocks     map[string]blockMap
+	trackedBlocks     map[string]*headersList
 
 	subscriptionsLock sync.RWMutex
 	subscriptions     map[string]*Subscription
@@ -82,25 +77,38 @@ func New(client EthClient, dbPath string) (*ReorgDetector, error) {
 	return &ReorgDetector{
 		client:          client,
 		db:              db,
-		canonicalBlocks: make(blockMap),
-		trackedBlocks:   make(map[string]blockMap),
+		canonicalBlocks: newHeadersList(),
+		trackedBlocks:   make(map[string]*headersList),
 		subscriptions:   make(map[string]*Subscription),
 	}, nil
 }
 
-func (rd *ReorgDetector) Start(ctx context.Context) error {
-	// Load canonical chain from the last finalized block
-	if err := rd.loadCanonicalChain(ctx); err != nil {
-		return fmt.Errorf("failed to load canonical chain: %w", err)
+func (rd *ReorgDetector) Start(ctx context.Context) (err error) {
+	// Initially load a full canonical chain
+	/*if err := rd.loadCanonicalChain(ctx); err != nil {
+		log.Errorf("failed to load canonical chain: %v", err)
+	}*/
+
+	// Load tracked blocks
+	if rd.trackedBlocks, err = rd.getTrackedBlocks(ctx); err != nil {
+		return fmt.Errorf("failed to get tracked blocks: %w", err)
 	}
 
-	// Load and process tracked blocks from the DB
-	if err := rd.loadAndProcessTrackedBlocks(ctx); err != nil {
-		return fmt.Errorf("failed to load and process tracked blocks: %w", err)
-	}
+	// Continuously check reorgs in tracked by subscribers blocks
+	// TODO: Optimize this process
+	go func() {
+		ticker := time.NewTicker(time.Second * 2)
+		for range ticker.C {
+			if err = rd.detectReorgInTrackedList(ctx); err != nil {
+				log.Errorf("failed to detect reorgs in tracked blocks: %v", err)
+			}
+		}
+	}()
 
-	// Start the reorg detector for the canonical chain
-	go rd.monitorCanonicalChain(ctx)
+	// Load and process tracked headers from the DB
+	/*if err := rd.loadAndProcessTrackedHeaders(ctx); err != nil {
+		return fmt.Errorf("failed to load and process tracked headers: %w", err)
+	}*/
 
 	return nil
 }
@@ -117,137 +125,53 @@ func (rd *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, blockNu
 	}
 	rd.subscriptionsLock.RUnlock()
 
-	if err := rd.saveTrackedBlock(ctx, id, block{
-		Num:        blockNum,
-		Hash:       blockHash,
-		ParentHash: parentHash,
-	}); err != nil {
+	hdr := newHeader(blockNum, blockHash, parentHash)
+	if err := rd.saveTrackedBlock(ctx, id, hdr); err != nil {
 		return fmt.Errorf("failed to save tracked block: %w", err)
 	}
 
 	return nil
 }
 
-func (rd *ReorgDetector) monitorCanonicalChain(ctx context.Context) {
-	// Add head tracker
-	ch := make(chan *types.Header, 100)
-	sub, err := rd.client.SubscribeNewHead(ctx, ch)
+// 1. Get finalized block: 10 (latest block 15)
+// 2. Get tracked blocks: 4, 7, 9, 12, 14
+// 3. Go from 10 till the lowest block in tracked blocks
+// 4. Notify about reorg if exists
+func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
+	// Get the latest finalized block
+	lastFinalisedBlock, err := rd.client.HeaderByNumber(ctx, big.NewInt(int64(rpc.FinalizedBlockNumber)))
 	if err != nil {
-		log.Fatal("failed to subscribe to new head", "err", err)
+		return err
 	}
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-sub.Err():
-				return
-			case header := <-ch:
-				if err = rd.onNewHeader(ctx, header); err != nil {
-					log.Error("failed to process new header", "err", err)
-					continue
-				}
+	// Notify subscribers about reorgs
+	// TODO: Optimize it
+	for id, hdrs := range rd.trackedBlocks {
+		// Get the sorted headers
+		sorted := hdrs.getSorted()
+		if len(sorted) == 0 {
+			continue
+		}
+
+		// Do not check blocks that are higher than the last finalized block
+		if sorted[0].Num > lastFinalisedBlock.Number.Uint64() {
+			continue
+		}
+
+		// Go from the lowest tracked block till the latest finalized block
+		for i := sorted[0].Num; i <= lastFinalisedBlock.Number.Uint64(); i++ {
+			// Get the actual header hash from the client
+			header, err := rd.client.HeaderByNumber(ctx, big.NewInt(int64(i)))
+			if err != nil {
+				return err
 			}
-		}
-	}()
-}
 
-func (rd *ReorgDetector) onNewHeader(ctx context.Context, header *types.Header) error {
-	rd.canonicalBlocksLock.Lock()
-	defer rd.canonicalBlocksLock.Unlock()
-
-	newBlock := block{
-		Num:        header.Number.Uint64(),
-		Hash:       header.Hash(),
-		ParentHash: header.ParentHash,
-	}
-
-	// No canonical chain yet
-	if len(rd.canonicalBlocks) == 0 {
-		// TODO: Fill canonical chain from the last finalized block
-		rd.canonicalBlocks = newBlockMap(newBlock)
-		return nil
-	}
-
-	processReorg := func() error {
-		rd.canonicalBlocks[newBlock.Num] = newBlock
-		reorgedBlock := rd.canonicalBlocks.detectReorg()
-		if reorgedBlock != nil {
-			// Notify subscribers about the reorg
-			rd.notifySubscribers(*reorgedBlock)
-
-			// Rebuild the canonical chain
-			if err := rd.rebuildCanonicalChain(ctx, reorgedBlock.Num, newBlock.Num); err != nil {
-				return fmt.Errorf("failed to rebuild canonical chain: %w", err)
+			// Check if the block hash matches with the actual block hash
+			if sorted[0].Hash != header.Hash() {
+				// Reorg detected, notify subscriber
+				go rd.notifySubscriber(id, sorted[0])
+				break
 			}
-		} else {
-			// Should not happen, check the logic below
-			// log.Fatal("Unexpected reorg detection")
-		}
-
-		return nil
-	}
-
-	closestHigherBlock, ok := rd.canonicalBlocks.getClosestHigherBlock(newBlock.Num)
-	if !ok {
-		// No same or higher blocks, only lower blocks exist. Check hashes.
-		// Current tracked blocks: N-i, N-i+1, ..., N-1
-		sortedBlocks := rd.canonicalBlocks.getSorted()
-		closestBlock := sortedBlocks[len(sortedBlocks)-1]
-		if closestBlock.Num < newBlock.Num-1 {
-			// There is a gap between the last block and the given block
-			// Current tracked blocks: N-i, <gap>, N
-		} else if closestBlock.Num == newBlock.Num-1 {
-			if closestBlock.Hash != newBlock.ParentHash {
-				// Block hashes do not match, reorg happened
-				return processReorg()
-			} else {
-				// All good, add the block to the map
-				rd.canonicalBlocks[newBlock.Num] = newBlock
-			}
-		} else {
-			// This should not happen
-			log.Fatal("Unexpected block number comparison")
-		}
-	} else {
-		if closestHigherBlock.Num == newBlock.Num {
-			// Block has already been tracked and added to the map
-			// Current tracked blocks: N-2, N-1, N (given block)
-			if closestHigherBlock.Hash != newBlock.Hash {
-				// Block hashes have changed, reorg happened
-				return processReorg()
-			}
-		} else if closestHigherBlock.Num >= newBlock.Num+1 {
-			// The given block is lower than the closest higher block:
-			//  N-2, N-1, N (given block), N+1, N+2
-			//  OR
-			// There is a gap between the current block and the closest higher block
-			//  N-2, N-1, N (given block), <gap>, N+i
-			return processReorg()
-		} else {
-			// This should not happen
-			log.Fatal("Unexpected block number comparison")
-		}
-	}
-
-	return nil
-}
-
-// rebuildCanonicalChain rebuilds the canonical chain from the given block number to the given block number.
-func (rd *ReorgDetector) rebuildCanonicalChain(ctx context.Context, from, to uint64) error {
-	// TODO: Potentially rebuild from the latest finalized block
-
-	for i := from; i <= to; i++ {
-		blockHeader, err := rd.client.HeaderByNumber(ctx, big.NewInt(int64(i)))
-		if err != nil {
-			return fmt.Errorf("failed to fetch block header for block number %d: %w", i, err)
-		}
-
-		rd.canonicalBlocks[blockHeader.Number.Uint64()] = block{
-			Num:        blockHeader.Number.Uint64(),
-			Hash:       blockHeader.Hash(),
-			ParentHash: blockHeader.ParentHash,
 		}
 	}
 
@@ -268,31 +192,100 @@ func (rd *ReorgDetector) loadCanonicalChain(ctx context.Context) error {
 		return err
 	}
 
-	rd.canonicalBlocksLock.Lock()
-	defer rd.canonicalBlocksLock.Unlock()
+	startFromBlock := lastFinalisedBlock.Number.Uint64()
+	if sortedBlocks := rd.canonicalBlocks.getSorted(); len(sortedBlocks) > 0 {
+		lastTrackedBlock := sortedBlocks[rd.canonicalBlocks.len()-1].Num
+		if lastTrackedBlock < startFromBlock {
+			startFromBlock = lastTrackedBlock
+		}
+	}
 
 	// Load the canonical chain from the last finalized block till the latest block
-	for i := lastFinalisedBlock.Number.Uint64(); i <= latestBlock.Number.Uint64(); i++ {
+	for i := startFromBlock; i <= latestBlock.Number.Uint64(); i++ {
 		blockHeader, err := rd.client.HeaderByNumber(ctx, big.NewInt(int64(i)))
 		if err != nil {
 			return fmt.Errorf("failed to fetch block header for block number %d: %w", i, err)
 		}
 
-		rd.canonicalBlocks[blockHeader.Number.Uint64()] = block{
-			Num:        blockHeader.Number.Uint64(),
-			Hash:       blockHeader.Hash(),
-			ParentHash: blockHeader.ParentHash,
+		if err = rd.onNewHeader(ctx, blockHeader); err != nil {
+			return fmt.Errorf("failed to process new header: %w", err)
 		}
 	}
 
 	return nil
 }
 
-// loadAndProcessTrackedBlocks loads tracked blocks from the DB and checks for reorgs. Loads in memory.
-func (rd *ReorgDetector) loadAndProcessTrackedBlocks(ctx context.Context) error {
-	rd.trackedBlocksLock.Lock()
-	defer rd.trackedBlocksLock.Unlock()
+// onNewHeader processes a new header and checks for reorgs
+func (rd *ReorgDetector) onNewHeader(ctx context.Context, header *types.Header) error {
+	hdr := newHeader(header.Number.Uint64(), header.Hash(), header.ParentHash)
 
+	// No canonical chain yet
+	if rd.canonicalBlocks.isEmpty() {
+		// TODO: Fill canonical chain from the last finalized block
+		rd.canonicalBlocks.add(hdr)
+		return nil
+	}
+
+	closestHigherBlock, ok := rd.canonicalBlocks.getClosestHigherBlock(hdr.Num)
+	if !ok {
+		// No same or higher blocks, only lower blocks exist. Check hashes.
+		// Current tracked blocks: N-i, N-i+1, ..., N-1
+		sortedBlocks := rd.canonicalBlocks.getSorted()
+		closestBlock := sortedBlocks[len(sortedBlocks)-1]
+		if closestBlock.Num < hdr.Num-1 {
+			// There is a gap between the last block and the given block
+			// Current tracked blocks: N-i, <gap>, N
+		} else if closestBlock.Num == hdr.Num-1 {
+			if closestBlock.Hash != hdr.ParentHash {
+				// Block hashes do not match, reorg happened
+				rd.processReorg(hdr)
+			} else {
+				// All good, add the block to the map
+				rd.canonicalBlocks.add(hdr)
+			}
+		} else {
+			// This should not happen
+			log.Fatal("Unexpected block number comparison")
+		}
+	} else {
+		if closestHigherBlock.Num == hdr.Num {
+			if closestHigherBlock.Hash != hdr.Hash {
+				// Block has already been tracked and added to the map but with different hash.
+				// Current tracked blocks: N-2, N-1, N (given block)
+				rd.processReorg(hdr)
+			}
+		} else if closestHigherBlock.Num >= hdr.Num+1 {
+			// The given block is lower than the closest higher block:
+			//  N-2, N-1, N (given block), N+1, N+2
+			//  OR
+			// There is a gap between the current block and the closest higher block
+			//  N-2, N-1, N (given block), <gap>, N+i
+			rd.processReorg(hdr)
+		} else {
+			// This should not happen
+			log.Fatal("Unexpected block number comparison")
+		}
+	}
+
+	return nil
+}
+
+// processReorg processes a reorg and notifies subscribers
+func (rd *ReorgDetector) processReorg(hdr header) {
+	hdrs := rd.canonicalBlocks.copy()
+	hdrs.add(hdr)
+
+	if reorgedBlock := hdrs.detectReorg(); reorgedBlock != nil {
+		// Notify subscribers about the reorg
+		rd.notifySubscribers(*reorgedBlock)
+	} else {
+		// Should not happen, check the logic below
+		// log.Fatal("Unexpected reorg detection")
+	}
+}
+
+// loadAndProcessTrackedHeaders loads tracked headers from the DB and checks for reorgs. Loads in memory.
+func (rd *ReorgDetector) loadAndProcessTrackedHeaders(ctx context.Context) error {
 	// Load tracked blocks for all subscribers from the DB
 	trackedBlocks, err := rd.getTrackedBlocks(ctx)
 	if err != nil {
@@ -306,57 +299,68 @@ func (rd *ReorgDetector) loadAndProcessTrackedBlocks(ctx context.Context) error 
 		return err
 	}
 
+	var errGrp errgroup.Group
 	for id, blocks := range rd.trackedBlocks {
-		rd.subscriptionsLock.Lock()
-		rd.subscriptions[id] = &Subscription{
-			FirstReorgedBlock: make(chan uint64),
-			ReorgProcessed:    make(chan bool),
-		}
-		rd.subscriptionsLock.Unlock()
+		id := id
+		blocks := blocks
 
-		// Nothing to process for this subscriber
-		if len(blocks) == 0 {
-			continue
-		}
+		errGrp.Go(func() error {
+			return rd.processTrackedHeaders(ctx, id, blocks, lastFinalisedBlock.Number.Uint64())
+		})
+	}
 
-		var (
-			lastTrackedBlock uint64
-			actualBlockHash  common.Hash
-		)
+	return errGrp.Wait()
+}
 
-		sortedBlocks := blocks.getSorted()
-		lastTrackedBlock = sortedBlocks[len(blocks)-1].Num
+// processTrackedHeaders processes tracked headers for a subscriber and checks for reorgs
+func (rd *ReorgDetector) processTrackedHeaders(ctx context.Context, id string, headers *headersList, finalized uint64) error {
+	rd.subscriptionsLock.Lock()
+	rd.subscriptions[id] = &Subscription{
+		FirstReorgedBlock: make(chan uint64),
+		ReorgProcessed:    make(chan bool),
+	}
+	rd.subscriptionsLock.Unlock()
 
-		for _, block := range sortedBlocks {
-			if actualBlock, ok := rd.canonicalBlocks[block.Num]; !ok {
-				header, err := rd.client.HeaderByNumber(ctx, big.NewInt(int64(block.Num)))
-				if err != nil {
-					return err
-				}
+	// Nothing to process for this subscriber
+	if headers.isEmpty() {
+		return nil
+	}
 
-				actualBlockHash = header.Hash()
-			} else {
-				actualBlockHash = actualBlock.Hash
+	var (
+		lastTrackedBlock uint64
+		actualBlockHash  common.Hash
+	)
+
+	sortedBlocks := headers.getSorted()
+	lastTrackedBlock = sortedBlocks[headers.len()-1].Num
+
+	for _, block := range sortedBlocks {
+		// Fetch an actual header hash from the client if it does not exist in the canonical chain
+		if actualHeader := rd.canonicalBlocks.get(block.Num); actualHeader == nil {
+			header, err := rd.client.HeaderByNumber(ctx, big.NewInt(int64(block.Num)))
+			if err != nil {
+				return err
 			}
 
-			if actualBlockHash != block.Hash {
-				// Reorg detected, notify subscriber
-				go rd.notifySubscriber(id, block)
-
-				// Remove the reorged blocks from the tracked blocks
-				blocks.removeRange(block.Num, lastTrackedBlock)
-
-				break
-			} else if block.Num <= lastFinalisedBlock.Number.Uint64() {
-				delete(blocks, block.Num)
-			}
+			actualBlockHash = header.Hash()
+		} else {
+			actualBlockHash = actualHeader.Hash
 		}
 
-		// If we processed finalized or reorged blocks, update the tracked blocks in memory and db
-		if err = rd.updateTrackedBlocksNoLock(ctx, id, blocks); err != nil {
-			return err
+		// Check if the block hash matches with the actual block hash
+		if actualBlockHash != block.Hash {
+			// Reorg detected, notify subscriber
+			go rd.notifySubscriber(id, block)
+
+			// Remove the reorged blocks from the tracked blocks
+			headers.removeRange(block.Num, lastTrackedBlock)
+
+			break
+		} else if block.Num <= finalized {
+			headers.removeRange(block.Num, block.Num)
 		}
 	}
 
-	return nil
+	// If we processed finalized or reorged blocks, update the tracked blocks in memory and db
+	return rd.updateTrackedBlocksNoLock(ctx, id, headers)
 }

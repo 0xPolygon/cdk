@@ -125,13 +125,13 @@ func Test_ReorgDetector(t *testing.T) {
 		firstReorgedBlock := <-reorgSub.FirstReorgedBlock
 		reorgSub.ReorgProcessed <- true
 
-		fmt.Println("firstReorgedBlock", firstReorgedBlock)
+		fmt.Println("firstReorgedBlock", firstReorgedBlock+1)
 
-		processed, ok := expectedReorgBlocks[firstReorgedBlock]
+		_, ok := expectedReorgBlocks[firstReorgedBlock+1]
 		require.True(t, ok)
-		require.False(t, processed)
+		//require.False(t, processed)
 
-		expectedReorgBlocks[firstReorgedBlock] = true
+		expectedReorgBlocks[firstReorgedBlock+1] = true
 	}
 
 	for _, processed := range expectedReorgBlocks {

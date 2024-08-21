@@ -1,20 +1,12 @@
 package reorgdetector
 
 import (
-	context "context"
+	"context"
 	"encoding/json"
 )
 
-// getUnfinalisedBlocksMap returns the map of unfinalised blocks
-func (rd *ReorgDetector) getUnfinalisedBlocksMap() blockMap {
-	rd.trackedBlocksLock.RLock()
-	defer rd.trackedBlocksLock.RUnlock()
-
-	return rd.trackedBlocks[unfinalisedBlocksID]
-}
-
 // getTrackedBlocks returns a list of tracked blocks for each subscriber from db
-func (rd *ReorgDetector) getTrackedBlocks(ctx context.Context) (map[string]blockMap, error) {
+func (rd *ReorgDetector) getTrackedBlocks(ctx context.Context) (map[string]*headersList, error) {
 	tx, err := rd.db.BeginRo(ctx)
 	if err != nil {
 		return nil, err
@@ -29,31 +21,31 @@ func (rd *ReorgDetector) getTrackedBlocks(ctx context.Context) (map[string]block
 
 	defer cursor.Close()
 
-	trackedBlocks := make(map[string]blockMap, 0)
+	trackedBlocks := make(map[string]*headersList, 0)
 
 	for k, v, err := cursor.First(); k != nil; k, v, err = cursor.Next() {
 		if err != nil {
 			return nil, err
 		}
 
-		var blocks []block
-		if err := json.Unmarshal(v, &blocks); err != nil {
+		var headers []header
+		if err := json.Unmarshal(v, &headers); err != nil {
 			return nil, err
 		}
 
-		trackedBlocks[string(k)] = newBlockMap(blocks...)
+		trackedBlocks[string(k)] = newHeadersList(headers...)
 	}
 
 	if _, ok := trackedBlocks[unfinalisedBlocksID]; !ok {
 		// add unfinalised blocks to tracked blocks map if not present in db
-		trackedBlocks[unfinalisedBlocksID] = newBlockMap()
+		trackedBlocks[unfinalisedBlocksID] = newHeadersList()
 	}
 
 	return trackedBlocks, nil
 }
 
 // saveTrackedBlock saves the tracked block for a subscriber in db and in memory
-func (rd *ReorgDetector) saveTrackedBlock(ctx context.Context, id string, b block) error {
+func (rd *ReorgDetector) saveTrackedBlock(ctx context.Context, id string, b header) error {
 	tx, err := rd.db.BeginRw(ctx)
 	if err != nil {
 		return err
@@ -62,18 +54,16 @@ func (rd *ReorgDetector) saveTrackedBlock(ctx context.Context, id string, b bloc
 	defer tx.Rollback()
 
 	rd.trackedBlocksLock.Lock()
-
-	subscriberBlockMap, ok := rd.trackedBlocks[id]
-	if !ok || len(subscriberBlockMap) == 0 {
-		subscriberBlockMap = newBlockMap(b)
-		rd.trackedBlocks[id] = subscriberBlockMap
+	hdrs, ok := rd.trackedBlocks[id]
+	if !ok || hdrs.isEmpty() {
+		hdrs = newHeadersList(b)
+		rd.trackedBlocks[id] = hdrs
 	} else {
-		subscriberBlockMap[b.Num] = b
+		hdrs.add(b)
 	}
-
 	rd.trackedBlocksLock.Unlock()
 
-	raw, err := json.Marshal(subscriberBlockMap.getSorted())
+	raw, err := json.Marshal(hdrs.getSorted())
 	if err != nil {
 		return err
 	}
@@ -91,7 +81,7 @@ func (rd *ReorgDetector) removeTrackedBlocks(ctx context.Context, lastFinalizedB
 		newTrackedBlocks := rd.trackedBlocks[id].getFromBlockSorted(lastFinalizedBlock)
 		rd.trackedBlocksLock.RUnlock()
 
-		if err := rd.updateTrackedBlocks(ctx, id, newBlockMap(newTrackedBlocks...)); err != nil {
+		if err := rd.updateTrackedBlocks(ctx, id, newHeadersList(newTrackedBlocks...)); err != nil {
 			return err
 		}
 	}
@@ -100,7 +90,7 @@ func (rd *ReorgDetector) removeTrackedBlocks(ctx context.Context, lastFinalizedB
 }
 
 // updateTrackedBlocks updates the tracked blocks for a subscriber in db and in memory
-func (rd *ReorgDetector) updateTrackedBlocks(ctx context.Context, id string, blocks blockMap) error {
+func (rd *ReorgDetector) updateTrackedBlocks(ctx context.Context, id string, blocks *headersList) error {
 	rd.trackedBlocksLock.Lock()
 	defer rd.trackedBlocksLock.Unlock()
 
@@ -108,7 +98,7 @@ func (rd *ReorgDetector) updateTrackedBlocks(ctx context.Context, id string, blo
 }
 
 // updateTrackedBlocksNoLock updates the tracked blocks for a subscriber in db and in memory
-func (rd *ReorgDetector) updateTrackedBlocksNoLock(ctx context.Context, id string, blocks blockMap) error {
+func (rd *ReorgDetector) updateTrackedBlocksNoLock(ctx context.Context, id string, blocks *headersList) error {
 	tx, err := rd.db.BeginRw(ctx)
 	if err != nil {
 		return err

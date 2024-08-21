@@ -1,5 +1,13 @@
 package reorgdetector
 
+import "sync"
+
+type Subscription struct {
+	FirstReorgedBlock          chan uint64
+	ReorgProcessed             chan bool
+	pendingReorgsToBeProcessed sync.WaitGroup
+}
+
 func (rd *ReorgDetector) Subscribe(id string) (*Subscription, error) {
 	rd.subscriptionsLock.Lock()
 	defer rd.subscriptionsLock.Unlock()
@@ -17,7 +25,7 @@ func (rd *ReorgDetector) Subscribe(id string) (*Subscription, error) {
 	return sub, nil
 }
 
-func (rd *ReorgDetector) notifySubscribers(startingBlock block) {
+func (rd *ReorgDetector) notifySubscribers(startingBlock header) {
 	rd.subscriptionsLock.RLock()
 	for _, sub := range rd.subscriptions {
 		sub.pendingReorgsToBeProcessed.Add(1)
@@ -30,16 +38,14 @@ func (rd *ReorgDetector) notifySubscribers(startingBlock block) {
 	rd.subscriptionsLock.RUnlock()
 }
 
-func (rd *ReorgDetector) notifySubscriber(id string, startingBlock block) {
+func (rd *ReorgDetector) notifySubscriber(id string, startingBlock header) {
 	rd.subscriptionsLock.RLock()
-	subscriber, ok := rd.subscriptions[id]
+	sub, ok := rd.subscriptions[id]
 	if ok {
-		subscriber.pendingReorgsToBeProcessed.Add(1)
-		go func(sub *Subscription) {
-			sub.FirstReorgedBlock <- startingBlock.Num
-			<-sub.ReorgProcessed
-			sub.pendingReorgsToBeProcessed.Done()
-		}(subscriber)
+		sub.pendingReorgsToBeProcessed.Add(1)
+		sub.FirstReorgedBlock <- startingBlock.Num
+		<-sub.ReorgProcessed
+		sub.pendingReorgsToBeProcessed.Done()
 	}
 	rd.subscriptionsLock.RUnlock()
 }

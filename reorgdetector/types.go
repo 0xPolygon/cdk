@@ -2,36 +2,100 @@ package reorgdetector
 
 import (
 	"sort"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type block struct {
+type header struct {
 	Num        uint64
 	Hash       common.Hash
 	ParentHash common.Hash
 }
 
-type blockMap map[uint64]block
-
-// newBlockMap returns a new instance of blockMap
-func newBlockMap(blocks ...block) blockMap {
-	blockMap := make(blockMap, len(blocks))
-
-	for _, b := range blocks {
-		blockMap[b.Num] = b
+// newHeader returns a new instance of header
+func newHeader(num uint64, hash, parentHash common.Hash) header {
+	return header{
+		Num:        num,
+		Hash:       hash,
+		ParentHash: parentHash,
 	}
-
-	return blockMap
 }
 
-// getSorted returns blocks in sorted order
-func (bm blockMap) getSorted() []block {
-	sortedBlocks := make([]block, 0, len(bm))
+type headersList struct {
+	sync.RWMutex
+	headers map[uint64]header
+}
 
-	for _, b := range bm {
+// newHeadersList returns a new instance of headersList
+func newHeadersList(headers ...header) *headersList {
+	headersMap := make(map[uint64]header, len(headers))
+
+	for _, b := range headers {
+		headersMap[b.Num] = b
+	}
+
+	return &headersList{
+		headers: headersMap,
+	}
+}
+
+// len returns the number of headers in the headers list
+func (hl *headersList) len() int {
+	hl.RLock()
+	ln := len(hl.headers)
+	hl.RUnlock()
+	return ln
+}
+
+// isEmpty returns true if the headers list is empty
+func (hl *headersList) isEmpty() bool {
+	return hl.len() == 0
+}
+
+// add adds a header to the headers list
+func (hl *headersList) add(h header) {
+	hl.Lock()
+	hl.headers[h.Num] = h
+	hl.Unlock()
+}
+
+// copy returns a copy of the headers list
+func (hl *headersList) copy() *headersList {
+	hl.RLock()
+	defer hl.RUnlock()
+
+	headersMap := make(map[uint64]header, len(hl.headers))
+	for k, v := range hl.headers {
+		headersMap[k] = v
+	}
+
+	return &headersList{
+		headers: headersMap,
+	}
+}
+
+// get returns a header by block number
+func (hl *headersList) get(num uint64) *header {
+	hl.RLock()
+	defer hl.RUnlock()
+
+	if b, ok := hl.headers[num]; ok {
+		return &b
+	}
+
+	return nil
+}
+
+// getSorted returns headers in sorted order
+func (hl *headersList) getSorted() []header {
+	sortedBlocks := make([]header, 0, len(hl.headers))
+
+	hl.RLock()
+	for _, b := range hl.headers {
 		sortedBlocks = append(sortedBlocks, b)
 	}
+	hl.RUnlock()
 
 	sort.Slice(sortedBlocks, func(i, j int) bool {
 		return sortedBlocks[i].Num < sortedBlocks[j].Num
@@ -41,11 +105,11 @@ func (bm blockMap) getSorted() []block {
 }
 
 // getFromBlockSorted returns blocks from blockNum in sorted order without including the blockNum
-func (bm blockMap) getFromBlockSorted(blockNum uint64) []block {
-	sortedBlocks := bm.getSorted()
+func (hl *headersList) getFromBlockSorted(blockNum uint64) []header {
+	sortedHeaders := hl.getSorted()
 
 	index := -1
-	for i, b := range sortedBlocks {
+	for i, b := range sortedHeaders {
 		if b.Num > blockNum {
 			index = i
 			break
@@ -53,39 +117,45 @@ func (bm blockMap) getFromBlockSorted(blockNum uint64) []block {
 	}
 
 	if index == -1 {
-		return []block{}
+		return nil
 	}
 
-	return sortedBlocks[index:]
+	return sortedHeaders[index:]
 }
 
 // getClosestHigherBlock returns the closest higher block to the given blockNum
-func (bm blockMap) getClosestHigherBlock(blockNum uint64) (block, bool) {
-	if block, ok := bm[blockNum]; ok {
-		return block, true
+func (hl *headersList) getClosestHigherBlock(blockNum uint64) (*header, bool) {
+	hdr := hl.get(blockNum)
+	if hdr != nil {
+		return hdr, true
 	}
 
-	sorted := bm.getFromBlockSorted(blockNum)
+	sorted := hl.getFromBlockSorted(blockNum)
 	if len(sorted) == 0 {
-		return block{}, false
+		return nil, false
 	}
 
-	return sorted[0], true
+	return &sorted[0], true
 }
 
-// removeRange removes blocks from "from" to "to"
-func (bm blockMap) removeRange(from, to uint64) {
+// removeRange removes headers from "from" to "to"
+func (hl *headersList) removeRange(from, to uint64) {
+	hl.Lock()
 	for i := from; i <= to; i++ {
-		delete(bm, i)
+		delete(hl.headers, i)
 	}
+	hl.Unlock()
 }
 
-// detectReorg detects a reorg in the given block list.
-// Returns the first reorged block or nil.
-func (bm blockMap) detectReorg() *block {
+// detectReorg detects a reorg in the given headers list.
+// Returns the first reorged headers or nil.
+func (hl *headersList) detectReorg() *header {
+	hl.RLock()
+	defer hl.RUnlock()
+
 	// Find the highest block number
 	maxBlockNum := uint64(0)
-	for blockNum := range bm {
+	for blockNum := range hl.headers {
 		if blockNum > maxBlockNum {
 			maxBlockNum = blockNum
 		}
@@ -94,8 +164,8 @@ func (bm blockMap) detectReorg() *block {
 	// Iterate from the highest block number to the lowest
 	reorgDetected := false
 	for i := maxBlockNum; i > 1; i-- {
-		currentBlock, currentExists := bm[i]
-		previousBlock, previousExists := bm[i-1]
+		currentBlock, currentExists := hl.headers[i]
+		previousBlock, previousExists := hl.headers[i-1]
 
 		// Check if both blocks exist (sanity check)
 		if !currentExists || !previousExists {
