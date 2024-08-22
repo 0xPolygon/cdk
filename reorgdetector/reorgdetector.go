@@ -143,14 +143,6 @@ func (rd *ReorgDetector) detectReorgInTrackedList() {
 
 				// Notify the subscriber about the reorg
 				go rd.notifySubscriber(id, hdr)
-
-				// Update the tracked list
-				hdrs.add(*currentHeader)
-			}
-
-			// Remove the reorged block and all the blocks after it
-			if err := rd.updateTrackedBlocks(context.Background(), id, hdrs); err != nil {
-				log.Errorf("failed to update tracked blocks: %v", err)
 			}
 
 			wg.Done()
