@@ -119,21 +119,25 @@ func New(
 		log.Fatalf("error creating ethtxmanager client: %v", err)
 	}
 
-	// Data stream client logs
-	streamLogConfig := streamlog.Config{
-		Environment: streamlog.LogEnvironment(cfg.Log.Environment),
-		Level:       cfg.Log.Level,
-		Outputs:     cfg.Log.Outputs,
-	}
+	var streamClient *datastreamer.StreamClient
 
-	log.Init(cfg.Log)
+	if !cfg.SyncModeOnlyEnabled {
+		// Data stream client logs
+		streamLogConfig := streamlog.Config{
+			Environment: streamlog.LogEnvironment(cfg.Log.Environment),
+			Level:       cfg.Log.Level,
+			Outputs:     cfg.Log.Outputs,
+		}
 
-	log.Info("Creating data stream client....")
-	streamClient, err := datastreamer.NewClientWithLogsConfig(cfg.StreamClient.Server, dataStreamType, streamLogConfig)
-	if err != nil {
-		log.Fatalf("failed to create stream client, error: %v", err)
+		log.Init(cfg.Log)
+
+		log.Info("Creating data stream client....")
+		streamClient, err = datastreamer.NewClientWithLogsConfig(cfg.StreamClient.Server, dataStreamType, streamLogConfig)
+		if err != nil {
+			log.Fatalf("failed to create stream client, error: %v", err)
+		}
+		log.Info("Data stream client created.")
 	}
-	log.Info("Data stream client created.")
 
 	// Synchonizer logs
 	syncLogConfig := synclog.Config{
@@ -157,7 +161,7 @@ func New(
 		sequencerPrivateKey *ecdsa.PrivateKey
 	)
 
-	if cfg.SettlementBackend == AggLayer {
+	if !cfg.SyncModeOnlyEnabled && cfg.SettlementBackend == AggLayer {
 		aggLayerClient = NewAggLayerClient(cfg.AggLayerURL)
 
 		sequencerPrivateKey, err = newKeyFromKeystore(cfg.SequencerPrivateKey)
@@ -184,11 +188,11 @@ func New(
 		witnessRetrievalChan:    make(chan state.DBBatch),
 	}
 
-	log.Infof("MaxWitnessRetrievalWorkers set to %d", cfg.MaxWitnessRetrievalWorkers)
-
 	// Set function to handle the batches from the data stream
-	a.streamClient.SetProcessEntryFunc(a.handleReceivedDataStream)
-	a.l1Syncr.SetCallbackOnReorgDone(a.handleReorg)
+	if !cfg.SyncModeOnlyEnabled {
+		a.streamClient.SetProcessEntryFunc(a.handleReceivedDataStream)
+		a.l1Syncr.SetCallbackOnReorgDone(a.handleReorg)
+	}
 
 	return a, nil
 }
@@ -484,63 +488,12 @@ func (a *Aggregator) Start(ctx context.Context) error {
 	a.ctx = ctx
 	a.exit = cancel
 
-	address := fmt.Sprintf("%s:%d", a.cfg.Host, a.cfg.Port)
-	lis, err := net.Listen("tcp", address)
-	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
-	}
-
-	a.srv = grpc.NewServer()
-	prover.RegisterAggregatorServiceServer(a.srv, a)
-
-	healthService := newHealthChecker()
-	grpchealth.RegisterHealthServer(a.srv, healthService)
-
 	// Initial L1 Sync blocking
-	err = a.l1Syncr.Sync(true)
+	err := a.l1Syncr.Sync(true)
 	if err != nil {
 		log.Fatalf("Failed to synchronize from L1: %v", err)
 		return err
 	}
-
-	// Get last verified batch number to set the starting point for verifications
-	lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
-	if err != nil {
-		return err
-	}
-
-	// Cleanup data base
-	err = a.state.DeleteBatchesOlderThanBatchNumber(ctx, lastVerifiedBatchNumber, nil)
-	if err != nil {
-		return err
-	}
-
-	// Delete ungenerated recursive proofs
-	err = a.state.DeleteUngeneratedProofs(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to initialize proofs cache %w", err)
-	}
-
-	accInputHash, err := a.getVerifiedBatchAccInputHash(ctx, lastVerifiedBatchNumber)
-	if err != nil {
-		return err
-	}
-
-	log.Infof("Last Verified Batch Number:%v", lastVerifiedBatchNumber)
-	log.Infof("Starting AccInputHash:%v", accInputHash.String())
-
-	// Store Acc Input Hash of the latest verified batch
-	dummyDBBatch := state.DBBatch{Batch: state.Batch{BatchNumber: lastVerifiedBatchNumber, AccInputHash: *accInputHash}, Datastream: []byte{0}, Witness: []byte{0}}
-	err = a.state.AddBatch(ctx, &dummyDBBatch, nil)
-	if err != nil {
-		return err
-	}
-
-	a.resetVerifyProofTime()
-
-	go a.cleanupLockedProofs()
-	go a.sendFinalProof()
-	go a.ethTxManager.Start()
 
 	// Keep syncing L1
 	go func() {
@@ -550,40 +503,93 @@ func (a *Aggregator) Start(ctx context.Context) error {
 		}
 	}()
 
-	// Witness retrieval workers
-	for i := 0; i < a.cfg.MaxWitnessRetrievalWorkers; i++ {
-		go a.retrieveWitness()
-	}
-
-	// Start stream client
-	err = a.streamClient.Start()
-	if err != nil {
-		log.Fatalf("failed to start stream client, error: %v", err)
-	}
-
-	bookMark := &datastream.BookMark{
-		Type:  datastream.BookmarkType_BOOKMARK_TYPE_BATCH,
-		Value: lastVerifiedBatchNumber + 1,
-	}
-
-	marshalledBookMark, err := proto.Marshal(bookMark)
-	if err != nil {
-		log.Fatalf("failed to marshal bookmark: %v", err)
-	}
-
-	err = a.streamClient.ExecCommandStartBookmark(marshalledBookMark)
-	if err != nil {
-		log.Fatalf("failed to connect to data stream: %v", err)
-	}
-
-	// A this point everything is ready, so start serving
-	go func() {
-		log.Infof("Server listening on port %d", a.cfg.Port)
-		if err := a.srv.Serve(lis); err != nil {
-			a.exit()
-			log.Fatalf("Failed to serve: %v", err)
+	if !a.cfg.SyncModeOnlyEnabled {
+		address := fmt.Sprintf("%s:%d", a.cfg.Host, a.cfg.Port)
+		lis, err := net.Listen("tcp", address)
+		if err != nil {
+			log.Fatalf("Failed to listen: %v", err)
 		}
-	}()
+
+		a.srv = grpc.NewServer()
+		prover.RegisterAggregatorServiceServer(a.srv, a)
+
+		healthService := newHealthChecker()
+		grpchealth.RegisterHealthServer(a.srv, healthService)
+
+		// Get last verified batch number to set the starting point for verifications
+		lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
+		if err != nil {
+			return err
+		}
+
+		// Cleanup data base
+		err = a.state.DeleteBatchesOlderThanBatchNumber(ctx, lastVerifiedBatchNumber, nil)
+		if err != nil {
+			return err
+		}
+
+		// Delete ungenerated recursive proofs
+		err = a.state.DeleteUngeneratedProofs(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("failed to initialize proofs cache %w", err)
+		}
+
+		accInputHash, err := a.getVerifiedBatchAccInputHash(ctx, lastVerifiedBatchNumber)
+		if err != nil {
+			return err
+		}
+
+		log.Infof("Last Verified Batch Number:%v", lastVerifiedBatchNumber)
+		log.Infof("Starting AccInputHash:%v", accInputHash.String())
+
+		// Store Acc Input Hash of the latest verified batch
+		dummyDBBatch := state.DBBatch{Batch: state.Batch{BatchNumber: lastVerifiedBatchNumber, AccInputHash: *accInputHash}, Datastream: []byte{0}, Witness: []byte{0}}
+		err = a.state.AddBatch(ctx, &dummyDBBatch, nil)
+		if err != nil {
+			return err
+		}
+
+		a.resetVerifyProofTime()
+
+		go a.cleanupLockedProofs()
+		go a.sendFinalProof()
+		go a.ethTxManager.Start()
+
+		// Witness retrieval workers
+		for i := 0; i < a.cfg.MaxWitnessRetrievalWorkers; i++ {
+			go a.retrieveWitness()
+		}
+
+		// Start stream client
+		err = a.streamClient.Start()
+		if err != nil {
+			log.Fatalf("failed to start stream client, error: %v", err)
+		}
+
+		bookMark := &datastream.BookMark{
+			Type:  datastream.BookmarkType_BOOKMARK_TYPE_BATCH,
+			Value: lastVerifiedBatchNumber + 1,
+		}
+
+		marshalledBookMark, err := proto.Marshal(bookMark)
+		if err != nil {
+			log.Fatalf("failed to marshal bookmark: %v", err)
+		}
+
+		err = a.streamClient.ExecCommandStartBookmark(marshalledBookMark)
+		if err != nil {
+			log.Fatalf("failed to connect to data stream: %v", err)
+		}
+
+		// A this point everything is ready, so start serving
+		go func() {
+			log.Infof("Server listening on port %d", a.cfg.Port)
+			if err := a.srv.Serve(lis); err != nil {
+				a.exit()
+				log.Fatalf("Failed to serve: %v", err)
+			}
+		}()
+	}
 
 	<-ctx.Done()
 	return ctx.Err()
