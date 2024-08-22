@@ -94,6 +94,7 @@ func Test_ReorgDetector(t *testing.T) {
 				err = reorgDetector.AddBlockToTrack(ctx, subID, header.Number.Uint64(), header.Hash())
 				require.NoError(t, err)
 				trackedBlocks[headerNumber] = header.Hash()
+				fmt.Println("added block", time.Now(), headerNumber)
 			}
 		}
 
@@ -106,6 +107,8 @@ func Test_ReorgDetector(t *testing.T) {
 
 			err = clientL1.Fork(reorgBlock.Hash())
 			require.NoError(t, err)
+
+			fmt.Println("reorg happened", time.Now(), headerNumber)
 		}
 	}
 
@@ -130,6 +133,8 @@ func Test_ReorgDetector(t *testing.T) {
 	for range expectReorgOn {
 		firstReorgedBlock := <-reorgSub.ReorgedBlock
 		reorgSub.ReorgProcessed <- true
+
+		fmt.Println("firstReorgedBlock", firstReorgedBlock)
 
 		processed, ok := expectReorgOn[firstReorgedBlock]
 		require.True(t, ok)
