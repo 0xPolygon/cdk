@@ -31,7 +31,7 @@ func runTest(
 		_, err := gerL1Contract.UpdateExitRoot(authL1, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
 		l1Client.Commit()
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(time.Millisecond * 150)
 		expectedGER, err := gerL1Contract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
 		isInjected, err := sender.IsGERAlreadyInjected(expectedGER)
