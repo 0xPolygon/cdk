@@ -49,7 +49,9 @@ func newTestDir(tb testing.TB) string {
 func Test_ReorgDetector(t *testing.T) {
 	const produceBlocks = 29
 	const reorgPeriod = 5
+	const trackBlockPeriod = 4
 	const reorgDepth = 2
+	const subID = "test"
 
 	ctx := context.Background()
 
@@ -70,44 +72,37 @@ func Test_ReorgDetector(t *testing.T) {
 	err = reorgDetector.Start(ctx)
 	require.NoError(t, err)
 
-	reorgSub, err := reorgDetector.Subscribe("test")
+	reorgSub, err := reorgDetector.Subscribe(subID)
 	require.NoError(t, err)
 
-	ch := make(chan *types.Header, 10)
-	headerSub, err := clientL1.Client().SubscribeNewHead(ctx, ch)
-	require.NoError(t, err)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-headerSub.Err():
-				return
-			case header := <-ch:
-				err := reorgDetector.AddBlockToTrack(ctx, "test", header.Number.Uint64(), header.Hash())
-				require.NoError(t, err)
-			}
-		}
-	}()
-
-	expectedReorgBlocks := make(map[uint64]bool)
-	lastReorgOn := int64(0)
+	canonicalChain := make(map[uint64]common.Hash)
+	trackedBlocks := make(map[uint64]common.Hash)
+	lastReorgOn := uint64(0)
 	for i := 1; lastReorgOn <= produceBlocks; i++ {
 		block := clientL1.Commit()
 		time.Sleep(time.Millisecond * 100)
 
 		header, err := clientL1.Client().HeaderByHash(ctx, block)
 		require.NoError(t, err)
-		headerNumber := header.Number.Int64()
+		headerNumber := header.Number.Uint64()
+
+		canonicalChain[headerNumber] = header.Hash()
+
+		// Add block to track every "trackBlockPeriod" blocks
+		if headerNumber%trackBlockPeriod == 0 {
+			if _, ok := trackedBlocks[headerNumber]; !ok {
+				err = reorgDetector.AddBlockToTrack(ctx, subID, header.Number.Uint64(), header.Hash())
+				require.NoError(t, err)
+				trackedBlocks[headerNumber] = header.Hash()
+			}
+		}
 
 		// Reorg every "reorgPeriod" blocks with "reorgDepth" blocks depth
 		if headerNumber > lastReorgOn && headerNumber%reorgPeriod == 0 {
 			lastReorgOn = headerNumber
 
-			reorgBlock, err := clientL1.Client().BlockByNumber(ctx, big.NewInt(headerNumber-reorgDepth))
+			reorgBlock, err := clientL1.Client().BlockByNumber(ctx, big.NewInt(int64(headerNumber-reorgDepth)))
 			require.NoError(t, err)
-
-			expectedReorgBlocks[reorgBlock.NumberU64()] = false
 
 			err = clientL1.Fork(reorgBlock.Hash())
 			require.NoError(t, err)
@@ -119,27 +114,34 @@ func Test_ReorgDetector(t *testing.T) {
 		clientL1.Commit()
 	}
 
-	fmt.Println("expectedReorgBlocks", expectedReorgBlocks)
+	// Expect reorgs on block
+	expectReorgOn := make(map[uint64]bool)
+	for num, hash := range canonicalChain {
+		if _, ok := trackedBlocks[num]; !ok {
+			continue
+		}
 
-	for blk := range reorgSub.ReorgedBlock {
-		reorgSub.ReorgProcessed <- true
-		fmt.Println("reorgSub.FirstReorgedBlock", blk)
+		if trackedBlocks[num] != hash {
+			expectReorgOn[num] = false
+		}
 	}
 
-	for range expectedReorgBlocks {
+	// Wait for reorg notifications, expect len(expectReorgOn) notifications
+	for range expectReorgOn {
 		firstReorgedBlock := <-reorgSub.ReorgedBlock
 		reorgSub.ReorgProcessed <- true
 
 		fmt.Println("firstReorgedBlock", firstReorgedBlock)
 
-		_, ok := expectedReorgBlocks[firstReorgedBlock]
+		processed, ok := expectReorgOn[firstReorgedBlock]
 		require.True(t, ok)
-		//require.False(t, processed)
+		require.False(t, processed)
 
-		expectedReorgBlocks[firstReorgedBlock] = true
+		expectReorgOn[firstReorgedBlock] = true
 	}
 
-	for _, processed := range expectedReorgBlocks {
+	// Make sure all processed
+	for _, processed := range expectReorgOn {
 		require.True(t, processed)
 	}
 }

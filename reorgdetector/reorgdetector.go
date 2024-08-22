@@ -46,6 +46,9 @@ type ReorgDetector struct {
 
 	subscriptionsLock sync.RWMutex
 	subscriptions     map[string]*Subscription
+
+	notifiedReorgsLock sync.RWMutex
+	notifiedReorgs     map[string]struct{}
 }
 
 func New(client EthClient, dbPath string) (*ReorgDetector, error) {
@@ -63,6 +66,7 @@ func New(client EthClient, dbPath string) (*ReorgDetector, error) {
 		canonicalBlocks: newHeadersList(),
 		trackedBlocks:   make(map[string]*headersList),
 		subscriptions:   make(map[string]*Subscription),
+		notifiedReorgs:  make(map[string]struct{}),
 	}, nil
 }
 

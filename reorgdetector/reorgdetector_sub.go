@@ -1,6 +1,9 @@
 package reorgdetector
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 type Subscription struct {
 	ReorgedBlock   chan uint64
@@ -32,6 +35,16 @@ func (rd *ReorgDetector) Subscribe(id string) (*Subscription, error) {
 
 // notifySubscriber notifies the subscriber with the block of the reorg
 func (rd *ReorgDetector) notifySubscriber(id string, startingBlock header) {
+	// Check if the given reorg was already notified to the given subscriber
+	reorgKey := fmt.Sprintf("%s_%d", id, startingBlock.Num)
+	rd.notifiedReorgsLock.RLock()
+	if _, ok := rd.notifiedReorgs[reorgKey]; ok {
+		rd.notifiedReorgsLock.RUnlock()
+		return
+	}
+	rd.notifiedReorgsLock.RUnlock()
+
+	// Notify subscriber about this particular reorg
 	rd.subscriptionsLock.RLock()
 	if sub, ok := rd.subscriptions[id]; ok {
 		sub.pendingReorgsToBeProcessed.Add(1)
@@ -40,4 +53,9 @@ func (rd *ReorgDetector) notifySubscriber(id string, startingBlock header) {
 		sub.pendingReorgsToBeProcessed.Done()
 	}
 	rd.subscriptionsLock.RUnlock()
+
+	// Mark the reorg as notified
+	rd.notifiedReorgsLock.RLock()
+	rd.notifiedReorgs[reorgKey] = struct{}{}
+	rd.notifiedReorgsLock.RUnlock()
 }
