@@ -151,6 +151,10 @@ type Config struct {
 
 	// MaxWitnessRetrievalWorkers is the maximum number of workers that will be used to retrieve the witness
 	MaxWitnessRetrievalWorkers int `mapstructure:"MaxWitnessRetrievalWorkers"`
+
+	// SyncModeOnlyEnabled is a flag to enable the sync mode only
+	// In this mode the aggregator will only sync from L1 and will not generate or read the data stream
+	SyncModeOnlyEnabled bool `mapstructure:"SyncModeOnlyEnabled"`
 }
 
 // StreamClientCfg contains the data streamer's configuration properties
