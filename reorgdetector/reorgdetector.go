@@ -83,7 +83,7 @@ func (rd *ReorgDetector) Start(ctx context.Context) (err error) {
 
 	// Continuously load canonical chain
 	go func() {
-		ticker := time.NewTicker(time.Second * 2)
+		ticker := time.NewTicker(time.Second * 2) // TODO: Configure it
 		for range ticker.C {
 			if err = rd.loadCanonicalChain(ctx); err != nil {
 				log.Errorf("failed to load canonical chain: %v", err)
@@ -93,7 +93,7 @@ func (rd *ReorgDetector) Start(ctx context.Context) (err error) {
 
 	// Continuously check reorgs in tracked by subscribers blocks
 	go func() {
-		ticker := time.NewTicker(time.Second)
+		ticker := time.NewTicker(time.Second) // TODO: Configure it
 		for range ticker.C {
 			rd.detectReorgInTrackedList()
 		}
