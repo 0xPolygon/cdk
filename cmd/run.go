@@ -437,7 +437,7 @@ func runL1InfoTreeSyncerIfNeeded(
 	l1Client *ethclient.Client,
 	reorgDetector *reorgdetector.ReorgDetector,
 ) *l1infotreesync.L1InfoTreeSync {
-	if !isNeeded([]string{AGGORACLE, RPC}, components) {
+	if !isNeeded([]string{AGGORACLE, RPC, SEQUENCE_SENDER}, components) {
 		return nil
 	}
 	l1InfoTreeSync, err := l1infotreesync.New(
