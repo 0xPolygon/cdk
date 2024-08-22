@@ -18,19 +18,6 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 )
 
-const (
-	defaultWaitPeriodBlockRemover = time.Second * 20
-	defaultWaitPeriodBlockAdder   = time.Second * 2 // should be smaller than block time of the tracked chain
-
-	subscriberBlocks = "reorgdetector-subscriberBlocks"
-)
-
-func tableCfgFunc(_ kv.TableCfg) kv.TableCfg {
-	return kv.TableCfg{
-		subscriberBlocks: {},
-	}
-}
-
 type EthClient interface {
 	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
 	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
@@ -129,6 +116,12 @@ func (rd *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, num uin
 // detectReorgInTrackedList detects reorgs in the tracked blocks.
 // Notifies subscribers if reorg has happened
 func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
+	// Get the latest finalized block
+	lastFinalisedBlock, err := rd.client.HeaderByNumber(ctx, big.NewInt(int64(rpc.FinalizedBlockNumber)))
+	if err != nil {
+		return fmt.Errorf("failed to get the latest finalized block: %w", err)
+	}
+
 	var errGroup errgroup.Group
 
 	rd.trackedBlocksLock.RLock()
@@ -139,20 +132,29 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 		errGroup.Go(func() error {
 			headers := hdrs.getSorted()
 			for _, hdr := range headers {
-				currentHeader := rd.canonicalBlocks.get(hdr.Num)
-				if currentHeader == nil {
-					break
+				// Get the actual header from the network
+				currentHeader, err := rd.client.HeaderByNumber(ctx, big.NewInt(int64(hdr.Num)))
+				if err != nil {
+					return fmt.Errorf("failed to get the header: %w", err)
 				}
 
 				// Check if the block hash matches with the actual block hash
-				if hdr.Hash == currentHeader.Hash {
+				if hdr.Hash == currentHeader.Hash() {
+					// Delete block from the tracked blocks list if it is less than or equal to the last finalized block
+					// and hashes matches
+					if hdr.Num <= lastFinalisedBlock.Number.Uint64() {
+						hdrs.removeRange(hdr.Num, hdr.Num)
+					}
 					continue
 				}
 
 				// Notify the subscriber about the reorg
-				go rd.notifySubscriber(id, hdr)
+				rd.notifySubscriber(id, hdr)
 
-				hdrs.removeRange(hdr.Num, hdr.Num)
+				// Remove the reorged block and all the following blocks
+				hdrs.removeRange(hdr.Num, headers[len(headers)-1].Num)
+
+				break
 			}
 
 			// Update the tracked blocks in the DB
@@ -185,9 +187,18 @@ func (rd *ReorgDetector) loadCanonicalChain(ctx context.Context) error {
 	// Start from the last stored block if it less than the last finalized one
 	startFromBlock := lastFinalisedBlock.Number.Uint64()
 	if sortedBlocks := rd.canonicalBlocks.getSorted(); len(sortedBlocks) > 0 {
-		lastTrackedBlock := sortedBlocks[rd.canonicalBlocks.len()-1].Num
-		if lastTrackedBlock < startFromBlock {
-			startFromBlock = lastTrackedBlock
+		lastTrackedBlock := sortedBlocks[rd.canonicalBlocks.len()-1]
+		if lastTrackedBlock.Num < startFromBlock {
+			startFromBlock = lastTrackedBlock.Num
+
+			startHeader, err := rd.client.HeaderByNumber(ctx, big.NewInt(int64(startFromBlock)))
+			if err != nil {
+				return fmt.Errorf("failed to fetch the start header %d: %w", startFromBlock, err)
+			}
+
+			if startHeader.Hash() != lastTrackedBlock.Hash {
+				// Reorg happened, find the first reorg block to
+			}
 		}
 	}
 

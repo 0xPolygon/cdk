@@ -3,7 +3,19 @@ package reorgdetector
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/ledgerwatch/erigon-lib/kv"
 )
+
+const (
+	subscriberBlocks = "reorgdetector-subscriberBlocks"
+)
+
+func tableCfgFunc(_ kv.TableCfg) kv.TableCfg {
+	return kv.TableCfg{
+		subscriberBlocks: {},
+	}
+}
 
 // getTrackedBlocks returns a list of tracked blocks for each subscriber from db
 func (rd *ReorgDetector) getTrackedBlocks(ctx context.Context) (map[string]*headersList, error) {
