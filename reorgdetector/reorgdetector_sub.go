@@ -60,7 +60,7 @@ func (rd *ReorgDetector) notifySubscriber(id string, startingBlock header) {
 	rd.subscriptionsLock.RUnlock()
 
 	// Mark the reorg as notified
-	rd.notifiedReorgsLock.RLock()
+	rd.notifiedReorgsLock.Lock()
 	rd.notifiedReorgs[id][startingBlock.Num] = struct{}{}
-	rd.notifiedReorgsLock.RUnlock()
+	rd.notifiedReorgsLock.Unlock()
 }
