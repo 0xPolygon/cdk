@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -95,7 +97,9 @@ func (rd *ReorgDetector) Start(ctx context.Context) (err error) {
 	go func() {
 		ticker := time.NewTicker(time.Second) // TODO: Configure it
 		for range ticker.C {
-			rd.detectReorgInTrackedList()
+			if err = rd.detectReorgInTrackedList(ctx); err != nil {
+				log.Errorf("failed to detect reorg in tracked list: %v", err)
+			}
 		}
 	}()
 
@@ -124,13 +128,17 @@ func (rd *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, num uin
 
 // detectReorgInTrackedList detects reorgs in the tracked blocks.
 // Notifies subscribers if reorg has happened
-func (rd *ReorgDetector) detectReorgInTrackedList() {
+func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
+	var errGroup errgroup.Group
+
 	rd.trackedBlocksLock.RLock()
-	var wg sync.WaitGroup
 	for id, hdrs := range rd.trackedBlocks {
-		wg.Add(1)
-		go func(id string, hdrs *headersList) {
-			for _, hdr := range hdrs.headers {
+		id := id
+		hdrs := hdrs
+
+		errGroup.Go(func() error {
+			headers := hdrs.getSorted()
+			for _, hdr := range headers {
 				currentHeader := rd.canonicalBlocks.get(hdr.Num)
 				if currentHeader == nil {
 					break
@@ -143,14 +151,21 @@ func (rd *ReorgDetector) detectReorgInTrackedList() {
 
 				// Notify the subscriber about the reorg
 				go rd.notifySubscriber(id, hdr)
+
+				hdrs.removeRange(hdr.Num, hdr.Num)
 			}
 
-			wg.Done()
-		}(id, hdrs)
+			// Update the tracked blocks in the DB
+			if err := rd.updateTrackedBlocksNoLock(ctx, id, hdrs); err != nil {
+				return fmt.Errorf("failed to update tracked blocks for subscriber %s: %w", id, err)
+			}
 
+			return nil
+		})
 	}
-	wg.Wait()
 	rd.trackedBlocksLock.RUnlock()
+
+	return errGroup.Wait()
 }
 
 // loadCanonicalChain loads canonical chain from the latest finalized block till the latest one
