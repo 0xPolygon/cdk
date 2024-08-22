@@ -131,8 +131,6 @@ func Test_ReorgDetector(t *testing.T) {
 		firstReorgedBlock := <-reorgSub.ReorgedBlock
 		reorgSub.ReorgProcessed <- true
 
-		fmt.Println("firstReorgedBlock", firstReorgedBlock)
-
 		processed, ok := expectReorgOn[firstReorgedBlock]
 		require.True(t, ok)
 		require.False(t, processed)
