@@ -36,11 +36,6 @@ func (rd *ReorgDetector) getTrackedBlocks(ctx context.Context) (map[string]*head
 		trackedBlocks[string(k)] = newHeadersList(headers...)
 	}
 
-	if _, ok := trackedBlocks[unfinalisedBlocksID]; !ok {
-		// add unfinalised blocks to tracked blocks map if not present in db
-		trackedBlocks[unfinalisedBlocksID] = newHeadersList()
-	}
-
 	return trackedBlocks, nil
 }
 

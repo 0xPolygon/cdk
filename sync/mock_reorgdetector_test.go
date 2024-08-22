@@ -17,17 +17,17 @@ type ReorgDetectorMock struct {
 	mock.Mock
 }
 
-// AddBlockToTrack provides a mock function with given fields: ctx, id, blockNum, blockHash, parentHash
-func (_m *ReorgDetectorMock) AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash, parentHash common.Hash) error {
-	ret := _m.Called(ctx, id, blockNum, blockHash, parentHash)
+// AddBlockToTrack provides a mock function with given fields: ctx, id, blockNum, blockHash
+func (_m *ReorgDetectorMock) AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error {
+	ret := _m.Called(ctx, id, blockNum, blockHash)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddBlockToTrack")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, uint64, common.Hash, common.Hash) error); ok {
-		r0 = rf(ctx, id, blockNum, blockHash, parentHash)
+	if rf, ok := ret.Get(0).(func(context.Context, string, uint64, common.Hash) error); ok {
+		r0 = rf(ctx, id, blockNum, blockHash)
 	} else {
 		r0 = ret.Error(0)
 	}

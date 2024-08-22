@@ -24,7 +24,7 @@ func (_m *EVMDownloaderMock) GetBlockHeader(ctx context.Context, blockNum uint64
 	ret := _m.Called(ctx, blockNum)
 
 	if len(ret) == 0 {
-		panic("no return value specified for getBlockHeader")
+		panic("no return value specified for GetBlockHeader")
 	}
 
 	var r0 EVMBlockHeader
@@ -42,7 +42,7 @@ func (_m *EVMDownloaderMock) GetEventsByBlockRange(ctx context.Context, fromBloc
 	ret := _m.Called(ctx, fromBlock, toBlock)
 
 	if len(ret) == 0 {
-		panic("no return value specified for getEventsByBlockRange")
+		panic("no return value specified for GetEventsByBlockRange")
 	}
 
 	var r0 []EVMBlock
@@ -62,7 +62,7 @@ func (_m *EVMDownloaderMock) GetLogs(ctx context.Context, fromBlock uint64, toBl
 	ret := _m.Called(ctx, fromBlock, toBlock)
 
 	if len(ret) == 0 {
-		panic("no return value specified for getLogs")
+		panic("no return value specified for GetLogs")
 	}
 
 	var r0 []types.Log
@@ -82,7 +82,7 @@ func (_m *EVMDownloaderMock) WaitForNewBlocks(ctx context.Context, lastBlockSeen
 	ret := _m.Called(ctx, lastBlockSeen)
 
 	if len(ret) == 0 {
-		panic("no return value specified for waitForNewBlocks")
+		panic("no return value specified for WaitForNewBlocks")
 	}
 
 	var r0 uint64

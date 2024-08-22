@@ -8,17 +8,15 @@ import (
 )
 
 type header struct {
-	Num        uint64
-	Hash       common.Hash
-	ParentHash common.Hash
+	Num  uint64
+	Hash common.Hash
 }
 
 // newHeader returns a new instance of header
-func newHeader(num uint64, hash, parentHash common.Hash) header {
+func newHeader(num uint64, hash common.Hash) header {
 	return header{
-		Num:        num,
-		Hash:       hash,
-		ParentHash: parentHash,
+		Num:  num,
+		Hash: hash,
 	}
 }
 
@@ -145,42 +143,4 @@ func (hl *headersList) removeRange(from, to uint64) {
 		delete(hl.headers, i)
 	}
 	hl.Unlock()
-}
-
-// detectReorg detects a reorg in the given headers list.
-// Returns the first reorged headers or nil.
-func (hl *headersList) detectReorg() *header {
-	hl.RLock()
-	defer hl.RUnlock()
-
-	// Find the highest block number
-	maxBlockNum := uint64(0)
-	for blockNum := range hl.headers {
-		if blockNum > maxBlockNum {
-			maxBlockNum = blockNum
-		}
-	}
-
-	// Iterate from the highest block number to the lowest
-	reorgDetected := false
-	for i := maxBlockNum; i > 1; i-- {
-		currentBlock, currentExists := hl.headers[i]
-		previousBlock, previousExists := hl.headers[i-1]
-
-		// Check if both blocks exist (sanity check)
-		if !currentExists || !previousExists {
-			continue
-		}
-
-		// Check if the current block's parent hash matches the previous block's hash
-		if currentBlock.ParentHash != previousBlock.Hash {
-			reorgDetected = true
-		} else if reorgDetected {
-			// When reorg is detected, and we find the first match, return the previous block
-			return &previousBlock
-		}
-	}
-
-	// No reorg detected
-	return nil
 }

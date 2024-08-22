@@ -84,7 +84,7 @@ func Test_ReorgDetector(t *testing.T) {
 			case <-headerSub.Err():
 				return
 			case header := <-ch:
-				err := reorgDetector.AddBlockToTrack(ctx, "test", header.Number.Uint64(), header.Hash(), header.ParentHash)
+				err := reorgDetector.AddBlockToTrack(ctx, "test", header.Number.Uint64(), header.Hash())
 				require.NoError(t, err)
 			}
 		}
@@ -94,7 +94,7 @@ func Test_ReorgDetector(t *testing.T) {
 	lastReorgOn := int64(0)
 	for i := 1; lastReorgOn <= produceBlocks; i++ {
 		block := clientL1.Commit()
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Millisecond * 100)
 
 		header, err := clientL1.Client().HeaderByHash(ctx, block)
 		require.NoError(t, err)
@@ -121,17 +121,22 @@ func Test_ReorgDetector(t *testing.T) {
 
 	fmt.Println("expectedReorgBlocks", expectedReorgBlocks)
 
+	for blk := range reorgSub.ReorgedBlock {
+		reorgSub.ReorgProcessed <- true
+		fmt.Println("reorgSub.FirstReorgedBlock", blk)
+	}
+
 	for range expectedReorgBlocks {
-		firstReorgedBlock := <-reorgSub.FirstReorgedBlock
+		firstReorgedBlock := <-reorgSub.ReorgedBlock
 		reorgSub.ReorgProcessed <- true
 
-		fmt.Println("firstReorgedBlock", firstReorgedBlock+1)
+		fmt.Println("firstReorgedBlock", firstReorgedBlock)
 
-		_, ok := expectedReorgBlocks[firstReorgedBlock+1]
+		_, ok := expectedReorgBlocks[firstReorgedBlock]
 		require.True(t, ok)
 		//require.False(t, processed)
 
-		expectedReorgBlocks[firstReorgedBlock+1] = true
+		expectedReorgBlocks[firstReorgedBlock] = true
 	}
 
 	for _, processed := range expectedReorgBlocks {

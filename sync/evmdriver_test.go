@@ -29,8 +29,8 @@ func TestSync(t *testing.T) {
 	firstReorgedBlock := make(chan uint64)
 	reorgProcessed := make(chan bool)
 	rdm.On("Subscribe", reorgDetectorID).Return(&reorgdetector.Subscription{
-		FirstReorgedBlock: firstReorgedBlock,
-		ReorgProcessed:    reorgProcessed,
+		ReorgedBlock:   firstReorgedBlock,
+		ReorgProcessed: reorgProcessed,
 	}, nil)
 	driver, err := NewEVMDriver(rdm, pm, dm, reorgDetectorID, 10, rh)
 	require.NoError(t, err)

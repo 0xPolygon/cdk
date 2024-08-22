@@ -36,7 +36,7 @@ type processorInterface interface {
 
 type ReorgDetector interface {
 	Subscribe(id string) (*reorgdetector.Subscription, error)
-	AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash, parentHash common.Hash) error
+	AddBlockToTrack(ctx context.Context, id string, blockNum uint64, blockHash common.Hash) error
 }
 
 func NewEVMDriver(
@@ -93,7 +93,7 @@ reset:
 		case b := <-downloadCh:
 			d.log.Debug("handleNewBlock")
 			d.handleNewBlock(ctx, b)
-		case firstReorgedBlock := <-d.reorgSub.FirstReorgedBlock:
+		case firstReorgedBlock := <-d.reorgSub.ReorgedBlock:
 			d.log.Debug("handleReorg")
 			d.handleReorg(ctx, cancel, downloadCh, firstReorgedBlock)
 			goto reset
@@ -104,7 +104,7 @@ reset:
 func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
 	attempts := 0
 	for {
-		err := d.reorgDetector.AddBlockToTrack(ctx, d.reorgDetectorID, b.Num, b.Hash, b.ParentHash)
+		err := d.reorgDetector.AddBlockToTrack(ctx, d.reorgDetectorID, b.Num, b.Hash)
 		if err != nil {
 			attempts++
 			d.log.Errorf("error adding block %d to tracker: %v", b.Num, err)
