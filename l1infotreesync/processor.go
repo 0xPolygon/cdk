@@ -27,13 +27,17 @@ const (
 	// Key: index (uint32 converted to bytes)
 	// Value: JSON of storeLeaf struct
 	infoTable = dbPrefix + "-info"
-	// blockTable stores the first and last index of L1 Info Tree that have been updated on
-	// Value: JSON of blockWithLeafs
+	// blockTable stores the first and last index of L1 Info Tree and batch number that have been updated on a given block
+	// Key: block number (uint64 converted to bytes)
+	// Value: JSON of blockWithEvents
 	blockTable = dbPrefix + "-block"
 	// lastBlockTable used to store the last block processed. This is needed to know the last processed blcok
 	lastBlockTable = dbPrefix + "-lastBlock"
-
-	treeHeight uint8 = 32
+	// verifiedBatchTable stores the relation between batch number -> verified at l1InfoTreeIndex for the tracked rollupID
+	// Key: batch number (uint64 converted to bytes)
+	// Value: l1 Info tree index batch number (uint32 converted to bytes)
+	verifiedBatchTable       = dbPrefix + "-verifiedBatch"
+	treeHeight         uint8 = 32
 )
 
 var (
@@ -47,6 +51,7 @@ type processor struct {
 	db             kv.RwDB
 	l1InfoTree     *tree.AppendOnlyTree
 	rollupExitTree *tree.UpdatableTree
+	rollupID       uint32
 }
 
 // UpdateL1InfoTree representation of the UpdateL1InfoTree event
@@ -106,11 +111,12 @@ func (l *storeLeaf) Hash() ethCommon.Hash {
 	return res
 }
 
-type blockWithLeafs struct {
+type blockWithEvents struct {
 	// inclusive
 	FirstIndex uint32
 	// not inclusive
 	LastIndex uint32
+	batchNum  uint64
 }
 
 // GlobalExitRoot returns the GER
@@ -123,7 +129,7 @@ func (l *storeLeaf) GlobalExitRoot() ethCommon.Hash {
 	return gerBytes
 }
 
-func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
+func newProcessor(ctx context.Context, dbPath string, rollupID uint32) (*processor, error) {
 	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
 		cfg := kv.TableCfg{
 			infoTable:      {},
@@ -142,7 +148,8 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 		return nil, err
 	}
 	p := &processor{
-		db: db,
+		db:       db,
+		rollupID: rollupID,
 	}
 
 	l1InfoTree, err := tree.NewAppendOnlyTree(ctx, db, dbPrefix+l1InfoTreeSuffix)
@@ -211,7 +218,7 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	if k == nil {
 		return nil, ErrNotFound
 	}
-	blk := blockWithLeafs{}
+	blk := blockWithEvents{}
 	if err := json.Unmarshal(v, &blk); err != nil {
 		return nil, err
 	}
@@ -291,7 +298,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 			tx.Rollback()
 			return err
 		}
-		var blk blockWithLeafs
+		var blk blockWithEvents
 		if err := json.Unmarshal(blkValue, &blk); err != nil {
 			tx.Rollback()
 			return err
@@ -352,9 +359,9 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		rollupExitTreeRollback()
 		l1InfoTreeRollback()
 	}
-	l1InfoTreeLeavesToAdd := []tree.Leaf{}
-	rollupExitTreeLeavesToAdd := []tree.Leaf{}
 	if len(b.Events) > 0 {
+		l1InfoTreeLeavesToAdd := []tree.Leaf{}
+		rollupExitTreeLeavesToAdd := []tree.Leaf{}
 		var initialL1InfoIndex uint32
 		var l1InfoLeavesAdded uint32
 		lastIndex, err := p.getLastIndex(tx)
@@ -404,7 +411,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 			}
 		}
 		if l1InfoLeavesAdded > 0 {
-			bwl := blockWithLeafs{
+			bwl := blockWithEvents{
 				FirstIndex: initialL1InfoIndex,
 				LastIndex:  initialL1InfoIndex + l1InfoLeavesAdded,
 			}
@@ -464,7 +471,7 @@ func (p *processor) getLastIndex(tx kv.Tx) (uint32, error) {
 	if blkBytes == nil {
 		return 0, ErrNotFound
 	}
-	var blk blockWithLeafs
+	var blk blockWithEvents
 	if err := json.Unmarshal(blkBytes, &blk); err != nil {
 		return 0, err
 	}
