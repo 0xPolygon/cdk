@@ -38,6 +38,7 @@ func TestBlockMap(t *testing.T) {
 	t.Run("add", func(t *testing.T) {
 		t.Parallel()
 
+		bm := bm.copy()
 		tba := header{Num: 4, Hash: common.HexToHash("0xabc")}
 		bm.add(tba)
 		if !reflect.DeepEqual(tba, bm.headers[4]) {

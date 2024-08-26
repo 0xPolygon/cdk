@@ -103,7 +103,9 @@ func Test_ReorgDetector(t *testing.T) {
 	// just wait a little for completion
 	time.Sleep(time.Second / 5)
 
+	reorgDetector.trackedBlocksLock.Lock()
 	headersList, ok := reorgDetector.trackedBlocks[subID]
+	reorgDetector.trackedBlocksLock.Unlock()
 	require.True(t, ok)
 	require.Equal(t, 1, headersList.len()) // Only block 2 left
 	require.Equal(t, remainingHeader.Hash(), headersList.get(2).Hash)
