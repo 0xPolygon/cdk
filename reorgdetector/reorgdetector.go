@@ -121,6 +121,8 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 	)
 
 	rd.trackedBlocksLock.Lock()
+	defer rd.trackedBlocksLock.Unlock()
+
 	for id, hdrs := range rd.trackedBlocks {
 		id := id
 		hdrs := hdrs
@@ -169,7 +171,6 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 			return nil
 		})
 	}
-	rd.trackedBlocksLock.Unlock()
 
 	return errGroup.Wait()
 }
