@@ -47,10 +47,6 @@ func newTestDir(tb testing.TB) string {
 }
 
 func Test_ReorgDetector(t *testing.T) {
-	const produceBlocks = 29
-	const reorgPeriod = 5
-	const trackBlockPeriod = 4
-	const reorgDepth = 2
 	const subID = "test"
 
 	ctx := context.Background()
@@ -66,7 +62,7 @@ func Test_ReorgDetector(t *testing.T) {
 	// Create test DB dir
 	testDir := newTestDir(t)
 
-	reorgDetector, err := New(clientL1.Client(), testDir)
+	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: time.Millisecond * 100})
 	require.NoError(t, err)
 
 	err = reorgDetector.Start(ctx)
@@ -75,76 +71,37 @@ func Test_ReorgDetector(t *testing.T) {
 	reorgSub, err := reorgDetector.Subscribe(subID)
 	require.NoError(t, err)
 
-	canonicalChain := make(map[uint64]common.Hash)
-	trackedBlocks := make(map[uint64]common.Hash)
-	lastReorgOn := uint64(0)
-	for i := 1; lastReorgOn <= produceBlocks; i++ {
-		block := clientL1.Commit()
-		time.Sleep(time.Millisecond * 100)
+	remainingHeader, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit()) // Block 2
+	require.NoError(t, err)
+	err = reorgDetector.AddBlockToTrack(ctx, subID, remainingHeader.Number.Uint64(), remainingHeader.Hash()) // Adding block 2
+	require.NoError(t, err)
+	reorgHeader, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit()) // Block 3
+	require.NoError(t, err)
+	firstHeaderAfterReorg, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit()) // Block 4
+	require.NoError(t, err)
+	err = reorgDetector.AddBlockToTrack(ctx, subID, firstHeaderAfterReorg.Number.Uint64(), firstHeaderAfterReorg.Hash()) // Adding block 4
+	require.NoError(t, err)
+	header, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit()) // Block 5
+	require.NoError(t, err)
+	err = reorgDetector.AddBlockToTrack(ctx, subID, header.Number.Uint64(), header.Hash()) // Adding block 5
+	require.NoError(t, err)
+	err = clientL1.Fork(reorgHeader.Hash()) // Reorg on block 3
+	require.NoError(t, err)
+	clientL1.Commit() // Next block 4 after reorg on block 3
+	clientL1.Commit() // Block 5
+	clientL1.Commit() // Block 6
 
-		header, err := clientL1.Client().HeaderByHash(ctx, block)
-		require.NoError(t, err)
-		headerNumber := header.Number.Uint64()
-
-		canonicalChain[headerNumber] = header.Hash()
-
-		// Add block to track every "trackBlockPeriod" blocks
-		if headerNumber%trackBlockPeriod == 0 {
-			if _, ok := trackedBlocks[headerNumber]; !ok {
-				err = reorgDetector.AddBlockToTrack(ctx, subID, header.Number.Uint64(), header.Hash())
-				require.NoError(t, err)
-				trackedBlocks[headerNumber] = header.Hash()
-				fmt.Println("added block", time.Now(), headerNumber)
-			}
-		}
-
-		// Reorg every "reorgPeriod" blocks with "reorgDepth" blocks depth
-		if headerNumber > lastReorgOn && headerNumber%reorgPeriod == 0 {
-			lastReorgOn = headerNumber
-
-			reorgBlock, err := clientL1.Client().BlockByNumber(ctx, big.NewInt(int64(headerNumber-reorgDepth)))
-			require.NoError(t, err)
-
-			err = clientL1.Fork(reorgBlock.Hash())
-			require.NoError(t, err)
-
-			fmt.Println("reorg happened", time.Now(), headerNumber)
-		}
-	}
-
-	// Commit some blocks to ensure reorgs are detected
-	for i := 0; i < reorgPeriod; i++ {
-		clientL1.Commit()
-	}
-
-	// Expect reorgs on block
-	expectReorgOn := make(map[uint64]bool)
-	for num, hash := range canonicalChain {
-		if _, ok := trackedBlocks[num]; !ok {
-			continue
-		}
-
-		if trackedBlocks[num] != hash {
-			expectReorgOn[num] = false
-		}
-	}
-
-	// Wait for reorg notifications, expect len(expectReorgOn) notifications
-	for range expectReorgOn {
-		firstReorgedBlock := <-reorgSub.ReorgedBlock
+	// Expect reorg on added blocks 4 -> all further blocks should be removed
+	select {
+	case firstReorgedBlock := <-reorgSub.ReorgedBlock:
 		reorgSub.ReorgProcessed <- true
-
-		fmt.Println("firstReorgedBlock", firstReorgedBlock)
-
-		processed, ok := expectReorgOn[firstReorgedBlock]
-		require.True(t, ok)
-		require.False(t, processed)
-
-		expectReorgOn[firstReorgedBlock] = true
+		require.Equal(t, firstHeaderAfterReorg.Number.Uint64(), firstReorgedBlock)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for reorg")
 	}
 
-	// Make sure all processed
-	for _, processed := range expectReorgOn {
-		require.True(t, processed)
-	}
+	headersList, ok := reorgDetector.trackedBlocks[subID]
+	require.True(t, ok)
+	require.Equal(t, 1, headersList.len()) // Only block 2 left
+	require.Equal(t, remainingHeader.Hash(), headersList.get(2).Hash)
 }

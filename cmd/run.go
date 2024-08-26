@@ -62,8 +62,8 @@ func start(cliCtx *cli.Context) error {
 	components := cliCtx.StringSlice(config.FlagComponents)
 	l1Client := runL1ClientIfNeeded(components, c.Etherman.URL)
 	l2Client := runL2ClientIfNeeded(components, c.AggOracle.EVMSender.URLRPCL2)
-	reorgDetectorL1 := runReorgDetectorL1IfNeeded(cliCtx.Context, components, l1Client, c.ReorgDetectorL1.DBPath)
-	reorgDetectorL2 := runReorgDetectorL2IfNeeded(cliCtx.Context, components, l2Client, c.ReorgDetectorL2.DBPath)
+	reorgDetectorL1 := runReorgDetectorL1IfNeeded(cliCtx.Context, components, l1Client, &c.ReorgDetectorL1)
+	reorgDetectorL2 := runReorgDetectorL2IfNeeded(cliCtx.Context, components, l2Client, &c.ReorgDetectorL2)
 	l1InfoTreeSync := runL1InfoTreeSyncerIfNeeded(cliCtx.Context, components, *c, l1Client, reorgDetectorL1)
 	claimSponsor := runClaimSponsorIfNeeded(cliCtx.Context, components, l2Client, c.ClaimSponsor)
 	l1BridgeSync := runBridgeSyncL1IfNeeded(cliCtx.Context, components, c.BridgeL1Sync, reorgDetectorL1, l1Client)
@@ -408,10 +408,10 @@ func newState(c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.St
 }
 
 func newReorgDetector(
-	dbPath string,
+	cfg *reorgdetector.Config,
 	client *ethclient.Client,
 ) *reorgdetector.ReorgDetector {
-	rd, err := reorgdetector.New(client, dbPath)
+	rd, err := reorgdetector.New(client, *cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -484,20 +484,20 @@ func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client
 	return l2CLient
 }
 
-func runReorgDetectorL1IfNeeded(ctx context.Context, components []string, l1Client *ethclient.Client, dbPath string) *reorgdetector.ReorgDetector {
+func runReorgDetectorL1IfNeeded(ctx context.Context, components []string, l1Client *ethclient.Client, cfg *reorgdetector.Config) *reorgdetector.ReorgDetector {
 	if !isNeeded([]string{SEQUENCE_SENDER, AGGREGATOR, AGGORACLE, RPC}, components) {
 		return nil
 	}
-	rd := newReorgDetector(dbPath, l1Client)
+	rd := newReorgDetector(cfg, l1Client)
 	go rd.Start(ctx)
 	return rd
 }
 
-func runReorgDetectorL2IfNeeded(ctx context.Context, components []string, l2Client *ethclient.Client, dbPath string) *reorgdetector.ReorgDetector {
+func runReorgDetectorL2IfNeeded(ctx context.Context, components []string, l2Client *ethclient.Client, cfg *reorgdetector.Config) *reorgdetector.ReorgDetector {
 	if !isNeeded([]string{AGGORACLE, RPC}, components) {
 		return nil
 	}
-	rd := newReorgDetector(dbPath, l2Client)
+	rd := newReorgDetector(cfg, l2Client)
 	go rd.Start(ctx)
 	return rd
 }

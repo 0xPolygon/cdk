@@ -1,16 +1,12 @@
 package reorgdetector
 
-import (
-	"sync"
-)
-
+// Subscription is a subscription to reorg events
 type Subscription struct {
 	ReorgedBlock   chan uint64
 	ReorgProcessed chan bool
-
-	pendingReorgsToBeProcessed sync.WaitGroup
 }
 
+// Subscribe subscribes to reorg events
 func (rd *ReorgDetector) Subscribe(id string) (*Subscription, error) {
 	rd.subscriptionsLock.Lock()
 	defer rd.subscriptionsLock.Unlock()
@@ -52,10 +48,8 @@ func (rd *ReorgDetector) notifySubscriber(id string, startingBlock header) {
 	// Notify subscriber about this particular reorg
 	rd.subscriptionsLock.RLock()
 	if sub, ok := rd.subscriptions[id]; ok {
-		sub.pendingReorgsToBeProcessed.Add(1)
 		sub.ReorgedBlock <- startingBlock.Num
 		<-sub.ReorgProcessed
-		sub.pendingReorgsToBeProcessed.Done()
 	}
 	rd.subscriptionsLock.RUnlock()
 

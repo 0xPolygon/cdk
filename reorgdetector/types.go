@@ -102,40 +102,6 @@ func (hl *headersList) getSorted() []header {
 	return sortedBlocks
 }
 
-// getFromBlockSorted returns blocks from blockNum in sorted order without including the blockNum
-func (hl *headersList) getFromBlockSorted(blockNum uint64) []header {
-	sortedHeaders := hl.getSorted()
-
-	index := -1
-	for i, b := range sortedHeaders {
-		if b.Num > blockNum {
-			index = i
-			break
-		}
-	}
-
-	if index == -1 {
-		return nil
-	}
-
-	return sortedHeaders[index:]
-}
-
-// getClosestHigherBlock returns the closest higher block to the given blockNum
-func (hl *headersList) getClosestHigherBlock(blockNum uint64) (*header, bool) {
-	hdr := hl.get(blockNum)
-	if hdr != nil {
-		return hdr, true
-	}
-
-	sorted := hl.getFromBlockSorted(blockNum)
-	if len(sorted) == 0 {
-		return nil, false
-	}
-
-	return &sorted[0], true
-}
-
 // removeRange removes headers from "from" to "to"
 func (hl *headersList) removeRange(from, to uint64) {
 	hl.Lock()

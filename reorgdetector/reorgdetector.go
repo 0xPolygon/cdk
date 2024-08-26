@@ -24,8 +24,9 @@ type EthClient interface {
 }
 
 type ReorgDetector struct {
-	client EthClient
-	db     kv.RwDB
+	client             EthClient
+	db                 kv.RwDB
+	checkReorgInterval time.Duration
 
 	trackedBlocksLock sync.RWMutex
 	trackedBlocks     map[string]*headersList
@@ -37,9 +38,9 @@ type ReorgDetector struct {
 	notifiedReorgs     map[string]map[uint64]struct{}
 }
 
-func New(client EthClient, dbPath string) (*ReorgDetector, error) {
+func New(client EthClient, cfg Config) (*ReorgDetector, error) {
 	db, err := mdbx.NewMDBX(nil).
-		Path(dbPath).
+		Path(cfg.DBPath).
 		WithTableCfg(tableCfgFunc).
 		Open()
 	if err != nil {
@@ -47,14 +48,16 @@ func New(client EthClient, dbPath string) (*ReorgDetector, error) {
 	}
 
 	return &ReorgDetector{
-		client:         client,
-		db:             db,
-		trackedBlocks:  make(map[string]*headersList),
-		subscriptions:  make(map[string]*Subscription),
-		notifiedReorgs: make(map[string]map[uint64]struct{}),
+		client:             client,
+		db:                 db,
+		checkReorgInterval: cfg.GetCheckReorgsInterval(),
+		trackedBlocks:      make(map[string]*headersList),
+		subscriptions:      make(map[string]*Subscription),
+		notifiedReorgs:     make(map[string]map[uint64]struct{}),
 	}, nil
 }
 
+// Start starts the reorg detector
 func (rd *ReorgDetector) Start(ctx context.Context) (err error) {
 	// Load tracked blocks from the DB
 	if err = rd.loadTrackedHeaders(ctx); err != nil {
@@ -63,10 +66,16 @@ func (rd *ReorgDetector) Start(ctx context.Context) (err error) {
 
 	// Continuously check reorgs in tracked by subscribers blocks
 	go func() {
-		ticker := time.NewTicker(time.Second) // TODO: Configure it
-		for range ticker.C {
-			if err = rd.detectReorgInTrackedList(ctx); err != nil {
-				log.Errorf("failed to detect reorg in tracked list: %v", err)
+		ticker := time.NewTicker(rd.checkReorgInterval)
+		for {
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				if err = rd.detectReorgInTrackedList(ctx); err != nil {
+					log.Errorf("failed to detect reorg in tracked list: %v", err)
+				}
 			}
 		}
 	}()
@@ -103,9 +112,15 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 		return fmt.Errorf("failed to get the latest finalized block: %w", err)
 	}
 
-	var errGroup errgroup.Group
+	var (
+		headersCacheLock sync.Mutex
+		headersCache     = map[uint64]*types.Header{
+			lastFinalisedBlock.Number.Uint64(): lastFinalisedBlock,
+		}
+		errGroup errgroup.Group
+	)
 
-	rd.trackedBlocksLock.RLock()
+	rd.trackedBlocksLock.Lock()
 	for id, hdrs := range rd.trackedBlocks {
 		id := id
 		hdrs := hdrs
@@ -113,12 +128,18 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 		errGroup.Go(func() error {
 			headers := hdrs.getSorted()
 			for _, hdr := range headers {
-				// Get the actual header from the network
-				// TODO: Cache it while iterating.
-				currentHeader, err := rd.client.HeaderByNumber(ctx, big.NewInt(int64(hdr.Num)))
-				if err != nil {
-					return fmt.Errorf("failed to get the header: %w", err)
+				// Get the actual header from the network or from the cache
+				headersCacheLock.Lock()
+				if headersCache[hdr.Num] == nil {
+					h, err := rd.client.HeaderByNumber(ctx, big.NewInt(int64(hdr.Num)))
+					if err != nil {
+						headersCacheLock.Unlock()
+						return fmt.Errorf("failed to get the header: %w", err)
+					}
+					headersCache[hdr.Num] = h
 				}
+				currentHeader := headersCache[hdr.Num]
+				headersCacheLock.Unlock()
 
 				// Check if the block hash matches with the actual block hash
 				if hdr.Hash == currentHeader.Hash() {
@@ -148,7 +169,7 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 			return nil
 		})
 	}
-	rd.trackedBlocksLock.RUnlock()
+	rd.trackedBlocksLock.Unlock()
 
 	return errGroup.Wait()
 }

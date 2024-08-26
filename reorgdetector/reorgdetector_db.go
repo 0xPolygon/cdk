@@ -78,32 +78,6 @@ func (rd *ReorgDetector) saveTrackedBlock(ctx context.Context, id string, b head
 	return tx.Put(subscriberBlocks, []byte(id), raw)
 }
 
-// removeTrackedBlocks removes the tracked blocks for a subscriber in db and in memory
-func (rd *ReorgDetector) removeTrackedBlocks(ctx context.Context, lastFinalizedBlock uint64) error {
-	rd.subscriptionsLock.RLock()
-	defer rd.subscriptionsLock.RUnlock()
-
-	for id := range rd.subscriptions {
-		rd.trackedBlocksLock.RLock()
-		newTrackedBlocks := rd.trackedBlocks[id].getFromBlockSorted(lastFinalizedBlock)
-		rd.trackedBlocksLock.RUnlock()
-
-		if err := rd.updateTrackedBlocks(ctx, id, newHeadersList(newTrackedBlocks...)); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// updateTrackedBlocks updates the tracked blocks for a subscriber in db and in memory
-func (rd *ReorgDetector) updateTrackedBlocks(ctx context.Context, id string, blocks *headersList) error {
-	rd.trackedBlocksLock.Lock()
-	defer rd.trackedBlocksLock.Unlock()
-
-	return rd.updateTrackedBlocksNoLock(ctx, id, blocks)
-}
-
 // updateTrackedBlocksNoLock updates the tracked blocks for a subscriber in db and in memory
 func (rd *ReorgDetector) updateTrackedBlocksNoLock(ctx context.Context, id string, blocks *headersList) error {
 	tx, err := rd.db.BeginRw(ctx)
