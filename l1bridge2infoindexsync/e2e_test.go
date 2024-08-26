@@ -132,7 +132,7 @@ func TestE2E(t *testing.T) {
 	require.NotEqual(t, authDeployer.From, auth.From)
 	client, gerAddr, bridgeAddr, gerSc, bridgeSc, err := newSimulatedClient(authDeployer, auth)
 	require.NoError(t, err)
-	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: time.Millisecond * 100})
+	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: time.Second})
 	require.NoError(t, err)
 	err = rd.Start(ctx)
 	require.NoError(t, err)
