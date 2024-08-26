@@ -83,7 +83,7 @@ func start(cliCtx *cli.Context) error {
 			aggregator := createAggregator(cliCtx.Context, *c, !cliCtx.Bool(config.FlagMigrations))
 			// start aggregator in a goroutine, checking for errors
 			go func() {
-				if err := aggregator.Start(cliCtx.Context); err != nil {
+				if err := aggregator.Start(); err != nil {
 					log.Fatal(err)
 				}
 			}()
