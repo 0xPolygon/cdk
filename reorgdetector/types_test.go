@@ -57,7 +57,7 @@ func TestBlockMap(t *testing.T) {
 	t.Run("get", func(t *testing.T) {
 		t.Parallel()
 
-		if !reflect.DeepEqual(bm.get(3), bm.headers[3]) {
+		if !reflect.DeepEqual(*bm.get(3), bm.headers[3]) {
 			t.Errorf("get() returned incorrect result, expected: %v, got: %v", bm.get(3), bm.headers[3])
 		}
 	})
