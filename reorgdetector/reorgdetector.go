@@ -85,6 +85,8 @@ func (rd *ReorgDetector) Start(ctx context.Context) (err error) {
 
 // AddBlockToTrack adds a block to the tracked list for a subscriber
 func (rd *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, num uint64, hash common.Hash) error {
+	fmt.Println("trackedBlocks", id, rd.trackedBlocks[id])
+	fmt.Println("subscriptions", id, rd.subscriptions[id])
 	// Skip if the given block has already been stored
 	rd.trackedBlocksLock.RLock()
 	existingHeader := rd.trackedBlocks[id].get(num)
@@ -187,7 +189,11 @@ func (rd *ReorgDetector) loadTrackedHeaders(ctx context.Context) (err error) {
 
 	// Go over tracked blocks and create subscription for each tracker
 	for id := range rd.trackedBlocks {
-		_, _ = rd.Subscribe(id)
+		rd.subscriptions[id] = &Subscription{
+			ReorgedBlock:   make(chan uint64),
+			ReorgProcessed: make(chan bool),
+		}
+		rd.notifiedReorgs[id] = make(map[uint64]struct{})
 	}
 
 	return nil
