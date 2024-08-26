@@ -78,8 +78,8 @@ func (rd *ReorgDetector) saveTrackedBlock(ctx context.Context, id string, b head
 	return tx.Put(subscriberBlocks, []byte(id), raw)
 }
 
-// updateTrackedBlocksNoLock updates the tracked blocks for a subscriber in db and in memory
-func (rd *ReorgDetector) updateTrackedBlocksNoLock(ctx context.Context, id string, blocks *headersList) error {
+// updateTrackedBlocksDB updates the tracked blocks for a subscriber in db
+func (rd *ReorgDetector) updateTrackedBlocksDB(ctx context.Context, id string, blocks *headersList) error {
 	tx, err := rd.db.BeginRw(ctx)
 	if err != nil {
 		return err
@@ -95,8 +95,6 @@ func (rd *ReorgDetector) updateTrackedBlocksNoLock(ctx context.Context, id strin
 	if err = tx.Put(subscriberBlocks, []byte(id), raw); err != nil {
 		return err
 	}
-
-	rd.trackedBlocks[id] = blocks
 
 	return nil
 }

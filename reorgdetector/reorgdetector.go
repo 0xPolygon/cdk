@@ -164,7 +164,7 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 			}
 
 			// Update the tracked blocks in the DB
-			if err := rd.updateTrackedBlocksNoLock(ctx, id, hdrs); err != nil {
+			if err := rd.updateTrackedBlocksDB(ctx, id, hdrs); err != nil {
 				return fmt.Errorf("failed to update tracked blocks for subscriber %s: %w", id, err)
 			}
 
