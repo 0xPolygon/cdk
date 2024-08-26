@@ -100,6 +100,9 @@ func Test_ReorgDetector(t *testing.T) {
 		t.Fatal("timeout waiting for reorg")
 	}
 
+	// just wait a little for completion
+	time.Sleep(time.Second / 5)
+
 	headersList, ok := reorgDetector.trackedBlocks[subID]
 	require.True(t, ok)
 	require.Equal(t, 1, headersList.len()) // Only block 2 left
