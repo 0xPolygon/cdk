@@ -2,12 +2,11 @@ package reorgdetector
 
 import (
 	"context"
-	"fmt"
-	"math/big"
-	"os"
+	big "math/big"
 	"testing"
 	"time"
 
+	cdktypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -32,20 +31,6 @@ func newSimulatedL1(t *testing.T, auth *bind.TransactOpts) *simulated.Backend {
 	return client
 }
 
-func newTestDir(tb testing.TB) string {
-	tb.Helper()
-
-	dir := fmt.Sprintf("/tmp/reorgdetector-temp_%v", time.Now().UTC().Format(time.RFC3339Nano))
-	err := os.Mkdir(dir, 0775)
-	require.NoError(tb, err)
-
-	tb.Cleanup(func() {
-		require.NoError(tb, os.RemoveAll(dir))
-	})
-
-	return dir
-}
-
 func Test_ReorgDetector(t *testing.T) {
 	const subID = "test"
 
@@ -60,9 +45,9 @@ func Test_ReorgDetector(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create test DB dir
-	testDir := newTestDir(t)
+	testDir := t.TempDir()
 
-	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: time.Millisecond * 100})
+	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
 	require.NoError(t, err)
 
 	err = reorgDetector.Start(ctx)

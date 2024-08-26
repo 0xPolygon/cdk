@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana-paris/polygonzkevmglobalexitrootv2"
+	cdktypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/reorgdetector"
@@ -181,7 +182,7 @@ func TestStressAndReorgs(t *testing.T) {
 	require.NoError(t, err)
 	client, gerAddr, verifyAddr, gerSc, verifySC, err := newSimulatedClient(auth)
 	require.NoError(t, err)
-	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: time.Millisecond * 100})
+	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
 	err = rd.Start(ctx)
 	require.NoError(t, err)
 	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3)

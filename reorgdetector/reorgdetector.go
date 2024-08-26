@@ -87,10 +87,14 @@ func (rd *ReorgDetector) Start(ctx context.Context) (err error) {
 func (rd *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, num uint64, hash common.Hash) error {
 	// Skip if the given block has already been stored
 	rd.trackedBlocksLock.RLock()
-	existingHeader := rd.trackedBlocks[id].get(num)
+	trackedBlocks, ok := rd.trackedBlocks[id]
+	if !ok {
+		rd.trackedBlocksLock.RUnlock()
+		return fmt.Errorf("subscriber %s is not subscribed", id)
+	}
 	rd.trackedBlocksLock.RUnlock()
 
-	if existingHeader != nil && existingHeader.Hash == hash {
+	if existingHeader := trackedBlocks.get(num); existingHeader != nil && existingHeader.Hash == hash {
 		return nil
 	}
 
