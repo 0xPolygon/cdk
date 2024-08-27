@@ -29,6 +29,10 @@ func (_m *DataManager) EXPECT() *DataManager_Expecter {
 func (_m *DataManager) GetBatchL2Data(batchNum []uint64, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
 	ret := _m.Called(batchNum, batchHashes, dataAvailabilityMessage)
 
+	if len(ret) == 0 {
+		panic("no return value specified for GetBatchL2Data")
+	}
+
 	var r0 [][]byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func([]uint64, []common.Hash, []byte) ([][]byte, error)); ok {
@@ -85,6 +89,10 @@ func (_c *DataManager_GetBatchL2Data_Call) RunAndReturn(run func([]uint64, []com
 func (_m *DataManager) PostSequenceBanana(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
 	ret := _m.Called(ctx, sequence)
 
+	if len(ret) == 0 {
+		panic("no return value specified for PostSequenceBanana")
+	}
+
 	var r0 []byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, etherman.SequenceBanana) ([]byte, error)); ok {
@@ -140,6 +148,10 @@ func (_c *DataManager_PostSequenceBanana_Call) RunAndReturn(run func(context.Con
 func (_m *DataManager) PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error) {
 	ret := _m.Called(ctx, batchesData)
 
+	if len(ret) == 0 {
+		panic("no return value specified for PostSequenceElderberry")
+	}
+
 	var r0 []byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, [][]byte) ([]byte, error)); ok {
@@ -191,13 +203,12 @@ func (_c *DataManager_PostSequenceElderberry_Call) RunAndReturn(run func(context
 	return _c
 }
 
-type mockConstructorTestingTNewDataManager interface {
+// NewDataManager creates a new instance of DataManager. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewDataManager(t interface {
 	mock.TestingT
 	Cleanup(func())
-}
-
-// NewDataManager creates a new instance of DataManager. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-func NewDataManager(t mockConstructorTestingTNewDataManager) *DataManager {
+}) *DataManager {
 	mock := &DataManager{}
 	mock.Mock.Test(t)
 
