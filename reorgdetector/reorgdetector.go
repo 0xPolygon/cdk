@@ -132,15 +132,14 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 			for _, hdr := range headers {
 				// Get the actual header from the network or from the cache
 				headersCacheLock.Lock()
-				if headersCache[hdr.Num] == nil {
-					h, err := rd.client.HeaderByNumber(ctx, big.NewInt(int64(hdr.Num)))
-					if err != nil {
+				currentHeader, ok := headersCache[hdr.Num]
+				if !ok || currentHeader == nil {
+					if currentHeader, err = rd.client.HeaderByNumber(ctx, big.NewInt(int64(hdr.Num))); err != nil {
 						headersCacheLock.Unlock()
 						return fmt.Errorf("failed to get the header: %w", err)
 					}
-					headersCache[hdr.Num] = h
+					headersCache[hdr.Num] = currentHeader
 				}
-				currentHeader := headersCache[hdr.Num]
 				headersCacheLock.Unlock()
 
 				// Check if the block hash matches with the actual block hash
