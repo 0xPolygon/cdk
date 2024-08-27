@@ -25,6 +25,10 @@ func (_m *SequenceSenderElderberry) EXPECT() *SequenceSenderElderberry_Expecter 
 func (_m *SequenceSenderElderberry) PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error) {
 	ret := _m.Called(ctx, batchesData)
 
+	if len(ret) == 0 {
+		panic("no return value specified for PostSequenceElderberry")
+	}
+
 	var r0 []byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, [][]byte) ([]byte, error)); ok {
@@ -76,13 +80,12 @@ func (_c *SequenceSenderElderberry_PostSequenceElderberry_Call) RunAndReturn(run
 	return _c
 }
 
-type mockConstructorTestingTNewSequenceSenderElderberry interface {
+// NewSequenceSenderElderberry creates a new instance of SequenceSenderElderberry. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewSequenceSenderElderberry(t interface {
 	mock.TestingT
 	Cleanup(func())
-}
-
-// NewSequenceSenderElderberry creates a new instance of SequenceSenderElderberry. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-func NewSequenceSenderElderberry(t mockConstructorTestingTNewSequenceSenderElderberry) *SequenceSenderElderberry {
+}) *SequenceSenderElderberry {
 	mock := &SequenceSenderElderberry{}
 	mock.Mock.Test(t)
 

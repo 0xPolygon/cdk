@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry-paris/polygonzkevmbridgev2"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry-paris/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk/bridgesync"
+	cdktypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1bridge2infoindexsync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
@@ -132,8 +133,9 @@ func TestE2E(t *testing.T) {
 	require.NotEqual(t, authDeployer.From, auth.From)
 	client, gerAddr, bridgeAddr, gerSc, bridgeSc, err := newSimulatedClient(authDeployer, auth)
 	require.NoError(t, err)
-	rd, err := reorgdetector.New(ctx, client.Client(), dbPathReorg)
-	go rd.Start(ctx)
+	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Second)})
+	require.NoError(t, err)
+	require.NoError(t, rd.Start(ctx))
 
 	bridgeSync, err := bridgesync.NewL1(ctx, dbPathBridgeSync, bridgeAddr, 10, etherman.LatestBlock, rd, client.Client(), 0, time.Millisecond*10, 0, 0)
 	require.NoError(t, err)
@@ -204,7 +206,7 @@ func TestE2E(t *testing.T) {
 				syncerUpToDate = true
 				break
 			}
-			time.Sleep(time.Millisecond * 10)
+			time.Sleep(time.Millisecond * 100)
 			errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb.NumberU64(), lpb)
 		}
 		require.True(t, syncerUpToDate, errMsg)

@@ -93,7 +93,7 @@ reset:
 		case b := <-downloadCh:
 			d.log.Debug("handleNewBlock")
 			d.handleNewBlock(ctx, b)
-		case firstReorgedBlock := <-d.reorgSub.FirstReorgedBlock:
+		case firstReorgedBlock := <-d.reorgSub.ReorgedBlock:
 			d.log.Debug("handleReorg")
 			d.handleReorg(ctx, cancel, downloadCh, firstReorgedBlock)
 			goto reset
