@@ -270,7 +270,6 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 	}
 
 	// Get new last verified batch number from L1
-	// Get last verified batch number to set the starting point for verifications
 	var lastVerifiedBatchNumber uint64
 	if err == nil {
 		lastVerifiedBatchNumber, err = a.etherman.GetLatestVerifiedBatchNum()
@@ -281,10 +280,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 
 	// Check lastVerifiedBatchNumber makes sense
 	if err == nil && lastVerifiedBatchNumber > rollbackData.LastBatchNumber {
-		for {
-			err = fmt.Errorf("last verified batch number %d is greater than the last batch number %d in the rollback data", lastVerifiedBatchNumber, rollbackData.LastBatchNumber)
-			log.Error(err)
-		}
+		err = fmt.Errorf("last verified batch number %d is greater than the last batch number %d in the rollback data", lastVerifiedBatchNumber, rollbackData.LastBatchNumber)
 	}
 
 	// Delete invalidated batches
