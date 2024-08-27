@@ -27,24 +27,11 @@ func (rd *ReorgDetector) Subscribe(id string) (*Subscription, error) {
 	rd.trackedBlocks[id] = newHeadersList()
 	rd.trackedBlocksLock.Unlock()
 
-	// Create a new notified reorgs list for the subscriber
-	rd.notifiedReorgsLock.Lock()
-	rd.notifiedReorgs[id] = make(map[uint64]struct{})
-	rd.notifiedReorgsLock.Unlock()
-
 	return sub, nil
 }
 
 // notifySubscriber notifies the subscriber with the block of the reorg
 func (rd *ReorgDetector) notifySubscriber(id string, startingBlock header) {
-	// Check if the given reorg was already notified to the given subscriber
-	rd.notifiedReorgsLock.RLock()
-	if _, ok := rd.notifiedReorgs[id][startingBlock.Num]; ok {
-		rd.notifiedReorgsLock.RUnlock()
-		return
-	}
-	rd.notifiedReorgsLock.RUnlock()
-
 	// Notify subscriber about this particular reorg
 	rd.subscriptionsLock.RLock()
 	if sub, ok := rd.subscriptions[id]; ok {
@@ -52,9 +39,4 @@ func (rd *ReorgDetector) notifySubscriber(id string, startingBlock header) {
 		<-sub.ReorgProcessed
 	}
 	rd.subscriptionsLock.RUnlock()
-
-	// Mark the reorg as notified
-	rd.notifiedReorgsLock.Lock()
-	rd.notifiedReorgs[id][startingBlock.Num] = struct{}{}
-	rd.notifiedReorgsLock.Unlock()
 }

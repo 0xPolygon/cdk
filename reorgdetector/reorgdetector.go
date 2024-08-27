@@ -33,9 +33,6 @@ type ReorgDetector struct {
 
 	subscriptionsLock sync.RWMutex
 	subscriptions     map[string]*Subscription
-
-	notifiedReorgsLock sync.RWMutex
-	notifiedReorgs     map[string]map[uint64]struct{}
 }
 
 func New(client EthClient, cfg Config) (*ReorgDetector, error) {
@@ -53,7 +50,6 @@ func New(client EthClient, cfg Config) (*ReorgDetector, error) {
 		checkReorgInterval: cfg.GetCheckReorgsInterval(),
 		trackedBlocks:      make(map[string]*headersList),
 		subscriptions:      make(map[string]*Subscription),
-		notifiedReorgs:     make(map[string]map[uint64]struct{}),
 	}, nil
 }
 
@@ -195,7 +191,6 @@ func (rd *ReorgDetector) loadTrackedHeaders(ctx context.Context) (err error) {
 			ReorgedBlock:   make(chan uint64),
 			ReorgProcessed: make(chan bool),
 		}
-		rd.notifiedReorgs[id] = make(map[uint64]struct{})
 	}
 
 	return nil

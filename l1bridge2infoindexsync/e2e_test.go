@@ -135,8 +135,7 @@ func TestE2E(t *testing.T) {
 	require.NoError(t, err)
 	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Second)})
 	require.NoError(t, err)
-	err = rd.Start(ctx)
-	require.NoError(t, err)
+	require.NoError(t, rd.Start(ctx))
 
 	bridgeSync, err := bridgesync.NewL1(ctx, dbPathBridgeSync, bridgeAddr, 10, etherman.LatestBlock, rd, client.Client(), 0, time.Millisecond*10, 0, 0)
 	require.NoError(t, err)
