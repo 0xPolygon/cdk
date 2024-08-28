@@ -60,7 +60,7 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	components := cliCtx.StringSlice(config.FlagComponents)
-	l1Client := runL1ClientIfNeeded(components, c.Etherman.URL)
+	l1Client := runL1ClientIfNeeded(components, c.SequenceSender.EthTxManager.Etherman.URL)
 	l2Client := runL2ClientIfNeeded(components, c.AggOracle.EVMSender.URLRPCL2)
 	reorgDetectorL1 := runReorgDetectorL1IfNeeded(cliCtx.Context, components, l1Client, c.ReorgDetectorL1.DBPath)
 	reorgDetectorL2 := runReorgDetectorL2IfNeeded(cliCtx.Context, components, l2Client, c.ReorgDetectorL2.DBPath)
@@ -492,6 +492,8 @@ func runReorgDetectorL1IfNeeded(ctx context.Context, components []string, l1Clie
 	rd := newReorgDetector(ctx, dbPath, l1Client)
 	go rd.Start(ctx)
 	return rd
+
+	return nil
 }
 
 func runReorgDetectorL2IfNeeded(ctx context.Context, components []string, l2Client *ethclient.Client, dbPath string) *reorgdetector.ReorgDetector {
