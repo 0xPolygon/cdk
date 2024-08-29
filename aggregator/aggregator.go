@@ -261,10 +261,13 @@ func (a *Aggregator) handleReorg(reorgData synchronizer.ReorgExecutionResult) {
 func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBatchesData) {
 	log.Warnf("Rollback batches event, rollbackBatchesData: %+v", rollbackData)
 
+	dsClientWasRunning := true
+
 	// Stop Reading the data stream
 	err := a.streamClient.ExecCommandStop()
 	if err != nil {
-		log.Errorf("failed to stop data stream: %v", err)
+		log.Errorf("failed to stop data stream: %v. Assuming it was not started.", err)
+		dsClientWasRunning = false
 	} else {
 		log.Info("Data stream client stopped")
 	}
@@ -344,17 +347,19 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		if err != nil {
 			log.Error("failed to marshal bookmark: %v", err)
 		} else {
-			// Restart the stream client
-			err = a.streamClient.Start()
-			if err != nil {
-				log.Errorf("failed to start stream client, error: %v", err)
-			} else {
-				// Resume data stream reading
-				err = a.streamClient.ExecCommandStartBookmark(marshalledBookMark)
+			// Restart the stream client if needed
+			if dsClientWasRunning {
+				err = a.streamClient.Start()
 				if err != nil {
-					log.Errorf("failed to connect to data stream: %v", err)
+					log.Errorf("failed to start stream client, error: %v", err)
+				} else {
+					// Resume data stream reading
+					err = a.streamClient.ExecCommandStartBookmark(marshalledBookMark)
+					if err != nil {
+						log.Errorf("failed to connect to data stream: %v", err)
+					}
+					log.Info("Data stream client resumed")
 				}
-				log.Info("Data stream client resumed")
 			}
 		}
 	}
