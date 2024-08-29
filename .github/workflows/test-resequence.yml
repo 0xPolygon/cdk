@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  kurtosis-cdk:
+  Resequence:
     runs-on: ubuntu-latest
     # TODO: Add "cdk-validium" once it's ready
     # strategy:
@@ -79,6 +79,7 @@ jobs:
         run: .github/scripts/test_resequence.sh
 
       - name: Prepare logs
+        if: always()
         working-directory: ./kurtosis-cdk
         run: |
           mkdir -p ci_logs
@@ -91,6 +92,7 @@ jobs:
           kurtosis service logs cdk-v1 zkevm-bridge-service-001 --all > zkevm-bridge-service-001.log
 
       - name: Upload logs
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: logs_${{ github.run_id }}
