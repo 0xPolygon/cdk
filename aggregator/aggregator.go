@@ -269,9 +269,6 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		log.Info("Data stream client stopped")
 	}
 
-	// Remove the callback function to handle the data stream
-	a.streamClient.SetProcessEntryFunc(a.nilHandleReceivedDataStream)
-
 	// Get new last verified batch number from L1
 	var lastVerifiedBatchNumber uint64
 	if err == nil {
@@ -352,8 +349,6 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 			if err != nil {
 				log.Errorf("failed to start stream client, error: %v", err)
 			} else {
-				// Restore the callback function to handle the data stream
-				a.streamClient.SetProcessEntryFunc(a.handleReceivedDataStream)
 				// Resume data stream reading
 				err = a.streamClient.ExecCommandStartBookmark(marshalledBookMark)
 				if err != nil {
@@ -372,10 +367,6 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 			time.Sleep(a.cfg.RetryTime.Duration)
 		}
 	}
-}
-
-func (a *Aggregator) nilHandleReceivedDataStream(entry *datastreamer.FileEntry, client *datastreamer.StreamClient, server *datastreamer.StreamServer) error {
-	return nil
 }
 
 func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, client *datastreamer.StreamClient, server *datastreamer.StreamServer) error {
