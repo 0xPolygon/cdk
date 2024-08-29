@@ -24,3 +24,5 @@ services:
       - "1"
       - "--datadir"
       - "/geth_data"
+      - "--http.api"
+      - "admin,eth,debug,miner,net,txpool,personal,web3"
