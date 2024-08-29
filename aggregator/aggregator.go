@@ -334,7 +334,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		log.Info("Current batch data reset")
 
 		var marshalledBookMark []byte
-		// Reset the datastram reading point
+		// Reset the data stream reading point
 		bookMark := &datastream.BookMark{
 			Type:  datastream.BookmarkType_BOOKMARK_TYPE_BATCH,
 			Value: rollbackData.LastBatchNumber + 1,
