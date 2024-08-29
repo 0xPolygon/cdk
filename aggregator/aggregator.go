@@ -269,6 +269,9 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		log.Info("Data stream client stopped")
 	}
 
+	// Remove the callback function to handle the data stream
+	a.streamClient.SetProcessEntryFunc(nil)
+
 	// Get new last verified batch number from L1
 	var lastVerifiedBatchNumber uint64
 	if err == nil {
@@ -344,6 +347,8 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		if err != nil {
 			log.Error("failed to marshal bookmark: %v", err)
 		} else {
+			// Restore the callback function to handle the data stream
+			a.streamClient.SetProcessEntryFunc(a.handleReceivedDataStream)
 			// Restart the stream client
 			err = a.streamClient.Start()
 			if err != nil {
