@@ -16,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
@@ -101,14 +100,6 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 	}
 
 	return appender, nil
-}
-
-type fixedClient struct {
-	*ethclient.Client
-}
-
-func (c *fixedClient) BlockByNumber(context.Context, rpc.BlockNumber) (*types.Block, error) {
-	return nil, nil
 }
 
 func setClaimCalldata(ctx context.Context, client *ethclient.Client, txHash common.Hash, claim *Claim) error {
