@@ -270,7 +270,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 	}
 
 	// Remove the callback function to handle the data stream
-	a.streamClient.SetProcessEntryFunc(nil)
+	a.streamClient.SetProcessEntryFunc(a.nilHandleReceivedDataStream)
 
 	// Get new last verified batch number from L1
 	var lastVerifiedBatchNumber uint64
@@ -372,6 +372,10 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 			time.Sleep(a.cfg.RetryTime.Duration)
 		}
 	}
+}
+
+func (a *Aggregator) nilHandleReceivedDataStream(entry *datastreamer.FileEntry, client *datastreamer.StreamClient, server *datastreamer.StreamServer) error {
+	return nil
 }
 
 func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, client *datastreamer.StreamClient, server *datastreamer.StreamServer) error {
