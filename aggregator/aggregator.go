@@ -324,8 +324,17 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 	}
 
 	if err == nil {
+		// Reset current batch data previously read from the data stream
+		a.currentBatchStreamData = []byte{}
+		a.currentStreamBatch = state.Batch{}
+		a.currentStreamBatchRaw = state.BatchRawV2{
+			Blocks: make([]state.L2BlockRaw, 0),
+		}
+		a.currentStreamL2Block = state.L2BlockRaw{}
+		log.Info("Current batch data reset")
+
 		var marshalledBookMark []byte
-		// Resume reading the data stream
+		// Reset the datastram reading point
 		bookMark := &datastream.BookMark{
 			Type:  datastream.BookmarkType_BOOKMARK_TYPE_BATCH,
 			Value: rollbackData.LastBatchNumber + 1,
