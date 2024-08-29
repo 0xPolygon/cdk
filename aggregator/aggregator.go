@@ -335,6 +335,13 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		if err != nil {
 			log.Error("failed to marshal bookmark: %v", err)
 		} else {
+			// Restart the stream client
+			err = a.streamClient.Start()
+			if err != nil {
+				log.Fatalf("failed to start stream client, error: %v", err)
+			}
+
+			// Resume data stream reading
 			err = a.streamClient.ExecCommandStartBookmark(marshalledBookMark)
 			if err != nil {
 				log.Errorf("failed to connect to data stream: %v", err)
