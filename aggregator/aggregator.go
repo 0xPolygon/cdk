@@ -268,6 +268,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 	if err != nil {
 		log.Errorf("failed to stop data stream: %v. Assuming it was not started.", err)
 		dsClientWasRunning = false
+		err = nil
 	} else {
 		log.Info("Data stream client stopped")
 	}
