@@ -338,15 +338,15 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 			// Restart the stream client
 			err = a.streamClient.Start()
 			if err != nil {
-				log.Fatalf("failed to start stream client, error: %v", err)
+				log.Errorf("failed to start stream client, error: %v", err)
+			} else {
+				// Resume data stream reading
+				err = a.streamClient.ExecCommandStartBookmark(marshalledBookMark)
+				if err != nil {
+					log.Errorf("failed to connect to data stream: %v", err)
+				}
+				log.Info("Data stream client resumed")
 			}
-
-			// Resume data stream reading
-			err = a.streamClient.ExecCommandStartBookmark(marshalledBookMark)
-			if err != nil {
-				log.Errorf("failed to connect to data stream: %v", err)
-			}
-			log.Info("Data stream client resumed")
 		}
 	}
 
