@@ -1,17 +1,22 @@
 package bridgesync
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
@@ -97,3 +102,24 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 
 	return appender, nil
 }
+
+type fixedClient struct {
+	*ethclient.Client
+}
+
+func (c *fixedClient) BlockByNumber(context.Context, rpc.BlockNumber) (*types.Block, error) {
+	return nil, nil
+}
+
+func setClaimCalldata(ctx context.Context, client *ethclient.Client, txHash common.Hash, claim *Claim) error {
+	tracer := tracers.NewAPI(client)
+	tracerType := "callTracer"
+	trace, err := tracer.TraceTransaction(ctx, txHash, &tracers.TraceConfig{Tracer: &tracerType})
+	if err != nil {
+		return err
+	}
+	log.Debug(trace)
+	return nil
+}
+
+func decodeClaimCall(data []byte) {}

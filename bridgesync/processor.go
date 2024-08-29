@@ -69,11 +69,15 @@ func (b *Bridge) Hash() common.Hash {
 
 // Claim representation of a claim event
 type Claim struct {
-	GlobalIndex        *big.Int
-	OriginNetwork      uint32
-	OriginAddress      common.Address
-	DestinationAddress common.Address
-	Amount             *big.Int
+	GlobalIndex         *big.Int
+	OriginNetwork       uint32
+	OriginAddress       common.Address
+	DestinationAddress  common.Address
+	Amount              *big.Int
+	ProofLocalExitRoot  [tree.DefaultHeight]common.Hash
+	ProofRollupExitRoot [tree.DefaultHeight]common.Hash
+	MainnetExitRoot     common.Hash
+	RollupExitRoot      common.Hash
 }
 
 // Event combination of bridge and claim events

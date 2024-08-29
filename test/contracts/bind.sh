@@ -9,3 +9,4 @@ gen() {
 }
 
 gen verifybatchesmock
+gen claimmock
