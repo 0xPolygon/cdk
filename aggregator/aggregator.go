@@ -69,7 +69,7 @@ type Aggregator struct {
 	l1Syncr      synchronizer.Synchronizer
 	halted       atomic.Bool
 
-	streamClientMutex *sync.Mutex
+	streamClientMutex sync.Mutex
 
 	profitabilityChecker    aggregatorTxProfitabilityChecker
 	timeSendFinalProof      time.Time
@@ -180,7 +180,7 @@ func New(
 		etherman:                etherman,
 		ethTxManager:            ethTxManager,
 		streamClient:            streamClient,
-		streamClientMutex:       &sync.Mutex{},
+		streamClientMutex:       sync.Mutex{},
 		l1Syncr:                 l1Syncr,
 		profitabilityChecker:    profitabilityChecker,
 		stateDBMutex:            &sync.Mutex{},
@@ -278,7 +278,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		// Stop Reading the data stream
 		err = a.streamClient.ExecCommandStop()
 		if err != nil {
-			log.Errorf("failed to stop data stream: %v.", err)
+			log.Errorf("failed to stop the data stream: %v.", err)
 		} else {
 			log.Info("Data stream client stopped")
 		}
