@@ -337,12 +337,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 
 	if err == nil {
 		// Reset current batch data previously read from the data stream
-		a.currentBatchStreamData = []byte{}
-		a.currentStreamBatch = state.Batch{}
-		a.currentStreamBatchRaw = state.BatchRawV2{
-			Blocks: make([]state.L2BlockRaw, 0),
-		}
-		a.currentStreamL2Block = state.L2BlockRaw{}
+		a.resetCurrentBatchData()
 		log.Info("Current batch data reset")
 
 		var marshalledBookMark []byte
@@ -554,11 +549,7 @@ func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, cli
 				}
 
 				// Reset current batch data
-				a.currentBatchStreamData = []byte{}
-				a.currentStreamBatchRaw = state.BatchRawV2{
-					Blocks: make([]state.L2BlockRaw, 0),
-				}
-				a.currentStreamL2Block = state.L2BlockRaw{}
+				a.resetCurrentBatchData()
 
 			case datastreamer.EntryType(datastream.EntryType_ENTRY_TYPE_L2_BLOCK):
 				// Add previous block (if any) to the current batch
@@ -609,6 +600,15 @@ func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, cli
 		}
 	}
 	return nil
+}
+
+func (a *Aggregator) resetCurrentBatchData() {
+	a.currentBatchStreamData = []byte{}
+	a.currentStreamBatch = state.Batch{}
+	a.currentStreamBatchRaw = state.BatchRawV2{
+		Blocks: make([]state.L2BlockRaw, 0),
+	}
+	a.currentStreamL2Block = state.L2BlockRaw{}
 }
 
 // Start starts the aggregator
