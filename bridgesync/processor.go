@@ -2,6 +2,7 @@ package bridgesync
 
 import (
 	"context"
+	"database/sql"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
+	_ "modernc.org/sqlite"
 )
 
 const (
@@ -93,7 +95,7 @@ type Event struct {
 }
 
 type processor struct {
-	db             kv.RwDB
+	db             *sql.DB
 	eventsTable    string
 	lastBlockTable string
 	exitTree       *tree.AppendOnlyTree
@@ -101,25 +103,23 @@ type processor struct {
 }
 
 func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, error) {
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, err
+	}
 	eventsTable := dbPrefix + eventsTableSufix
 	lastBlockTable := dbPrefix + lastBlockTableSufix
 	logger := log.WithFields("bridge-syncer", dbPrefix)
 	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
-		cfg := kv.TableCfg{
-			eventsTable:    {},
-			lastBlockTable: {},
-		}
+		cfg := kv.TableCfg{}
 		tree.AddTables(cfg, dbPrefix)
 		return cfg
 	}
-	db, err := mdbx.NewMDBX(nil).
+	treeDB, err := mdbx.NewMDBX(nil).
 		Path(dbPath).
 		WithTableCfg(tableCfgFunc).
 		Open()
-	if err != nil {
-		return nil, err
-	}
-	exitTree, err := tree.NewAppendOnlyTree(ctx, db, dbPrefix)
+	exitTree, err := tree.NewAppendOnlyTree(ctx, treeDB, dbPrefix)
 	if err != nil {
 		return nil, err
 	}
