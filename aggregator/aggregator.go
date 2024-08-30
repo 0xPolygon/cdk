@@ -74,8 +74,8 @@ type Aggregator struct {
 	profitabilityChecker    aggregatorTxProfitabilityChecker
 	timeSendFinalProof      time.Time
 	timeCleanupLockedProofs types.Duration
-	stateDBMutex            *sync.Mutex
-	timeSendFinalProofMutex *sync.RWMutex
+	stateDBMutex            sync.Mutex
+	timeSendFinalProofMutex sync.RWMutex
 
 	// Data stream handling variables
 	currentBatchStreamData []byte
@@ -180,11 +180,8 @@ func New(
 		etherman:                etherman,
 		ethTxManager:            ethTxManager,
 		streamClient:            streamClient,
-		streamClientMutex:       sync.Mutex{},
 		l1Syncr:                 l1Syncr,
 		profitabilityChecker:    profitabilityChecker,
-		stateDBMutex:            &sync.Mutex{},
-		timeSendFinalProofMutex: &sync.RWMutex{},
 		timeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
 		finalProof:              make(chan finalProofMsg),
 		currentBatchStreamData:  []byte{},
