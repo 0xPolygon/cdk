@@ -69,6 +69,8 @@ type Aggregator struct {
 	l1Syncr      synchronizer.Synchronizer
 	halted       atomic.Bool
 
+	streamClientMutex *sync.Mutex
+
 	profitabilityChecker    aggregatorTxProfitabilityChecker
 	timeSendFinalProof      time.Time
 	timeCleanupLockedProofs types.Duration
@@ -178,6 +180,7 @@ func New(
 		etherman:                etherman,
 		ethTxManager:            ethTxManager,
 		streamClient:            streamClient,
+		streamClientMutex:       &sync.Mutex{},
 		l1Syncr:                 l1Syncr,
 		profitabilityChecker:    profitabilityChecker,
 		stateDBMutex:            &sync.Mutex{},
@@ -261,16 +264,24 @@ func (a *Aggregator) handleReorg(reorgData synchronizer.ReorgExecutionResult) {
 func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBatchesData) {
 	log.Warnf("Rollback batches event, rollbackBatchesData: %+v", rollbackData)
 
-	dsClientWasRunning := true
+	a.streamClientMutex.Lock()
+	defer a.streamClientMutex.Unlock()
 
-	// Stop Reading the data stream
-	err := a.streamClient.ExecCommandStop()
-	if err != nil {
-		log.Errorf("failed to stop data stream: %v. Assuming it was not started.", err)
-		dsClientWasRunning = false
-		err = nil
-	} else {
-		log.Info("Data stream client stopped")
+	dsClientWasRunning := a.streamClient.IsStarted()
+
+	var err error
+
+	if dsClientWasRunning {
+		// Disable the process entry function to avoid processing the data stream
+		a.streamClient.ResetProcessEntryFunc()
+
+		// Stop Reading the data stream
+		err = a.streamClient.ExecCommandStop()
+		if err != nil {
+			log.Errorf("failed to stop data stream: %v.", err)
+		} else {
+			log.Info("Data stream client stopped")
+		}
 	}
 
 	// Get new last verified batch number from L1
@@ -350,6 +361,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		} else {
 			// Restart the stream client if needed
 			if dsClientWasRunning {
+				a.streamClient.SetProcessEntryFunc(a.handleReceivedDataStream)
 				err = a.streamClient.Start()
 				if err != nil {
 					log.Errorf("failed to start stream client, error: %v", err)
