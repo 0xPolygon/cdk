@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/golang-collections/collections/stack"
 )
 
@@ -34,9 +34,14 @@ type EthClienter interface {
 	ethereum.BlockNumberReader
 	ethereum.ChainReader
 	bind.ContractBackend
+	Client() *rpc.Client
 }
 
-func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderMap, error) {
+type ClientCaller interface {
+	Call(result interface{}, method string, args ...interface{}) error
+}
+
+func buildAppender(client EthClienter, bridge common.Address, syncFullClaims bool) (sync.LogAppenderMap, error) {
 	bridgeContractV1, err := polygonzkevmbridge.NewPolygonzkevmbridge(bridge, client)
 	if err != nil {
 		return nil, err
@@ -69,38 +74,46 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 	}
 
 	appender[claimEventSignature] = func(b *sync.EVMBlock, l types.Log) error {
-		claim, err := bridgeContractV2.ParseClaimEvent(l)
+		claimEvent, err := bridgeContractV2.ParseClaimEvent(l)
 		if err != nil {
 			return fmt.Errorf(
 				"error parsing log %+v using d.bridgeContractV2.ParseClaimEvent: %v",
 				l, err,
 			)
 		}
-		b.Events = append(b.Events, Event{Claim: &Claim{
-			GlobalIndex:        claim.GlobalIndex,
-			OriginNetwork:      claim.OriginNetwork,
-			OriginAddress:      claim.OriginAddress,
-			DestinationAddress: claim.DestinationAddress,
-			Amount:             claim.Amount,
-		}})
+		claim := &Claim{
+			GlobalIndex:        claimEvent.GlobalIndex,
+			OriginNetwork:      claimEvent.OriginNetwork,
+			OriginAddress:      claimEvent.OriginAddress,
+			DestinationAddress: claimEvent.DestinationAddress,
+			Amount:             claimEvent.Amount,
+		}
+		if syncFullClaims {
+			setClaimCalldata(client, bridge, l.TxHash, claim)
+		}
+		b.Events = append(b.Events, Event{Claim: claim})
 		return nil
 	}
 
 	appender[claimEventSignaturePreEtrog] = func(b *sync.EVMBlock, l types.Log) error {
-		claim, err := bridgeContractV1.ParseClaimEvent(l)
+		claimEvent, err := bridgeContractV1.ParseClaimEvent(l)
 		if err != nil {
 			return fmt.Errorf(
 				"error parsing log %+v using d.bridgeContractV1.ParseClaimEvent: %v",
 				l, err,
 			)
 		}
-		b.Events = append(b.Events, Event{Claim: &Claim{
-			GlobalIndex:        big.NewInt(int64(claim.Index)),
-			OriginNetwork:      claim.OriginNetwork,
-			OriginAddress:      claim.OriginAddress,
-			DestinationAddress: claim.DestinationAddress,
-			Amount:             claim.Amount,
-		}})
+		claim := &Claim{
+			GlobalIndex:        big.NewInt(int64(claimEvent.Index)),
+			OriginNetwork:      claimEvent.OriginNetwork,
+			OriginAddress:      claimEvent.OriginAddress,
+			DestinationAddress: claimEvent.DestinationAddress,
+			Amount:             claimEvent.Amount,
+		}
+		if syncFullClaims {
+			setClaimCalldata(client, bridge, l.TxHash, claim)
+		}
+		b.Events = append(b.Events, Event{Claim: claim})
 		return nil
 	}
 
@@ -108,9 +121,9 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 }
 
 type call struct {
-	To    common.Address   `json:"to"`
-	Value *rpcTypes.ArgBig `json:"value"`
-	// Err   *string           `json:"error"`
+	To    common.Address    `json:"to"`
+	Value *rpcTypes.ArgBig  `json:"value"`
+	Err   *string           `json:"error"`
 	Input rpcTypes.ArgBytes `json:"input"`
 	Calls []call            `json:"calls"`
 }
@@ -119,7 +132,7 @@ type tracerCfg struct {
 	Tracer string `json:"tracer"`
 }
 
-func setClaimCalldata(client *ethclient.Client, bridgeAddr common.Address, txHash common.Hash, claim *Claim) error {
+func setClaimCalldata(client EthClienter, bridge common.Address, txHash common.Hash, claim *Claim) error {
 	c := &call{}
 	err := client.Client().Call(c, "debug_traceTransaction", txHash, tracerCfg{Tracer: "callTracer"})
 	if err != nil {
@@ -136,7 +149,7 @@ func setClaimCalldata(client *ethclient.Client, bridgeAddr common.Address, txHas
 			break
 		}
 		currentCall := callStack.Pop().(call)
-		if currentCall.To == bridgeAddr {
+		if currentCall.To == bridge {
 			found, err := setClaimIfFoundOnInput(
 				currentCall.Input,
 				claim,
@@ -187,7 +200,6 @@ func setClaimIfFoundOnInput(input []byte, claim *Claim) (bool, error) {
 		return false, nil
 	}
 	// TODO: support both claim asset & message, check if previous versions need special treatment
-	// TODO: ignore claim messages that don't have value
 }
 
 func decodeClaimCallDataAndSetIfFound(data []interface{}, claim *Claim) (bool, error) {
