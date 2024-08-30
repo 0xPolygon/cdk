@@ -26,6 +26,7 @@ var (
 	claimEventSignature         = crypto.Keccak256Hash([]byte("ClaimEvent(uint256,uint32,address,address,uint256)"))
 	claimEventSignaturePreEtrog = crypto.Keccak256Hash([]byte("ClaimEvent(uint32,uint32,address,address,uint256)"))
 	methodIDClaimAsset          = common.Hex2Bytes("ccaa2d11")
+	methodIDClaimMessage        = common.Hex2Bytes("f5efcd79")
 )
 
 type EthClienter interface {
@@ -160,19 +161,38 @@ func setClaimIfFoundOnInput(input []byte, claim *Claim) (bool, error) {
 		return false, err
 	}
 	methodId := input[:4]
-
-	// Ignore other methods
-	if !bytes.Equal(methodId, methodIDClaimAsset) {
-		return false, nil
-	}
-
 	// Recover Method from signature and ABI
 	method, err := smcAbi.MethodById(methodId)
 	if err != nil {
 		return false, err
 	}
+	data, err := method.Inputs.Unpack(input[4:])
+	if err != nil {
+		return false, err
+	}
+	// Ignore other methods
+	if bytes.Equal(methodId, methodIDClaimAsset) || bytes.Equal(methodId, methodIDClaimMessage) {
+		found, err := decodeClaimCallDataAndSetIfFound(data, claim)
+		if err != nil {
+			return false, err
+		}
+		if found {
+			if bytes.Equal(methodId, methodIDClaimMessage) {
+				claim.IsMessage = true
+			}
+			return true, nil
+		}
+		return false, nil
+	} else {
+		return false, nil
+	}
+	// TODO: support both claim asset & message, check if previous versions need special treatment
+	// TODO: ignore claim messages that don't have value
+}
 
-	/* Unpack method inputs
+func decodeClaimCallDataAndSetIfFound(data []interface{}, claim *Claim) (bool, error) {
+	/* Unpack method inputs. Note that both claimAsset and claimMessage have the same interface
+	for the relevant parts
 	claimAsset(
 		0: smtProofLocalExitRoot,
 		1: smtProofRollupExitRoot,
@@ -186,14 +206,20 @@ func setClaimIfFoundOnInput(input []byte, claim *Claim) (bool, error) {
 		9: amount,
 		10: metadata,
 	)
+	claimMessage(
+		0: smtProofLocalExitRoot,
+		1: smtProofRollupExitRoot,
+		2: globalIndex,
+		3: mainnetExitRoot,
+		4: rollupExitRoot,
+		5: originNetwork,
+		6: originAddress,
+		7: destinationNetwork,
+		8: destinationAddress,
+		9: amount,
+		10: metadata,
+	)
 	*/
-	data, err := method.Inputs.Unpack(input[4:])
-	if err != nil {
-		return false, err
-	}
-
-	// TODO: support both claim asset & message, check if previous versions need special treatment
-	// TODO: ignore claim messages that don't have value
 	actualGlobalIndex := data[2].(*big.Int)
 	if actualGlobalIndex.Cmp(claim.GlobalIndex) != 0 {
 		// not the claim we're looking for
@@ -207,12 +233,12 @@ func setClaimIfFoundOnInput(input []byte, claim *Claim) (bool, error) {
 			proofLER[i] = proofLERBytes[i]
 			proofRER[i] = proofRERBytes[i]
 		}
-		// TODO: add ALL the data, hard to know what we're gonna need in the future
 		claim.ProofLocalExitRoot = proofLER
 		claim.ProofRollupExitRoot = proofRER
 		claim.MainnetExitRoot = data[3].([32]byte)
 		claim.RollupExitRoot = data[4].([32]byte)
-		claim.Amount = data[9].(*big.Int)
+		claim.DestinationNetwork = data[7].(uint32)
+		claim.Metadata = data[10].([]byte)
 		return true, nil
 	}
 }

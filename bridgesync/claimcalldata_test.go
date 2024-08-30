@@ -11,17 +11,26 @@ import (
 	"github.com/0xPolygon/cdk/test/contracts/claimmockcaller"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
 
+type testCase struct {
+	description   string
+	bridgeAddr    common.Address
+	log           types.Log
+	expectedClaim Claim
+}
+
 func TestClaimCalldata(t *testing.T) {
+	testCases := []testCase{}
 	// Setup Docker L1
 	ctx := context.Background()
 	msg, err := exec.Command("bash", "-l", "-c", "docker compose up -d").CombinedOutput()
 	require.NoError(t, err, string(msg))
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 1)
 	defer func() {
 		msg, err = exec.Command("bash", "-l", "-c", "docker compose down").CombinedOutput()
 		require.NoError(t, err, string(msg))
@@ -57,10 +66,12 @@ func TestClaimCalldata(t *testing.T) {
 		RollupExitRoot:      common.HexToHash("dead"),
 		ProofLocalExitRoot:  proofLocalH,
 		ProofRollupExitRoot: proofRollupH,
+		DestinationNetwork:  0,
+		Metadata:            []byte{},
 	}
-	auth.GasLimit = 999999
+	auth.GasLimit = 999999 // for some reason gas estimation fails :(
 
-	// direct call
+	// direct call claim asset
 	tx, err := bridgeContract.ClaimAsset(
 		auth,
 		proofLocal,
@@ -76,23 +87,17 @@ func TestClaimCalldata(t *testing.T) {
 		nil,
 	)
 	require.NoError(t, err)
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	r, err := client.TransactionReceipt(ctx, tx.Hash())
-	require.NoError(t, err)
-	claimEvent, err := bridgeContract.ParseClaimEvent(*r.Logs[0])
-	require.NoError(t, err)
-	actualClaim := Claim{
-		GlobalIndex:        claimEvent.GlobalIndex,
-		OriginNetwork:      claimEvent.OriginNetwork,
-		OriginAddress:      claimEvent.OriginAddress,
-		DestinationAddress: claimEvent.DestinationAddress,
-		Amount:             claimEvent.Amount,
-	}
-	err = setClaimCalldata(client, bridgeAddr, tx.Hash(), &actualClaim)
-	require.NoError(t, err)
-	require.Equal(t, expectedClaim, actualClaim)
+	expectedClaim.IsMessage = false
+	testCases = append(testCases, testCase{
+		description:   "direct call to claim asset",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[0],
+		expectedClaim: expectedClaim,
+	})
 
-	// indirect call
+	// indirect call claim asset
 	tx, err = claimCaller.ClaimAsset(
 		auth,
 		proofLocal,
@@ -108,19 +113,82 @@ func TestClaimCalldata(t *testing.T) {
 		nil,
 	)
 	require.NoError(t, err)
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	expectedClaim.IsMessage = false
+	testCases = append(testCases, testCase{
+		description:   "indirect call to claim asset",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[0],
+		expectedClaim: expectedClaim,
+	})
+
+	// direct call claim message
+	tx, err = bridgeContract.ClaimMessage(
+		auth,
+		proofLocal,
+		proofRollup,
+		expectedClaim.GlobalIndex,
+		expectedClaim.MainnetExitRoot,
+		expectedClaim.RollupExitRoot,
+		expectedClaim.OriginNetwork,
+		expectedClaim.OriginAddress,
+		0,
+		expectedClaim.DestinationAddress,
+		expectedClaim.Amount,
+		nil,
+	)
 	require.NoError(t, err)
-	claimEvent, err = bridgeContract.ParseClaimEvent(*r.Logs[0])
+	time.Sleep(1 * time.Second)
+	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	expectedClaim.IsMessage = true
+	testCases = append(testCases, testCase{
+		description:   "direct call to claim message",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[0],
+		expectedClaim: expectedClaim,
+	})
+
+	// indirect call claim message
+	tx, err = claimCaller.ClaimMessage(
+		auth,
+		proofLocal,
+		proofRollup,
+		expectedClaim.GlobalIndex,
+		expectedClaim.MainnetExitRoot,
+		expectedClaim.RollupExitRoot,
+		expectedClaim.OriginNetwork,
+		expectedClaim.OriginAddress,
+		0,
+		expectedClaim.DestinationAddress,
+		expectedClaim.Amount,
+		nil,
+	)
 	require.NoError(t, err)
-	actualClaim = Claim{
-		GlobalIndex:        claimEvent.GlobalIndex,
-		OriginNetwork:      claimEvent.OriginNetwork,
-		OriginAddress:      claimEvent.OriginAddress,
-		DestinationAddress: claimEvent.DestinationAddress,
-		Amount:             claimEvent.Amount,
+	time.Sleep(1 * time.Second)
+	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	expectedClaim.IsMessage = true
+	testCases = append(testCases, testCase{
+		description:   "indirect call to claim message",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[0],
+		expectedClaim: expectedClaim,
+	})
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			claimEvent, err := bridgeContract.ParseClaimEvent(tc.log)
+			require.NoError(t, err)
+			actualClaim := Claim{
+				GlobalIndex:        claimEvent.GlobalIndex,
+				OriginNetwork:      claimEvent.OriginNetwork,
+				OriginAddress:      claimEvent.OriginAddress,
+				DestinationAddress: claimEvent.DestinationAddress,
+				Amount:             claimEvent.Amount,
+			}
+			err = setClaimCalldata(client, tc.bridgeAddr, tc.log.TxHash, &actualClaim)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedClaim, actualClaim)
+		})
 	}
-	err = setClaimCalldata(client, bridgeAddr, tx.Hash(), &actualClaim)
-	require.NoError(t, err)
-	require.Equal(t, expectedClaim, actualClaim)
 }
