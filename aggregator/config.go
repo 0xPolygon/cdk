@@ -74,7 +74,9 @@ type Config struct {
 	// this parameter is used for the base tx profitability checker
 	TxProfitabilityMinReward TokenAmountWithDecimals `mapstructure:"TxProfitabilityMinReward"`
 
-	// IntervalAfterWhichBatchConsolidateAnyway this is interval for the main sequencer, that will check if there is no transactions
+	// IntervalAfterWhichBatchConsolidateAnyway is the interval duration for the main sequencer to check
+	// if there are no transactions. If there are no transactions in this interval, the sequencer will
+	// consolidate the batch anyway.
 	IntervalAfterWhichBatchConsolidateAnyway types.Duration `mapstructure:"IntervalAfterWhichBatchConsolidateAnyway"`
 
 	// BatchProofSanityCheckEnabled is a flag to enable the sanity check of the batch proof
@@ -137,7 +139,8 @@ type Config struct {
 	// Synchornizer config
 	Synchronizer syncronizerConfig.Config `mapstructure:"Synchronizer"`
 
-	// SettlementBackend configuration defines how a final ZKP should be settled. Directly to L1 or over the Beethoven service.
+	// SettlementBackend configuration defines how a final ZKP should be settled.
+	// It can be settled directly to L1 or over Agglayer.
 	SettlementBackend SettlementBackend `mapstructure:"SettlementBackend" jsonschema:"enum=agglayer,enum=l1"`
 
 	// SequencerPrivateKey Private key of the trusted sequencer
@@ -178,5 +181,6 @@ func newKeyFromKeystore(cfg types.KeystoreFileConfig) (*ecdsa.PrivateKey, error)
 	if err != nil {
 		return nil, err
 	}
+
 	return key.PrivateKey, nil
 }
