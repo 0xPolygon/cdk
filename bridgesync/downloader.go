@@ -15,11 +15,14 @@ import (
 )
 
 var (
-	bridgeEventSignature        = crypto.Keccak256Hash([]byte("BridgeEvent(uint8,uint32,address,uint32,address,uint256,bytes,uint32)"))
+	bridgeEventSignature = crypto.Keccak256Hash([]byte(
+		"BridgeEvent(uint8,uint32,address,uint32,address,uint256,bytes,uint32)",
+	))
 	claimEventSignature         = crypto.Keccak256Hash([]byte("ClaimEvent(uint256,uint32,address,address,uint256)"))
 	claimEventSignaturePreEtrog = crypto.Keccak256Hash([]byte("ClaimEvent(uint32,uint32,address,address,uint256)"))
 )
 
+// EthClienter defines the methods required to interact with an Ethereum client.
 type EthClienter interface {
 	ethereum.LogFilterer
 	ethereum.BlockNumberReader
@@ -42,7 +45,7 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 		bridge, err := bridgeContractV2.ParseBridgeEvent(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using d.bridgeContractV2.ParseBridgeEvent: %v",
+				"error parsing log %+v using d.bridgeContractV2.ParseBridgeEvent: %w",
 				l, err,
 			)
 		}
@@ -56,6 +59,7 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 			Metadata:           bridge.Metadata,
 			DepositCount:       bridge.DepositCount,
 		}})
+
 		return nil
 	}
 
@@ -63,7 +67,7 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 		claim, err := bridgeContractV2.ParseClaimEvent(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using d.bridgeContractV2.ParseClaimEvent: %v",
+				"error parsing log %+v using d.bridgeContractV2.ParseClaimEvent: %w",
 				l, err,
 			)
 		}
@@ -74,6 +78,7 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 			DestinationAddress: claim.DestinationAddress,
 			Amount:             claim.Amount,
 		}})
+
 		return nil
 	}
 
@@ -81,7 +86,7 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 		claim, err := bridgeContractV1.ParseClaimEvent(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using d.bridgeContractV1.ParseClaimEvent: %v",
+				"error parsing log %+v using d.bridgeContractV1.ParseClaimEvent: %w",
 				l, err,
 			)
 		}
@@ -92,6 +97,7 @@ func buildAppender(client EthClienter, bridge common.Address) (sync.LogAppenderM
 			DestinationAddress: claim.DestinationAddress,
 			Amount:             claim.Amount,
 		}})
+
 		return nil
 	}
 

@@ -9,6 +9,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree/testvectors"
 	"github.com/ethereum/go-ethereum/common"
@@ -345,6 +346,8 @@ func (a *getClaimsAndBridgesAction) desc() string {
 }
 
 func (a *getClaimsAndBridgesAction) execute(t *testing.T) {
+	t.Helper()
+
 	actualEvents, actualErr := a.p.GetClaimsAndBridges(a.ctx, a.fromBlock, a.toBlock)
 	require.Equal(t, a.expectedEvents, actualEvents)
 	require.Equal(t, a.expectedErr, actualErr)
@@ -369,6 +372,8 @@ func (a *getLastProcessedBlockAction) desc() string {
 }
 
 func (a *getLastProcessedBlockAction) execute(t *testing.T) {
+	t.Helper()
+
 	actualLastProcessedBlock, actualErr := a.p.GetLastProcessedBlock(a.ctx)
 	require.Equal(t, a.expectedLastProcessedBlock, actualLastProcessedBlock)
 	require.Equal(t, a.expectedErr, actualErr)
@@ -392,6 +397,8 @@ func (a *reorgAction) desc() string {
 }
 
 func (a *reorgAction) execute(t *testing.T) {
+	t.Helper()
+
 	actualErr := a.p.Reorg(context.Background(), a.firstReorgedBlock)
 	require.Equal(t, a.expectedErr, actualErr)
 }
@@ -414,15 +421,23 @@ func (a *processBlockAction) desc() string {
 }
 
 func (a *processBlockAction) execute(t *testing.T) {
+	t.Helper()
+
 	actualErr := a.p.ProcessBlock(context.Background(), a.block)
 	require.Equal(t, a.expectedErr, actualErr)
 }
 
 func eventsToBridgeEvents(events []interface{}) []Event {
 	bridgeEvents := []Event{}
+
 	for _, event := range events {
-		bridgeEvents = append(bridgeEvents, event.(Event))
+		if evt, ok := event.(Event); ok {
+			bridgeEvents = append(bridgeEvents, evt)
+		} else {
+			log.Errorf("unexpected type %T; expected Event", event)
+		}
 	}
+
 	return bridgeEvents
 }
 
