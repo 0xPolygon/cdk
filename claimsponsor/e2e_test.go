@@ -91,6 +91,7 @@ func TestE2EL1toEVML2(t *testing.T) {
 				require.NoError(t, errors.New("claim failed"))
 			} else if claim.Status == claimsponsor.SuccessClaimStatus {
 				succeed = true
+
 				break
 			}
 			time.Sleep(100 * time.Millisecond)
