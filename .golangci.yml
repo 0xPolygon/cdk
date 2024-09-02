@@ -42,7 +42,7 @@ linters:
   - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13
   - gocritic # gocritic is a Go source code linter that maintains checks that are not in other linters
   - errcheck # Errcheck is a go lint rule for checking for unchecked errors in go programs. These unchecked errors can be critical bugs in some cases
-  # - godox # Godox is a linter for TODOs and FIXMEs left in the code
+  - godox # Godox is a linter for TODOs and FIXMEs left in the code
   - gci # Gci is a linter for checking the consistency of the code with the go code style guide
   - gomnd # Gomnd is a linter for magic numbers
   # - revive 
