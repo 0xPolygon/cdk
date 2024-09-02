@@ -1,35 +1,32 @@
 -- +migrate Down
-DROP SCHEMA IF EXISTS bridge CASCADE;
+DROP TABLE IF EXISTS block;
+DROP TABLE IF EXISTS claim;
+DROP TABLE IF EXISTS bridge;
 
 -- +migrate Up
-CREATE SCHEMA bridge;
-
-CREATE TABLE bridge.index
-(
-    index_num   BIGINT PRIMARY KEY,
+CREATE TABLE block (
+    num   BIGINT PRIMARY KEY
 );
 
-CREATE TABLE bridge.claim
-(
-    index_num           INTEGER NOT NULL REFERENCES bridge.index (index_num) ON DELETE CASCADE,
-    index_pos           INTEGER NOT NULL,
+CREATE TABLE claim (
+    block_num           INTEGER NOT NULL REFERENCES block (num) ON DELETE CASCADE,
+    block_pos           INTEGER NOT NULL,
 
     leaf_type           INTEGER NOT NULL,
 	origin_network      INTEGER NOT NULL,
 	origin_address      VARCHAR NOT NULL,
-	destination_address INTEGER NOT NULL,
+	destination_network INTEGER NOT NULL,
 	destination_address VARCHAR NOT NULL,
 	amount              DECIMAL(78, 0) NOT NULL,
 	metadata            BLOB,
 	deposit_count       INTEGER NOT NULL,
 
-    PRIMARY KEY (index_num, index_pos)
+    PRIMARY KEY (block_num, block_pos)
 );
 
-CREATE TABLE bridge.bridge
-(
-    index_num               BIGINT NOT NULL REFERENCES bridge.index (index_num) ON DELETE CASCADE,
-    index_pos               BIGINT NOT NULL,
+CREATE TABLE bridge (
+    block_num               BIGINT NOT NULL REFERENCES block (block_num) ON DELETE CASCADE,
+    block_pos               BIGINT NOT NULL,
 
     global_index            DECIMAL(78, 0) NOT NULL,
 	origin_network          INTEGER NOT NULL,
@@ -45,5 +42,5 @@ CREATE TABLE bridge.bridge
 	metadata                BLOB,
 	is_message              BOOLEAN,
 
-    PRIMARY KEY (index_num, index_pos)
+    PRIMARY KEY (block_num, block_pos)
 );

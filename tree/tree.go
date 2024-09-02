@@ -168,6 +168,10 @@ func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
 	return
 }
 
+func (t *Tree) BeginRw(ctx context.Context) (kv.RwTx, error) {
+	return t.db.BeginRw(ctx)
+}
+
 // GetProof returns the merkle proof for a given index and root.
 func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([DefaultHeight]common.Hash, error) {
 	tx, err := t.db.BeginRw(ctx)

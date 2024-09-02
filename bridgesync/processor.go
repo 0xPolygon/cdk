@@ -9,6 +9,7 @@ import (
 	"math/big"
 
 	dbCommon "github.com/0xPolygon/cdk/common"
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree"
@@ -71,6 +72,8 @@ func (b *Bridge) Hash() common.Hash {
 
 // Claim representation of a claim event
 type Claim struct {
+	BlockNum uint64
+	BlockPos uint64
 	// From claim event
 	GlobalIndex        *big.Int
 	OriginNetwork      uint32
@@ -82,6 +85,7 @@ type Claim struct {
 	ProofRollupExitRoot [tree.DefaultHeight]common.Hash
 	MainnetExitRoot     common.Hash
 	RollupExitRoot      common.Hash
+	GlobalExitRoot      common.Hash
 	DestinationNetwork  uint32
 	Metadata            []byte
 	// Meta
@@ -103,7 +107,7 @@ type processor struct {
 }
 
 func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := db.NewSQLiteDB(dbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -134,16 +138,21 @@ func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, err
 
 // GetClaimsAndBridges returns the claims and bridges occurred between fromBlock, toBlock both included.
 // If toBlock has not been porcessed yet, ErrBlockNotProcessed will be returned
-func (p *processor) GetClaimsAndBridges(
+func (p *processor) GetBridges(
 	ctx context.Context, fromBlock, toBlock uint64,
-) ([]Event, error) {
-	events := []Event{}
+) ([]Bridge, error) {
+	return nil, nil
+}
 
-	tx, err := p.db.BeginRo(ctx)
+func (p *processor) GetClaims(
+	ctx context.Context, fromBlock, toBlock uint64,
+) ([]Claim, error) {
+	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
+
 	lpb, err := p.getLastProcessedBlockWithTx(tx)
 	if err != nil {
 		return nil, err
@@ -151,34 +160,102 @@ func (p *processor) GetClaimsAndBridges(
 	if lpb < toBlock {
 		return nil, ErrBlockNotProcessed
 	}
-	c, err := tx.Cursor(p.eventsTable)
+
+	rows, err := tx.Query(`
+		SELECT
+			block_num,
+			block_pos,
+			global_index,
+			origin_network,
+			origin_address,
+			destination_address,
+			amount,
+			proof_local_exit_root,
+			proof_rollup_exit_root,
+			mainnet_exit_root,
+			rollup_exit_root,
+			global_exit_root,
+			destination_network,
+			is_message
+			metadata,
+		FROM bridge
+		WHERE block_num >= $1 AND block_num <= $2;
+	 `)
 	if err != nil {
 		return nil, err
 	}
-	defer c.Close()
-
-	for k, v, err := c.Seek(dbCommon.Uint64ToBytes(fromBlock)); k != nil; k, v, err = c.Next() {
+	claims := []Claim{}
+	for rows.Next() {
+		b, err := scanClaim(rows)
 		if err != nil {
 			return nil, err
 		}
-		if dbCommon.BytesToUint64(k) > toBlock {
-			break
-		}
-		blockEvents := []Event{}
-		err := json.Unmarshal(v, &blockEvents)
-		if err != nil {
-			return nil, err
-		}
-		events = append(events, blockEvents...)
+		claims = append(claims, b)
 	}
 
-	return events, nil
+	return claims, nil
+}
+
+func scanClaim(rows *sql.Rows) (Claim, error) {
+	var (
+		block_num              uint64
+		block_pos              uint64
+		global_index           *big.Int
+		origin_network         uint32
+		origin_address         common.Address
+		destination_address    common.Address
+		amount                 *big.Int
+		proof_local_exit_root  common.Hash
+		proof_rollup_exit_root common.Hash
+		mainnet_exit_root      common.Hash
+		rollup_exit_root       common.Hash
+		global_exit_root       common.Hash
+		destination_network    uint32
+		is_message             bool
+		metadata               []byte
+	)
+	if err := rows.Scan(
+		&block_num,
+		&block_pos,
+		&global_index,
+		&origin_network,
+		&origin_address,
+		&destination_address,
+		&amount,
+		&proof_local_exit_root,
+		&proof_rollup_exit_root,
+		&mainnet_exit_root,
+		&rollup_exit_root,
+		&global_exit_root,
+		&destination_network,
+		&metadata,
+		&is_message,
+	); err != nil {
+		return Claim{}, err
+	}
+	return Claim{
+		BlockNum:            block_num,
+		BlockPos:            block_pos,
+		GlobalIndex:         global_index,
+		OriginNetwork:       origin_network,
+		OriginAddress:       origin_address,
+		DestinationAddress:  destination_address,
+		Amount:              amount,
+		ProofLocalExitRoot:  proof_local_exit_root,
+		ProofRollupExitRoot: proof_rollup_exit_root,
+		MainnetExitRoot:     mainnet_exit_root,
+		GlobalExitRoot:      rollup_exit_root,
+		RollupExitRoot:      global_exit_root,
+		DestinationNetwork:  destination_network,
+		Metadata:            metadata,
+		IsMessage:           is_message,
+	}, nil
 }
 
 // GetLastProcessedBlock returns the last processed block by the processor, including blocks
 // that don't have events
 func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
-	tx, err := p.db.BeginRo(ctx)
+	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -186,58 +263,53 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	return p.getLastProcessedBlockWithTx(tx)
 }
 
-func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
-	if blockNumBytes, err := tx.GetOne(p.lastBlockTable, lastBlockKey); err != nil {
-		return 0, err
-	} else if blockNumBytes == nil {
-		return 0, nil
-	} else {
-		return dbCommon.BytesToUint64(blockNumBytes), nil
-	}
+func (p *processor) getLastProcessedBlockWithTx(tx *sql.Tx) (uint64, error) {
+	var lastProcessedBlock uint64
+	row := tx.QueryRow("SELECT num FROM BLOCK ORDER BY num DESC LIMIT 1;")
+	err := row.Scan(&lastProcessedBlock)
+	return lastProcessedBlock, err
 }
 
 // Reorg triggers a purge and reset process on the processor to leaf it on a state
 // as if the last block processed was firstReorgedBlock-1
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
-	tx, err := p.db.BeginRw(ctx)
+	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
-	c, err := tx.Cursor(p.eventsTable)
-	if err != nil {
-		return err
-	}
-	defer c.Close()
-	firstKey := dbCommon.Uint64ToBytes(firstReorgedBlock)
-	firstDepositCountReorged := int64(-1)
-	for k, v, err := c.Seek(firstKey); k != nil; k, _, err = c.Next() {
+	defer func() {
 		if err != nil {
-			tx.Rollback()
-			return err
-		}
-		if err := tx.Delete(p.eventsTable, k); err != nil {
-			tx.Rollback()
-			return err
-		}
-		if firstDepositCountReorged == -1 {
-			events := []Event{}
-			if err := json.Unmarshal(v, &events); err != nil {
-				tx.Rollback()
-				return err
+			if errRllbck := tx.Rollback(); errRllbck != nil {
+				log.Errorf("error while rolling back tx %v", errRllbck)
 			}
-			for _, event := range events {
-				if event.Bridge != nil {
-					firstDepositCountReorged = int64(event.Bridge.DepositCount)
-					break
-				}
-			}
+		}
+	}()
+
+	row := tx.QueryRow(`
+		SELECT deposit_count
+		FROM bridge
+		WHERE block_num >= $1
+		ORDER BY (block_num, block_pos) ASC
+		LIMIT 1;
+	`)
+	var firstDepositCountReorged int
+	err = row.Scan(&firstDepositCountReorged)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			firstDepositCountReorged = -1
+		} else {
+			return err
 		}
 	}
-	if err := p.updateLastProcessedBlock(tx, firstReorgedBlock-1); err != nil {
-		tx.Rollback()
+
+	_, err = tx.Exec(`DELETE FROM block WHERE block >= $1;`, firstReorgedBlock)
+	if err != nil {
+		if errRllbck := tx.Rollback(); errRllbck != nil {
+			log.Errorf("error while rolling back tx %v", errRllbck)
+		}
 		return err
 	}
+
 	exitTreeRollback := func() {}
 	if firstDepositCountReorged != -1 {
 		if exitTreeRollback, err = p.exitTree.Reorg(tx, uint32(firstDepositCountReorged)); err != nil {

@@ -3,6 +3,7 @@ package migrations
 import (
 	"strings"
 
+	"github.com/0xPolygon/cdk/db"
 	migrate "github.com/rubenv/sql-migrate"
 
 	_ "embed"
@@ -22,4 +23,8 @@ var Migrations = &migrate.MemoryMigrationSource{
 			Down: []string{mig001splitted[0]},
 		},
 	},
+}
+
+func RunMigrations(dbPath string) error {
+	return db.RunMigrations(dbPath, Migrations)
 }
