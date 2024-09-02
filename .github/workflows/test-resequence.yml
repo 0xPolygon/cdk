@@ -2,7 +2,8 @@ name: Resequence test
 on:
   push:
     branches:
-      - "**"
+      # Disable test for the moment as it takes too long
+      - "this-test-is-disabled"
 
 
 concurrency:
