@@ -9,5 +9,6 @@ import (
 
 func versionCmd(*cli.Context) error {
 	zkevm.PrintVersion(os.Stdout)
+
 	return nil
 }
