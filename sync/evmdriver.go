@@ -91,10 +91,10 @@ reset:
 	for {
 		select {
 		case b := <-downloadCh:
-			d.log.Debug("handleNewBlock")
+			d.log.Debug("handleNewBlock: ", b.Num, b.Hash)
 			d.handleNewBlock(ctx, b)
 		case firstReorgedBlock := <-d.reorgSub.ReorgedBlock:
-			d.log.Debug("handleReorg")
+			d.log.Debug("handleReorg: ", firstReorgedBlock)
 			d.handleReorg(ctx, cancel, downloadCh, firstReorgedBlock)
 			goto reset
 		}
