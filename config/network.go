@@ -68,6 +68,7 @@ type genesisAccountFromJSON struct {
 
 func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 	cfgPath := ctx.String(FlagCustomNetwork)
+
 	networkJSON, err := LoadGenesisFileAsString(cfgPath)
 	if err != nil {
 		panic(err.Error())
@@ -75,7 +76,7 @@ func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 
 	config, err := LoadGenesisFromJSONString(networkJSON)
 	if err != nil {
-		panic(fmt.Errorf("failed to load genesis configuration from file. Error: %v", err))
+		panic(fmt.Errorf("failed to load genesis configuration from file. Error: %w", err))
 	}
 	cfg.NetworkConfig = config
 }
@@ -83,10 +84,11 @@ func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 // LoadGenesisFileAsString loads the genesis file as a string
 func LoadGenesisFileAsString(cfgPath string) (string, error) {
 	if cfgPath != "" {
-		f, err := os.Open(cfgPath) //nolint:gosec
+		f, err := os.Open(cfgPath)
 		if err != nil {
 			return "", err
 		}
+
 		defer func() {
 			err := f.Close()
 			if err != nil {
@@ -98,6 +100,7 @@ func LoadGenesisFileAsString(cfgPath string) (string, error) {
 		if err != nil {
 			return "", err
 		}
+
 		return string(b), nil
 	} else {
 		return "", errors.New("custom netwrork file not provided. Please use the custom-network-file flag")
@@ -133,6 +136,7 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 			}
 			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 		}
+
 		if account.Nonce != "" && account.Nonce != "0" {
 			action := &state.GenesisAction{
 				Address: account.Address,
@@ -141,6 +145,7 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 			}
 			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 		}
+
 		if account.Bytecode != "" {
 			action := &state.GenesisAction{
 				Address:  account.Address,
@@ -149,6 +154,7 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 			}
 			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 		}
+
 		if len(account.Storage) > 0 {
 			for storageKey, storageValue := range account.Storage {
 				action := &state.GenesisAction{
