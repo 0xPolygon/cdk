@@ -57,6 +57,9 @@ jobs:
         repository: 0xPolygon/kurtosis-cdk
         path: "kurtosis-cdk"
 
+    - name: Setup Bats and bats libs
+      uses: bats-core/bats-action@2.0.0
+
     - name: Test
       run: make test-e2e-${{ matrix.e2e-group }}
       working-directory: test
