@@ -53,7 +53,7 @@ func DecodeHex(str string) ([]byte, error) {
 func MustDecodeHex(str string) []byte {
 	buf, err := DecodeHex(str)
 	if err != nil {
-		panic(fmt.Errorf("could not decode hex: %v", err))
+		panic(fmt.Errorf("could not decode hex: %w", err))
 	}
 
 	return buf
@@ -62,6 +62,7 @@ func MustDecodeHex(str string) []byte {
 // DecodeUint64 type-checks and converts a hex string to a uint64
 func DecodeUint64(str string) uint64 {
 	i := DecodeBig(str)
+
 	return i.Uint64()
 }
 
@@ -69,6 +70,7 @@ func DecodeUint64(str string) uint64 {
 func EncodeUint64(i uint64) string {
 	enc := make([]byte, 2, 10) //nolint:gomnd
 	copy(enc, "0x")
+
 	return string(strconv.AppendUint(enc, i, Base))
 }
 
@@ -117,5 +119,6 @@ func IsValid(s string) bool {
 			return false
 		}
 	}
+
 	return true
 }
