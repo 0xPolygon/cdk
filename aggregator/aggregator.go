@@ -1079,7 +1079,6 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 	if proof == nil {
 		// we don't have a proof generating at the moment, check if we
 		// have a proof ready to verify
-
 		proof, err = a.getAndLockProofReadyToVerify(ctx, lastVerifiedBatchNumber)
 		if errors.Is(err, state.ErrNotFound) {
 			// nothing to verify, swallow the error
