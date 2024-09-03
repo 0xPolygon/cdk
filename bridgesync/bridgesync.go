@@ -6,6 +6,7 @@ import (
 
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sync"
+	"github.com/0xPolygon/cdk/tree"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -97,7 +98,7 @@ func newBridgeSync(
 	maxRetryAttemptsAfterError int,
 	syncFullClaims bool,
 ) (*BridgeSync, error) {
-	processor, err := newProcessor(ctx, dbPath, l1OrL2ID)
+	processor, err := newProcessor(dbPath, l1OrL2ID)
 	if err != nil {
 		return nil, err
 	}
@@ -155,12 +156,16 @@ func (s *BridgeSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) 
 	return s.processor.GetLastProcessedBlock(ctx)
 }
 
-func (s *BridgeSync) GetBridgeIndexByRoot(ctx context.Context, root common.Hash) (uint32, error) {
-	return s.processor.exitTree.GetIndexByRoot(ctx, root)
+func (s *BridgeSync) GetBridgeRootByHash(ctx context.Context, root common.Hash) (tree.Root, error) {
+	return s.processor.exitTree.GetRootByHash(ctx, root)
 }
 
-func (s *BridgeSync) GetClaimsAndBridges(ctx context.Context, fromBlock, toBlock uint64) ([]Event, error) {
-	return s.processor.GetClaimsAndBridges(ctx, fromBlock, toBlock)
+func (s *BridgeSync) GetClaims(ctx context.Context, fromBlock, toBlock uint64) ([]Claim, error) {
+	return s.processor.GetClaims(ctx, fromBlock, toBlock)
+}
+
+func (s *BridgeSync) GetBridges(ctx context.Context, fromBlock, toBlock uint64) ([]Bridge, error) {
+	return s.processor.GetBridges(ctx, fromBlock, toBlock)
 }
 
 func (s *BridgeSync) GetProof(ctx context.Context, depositCount uint32, localExitRoot common.Hash) ([32]common.Hash, error) {

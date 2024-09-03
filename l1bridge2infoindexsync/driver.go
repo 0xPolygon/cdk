@@ -189,13 +189,13 @@ func (d *driver) getRelation(ctx context.Context, l1InfoIndex uint32) (bridge2L1
 		return bridge2L1InfoRelation{}, err
 	}
 
-	bridgeIndex, err := d.downloader.getBridgeIndex(ctx, mer)
+	bridgeRoot, err := d.downloader.getBridgeIndex(ctx, mer)
 	if err != nil {
 		return bridge2L1InfoRelation{}, err
 	}
 
 	return bridge2L1InfoRelation{
-		bridgeIndex:     bridgeIndex,
+		bridgeIndex:     bridgeRoot.Index,
 		l1InfoTreeIndex: l1InfoIndex,
 	}, nil
 }

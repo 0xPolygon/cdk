@@ -248,11 +248,11 @@ func TestStressAndReorgs(t *testing.T) {
 	require.NoError(t, err)
 	expectedGER, err := gerSc.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
-	index, actualL1InfoRoot, err := syncer.GetLastL1InfoTreeRootAndIndex(ctx)
+	lastRoot, err := syncer.GetLastL1InfoTreeRoot(ctx)
 	require.NoError(t, err)
-	info, err := syncer.GetInfoByIndex(ctx, index)
-	require.NoError(t, err, fmt.Sprintf("index: %d", index))
+	info, err := syncer.GetInfoByIndex(ctx, lastRoot.Index)
+	require.NoError(t, err, fmt.Sprintf("index: %d", lastRoot.Index))
 
-	require.Equal(t, common.Hash(expectedL1InfoRoot), actualL1InfoRoot)
+	require.Equal(t, common.Hash(expectedL1InfoRoot), lastRoot.Hash)
 	require.Equal(t, common.Hash(expectedGER), info.GlobalExitRoot, fmt.Sprintf("%+v", info))
 }

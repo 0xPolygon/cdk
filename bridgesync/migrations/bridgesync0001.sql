@@ -8,10 +8,9 @@ CREATE TABLE block (
     num   BIGINT PRIMARY KEY
 );
 
-CREATE TABLE claim (
+CREATE TABLE bridge (
     block_num           INTEGER NOT NULL REFERENCES block (num) ON DELETE CASCADE,
     block_pos           INTEGER NOT NULL,
-
     leaf_type           INTEGER NOT NULL,
 	origin_network      INTEGER NOT NULL,
 	origin_address      VARCHAR NOT NULL,
@@ -20,14 +19,12 @@ CREATE TABLE claim (
 	amount              DECIMAL(78, 0) NOT NULL,
 	metadata            BLOB,
 	deposit_count       INTEGER NOT NULL,
-
     PRIMARY KEY (block_num, block_pos)
 );
 
-CREATE TABLE bridge (
+CREATE TABLE claim (
     block_num               BIGINT NOT NULL REFERENCES block (block_num) ON DELETE CASCADE,
     block_pos               BIGINT NOT NULL,
-
     global_index            DECIMAL(78, 0) NOT NULL,
 	origin_network          INTEGER NOT NULL,
 	origin_address          VARCHAR NOT NULL,
@@ -41,6 +38,5 @@ CREATE TABLE bridge (
 	destination_network     INTEGER NOT NULL,
 	metadata                BLOB,
 	is_message              BOOLEAN,
-
     PRIMARY KEY (block_num, block_pos)
 );

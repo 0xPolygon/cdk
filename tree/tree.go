@@ -58,19 +58,6 @@ func newTreeNode(left, right common.Hash) treeNode {
 	}
 }
 
-func (n *treeNode) MarshalBinary() ([]byte, error) {
-	return append(n.Left[:], n.Right[:]...), nil
-}
-
-func (n *treeNode) UnmarshalBinary(data []byte) error {
-	if len(data) != 64 {
-		return fmt.Errorf("expected len %d, actual len %d", 64, len(data))
-	}
-	n.Left = common.Hash(data[:32])
-	n.Right = common.Hash(data[32:])
-	return nil
-}
-
 func newTree(db *sql.DB) *Tree {
 	t := &Tree{
 		db:         db,
@@ -218,6 +205,44 @@ func (t *Tree) getLastRootWithTx(tx *sql.Tx) (Root, error) {
 	return root, nil
 }
 
+// GetRootByIndex returns the root associated to the index
+func (t *Tree) GetRootByIndex(ctx context.Context, index uint32) (Root, error) {
+	tx, err := t.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Root{}, err
+	}
+	defer tx.Rollback()
+
+	var root Root
+	err = meddler.QueryRow(tx, &root, `SELECT * FROM root WHERE position = $1;`, index)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return root, ErrNotFound
+		}
+		return root, err
+	}
+	return root, nil
+}
+
+// GetRootByHash returns the root associated to the hash
+func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (Root, error) {
+	tx, err := t.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Root{}, err
+	}
+	defer tx.Rollback()
+
+	var root Root
+	err = meddler.QueryRow(tx, &root, `SELECT * FROM root WHERE hash = $1;`, hash)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return root, ErrNotFound
+		}
+		return root, err
+	}
+	return root, nil
+}
+
 func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (common.Hash, error) {
 	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -242,7 +267,7 @@ func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (com
 }
 
 // Reorg deletes all the data relevant from firstReorgedBlock (includded) and onwards
-func (t *AppendOnlyTree) Reorg(tx *sql.Tx, firstReorgedBlock uint32) error {
+func (t *AppendOnlyTree) Reorg(tx *sql.Tx, firstReorgedBlock uint64) error {
 	_, err := tx.Exec(`DELETE FROM root WHERE block_num >= $1`, firstReorgedBlock)
 	return err
 	// NOTE: rht is not cleaned, this could be done in the future as optimization

@@ -18,7 +18,7 @@ var mig001splitted = strings.Split(mig001, upDownSeparator)
 var Migrations = &migrate.MemoryMigrationSource{
 	Migrations: []*migrate.Migration{
 		{
-			Id:   "001",
+			Id:   "tree001",
 			Up:   []string{mig001splitted[1]},
 			Down: []string{mig001splitted[0]},
 		},

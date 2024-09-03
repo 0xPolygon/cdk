@@ -130,8 +130,6 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 			blockTable:     {},
 			lastBlockTable: {},
 		}
-		tree.AddTables(cfg, dbPrefix+rollupExitTreeSuffix)
-		tree.AddTables(cfg, dbPrefix+l1InfoTreeSuffix)
 		return cfg
 	}
 	db, err := mdbx.NewMDBX(nil).
@@ -145,39 +143,37 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 		db: db,
 	}
 
-	l1InfoTree, err := tree.NewAppendOnlyTree(ctx, db, dbPrefix+l1InfoTreeSuffix)
-	if err != nil {
-		return nil, err
-	}
-	p.l1InfoTree = l1InfoTree
-	rollupExitTree, err := tree.NewUpdatableTree(ctx, db, dbPrefix+rollupExitTreeSuffix)
-	if err != nil {
-		return nil, err
-	}
-	p.rollupExitTree = rollupExitTree
+	// l1InfoTree, err := tree.NewAppendOnlyTree(ctx, db, dbPrefix+l1InfoTreeSuffix)
+	// p.l1InfoTree = l1InfoTree
+	// rollupExitTree, err := tree.NewUpdatableTree(ctx, db, dbPrefix+rollupExitTreeSuffix)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// p.rollupExitTree = rollupExitTree
 	return p, nil
 }
 
 // GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
 func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([32]ethCommon.Hash, ethCommon.Hash, error) {
-	tx, err := p.db.BeginRo(ctx)
-	if err != nil {
-		return tree.EmptyProof, ethCommon.Hash{}, err
-	}
-	defer tx.Rollback()
+	return tree.EmptyProof, ethCommon.Hash{}, nil
+	// tx, err := p.db.BeginRo(ctx)
+	// if err != nil {
+	// 	return tree.EmptyProof, ethCommon.Hash{}, err
+	// }
+	// defer tx.Rollback()
 
-	root, err := p.l1InfoTree.GetRootByIndex(tx, index)
-	if err != nil {
-		return tree.EmptyProof, ethCommon.Hash{}, err
-	}
+	// root, err := p.l1InfoTree.GetRootByIndex(tx, index)
+	// if err != nil {
+	// 	return tree.EmptyProof, ethCommon.Hash{}, err
+	// }
 
-	proof, err := p.l1InfoTree.GetProof(ctx, index, root)
-	if err != nil {
-		return tree.EmptyProof, ethCommon.Hash{}, err
-	}
+	// proof, err := p.l1InfoTree.GetProof(ctx, index, root)
+	// if err != nil {
+	// 	return tree.EmptyProof, ethCommon.Hash{}, err
+	// }
 
-	// TODO: check if we need to return root or wat
-	return proof, root, nil
+	// // TODO: check if we need to return root or wat
+	// return proof, root, nil
 }
 
 // GetLatestInfoUntilBlock returns the most recent L1InfoTreeLeaf that occurred before or at blockNum.
@@ -316,12 +312,12 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	}
 	var rollbackL1InfoTree func()
 	if firstReorgedL1InfoTreeIndex != -1 {
-		rollbackL1InfoTree, err = p.l1InfoTree.Reorg(tx, uint32(firstReorgedL1InfoTreeIndex))
-		if err != nil {
-			tx.Rollback()
-			rollbackL1InfoTree()
-			return err
-		}
+		// rollbackL1InfoTree, err = p.l1InfoTree.Reorg(tx, uint32(firstReorgedL1InfoTreeIndex))
+		// if err != nil {
+		// 	tx.Rollback()
+		// 	rollbackL1InfoTree()
+		// 	return err
+		// }
 	}
 	if err := tx.Commit(); err != nil {
 		rollbackL1InfoTree()
@@ -417,19 +413,19 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 				rollback()
 				return err
 			}
-			l1InfoTreeRollback, err = p.l1InfoTree.AddLeaves(tx, l1InfoTreeLeavesToAdd)
-			if err != nil {
-				rollback()
-				return err
-			}
+			// l1InfoTreeRollback, err = p.l1InfoTree.AddLeaves(tx, l1InfoTreeLeavesToAdd)
+			// if err != nil {
+			// 	rollback()
+			// 	return err
+			// }
 		}
 
 		if len(rollupExitTreeLeavesToAdd) > 0 {
-			rollupExitTreeRollback, err = p.rollupExitTree.UpseartLeaves(tx, rollupExitTreeLeavesToAdd, b.Num)
-			if err != nil {
-				rollback()
-				return err
-			}
+			// rollupExitTreeRollback, err = p.rollupExitTree.UpseartLeaves(tx, rollupExitTreeLeavesToAdd, b.Num)
+			// if err != nil {
+			// 	rollback()
+			// 	return err
+			// }
 		}
 	}
 	if err := p.updateLastProcessedBlock(tx, b.Num); err != nil {

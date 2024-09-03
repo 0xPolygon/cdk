@@ -116,24 +116,18 @@ func (s *L1InfoTreeSync) GetInfoByIndex(ctx context.Context, index uint32) (*L1I
 }
 
 // GetL1InfoTreeRootByIndex returns the root of the L1 info tree at the moment the leaf with the given index was added
-func (s *L1InfoTreeSync) GetL1InfoTreeRootByIndex(ctx context.Context, index uint32) (common.Hash, error) {
-	tx, err := s.processor.db.BeginRo(ctx)
-	if err != nil {
-		return common.Hash{}, err
-	}
-	defer tx.Rollback()
-
-	return s.processor.l1InfoTree.GetRootByIndex(tx, index)
+func (s *L1InfoTreeSync) GetL1InfoTreeRootByIndex(ctx context.Context, index uint32) (tree.Root, error) {
+	return s.processor.l1InfoTree.GetRootByIndex(ctx, index)
 }
 
 // GetLastRollupExitRoot return the last rollup exit root processed
-func (s *L1InfoTreeSync) GetLastRollupExitRoot(ctx context.Context) (common.Hash, error) {
+func (s *L1InfoTreeSync) GetLastRollupExitRoot(ctx context.Context) (tree.Root, error) {
 	return s.processor.rollupExitTree.GetLastRoot(ctx)
 }
 
-// GetLastL1InfoTreeRootAndIndex return the last root and index processed from the L1 Info tree
-func (s *L1InfoTreeSync) GetLastL1InfoTreeRootAndIndex(ctx context.Context) (uint32, common.Hash, error) {
-	return s.processor.l1InfoTree.GetLastIndexAndRoot(ctx)
+// GetLastL1InfoTreeRoot return the last root and index processed from the L1 Info tree
+func (s *L1InfoTreeSync) GetLastL1InfoTreeRoot(ctx context.Context) (tree.Root, error) {
+	return s.processor.l1InfoTree.GetLastRoot(ctx)
 }
 
 // GetLastProcessedBlock return the last processed block

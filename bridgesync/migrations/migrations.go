@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygon/cdk/db"
+	treeMigrations "github.com/0xPolygon/cdk/tree/migrations"
 	migrate "github.com/rubenv/sql-migrate"
 
 	_ "embed"
@@ -15,10 +16,10 @@ const upDownSeparator = "-- +migrate Up"
 var mig001 string
 var mig001splitted = strings.Split(mig001, upDownSeparator)
 
-var Migrations = &migrate.MemoryMigrationSource{
+var bridgeMigrations = &migrate.MemoryMigrationSource{
 	Migrations: []*migrate.Migration{
 		{
-			Id:   "001",
+			Id:   "bridgesync001",
 			Up:   []string{mig001splitted[1]},
 			Down: []string{mig001splitted[0]},
 		},
@@ -26,5 +27,9 @@ var Migrations = &migrate.MemoryMigrationSource{
 }
 
 func RunMigrations(dbPath string) error {
-	return db.RunMigrations(dbPath, Migrations)
+	bridgeMigrations.Migrations = append(
+		bridgeMigrations.Migrations,
+		treeMigrations.Migrations.Migrations...,
+	)
+	return db.RunMigrations(dbPath, bridgeMigrations)
 }

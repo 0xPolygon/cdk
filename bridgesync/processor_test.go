@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path"
 	"slices"
 	"testing"
 
+	migrationsBridge "github.com/0xPolygon/cdk/bridgesync/migrations"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree/testvectors"
 	"github.com/ethereum/go-ethereum/common"
@@ -16,8 +18,11 @@ import (
 )
 
 func TestProceessor(t *testing.T) {
-	path := t.TempDir()
-	p, err := newProcessor(context.Background(), path, "foo")
+	path := path.Join("/Users/arnaub/Documents/polygon/cdk", "tmp.sqlite")
+	// path := path.Join(t.TempDir(), "tmp.sqlite")
+	err := migrationsBridge.RunMigrations(path)
+	require.NoError(t, err)
+	p, err := newProcessor(path, "foo")
 	require.NoError(t, err)
 	actions := []processAction{
 		// processed: ~
@@ -40,14 +45,23 @@ func TestProceessor(t *testing.T) {
 			firstReorgedBlock: 1,
 			expectedErr:       nil,
 		},
-		&getClaimsAndBridgesAction{
+		&getClaims{
 			p:              p,
 			description:    "on an empty processor",
 			ctx:            context.Background(),
 			fromBlock:      0,
 			toBlock:        2,
-			expectedEvents: nil,
+			expectedClaims: nil,
 			expectedErr:    ErrBlockNotProcessed,
+		},
+		&getBridges{
+			p:               p,
+			description:     "on an empty processor",
+			ctx:             context.Background(),
+			fromBlock:       0,
+			toBlock:         2,
+			expectedBridges: nil,
+			expectedErr:     ErrBlockNotProcessed,
 		},
 		&processBlockAction{
 			p:           p,
@@ -63,23 +77,41 @@ func TestProceessor(t *testing.T) {
 			expectedLastProcessedBlock: 1,
 			expectedErr:                nil,
 		},
-		&getClaimsAndBridgesAction{
+		&getClaims{
 			p:              p,
 			description:    "after block1: range 0, 2",
 			ctx:            context.Background(),
 			fromBlock:      0,
 			toBlock:        2,
-			expectedEvents: nil,
+			expectedClaims: nil,
 			expectedErr:    ErrBlockNotProcessed,
 		},
-		&getClaimsAndBridgesAction{
+		&getBridges{
+			p:               p,
+			description:     "after block1: range 0, 2",
+			ctx:             context.Background(),
+			fromBlock:       0,
+			toBlock:         2,
+			expectedBridges: nil,
+			expectedErr:     ErrBlockNotProcessed,
+		},
+		&getClaims{
 			p:              p,
 			description:    "after block1: range 1, 1",
 			ctx:            context.Background(),
 			fromBlock:      1,
 			toBlock:        1,
-			expectedEvents: eventsToBridgeEvents(block1.Events),
+			expectedClaims: eventsToClaims(block1.Events),
 			expectedErr:    nil,
+		},
+		&getBridges{
+			p:               p,
+			description:     "after block1: range 1, 1",
+			ctx:             context.Background(),
+			fromBlock:       1,
+			toBlock:         1,
+			expectedBridges: eventsToBridges(block1.Events),
+			expectedErr:     nil,
 		},
 		&reorgAction{
 			p:                 p,
@@ -88,14 +120,23 @@ func TestProceessor(t *testing.T) {
 			expectedErr:       nil,
 		},
 		// processed: ~
-		&getClaimsAndBridgesAction{
+		&getClaims{
 			p:              p,
 			description:    "after block1 reorged",
 			ctx:            context.Background(),
 			fromBlock:      0,
 			toBlock:        2,
-			expectedEvents: nil,
+			expectedClaims: nil,
 			expectedErr:    ErrBlockNotProcessed,
+		},
+		&getBridges{
+			p:               p,
+			description:     "after block1 reorged",
+			ctx:             context.Background(),
+			fromBlock:       0,
+			toBlock:         2,
+			expectedBridges: nil,
+			expectedErr:     ErrBlockNotProcessed,
 		},
 		&processBlockAction{
 			p:           p,
@@ -118,24 +159,45 @@ func TestProceessor(t *testing.T) {
 			expectedLastProcessedBlock: 3,
 			expectedErr:                nil,
 		},
-		&getClaimsAndBridgesAction{
+		&getClaims{
 			p:              p,
 			description:    "after block3: range 2, 2",
 			ctx:            context.Background(),
 			fromBlock:      2,
 			toBlock:        2,
-			expectedEvents: []Event{},
+			expectedClaims: []Claim{},
 			expectedErr:    nil,
 		},
-		&getClaimsAndBridgesAction{
+		&getClaims{
 			p:           p,
 			description: "after block3: range 1, 3",
 			ctx:         context.Background(),
 			fromBlock:   1,
 			toBlock:     3,
-			expectedEvents: append(
-				eventsToBridgeEvents(block1.Events),
-				eventsToBridgeEvents(block3.Events)...,
+			expectedClaims: append(
+				eventsToClaims(block1.Events),
+				eventsToClaims(block3.Events)...,
+			),
+			expectedErr: nil,
+		},
+		&getBridges{
+			p:               p,
+			description:     "after block3: range 2, 2",
+			ctx:             context.Background(),
+			fromBlock:       2,
+			toBlock:         2,
+			expectedBridges: []Bridge{},
+			expectedErr:     nil,
+		},
+		&getBridges{
+			p:           p,
+			description: "after block3: range 1, 3",
+			ctx:         context.Background(),
+			fromBlock:   1,
+			toBlock:     3,
+			expectedBridges: append(
+				eventsToBridges(block1.Events),
+				eventsToBridges(block3.Events)...,
 			),
 			expectedErr: nil,
 		},
@@ -194,41 +256,41 @@ func TestProceessor(t *testing.T) {
 			expectedLastProcessedBlock: 5,
 			expectedErr:                nil,
 		},
-		&getClaimsAndBridgesAction{
+		&getClaims{
 			p:           p,
 			description: "after block5: range 1, 3",
 			ctx:         context.Background(),
 			fromBlock:   1,
 			toBlock:     3,
-			expectedEvents: append(
-				eventsToBridgeEvents(block1.Events),
-				eventsToBridgeEvents(block3.Events)...,
+			expectedClaims: append(
+				eventsToClaims(block1.Events),
+				eventsToClaims(block3.Events)...,
 			),
 			expectedErr: nil,
 		},
-		&getClaimsAndBridgesAction{
+		&getClaims{
 			p:           p,
 			description: "after block5: range 4, 5",
 			ctx:         context.Background(),
 			fromBlock:   4,
 			toBlock:     5,
-			expectedEvents: append(
-				eventsToBridgeEvents(block4.Events),
-				eventsToBridgeEvents(block5.Events)...,
+			expectedClaims: append(
+				eventsToClaims(block4.Events),
+				eventsToClaims(block5.Events)...,
 			),
 			expectedErr: nil,
 		},
-		&getClaimsAndBridgesAction{
+		&getClaims{
 			p:           p,
 			description: "after block5: range 0, 5",
 			ctx:         context.Background(),
 			fromBlock:   0,
 			toBlock:     5,
-			expectedEvents: slices.Concat(
-				eventsToBridgeEvents(block1.Events),
-				eventsToBridgeEvents(block3.Events),
-				eventsToBridgeEvents(block4.Events),
-				eventsToBridgeEvents(block5.Events),
+			expectedClaims: slices.Concat(
+				eventsToClaims(block1.Events),
+				eventsToClaims(block3.Events),
+				eventsToClaims(block4.Events),
+				eventsToClaims(block5.Events),
 			),
 			expectedErr: nil,
 		},
@@ -324,29 +386,55 @@ type processAction interface {
 	execute(t *testing.T)
 }
 
-// GetClaimsAndBridges
+// GetClaims
 
-type getClaimsAndBridgesAction struct {
+type getClaims struct {
 	p              *processor
 	description    string
 	ctx            context.Context
 	fromBlock      uint64
 	toBlock        uint64
-	expectedEvents []Event
+	expectedClaims []Claim
 	expectedErr    error
 }
 
-func (a *getClaimsAndBridgesAction) method() string {
-	return "GetClaimsAndBridges"
+func (a *getClaims) method() string {
+	return "GetClaims"
 }
 
-func (a *getClaimsAndBridgesAction) desc() string {
+func (a *getClaims) desc() string {
 	return a.description
 }
 
-func (a *getClaimsAndBridgesAction) execute(t *testing.T) {
-	actualEvents, actualErr := a.p.GetClaimsAndBridges(a.ctx, a.fromBlock, a.toBlock)
-	require.Equal(t, a.expectedEvents, actualEvents)
+func (a *getClaims) execute(t *testing.T) {
+	actualEvents, actualErr := a.p.GetClaims(a.ctx, a.fromBlock, a.toBlock)
+	require.Equal(t, a.expectedClaims, actualEvents)
+	require.Equal(t, a.expectedErr, actualErr)
+}
+
+// GetBridges
+
+type getBridges struct {
+	p               *processor
+	description     string
+	ctx             context.Context
+	fromBlock       uint64
+	toBlock         uint64
+	expectedBridges []Bridge
+	expectedErr     error
+}
+
+func (a *getBridges) method() string {
+	return "GetBridges"
+}
+
+func (a *getBridges) desc() string {
+	return a.description
+}
+
+func (a *getBridges) execute(t *testing.T) {
+	actualEvents, actualErr := a.p.GetBridges(a.ctx, a.fromBlock, a.toBlock)
+	require.Equal(t, a.expectedBridges, actualEvents)
 	require.Equal(t, a.expectedErr, actualErr)
 }
 
@@ -418,12 +506,26 @@ func (a *processBlockAction) execute(t *testing.T) {
 	require.Equal(t, a.expectedErr, actualErr)
 }
 
-func eventsToBridgeEvents(events []interface{}) []Event {
-	bridgeEvents := []Event{}
+func eventsToBridges(events []interface{}) []Bridge {
+	bridges := []Bridge{}
 	for _, event := range events {
-		bridgeEvents = append(bridgeEvents, event.(Event))
+		e := event.(Event)
+		if e.Bridge != nil {
+			bridges = append(bridges, *e.Bridge)
+		}
 	}
-	return bridgeEvents
+	return bridges
+}
+
+func eventsToClaims(events []interface{}) []Claim {
+	claims := []Claim{}
+	for _, event := range events {
+		e := event.(Event)
+		if e.Claim != nil {
+			claims = append(claims, *e.Claim)
+		}
+	}
+	return claims
 }
 
 func TestHashBridge(t *testing.T) {

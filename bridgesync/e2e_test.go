@@ -107,14 +107,8 @@ func TestBridgeEventE2E(t *testing.T) {
 	// Get bridges
 	lastBlock, err := client.Client().BlockNumber(ctx)
 	require.NoError(t, err)
-	events, err := syncer.GetClaimsAndBridges(ctx, 0, lastBlock)
+	actualBridges, err := syncer.GetBridges(ctx, 0, lastBlock)
 	require.NoError(t, err)
-	actualBridges := []bridgesync.Bridge{}
-	for _, event := range events {
-		if event.Bridge != nil {
-			actualBridges = append(actualBridges, *event.Bridge)
-		}
-	}
 
 	// Assert bridges
 	require.Equal(t, expectedBridges, actualBridges)
