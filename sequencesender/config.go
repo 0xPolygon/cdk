@@ -67,8 +67,11 @@ type Config struct {
 	// BlockFinality indicates the status of the blocks that will be queried in order to sync
 	BlockFinality string `jsonschema:"enum=LatestBlock, enum=SafeBlock, enum=PendingBlock, enum=FinalizedBlock, enum=EarliestBlock" mapstructure:"BlockFinality"`
 
-	// SanityCheckRPCURL is the URL of the RPC server to perform sanity check regarding the number of blocks in a batch
-	SanityCheckRPCURL string `mapstructure:"SanityCheckRPCURL"`
+	// RPCURL is the URL of the RPC server
+	RPCURL string `mapstructure:"RPCURL"`
+
+	// GetBatchWaitInterval is the time to wait to query for a new batch when there are no more batches available
+	GetBatchWaitInterval types.Duration `mapstructure:"GetBatchWaitInterval"`
 }
 
 // StreamClientCfg contains the data streamer's configuration properties
