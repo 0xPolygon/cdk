@@ -2,25 +2,21 @@ package tree
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
-	"math"
 
-	dbCommon "github.com/0xPolygon/cdk/common"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/russross/meddler"
 	"golang.org/x/crypto/sha3"
 )
 
 const (
-	DefaultHeight   uint8 = 32
-	rootTableSufix        = "-root"
-	rhtTableSufix         = "-rht"
-	indexTableSufix       = "-index"
+	DefaultHeight uint8 = 32
 )
 
 var (
-	EmptyProof  = [32]common.Hash{}
+	EmptyProof  = Proof{}
 	ErrNotFound = errors.New("not found")
 )
 
@@ -29,59 +25,54 @@ type Leaf struct {
 	Hash  common.Hash
 }
 
+type Proof [DefaultHeight]common.Hash
+
+type Root struct {
+	Hash          common.Hash `meddler:"hash"`
+	Index         uint32      `meddler:"position"`
+	BlockNum      uint64      `meddler:"block_num"`
+	BlockPosition uint64      `meddler:"block_position"`
+}
+
 type Tree struct {
-	db         kv.RwDB
-	rhtTable   string
-	rootTable  string
-	indexTable string
+	db         *sql.DB
 	zeroHashes []common.Hash
 }
 
 type treeNode struct {
-	left  common.Hash
-	right common.Hash
+	Hash  common.Hash `meddler:"hash"`
+	Left  common.Hash `meddler:"left"`
+	Right common.Hash `meddler:"right"`
 }
 
-func (n *treeNode) hash() common.Hash {
+func newTreeNode(left, right common.Hash) treeNode {
 	var hash common.Hash
 	hasher := sha3.NewLegacyKeccak256()
-	hasher.Write(n.left[:])
-	hasher.Write(n.right[:])
+	hasher.Write(left[:])
+	hasher.Write(right[:])
 	copy(hash[:], hasher.Sum(nil))
-	return hash
+	return treeNode{
+		Hash:  hash,
+		Left:  left,
+		Right: right,
+	}
 }
 
 func (n *treeNode) MarshalBinary() ([]byte, error) {
-	return append(n.left[:], n.right[:]...), nil
+	return append(n.Left[:], n.Right[:]...), nil
 }
 
 func (n *treeNode) UnmarshalBinary(data []byte) error {
 	if len(data) != 64 {
 		return fmt.Errorf("expected len %d, actual len %d", 64, len(data))
 	}
-	n.left = common.Hash(data[:32])
-	n.right = common.Hash(data[32:])
+	n.Left = common.Hash(data[:32])
+	n.Right = common.Hash(data[32:])
 	return nil
 }
 
-// AddTables add the needed tables for the tree to work in a tableCfg
-func AddTables(tableCfg map[string]kv.TableCfgItem, dbPrefix string) {
-	rootTable := dbPrefix + rootTableSufix
-	rhtTable := dbPrefix + rhtTableSufix
-	indexTable := dbPrefix + indexTableSufix
-	tableCfg[rootTable] = kv.TableCfgItem{}
-	tableCfg[rhtTable] = kv.TableCfgItem{}
-	tableCfg[indexTable] = kv.TableCfgItem{}
-}
-
-func newTree(db kv.RwDB, dbPrefix string) *Tree {
-	rootTable := dbPrefix + rootTableSufix
-	rhtTable := dbPrefix + rhtTableSufix
-	indexTable := dbPrefix + indexTableSufix
+func newTree(db *sql.DB) *Tree {
 	t := &Tree{
-		rhtTable:   rhtTable,
-		rootTable:  rootTable,
-		indexTable: indexTable,
 		db:         db,
 		zeroHashes: generateZeroHashes(DefaultHeight),
 	}
@@ -89,29 +80,7 @@ func newTree(db kv.RwDB, dbPrefix string) *Tree {
 	return t
 }
 
-func (t *Tree) getRootByIndex(tx kv.Tx, index uint64) (common.Hash, error) {
-	rootBytes, err := tx.GetOne(t.rootTable, dbCommon.Uint64ToBytes(index))
-	if err != nil {
-		return common.Hash{}, err
-	}
-	if rootBytes == nil {
-		return common.Hash{}, ErrNotFound
-	}
-	return common.BytesToHash(rootBytes), nil
-}
-
-func (t *Tree) getIndexByRoot(tx kv.Tx, root common.Hash) (uint64, error) {
-	indexBytes, err := tx.GetOne(t.indexTable, root[:])
-	if err != nil {
-		return 0, err
-	}
-	if indexBytes == nil {
-		return 0, ErrNotFound
-	}
-	return dbCommon.BytesToUint64(indexBytes), nil
-}
-
-func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
+func (t *Tree) getSiblings(tx *sql.Tx, index uint32, root common.Hash) (
 	siblings [32]common.Hash,
 	hasUsedZeroHashes bool,
 	err error,
@@ -157,24 +126,20 @@ func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
 		* Now, let's do AND operation => 100&100=100 which is higher than 0 so we need the left sibling (O5)
 		 */
 		if index&(1<<h) > 0 {
-			siblings[h] = currentNode.left
-			currentNodeHash = currentNode.right
+			siblings[h] = currentNode.Left
+			currentNodeHash = currentNode.Right
 		} else {
-			siblings[h] = currentNode.right
-			currentNodeHash = currentNode.left
+			siblings[h] = currentNode.Right
+			currentNodeHash = currentNode.Left
 		}
 	}
 
 	return
 }
 
-func (t *Tree) BeginRw(ctx context.Context) (kv.RwTx, error) {
-	return t.db.BeginRw(ctx)
-}
-
 // GetProof returns the merkle proof for a given index and root.
 func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([DefaultHeight]common.Hash, error) {
-	tx, err := t.db.BeginRw(ctx)
+	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
 		return [DefaultHeight]common.Hash{}, err
 	}
@@ -189,16 +154,15 @@ func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([D
 	return siblings, nil
 }
 
-func (t *Tree) getRHTNode(tx kv.Tx, nodeHash common.Hash) (*treeNode, error) {
-	nodeBytes, err := tx.GetOne(t.rhtTable, nodeHash[:])
-	if err != nil {
-		return nil, err
-	}
-	if nodeBytes == nil {
-		return nil, ErrNotFound
-	}
+func (t *Tree) getRHTNode(tx *sql.Tx, nodeHash common.Hash) (*treeNode, error) {
 	node := &treeNode{}
-	err = node.UnmarshalBinary(nodeBytes)
+	err := meddler.QueryRow(tx, node, `select * from rht where hash = $1`, nodeHash)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return node, ErrNotFound
+		}
+		return node, err
+	}
 	return node, err
 }
 
@@ -219,69 +183,43 @@ func generateZeroHashes(height uint8) []common.Hash {
 	return zeroHashes
 }
 
-func (t *Tree) storeNodes(tx kv.RwTx, nodes []treeNode) error {
+func (t *Tree) storeNodes(tx *sql.Tx, nodes []treeNode) error {
 	for _, node := range nodes {
-		value, err := node.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		if err := tx.Put(t.rhtTable, node.hash().Bytes(), value); err != nil {
+		if err := meddler.Insert(tx, "rht", &node); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (t *Tree) storeRoot(tx kv.RwTx, rootIndex uint64, root common.Hash) error {
-	if err := tx.Put(t.rootTable, dbCommon.Uint64ToBytes(rootIndex), root[:]); err != nil {
-		return err
-	}
-	return tx.Put(t.indexTable, root[:], dbCommon.Uint64ToBytes(rootIndex))
+func (t *Tree) storeRoot(tx *sql.Tx, root Root) error {
+	return meddler.Insert(tx, "root", &root)
 }
 
 // GetLastRoot returns the last processed root
-func (t *Tree) GetLastRoot(ctx context.Context) (common.Hash, error) {
-	tx, err := t.db.BeginRo(ctx)
+func (t *Tree) GetLastRoot(ctx context.Context) (Root, error) {
+	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
-		return common.Hash{}, err
+		return Root{}, err
 	}
 	defer tx.Rollback()
+	return t.getLastRootWithTx(tx)
+}
 
-	i, root, err := t.getLastIndexAndRootWithTx(tx)
+func (t *Tree) getLastRootWithTx(tx *sql.Tx) (Root, error) {
+	var root Root
+	err := meddler.QueryRow(tx, &root, `SELECT * FROM root ORDER BY block_num DESC, block_position DESC LIMIT 1;`)
 	if err != nil {
-		return common.Hash{}, err
-	}
-	if i == -1 {
-		return common.Hash{}, ErrNotFound
+		if errors.Is(err, sql.ErrNoRows) {
+			return root, ErrNotFound
+		}
+		return root, err
 	}
 	return root, nil
 }
 
-// getLastIndexAndRootWithTx return the index and the root associated to the last leaf inserted.
-// If index == -1, it means no leaf added yet
-func (t *Tree) getLastIndexAndRootWithTx(tx kv.Tx) (int64, common.Hash, error) {
-	iter, err := tx.RangeDescend(
-		t.rootTable,
-		dbCommon.Uint64ToBytes(math.MaxUint64),
-		dbCommon.Uint64ToBytes(0),
-		1,
-	)
-	if err != nil {
-		return 0, common.Hash{}, err
-	}
-
-	lastIndexBytes, rootBytes, err := iter.Next()
-	if err != nil {
-		return 0, common.Hash{}, err
-	}
-	if lastIndexBytes == nil {
-		return -1, common.Hash{}, nil
-	}
-	return int64(dbCommon.BytesToUint64(lastIndexBytes)), common.Hash(rootBytes), nil
-}
-
 func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (common.Hash, error) {
-	tx, err := t.db.BeginRo(ctx)
+	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -294,11 +232,18 @@ func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (com
 			return common.Hash{}, err
 		}
 		if index&(1<<h) > 0 {
-			currentNodeHash = currentNode.right
+			currentNodeHash = currentNode.Right
 		} else {
-			currentNodeHash = currentNode.left
+			currentNodeHash = currentNode.Left
 		}
 	}
 
 	return currentNodeHash, nil
+}
+
+// Reorg deletes all the data relevant from firstReorgedBlock (includded) and onwards
+func (t *AppendOnlyTree) Reorg(tx *sql.Tx, firstReorgedBlock uint32) error {
+	_, err := tx.Exec(`DELETE FROM root WHERE block_num >= $1`, firstReorgedBlock)
+	return err
+	// NOTE: rht is not cleaned, this could be done in the future as optimization
 }

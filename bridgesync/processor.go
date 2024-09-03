@@ -17,6 +17,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
+	"github.com/russross/meddler"
 	_ "modernc.org/sqlite"
 )
 
@@ -178,78 +179,15 @@ func (p *processor) GetClaims(
 			destination_network,
 			is_message
 			metadata,
-		FROM bridge
+		FROM claim
 		WHERE block_num >= $1 AND block_num <= $2;
 	 `)
 	if err != nil {
 		return nil, err
 	}
 	claims := []Claim{}
-	for rows.Next() {
-		b, err := scanClaim(rows)
-		if err != nil {
-			return nil, err
-		}
-		claims = append(claims, b)
-	}
-
-	return claims, nil
-}
-
-func scanClaim(rows *sql.Rows) (Claim, error) {
-	var (
-		block_num              uint64
-		block_pos              uint64
-		global_index           *big.Int
-		origin_network         uint32
-		origin_address         common.Address
-		destination_address    common.Address
-		amount                 *big.Int
-		proof_local_exit_root  common.Hash
-		proof_rollup_exit_root common.Hash
-		mainnet_exit_root      common.Hash
-		rollup_exit_root       common.Hash
-		global_exit_root       common.Hash
-		destination_network    uint32
-		is_message             bool
-		metadata               []byte
-	)
-	if err := rows.Scan(
-		&block_num,
-		&block_pos,
-		&global_index,
-		&origin_network,
-		&origin_address,
-		&destination_address,
-		&amount,
-		&proof_local_exit_root,
-		&proof_rollup_exit_root,
-		&mainnet_exit_root,
-		&rollup_exit_root,
-		&global_exit_root,
-		&destination_network,
-		&metadata,
-		&is_message,
-	); err != nil {
-		return Claim{}, err
-	}
-	return Claim{
-		BlockNum:            block_num,
-		BlockPos:            block_pos,
-		GlobalIndex:         global_index,
-		OriginNetwork:       origin_network,
-		OriginAddress:       origin_address,
-		DestinationAddress:  destination_address,
-		Amount:              amount,
-		ProofLocalExitRoot:  proof_local_exit_root,
-		ProofRollupExitRoot: proof_rollup_exit_root,
-		MainnetExitRoot:     mainnet_exit_root,
-		GlobalExitRoot:      rollup_exit_root,
-		RollupExitRoot:      global_exit_root,
-		DestinationNetwork:  destination_network,
-		Metadata:            metadata,
-		IsMessage:           is_message,
-	}, nil
+	err = meddler.ScanAll(rows, claims)
+	return claims, err
 }
 
 // GetLastProcessedBlock returns the last processed block by the processor, including blocks
@@ -311,8 +249,12 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	}
 
 	exitTreeRollback := func() {}
+	treeTx, err := p.exitTree.BeginRw(ctx)
+	if err != nil {
+		return err
+	}
 	if firstDepositCountReorged != -1 {
-		if exitTreeRollback, err = p.exitTree.Reorg(tx, uint32(firstDepositCountReorged)); err != nil {
+		if exitTreeRollback, err = p.exitTree.Reorg(treeTx, uint32(firstDepositCountReorged)); err != nil {
 			tx.Rollback()
 			exitTreeRollback()
 			return err
@@ -328,10 +270,19 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 // ProcessBlock process the events of the block to build the exit tree
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
-	tx, err := p.db.BeginRw(ctx)
+	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
+	var exitTreeRollback func()
+	defer func() {
+		if err != nil {
+			if errRllbck := tx.Rollback(); errRllbck != nil {
+				log.Errorf("error while rolling back tx %v", errRllbck)
+			}
+		}
+	}()
+
 	leaves := []tree.Leaf{}
 	if len(block.Events) > 0 {
 		events := []Event{}
@@ -345,6 +296,9 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 				})
 			}
 		}
+		if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, block.Num); err != nil {
+			return err
+		}
 		value, err := json.Marshal(events)
 		if err != nil {
 			tx.Rollback()
@@ -354,11 +308,6 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			tx.Rollback()
 			return err
 		}
-	}
-
-	if err := p.updateLastProcessedBlock(tx, block.Num); err != nil {
-		tx.Rollback()
-		return err
 	}
 
 	exitTreeRollback, err := p.exitTree.AddLeaves(tx, leaves)

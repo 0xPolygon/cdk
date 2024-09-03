@@ -11,7 +11,7 @@ import (
 
 const upDownSeparator = "-- +migrate Up"
 
-//go:embed bridgesync0001.sql
+//go:embed tree0001.sql
 var mig001 string
 var mig001splitted = strings.Split(mig001, upDownSeparator)
 
