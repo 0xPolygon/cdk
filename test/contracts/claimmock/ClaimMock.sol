@@ -33,6 +33,9 @@ contract ClaimMock {
             destinationAddress,
             amount
         );
+        if(amount == 0) {
+            revert();
+        }
     }
 
     function claimMessage(
@@ -48,6 +51,9 @@ contract ClaimMock {
         uint256 amount,
         bytes calldata metadata
     ) external {
+        if(amount == 0) {
+            revert();
+        }
         emit ClaimEvent(
             globalIndex,
             originNetwork,
