@@ -41,15 +41,23 @@ func (e *ContractBase) String() string {
 	return e.Version() + "/" + e.Name() + "@" + e.Address().String()
 }
 
-func NewContractMagic[C any, T any](constructor contractConstructorFunc[T], address common.Address, backend bind.ContractBackend, name NameType, version VersionType) (*C, error) {
+func NewContractMagic[C any, T any](
+	constructor contractConstructorFunc[T],
+	address common.Address,
+	backend bind.ContractBackend,
+	name NameType,
+	version VersionType,
+) (*C, error) {
 	contractBind, err := constructor(address, backend)
 	if err != nil {
 		log.Errorf("failed to bind contract %s at address %s. Err:%w", name, address.String(), err)
+
 		return nil, err
 	}
 	tmp := new(C)
 	values := reflect.ValueOf(tmp).Elem()
 	values.FieldByIndex([]int{0}).Set(reflect.ValueOf(contractBind))
 	values.FieldByIndex([]int{1}).Set(reflect.ValueOf(NewContractBase(address, backend, name, version)))
+
 	return tmp, nil
 }

@@ -71,7 +71,7 @@ type L1Config struct {
 	// PolAddr Address of the L1 Pol token Contract
 	PolAddr common.Address `json:"polTokenAddress" mapstructure:"PolAddr"`
 	// GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract
-	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress" mapstructure:"GlobalExitRootManagerAddr"`
+	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress" mapstructure:"GlobalExitRootManagerAddr"` //nolint:lll
 }
 
 // Client is a simple implementation of EtherMan.
@@ -93,11 +93,13 @@ func NewClient(cfg config.Config, l1Config config.L1Config, commonConfig cdkcomm
 	ethClient, err := ethclient.Dial(cfg.EthermanConfig.URL)
 	if err != nil {
 		log.Errorf("error connecting to %s: %+v", cfg.EthermanConfig.URL, err)
+
 		return nil, err
 	}
 	L1chainID, err := ethClient.ChainID(context.Background())
 	if err != nil {
 		log.Errorf("error getting L1chainID from %s: %+v", cfg.EthermanConfig.URL, err)
+
 		return nil, err
 	}
 	log.Infof("L1ChainID: %d", L1chainID.Uint64())
@@ -110,10 +112,14 @@ func NewClient(cfg config.Config, l1Config config.L1Config, commonConfig cdkcomm
 	rollupID, err := contracts.Banana.RollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, l1Config.ZkEVMAddr)
 	if err != nil {
 		log.Errorf("error getting rollupID from %s : %+v", contracts.Banana.RollupManager.String(), err)
+
 		return nil, err
 	}
 	if rollupID == 0 {
-		return nil, errors.New("rollupID is 0, is not a valid value. Check that rollup Address is correct " + l1Config.ZkEVMAddr.String())
+		return nil, errors.New(
+			"rollupID is 0, is not a valid value. Check that rollup Address is correct " +
+				l1Config.ZkEVMAddr.String(),
+		)
 	}
 	log.Infof("rollupID: %d (obtenied from SMC: %s )", rollupID, contracts.Banana.RollupManager.String())
 
@@ -149,7 +155,9 @@ type Order struct {
 }
 
 // WaitTxToBeMined waits for an L1 tx to be mined. It will return error if the tx is reverted or timeout is exceeded
-func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) (bool, error) {
+func (etherMan *Client) WaitTxToBeMined(
+	ctx context.Context, tx *types.Transaction, timeout time.Duration,
+) (bool, error) {
 	// err := operations.WaitTxToBeMined(ctx, etherMan.EthClient, tx, timeout)
 	// if errors.Is(err, context.DeadlineExceeded) {
 	// 	return false, nil
@@ -167,6 +175,7 @@ func (etherMan *Client) GetSendSequenceFee(numBatches uint64) (*big.Int, error) 
 		return nil, err
 	}
 	fee := new(big.Int).Mul(f, new(big.Int).SetUint64(numBatches))
+
 	return fee, nil
 }
 
@@ -188,17 +197,23 @@ func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64
 		if errors.Is(err, ethereum.NotFound) || err.Error() == "block does not exist in blockchain" {
 			return nil, ErrNotFound
 		}
+
 		return nil, err
 	}
+
 	return block, nil
 }
 
 // GetLatestBatchNumber function allows to retrieve the latest proposed batch in the smc
 func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
-	rollupData, err := etherMan.Contracts.Banana.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
+	rollupData, err := etherMan.Contracts.Banana.RollupManager.RollupIDToRollupData(
+		&bind.CallOpts{Pending: false},
+		etherMan.RollupID,
+	)
 	if err != nil {
 		return 0, err
 	}
+
 	return rollupData.LastBatchSequenced, nil
 }
 
@@ -223,6 +238,7 @@ func (etherMan *Client) getBlockNumber(ctx context.Context, blockNumber rpc.Bloc
 	if err != nil || header == nil {
 		return 0, err
 	}
+
 	return header.Number.Uint64(), nil
 }
 
@@ -232,15 +248,20 @@ func (etherMan *Client) GetLatestBlockTimestamp(ctx context.Context) (uint64, er
 	if err != nil || header == nil {
 		return 0, err
 	}
+
 	return header.Time, nil
 }
 
 // GetLatestVerifiedBatchNum gets latest verified batch from ethereum
 func (etherMan *Client) GetLatestVerifiedBatchNum() (uint64, error) {
-	rollupData, err := etherMan.Contracts.Banana.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
+	rollupData, err := etherMan.Contracts.Banana.RollupManager.RollupIDToRollupData(
+		&bind.CallOpts{Pending: false},
+		etherMan.RollupID,
+	)
 	if err != nil {
 		return 0, err
 	}
+
 	return rollupData.LastVerifiedBatch, nil
 }
 
@@ -261,14 +282,19 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 
 // GetL2ChainID returns L2 Chain ID
 func (etherMan *Client) GetL2ChainID() (uint64, error) {
-	rollupData, err := etherMan.Contracts.Banana.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
+	rollupData, err := etherMan.Contracts.Banana.RollupManager.RollupIDToRollupData(
+		&bind.CallOpts{Pending: false},
+		etherMan.RollupID,
+	)
 	log.Debug("chainID read from rollupManager: ", rollupData.ChainID)
 	if err != nil {
 		log.Debug("error from rollupManager: ", err)
+
 		return 0, err
 	} else if rollupData.ChainID == 0 {
 		return rollupData.ChainID, fmt.Errorf("error: chainID received is 0")
 	}
+
 	return rollupData.ChainID, nil
 }
 
@@ -283,7 +309,9 @@ func (etherMan *Client) CurrentNonce(ctx context.Context, account common.Address
 }
 
 // EstimateGas returns the estimated gas for the tx
-func (etherMan *Client) EstimateGas(ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte) (uint64, error) {
+func (etherMan *Client) EstimateGas(
+	ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte,
+) (uint64, error) {
 	return etherMan.EthClient.EstimateGas(ctx, ethereum.CallMsg{
 		From:  from,
 		To:    to,
@@ -305,15 +333,18 @@ func (etherMan *Client) CheckTxWasMined(ctx context.Context, txHash common.Hash)
 }
 
 // SignTx tries to sign a transaction accordingly to the provided sender
-func (etherMan *Client) SignTx(ctx context.Context, sender common.Address, tx *types.Transaction) (*types.Transaction, error) {
+func (etherMan *Client) SignTx(
+	ctx context.Context, sender common.Address, tx *types.Transaction,
+) (*types.Transaction, error) {
 	auth, err := etherMan.getAuthByAddress(sender)
-	if err == ErrNotFound {
+	if errors.Is(err, ErrNotFound) {
 		return nil, ErrPrivateKeyNotFound
 	}
 	signedTx, err := auth.Signer(auth.From, tx)
 	if err != nil {
 		return nil, err
 	}
+
 	return signedTx, nil
 }
 
@@ -342,6 +373,7 @@ func (etherMan *Client) GetRevertMessage(ctx context.Context, tx *types.Transact
 func (etherMan *Client) AddOrReplaceAuth(auth bind.TransactOpts) error {
 	log.Infof("added or replaced authorization for address: %v", auth.From.String())
 	etherMan.auth[auth.From] = auth
+
 	return nil
 }
 
@@ -354,6 +386,7 @@ func (etherMan *Client) LoadAuthFromKeyStore(path, password string) (*bind.Trans
 
 	log.Infof("loaded authorization for address: %v", auth.From.String())
 	etherMan.auth[auth.From] = auth
+
 	return &auth, pk, nil
 }
 
@@ -371,6 +404,7 @@ func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return key, nil
 }
 
@@ -388,6 +422,7 @@ func newAuthFromKeystore(path, password string, chainID uint64) (bind.TransactOp
 	if err != nil {
 		return bind.TransactOpts{}, nil, err
 	}
+
 	return *auth, key.PrivateKey, nil
 }
 
@@ -397,6 +432,7 @@ func (etherMan *Client) getAuthByAddress(addr common.Address) (bind.TransactOpts
 	if !found {
 		return bind.TransactOpts{}, ErrNotFound
 	}
+
 	return auth, nil
 }
 
@@ -406,6 +442,7 @@ func (etherMan *Client) GetLatestBlockHeader(ctx context.Context) (*types.Header
 	if err != nil || header == nil {
 		return nil, err
 	}
+
 	return header, nil
 }
 
@@ -433,7 +470,10 @@ func (etherMan *Client) GetL1InfoRoot(indexL1InfoRoot uint32) (common.Hash, erro
 	)
 
 	if indexL1InfoRoot > 0 {
-		lastL1InfoTreeRoot, err = etherMan.Contracts.Banana.GlobalExitRoot.L1InfoRootMap(&bind.CallOpts{Pending: false}, indexL1InfoRoot)
+		lastL1InfoTreeRoot, err = etherMan.Contracts.Banana.GlobalExitRoot.L1InfoRootMap(
+			&bind.CallOpts{Pending: false},
+			indexL1InfoRoot,
+		)
 		if err != nil {
 			log.Errorf("error calling SC globalexitroot L1InfoLeafMap: %v", err)
 		}
