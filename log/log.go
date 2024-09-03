@@ -70,7 +70,7 @@ func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 	var level zap.AtomicLevel
 	err := level.UnmarshalText([]byte(cfg.Level))
 	if err != nil {
-		return nil, nil, fmt.Errorf("error on setting log level: %s", err)
+		return nil, nil, fmt.Errorf("error on setting log level: %w", err)
 	}
 
 	var zapCfg zap.Config
@@ -93,7 +93,7 @@ func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	defer logger.Sync() //nolint:gosec,errcheck
+	defer logger.Sync() //nolint:errcheck
 
 	// skip 2 callers: one for our wrapper methods and one for the package functions
 	withOptions := logger.WithOptions(zap.AddCallerSkip(2)) //nolint:gomnd
