@@ -18,9 +18,9 @@ import (
 func newSimulatedL1(t *testing.T, auth *bind.TransactOpts) *simulated.Backend {
 	t.Helper()
 
-	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10) //nolint:gomnd
+	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10)
 
-	blockGasLimit := uint64(999999999999999999) //nolint:gomnd
+	blockGasLimit := uint64(999999999999999999)
 	client := simulated.NewBackend(map[common.Address]types.Account{
 		auth.From: {
 			Balance: balance,
