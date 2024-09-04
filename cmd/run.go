@@ -19,6 +19,7 @@ import (
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/common"
+	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/config"
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/dataavailability/datacommittee"
@@ -133,9 +134,10 @@ func start(cliCtx *cli.Context) error {
 }
 
 func createAggregator(ctx context.Context, c config.Config, runMigrations bool) *aggregator.Aggregator {
+	logger := log.WithFields("module", cdkcommon.AGGREGATOR)
 	// Migrations
 	if runMigrations {
-		log.Infof(
+		logger.Infof(
 			"Running DB migrations host: %s:%s db:%s user:%s",
 			c.Aggregator.DB.Host, c.Aggregator.DB.Port, c.Aggregator.DB.Name, c.Aggregator.DB.User,
 		)
@@ -145,18 +147,18 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 	// DB
 	stateSQLDB, err := db.NewSQLDB(c.Aggregator.DB)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	etherman, err := newEtherman(c)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	// READ CHAIN ID FROM POE SC
 	l2ChainID, err := etherman.GetL2ChainID()
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	st := newState(&c, l2ChainID, stateSQLDB)
@@ -169,9 +171,9 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 	c.Aggregator.Synchronizer.Etherman.Contracts.RollupManagerAddr = c.NetworkConfig.L1Config.RollupManagerAddr
 	c.Aggregator.Synchronizer.Etherman.Contracts.ZkEVMAddr = c.NetworkConfig.L1Config.ZkEVMAddr
 
-	aggregator, err := aggregator.New(ctx, c.Aggregator, st, etherman)
+	aggregator, err := aggregator.New(ctx, c.Aggregator, logger, st, etherman)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	return aggregator
