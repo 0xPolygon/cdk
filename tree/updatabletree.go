@@ -114,7 +114,7 @@ func (t *UpdatableTree) Reorg(tx kv.RwTx, firstReorgedIndex uint64) (func(), err
 		t.lastRoot = rootBackup
 	}
 
-	for lastIndexBytes, rootBytes, err := iter.Next(); lastIndexBytes != nil; lastIndexBytes, rootBytes, err = iter.Next() {
+	for lastIndexBytes, rootBytes, err := iter.Next(); lastIndexBytes != nil; lastIndexBytes, rootBytes, err = iter.Next() { //nolint:lll
 		if err != nil {
 			return rollback, err
 		}

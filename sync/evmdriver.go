@@ -75,7 +75,7 @@ reset:
 		lastProcessedBlock, err = d.processor.GetLastProcessedBlock(ctx)
 		if err != nil {
 			attempts++
-			d.log.Error("error geting last processed block: ", err)
+			d.log.Error("error getting last processed block: ", err)
 			d.rh.Handle("Sync", attempts)
 			continue
 		}
