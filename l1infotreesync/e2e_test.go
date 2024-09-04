@@ -200,7 +200,7 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 	client, gerAddr, verifyAddr, gerSc, verifySC, err := newSimulatedClient(auth)
 	require.NoError(t, err)
-	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
+	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Second / 2)})
 	require.NoError(t, err)
 	require.NoError(t, rd.Start(ctx))
 	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, time.Second, 5)
@@ -280,15 +280,15 @@ func TestWithReorgs(t *testing.T) {
 
 	// Block 4 after the fork with no events
 	client.Commit()
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond * 100)
 
 	// Block 5 after the fork
 	client.Commit()
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond * 100)
 
 	// Block 6 after the fork to finalize the chain
 	client.Commit()
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond * 100)
 
 	// Make sure syncer is up to date
 	for i := 0; i < 50; i++ {
@@ -318,6 +318,7 @@ func TestWithReorgs(t *testing.T) {
 	// Forking from block 3 again
 	err = client.Fork(reorgFrom)
 	require.NoError(t, err)
+	time.Sleep(time.Millisecond * 100)
 
 	{
 		i := 2
@@ -340,19 +341,19 @@ func TestWithReorgs(t *testing.T) {
 
 	// Block 4 after the fork with events
 	client.Commit()
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond * 100)
 
 	// Block 5 after the fork
 	client.Commit()
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond * 100)
 
 	// Block 6 after the fork
 	client.Commit()
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond * 100)
 
 	// Block 7 after the fork to finalize the chain
 	client.Commit()
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond * 100)
 
 	for i := 0; i < 50; i++ {
 		lpb, err := syncer.GetLastProcessedBlock(ctx)
@@ -383,7 +384,7 @@ func TestStressAndReorgs(t *testing.T) {
 		totalIterations       = 200  // Have tested with much larger number (+10k)
 		enableReorgs          = true // test fails when set to true
 		reorgEveryXIterations = 53
-		maxReorgDepth         = 5
+		maxReorgDepth         = 12
 		maxEventsPerBlock     = 7
 		maxRollups            = 31
 	)
@@ -422,27 +423,20 @@ func TestStressAndReorgs(t *testing.T) {
 			}
 		}
 
-		//newBlockHash := client.Commit()
 		time.Sleep(time.Microsecond * 30) // Sleep just enough for goroutine to switch
 
-		// Assert rollup exit root
-		/*expectedRollupExitRoot, err := verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false, BlockHash: newBlockHash})
-		require.NoError(t, err)
-		syncer.GetLastProcessedBlock()
-		actualRollupExitRoot, err := syncer.GetLastRollupExitRoot(ctx)
-		require.NoError(t, err)
-		require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot)*/
-
-		if enableReorgs && i%reorgEveryXIterations == 0 {
+		if enableReorgs && i > 0 && i%reorgEveryXIterations == 0 {
 			reorgDepth := i%maxReorgDepth + 1
 			extraBlocksToMine += reorgDepth + 1
 			currentBlockNum, err := client.Client().BlockNumber(ctx)
 			require.NoError(t, err)
-			targetReorgBlockNum := currentBlockNum - uint64(reorgDepth)
+
+			targetReorgBlockNum := currentBlockNum
+			if uint64(reorgDepth) <= currentBlockNum {
+				targetReorgBlockNum -= uint64(reorgDepth)
+			}
+
 			if targetReorgBlockNum < currentBlockNum { // we are dealing with uints...
-				fmt.Println("--------------------")
-				fmt.Println("reorging", targetReorgBlockNum)
-				fmt.Println("--------------------")
 				reorgBlock, err := client.Client().BlockByNumber(ctx, big.NewInt(int64(targetReorgBlockNum)))
 				require.NoError(t, err)
 				err = client.Fork(reorgBlock.Hash())
