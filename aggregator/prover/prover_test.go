@@ -2,7 +2,6 @@ package prover_test
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"testing"
 
@@ -28,9 +27,7 @@ func TestCalculateStateRoots(t *testing.T) {
 
 	// Read all files in the directory
 	files, err := os.ReadDir(dir)
-	if err != nil {
-		log.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	for _, file := range files {
 		if file.IsDir() {
@@ -39,21 +36,15 @@ func TestCalculateStateRoots(t *testing.T) {
 
 		// Read the file
 		data, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, file.Name()))
-		if err != nil {
-			log.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		// Get the state root from the batch proof
 		fileStateRoot, err := prover.GetStateRootFromProof(string(data))
-		if err != nil {
-			log.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		// Get the expected state root
 		expectedStateRoot, ok := expectedStateRoots[file.Name()]
-		if !ok {
-			log.Fatal("Expected state root not found")
-		}
+		require.True(t, ok, "Expected state root not found")
 
 		// Compare the state roots
 		require.Equal(t, expectedStateRoot, fileStateRoot.String(), "State roots do not match")
