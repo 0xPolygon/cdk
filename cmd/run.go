@@ -338,8 +338,9 @@ func newDataAvailability(c config.Config, etherman *etherman.Client) (*dataavail
 	if !c.Common.IsValidiumMode {
 		return nil, nil
 	}
-	translator := translator.NewTranslatorImpl()
-	log.Infof("Translator rules: %v", c.Common.Translator)
+	logger := log.WithFields("module", "da-committee")
+	translator := translator.NewTranslatorImpl(logger)
+	logger.Infof("Translator rules: %v", c.Common.Translator)
 	translator.AddConfigRules(c.Common.Translator)
 
 	// Backend specific config
@@ -364,6 +365,7 @@ func newDataAvailability(c config.Config, etherman *etherman.Client) (*dataavail
 		}
 
 		daBackend, err = datacommittee.New(
+			logger,
 			c.SequenceSender.EthTxManager.Etherman.URL,
 			dacAddr,
 			pk,
