@@ -171,3 +171,11 @@ func (s *BridgeSync) GetBridges(ctx context.Context, fromBlock, toBlock uint64) 
 func (s *BridgeSync) GetProof(ctx context.Context, depositCount uint32, localExitRoot common.Hash) ([32]common.Hash, error) {
 	return s.processor.exitTree.GetProof(ctx, depositCount, localExitRoot)
 }
+
+func (p *processor) GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error) {
+	root, err := p.exitTree.GetRootByHash(ctx, ler)
+	if err != nil {
+		return 0, err
+	}
+	return root.BlockNum, nil
+}
