@@ -139,10 +139,17 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	}
 
 	info := &L1InfoTreeLeaf{}
-	return info, meddler.QueryRow(
+	err = meddler.QueryRow(
 		tx, info,
 		`SELECT * FROM l1info_leaf ORDER BY block_num DESC, block_pos DESC LIMIT 1;`,
 	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return info, nil
 }
 
 // GetInfoByIndex returns the value of a leaf (not the hash) of the L1 info tree
