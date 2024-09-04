@@ -62,6 +62,7 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 			)
 		}
 		b.Events = append(b.Events, Event{UpdateL1InfoTree: &UpdateL1InfoTree{
+			BlockPosition:   uint64(l.Index),
 			MainnetExitRoot: l1InfoTreeUpdate.MainnetExitRoot,
 			RollupExitRoot:  l1InfoTreeUpdate.RollupExitRoot,
 			ParentHash:      b.ParentHash,
@@ -91,11 +92,12 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 			)
 		}
 		b.Events = append(b.Events, Event{VerifyBatches: &VerifyBatches{
-			RollupID:   verifyBatches.RollupID,
-			NumBatch:   verifyBatches.NumBatch,
-			StateRoot:  verifyBatches.StateRoot,
-			ExitRoot:   verifyBatches.ExitRoot,
-			Aggregator: verifyBatches.Aggregator,
+			BlockPosition: uint64(l.Index),
+			RollupID:      verifyBatches.RollupID,
+			NumBatch:      verifyBatches.NumBatch,
+			StateRoot:     verifyBatches.StateRoot,
+			ExitRoot:      verifyBatches.ExitRoot,
+			Aggregator:    verifyBatches.Aggregator,
 		}})
 		return nil
 	}
@@ -108,11 +110,12 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 			)
 		}
 		b.Events = append(b.Events, Event{VerifyBatches: &VerifyBatches{
-			RollupID:   verifyBatches.RollupID,
-			NumBatch:   verifyBatches.NumBatch,
-			StateRoot:  verifyBatches.StateRoot,
-			ExitRoot:   verifyBatches.ExitRoot,
-			Aggregator: verifyBatches.Aggregator,
+			BlockPosition: uint64(l.Index),
+			RollupID:      verifyBatches.RollupID,
+			NumBatch:      verifyBatches.NumBatch,
+			StateRoot:     verifyBatches.StateRoot,
+			ExitRoot:      verifyBatches.ExitRoot,
+			Aggregator:    verifyBatches.Aggregator,
 		}})
 		return nil
 	}

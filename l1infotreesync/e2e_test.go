@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"path"
 	"strconv"
 	"testing"
 	"time"
@@ -68,7 +69,7 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
-	dbPath := t.TempDir()
+	dbPath := path.Join(t.TempDir(), "tmp.sqlite")
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
@@ -107,7 +108,7 @@ func TestE2E(t *testing.T) {
 		require.Equal(t, g, expectedRoot)
 		actualRoot, err := syncer.GetL1InfoTreeRootByIndex(ctx, uint32(i))
 		require.NoError(t, err)
-		require.Equal(t, common.Hash(expectedRoot), actualRoot)
+		require.Equal(t, common.Hash(expectedRoot), actualRoot.Hash)
 	}
 
 	// Update 3 rollups (verify batches event) 3 times
@@ -128,7 +129,7 @@ func TestE2E(t *testing.T) {
 			require.NoError(t, err)
 			actualRollupExitRoot, err := syncer.GetLastRollupExitRoot(ctx)
 			require.NoError(t, err)
-			require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot, fmt.Sprintf("rollupID: %d, i: %d", rollupID, i))
+			require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash, fmt.Sprintf("rollupID: %d, i: %d", rollupID, i))
 		}
 	}
 }
@@ -174,7 +175,7 @@ func TestStressAndReorgs(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	dbPathSyncer := t.TempDir()
+	dbPathSyncer := path.Join(t.TempDir(), "tmp.sqlite")
 	dbPathReorg := t.TempDir()
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -222,10 +223,10 @@ func TestStressAndReorgs(t *testing.T) {
 
 	syncerUpToDate := false
 	var errMsg string
+	lb, err := client.Client().BlockNumber(ctx)
+	require.NoError(t, err)
 	for i := 0; i < 50; i++ {
 		lpb, err := syncer.GetLastProcessedBlock(ctx)
-		require.NoError(t, err)
-		lb, err := client.Client().BlockNumber(ctx)
 		require.NoError(t, err)
 		if lpb == lb {
 			syncerUpToDate = true
@@ -241,7 +242,7 @@ func TestStressAndReorgs(t *testing.T) {
 	require.NoError(t, err)
 	actualRollupExitRoot, err := syncer.GetLastRollupExitRoot(ctx)
 	require.NoError(t, err)
-	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot)
+	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 
 	// Assert L1 Info tree root
 	expectedL1InfoRoot, err := gerSc.GetRoot(&bind.CallOpts{Pending: false})

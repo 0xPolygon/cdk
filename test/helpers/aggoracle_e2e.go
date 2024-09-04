@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"path"
 	"testing"
 	"time"
 
@@ -104,7 +105,7 @@ func CommonSetup(t *testing.T) (
 	reorg, err := reorgdetector.New(l1Client.Client(), reorgdetector.Config{DBPath: dbPathReorgDetector})
 	require.NoError(t, err)
 	// Syncer
-	dbPathSyncer := t.TempDir()
+	dbPathSyncer := path.Join(t.TempDir(), "tmp.sqlite")
 	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, common.Address{}, 10, etherman.LatestBlock, reorg, l1Client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3)
 	require.NoError(t, err)
 	go syncer.Start(ctx)

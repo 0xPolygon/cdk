@@ -35,7 +35,7 @@ func TestMTAddLeaf(t *testing.T) {
 			require.NoError(t, err)
 			db, err := db.NewSQLiteDB(dbPath)
 			require.NoError(t, err)
-			merkletree := tree.NewAppendOnlyTree(db)
+			merkletree := tree.NewAppendOnlyTree(db, "")
 
 			// Add exisiting leaves
 			tx, err := db.BeginTx(ctx, nil)
@@ -87,7 +87,7 @@ func TestMTGetProof(t *testing.T) {
 			require.NoError(t, err)
 			db, err := db.NewSQLiteDB(dbPath)
 			require.NoError(t, err)
-			tre := tree.NewAppendOnlyTree(db)
+			tre := tree.NewAppendOnlyTree(db, "")
 
 			tx, err := db.BeginTx(ctx, nil)
 			require.NoError(t, err)

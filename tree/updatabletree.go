@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/0xPolygon/cdk/tree/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // UpdatableTree is a tree that have updatable leaves, and doesn't need to have sequential inserts
@@ -12,20 +13,27 @@ type UpdatableTree struct {
 }
 
 // NewUpdatableTree returns an UpdatableTree
-func NewUpdatableTree(db *sql.DB) (*UpdatableTree, error) {
-	t := newTree(db)
+func NewUpdatableTree(db *sql.DB, dbPrefix string) *UpdatableTree {
+	t := newTree(db, dbPrefix)
 	ut := &UpdatableTree{
 		Tree: t,
 	}
-	return ut, nil
+	return ut
 }
 
 func (t *UpdatableTree) UpsertLeaf(tx *sql.Tx, blockNum, blockPosition uint64, leaf types.Leaf) error {
+	var rootHash common.Hash
 	root, err := t.getLastRootWithTx(tx)
 	if err != nil {
-		return err
+		if err == ErrNotFound {
+			rootHash = t.zeroHashes[types.DefaultHeight]
+		} else {
+			return err
+		}
+	} else {
+		rootHash = root.Hash
 	}
-	siblings, _, err := t.getSiblings(tx, leaf.Index, root.Hash)
+	siblings, _, err := t.getSiblings(tx, leaf.Index, rootHash)
 	if err != nil {
 		return err
 	}

@@ -19,7 +19,6 @@ import (
 )
 
 func TestProceessor(t *testing.T) {
-	//  /var/folders/mg/0s7xy6zx5fl70c15csg0jxx00000gp/T/TestProceessor817662394/001/tmp.sqlite
 	path := path.Join(t.TempDir(), "tmp.sqlite")
 	log.Debugf("sqlite path: %s", path)
 	err := migrationsBridge.RunMigrations(path)

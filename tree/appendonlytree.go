@@ -16,9 +16,12 @@ type AppendOnlyTree struct {
 }
 
 // NewAppendOnlyTree creates a AppendOnlyTree
-func NewAppendOnlyTree(db *sql.DB) *AppendOnlyTree {
-	t := newTree(db)
-	return &AppendOnlyTree{Tree: t}
+func NewAppendOnlyTree(db *sql.DB, dbPrefix string) *AppendOnlyTree {
+	t := newTree(db, dbPrefix)
+	return &AppendOnlyTree{
+		Tree:      t,
+		lastIndex: -2,
+	}
 }
 
 func (t *AppendOnlyTree) AddLeaf(tx *sql.Tx, blockNum, blockPosition uint64, leaf types.Leaf) error {

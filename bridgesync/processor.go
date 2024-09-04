@@ -7,6 +7,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/0xPolygon/cdk/bridgesync/migrations"
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
@@ -75,9 +76,9 @@ type Claim struct {
 	Amount              *big.Int       `meddler:"amount,bigint"`
 	ProofLocalExitRoot  types.Proof    `meddler:"proof_local_exit_root,merkleproof"`
 	ProofRollupExitRoot types.Proof    `meddler:"proof_rollup_exit_root,merkleproof"`
-	MainnetExitRoot     common.Hash    `meddler:"mainnet_exit_root"`
-	RollupExitRoot      common.Hash    `meddler:"rollup_exit_root"`
-	GlobalExitRoot      common.Hash    `meddler:"global_exit_root"`
+	MainnetExitRoot     common.Hash    `meddler:"mainnet_exit_root,hash"`
+	RollupExitRoot      common.Hash    `meddler:"rollup_exit_root,hash"`
+	GlobalExitRoot      common.Hash    `meddler:"global_exit_root,hash"`
 	DestinationNetwork  uint32         `meddler:"destination_network"`
 	Metadata            []byte         `meddler:"metadata"`
 	IsMessage           bool           `meddler:"is_message"`
@@ -96,13 +97,17 @@ type processor struct {
 	log      *log.Logger
 }
 
-func newProcessor(dbPath, dbPrefix string) (*processor, error) {
+func newProcessor(dbPath, loggerPrefix string) (*processor, error) {
+	err := migrations.RunMigrations(dbPath)
+	if err != nil {
+		return nil, err
+	}
 	db, err := db.NewSQLiteDB(dbPath)
 	if err != nil {
 		return nil, err
 	}
-	logger := log.WithFields("bridge-syncer", dbPrefix)
-	exitTree := tree.NewAppendOnlyTree(db)
+	logger := log.WithFields("bridge-syncer", loggerPrefix)
+	exitTree := tree.NewAppendOnlyTree(db, "")
 	return &processor{
 		db:       db,
 		exitTree: exitTree,
@@ -113,7 +118,7 @@ func newProcessor(dbPath, dbPrefix string) (*processor, error) {
 func (p *processor) GetBridges(
 	ctx context.Context, fromBlock, toBlock uint64,
 ) ([]Bridge, error) {
-	tx, err := p.db.BeginTx(ctx, nil)
+	tx, err := p.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +143,7 @@ func (p *processor) GetBridges(
 func (p *processor) GetClaims(
 	ctx context.Context, fromBlock, toBlock uint64,
 ) ([]Claim, error) {
-	tx, err := p.db.BeginTx(ctx, nil)
+	tx, err := p.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +179,7 @@ func (p *processor) isBlockProcessed(tx *sql.Tx, blockNum uint64) error {
 // GetLastProcessedBlock returns the last processed block by the processor, including blocks
 // that don't have events
 func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
-	tx, err := p.db.BeginTx(ctx, nil)
+	tx, err := p.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return 0, err
 	}

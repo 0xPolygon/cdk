@@ -27,9 +27,9 @@ var bridgeMigrations = &migrate.MemoryMigrationSource{
 }
 
 func RunMigrations(dbPath string) error {
-	bridgeMigrations.Migrations = append(
+	migs := append(
 		bridgeMigrations.Migrations,
 		treeMigrations.Migrations.Migrations...,
 	)
-	return db.RunMigrations(dbPath, bridgeMigrations)
+	return db.RunMigrations(dbPath, &migrate.MemoryMigrationSource{Migrations: migs})
 }

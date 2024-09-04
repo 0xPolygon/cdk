@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"path"
 	"strconv"
 	"testing"
 	"time"
@@ -100,6 +101,7 @@ func newSimulatedClient(authDeployer, authCaller *bind.TransactOpts) (
 	}
 	if precalculatedAddr != checkGERAddr {
 		err = errors.New("error deploying bridge")
+		return
 	}
 
 	gerAddr, _, gerContract, err = polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(
@@ -118,8 +120,8 @@ func newSimulatedClient(authDeployer, authCaller *bind.TransactOpts) (
 
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
-	dbPathBridgeSync := t.TempDir()
-	dbPathL1Sync := t.TempDir()
+	dbPathBridgeSync := path.Join(t.TempDir(), "tmp.sqlite")
+	dbPathL1Sync := path.Join(t.TempDir(), "tmp.sqlite")
 	dbPathReorg := t.TempDir()
 	dbPathL12InfoSync := t.TempDir()
 
@@ -186,6 +188,7 @@ func TestE2E(t *testing.T) {
 
 		// Wait for block to be finalised
 		updateAtBlock, err := client.Client().BlockNumber(ctx)
+		require.NoError(t, err)
 		for {
 			lastFinalisedBlock, err := client.Client().BlockByNumber(ctx, big.NewInt(int64(rpc.FinalizedBlockNumber)))
 			require.NoError(t, err)
@@ -199,10 +202,10 @@ func TestE2E(t *testing.T) {
 		// Wait for syncer to catch up
 		syncerUpToDate := false
 		var errMsg string
+		lb, err := client.Client().BlockByNumber(ctx, big.NewInt(int64(rpc.FinalizedBlockNumber)))
+		require.NoError(t, err)
 		for i := 0; i < 10; i++ {
 			lpb, err := bridge2InfoSync.GetLastProcessedBlock(ctx)
-			require.NoError(t, err)
-			lb, err := client.Client().BlockByNumber(ctx, big.NewInt(int64(rpc.FinalizedBlockNumber)))
 			require.NoError(t, err)
 			if lpb == lb.NumberU64() {
 				syncerUpToDate = true

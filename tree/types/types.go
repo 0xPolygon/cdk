@@ -12,16 +12,16 @@ type Leaf struct {
 }
 
 type Root struct {
-	Hash          common.Hash `meddler:"hash"`
+	Hash          common.Hash `meddler:"hash,hash"`
 	Index         uint32      `meddler:"position"`
 	BlockNum      uint64      `meddler:"block_num"`
 	BlockPosition uint64      `meddler:"block_position"`
 }
 
 type TreeNode struct {
-	Hash  common.Hash `meddler:"hash"`
-	Left  common.Hash `meddler:"left"`
-	Right common.Hash `meddler:"right"`
+	Hash  common.Hash `meddler:"hash,hash"`
+	Left  common.Hash `meddler:"left,hash"`
+	Right common.Hash `meddler:"right,hash"`
 }
 
 type Proof [DefaultHeight]common.Hash

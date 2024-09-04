@@ -24,7 +24,7 @@ func Test001(t *testing.T) {
 	_, err = tx.Exec(`
 		INSERT INTO block (num) VALUES (1);
 
-		INSERT INTO claim (
+		INSERT INTO bridge (
 			block_num,
 			block_pos,
 			leaf_type,
@@ -37,7 +37,7 @@ func Test001(t *testing.T) {
 			deposit_count
 		) VALUES (1, 0, 0, 0, '0x0000', 0, '0x0000', 0, NULL, 0);
 
-		INSERT INTO bridge (
+		INSERT INTO claim (
 			block_num,
 			block_pos,
     		global_index,

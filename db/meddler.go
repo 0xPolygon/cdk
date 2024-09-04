@@ -17,6 +17,7 @@ func initMeddler() {
 	meddler.Default = meddler.SQLite
 	meddler.Register("bigint", BigIntMeddler{})
 	meddler.Register("merkleproof", MerkleProofMeddler{})
+	meddler.Register("hash", HashMeddler{})
 }
 
 func SQLiteErr(err error) (*sqlite.Error, bool) {
@@ -121,4 +122,30 @@ func (b MerkleProofMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{
 	}
 	s = strings.TrimSuffix(s, ",")
 	return s, nil
+}
+
+// HashMeddler encodes or decodes the field value to or from JSON
+type HashMeddler struct{}
+
+// PreRead is called before a Scan operation for fields that have the ProofMeddler
+func (b HashMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
+	// give a pointer to a byte buffer to grab the raw data
+	return new(string), nil
+}
+
+// PostRead is called after a Scan operation for fields that have the ProofMeddler
+func (b HashMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
+	ptr := scanTarget.(*string)
+	if ptr == nil {
+		return fmt.Errorf("HashMeddler.PostRead: nil pointer")
+	}
+	field := fieldPtr.(*common.Hash)
+	*field = common.HexToHash(*ptr)
+	return nil
+}
+
+// PreWrite is called before an Insert or Update operation for fields that have the ProofMeddler
+func (b HashMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{}, err error) {
+	field := fieldPtr.(common.Hash)
+	return field.Hex(), nil
 }

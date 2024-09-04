@@ -37,7 +37,7 @@ func New(
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 ) (*L1InfoTreeSync, error) {
-	processor, err := newProcessor(ctx, dbPath)
+	processor, err := newProcessor(dbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -93,12 +93,12 @@ func (s *L1InfoTreeSync) Start(ctx context.Context) {
 }
 
 // GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
-func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([32]common.Hash, common.Hash, error) {
+func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) (types.Proof, types.Root, error) {
 	return s.processor.GetL1InfoTreeMerkleProof(ctx, index)
 }
 
 // GetRollupExitTreeMerkleProof creates a merkle proof for the rollup exit tree
-func (s *L1InfoTreeSync) GetRollupExitTreeMerkleProof(ctx context.Context, networkID uint32, root common.Hash) ([32]common.Hash, error) {
+func (s *L1InfoTreeSync) GetRollupExitTreeMerkleProof(ctx context.Context, networkID uint32, root common.Hash) (types.Proof, error) {
 	if networkID == 0 {
 		return tree.EmptyProof, nil
 	}

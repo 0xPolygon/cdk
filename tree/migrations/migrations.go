@@ -9,7 +9,10 @@ import (
 	_ "embed"
 )
 
-const upDownSeparator = "-- +migrate Up"
+const (
+	upDownSeparator  = "-- +migrate Up"
+	dbPrefixReplacer = "/*dbprefix*/"
+)
 
 //go:embed tree0001.sql
 var mig001 string
@@ -27,4 +30,14 @@ var Migrations = &migrate.MemoryMigrationSource{
 
 func RunMigrations(dbPath string) error {
 	return db.RunMigrations(dbPath, Migrations)
+}
+
+func MigrationsWithPrefix(prefix string) []*migrate.Migration {
+	return []*migrate.Migration{
+		{
+			Id:   prefix + "tree001",
+			Up:   []string{strings.Replace(mig001splitted[1], dbPrefixReplacer, prefix, -1)},
+			Down: []string{strings.Replace(mig001splitted[0], dbPrefixReplacer, prefix, -1)},
+		},
+	}
 }

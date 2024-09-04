@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"path"
 	"testing"
 	"time"
 
@@ -45,7 +46,7 @@ func newSimulatedClient(t *testing.T, auth *bind.TransactOpts) (
 
 func TestBridgeEventE2E(t *testing.T) {
 	ctx := context.Background()
-	dbPathSyncer := t.TempDir()
+	dbPathSyncer := path.Join(t.TempDir(), "tmp.sqlite")
 	dbPathReorg := t.TempDir()
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -65,11 +66,12 @@ func TestBridgeEventE2E(t *testing.T) {
 	expectedBridges := []bridgesync.Bridge{}
 	for i := 0; i < 100; i++ {
 		bridge := bridgesync.Bridge{
+			BlockNum:           uint64(2 + i),
 			Amount:             big.NewInt(0),
 			DepositCount:       uint32(i),
 			DestinationNetwork: 3,
 			DestinationAddress: common.HexToAddress("f00"),
-			Metadata:           []byte{},
+			Metadata:           nil,
 		}
 		tx, err := bridgeSc.BridgeAsset(
 			auth,
