@@ -145,7 +145,7 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 	}
 
 	// DB
-	stateSQLDB, err := db.NewSQLDB(c.Aggregator.DB)
+	stateSQLDB, err := db.NewSQLDB(logger, c.Aggregator.DB)
 	if err != nil {
 		logger.Fatal(err)
 	}
