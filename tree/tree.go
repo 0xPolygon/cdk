@@ -6,52 +6,31 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/0xPolygon/cdk/db"
+	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/russross/meddler"
 	"golang.org/x/crypto/sha3"
-)
-
-const (
-	DefaultHeight uint8 = 32
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 var (
-	EmptyProof  = Proof{}
+	EmptyProof  = types.Proof{}
 	ErrNotFound = errors.New("not found")
 )
-
-type Leaf struct {
-	Index uint32
-	Hash  common.Hash
-}
-
-type Proof [DefaultHeight]common.Hash
-
-type Root struct {
-	Hash          common.Hash `meddler:"hash"`
-	Index         uint32      `meddler:"position"`
-	BlockNum      uint64      `meddler:"block_num"`
-	BlockPosition uint64      `meddler:"block_position"`
-}
 
 type Tree struct {
 	db         *sql.DB
 	zeroHashes []common.Hash
 }
 
-type treeNode struct {
-	Hash  common.Hash `meddler:"hash"`
-	Left  common.Hash `meddler:"left"`
-	Right common.Hash `meddler:"right"`
-}
-
-func newTreeNode(left, right common.Hash) treeNode {
+func newTreeNode(left, right common.Hash) types.TreeNode {
 	var hash common.Hash
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(left[:])
 	hasher.Write(right[:])
 	copy(hash[:], hasher.Sum(nil))
-	return treeNode{
+	return types.TreeNode{
 		Hash:  hash,
 		Left:  left,
 		Right: right,
@@ -61,7 +40,7 @@ func newTreeNode(left, right common.Hash) treeNode {
 func newTree(db *sql.DB) *Tree {
 	t := &Tree{
 		db:         db,
-		zeroHashes: generateZeroHashes(DefaultHeight),
+		zeroHashes: generateZeroHashes(types.DefaultHeight),
 	}
 
 	return t
@@ -74,8 +53,8 @@ func (t *Tree) getSiblings(tx *sql.Tx, index uint32, root common.Hash) (
 ) {
 	currentNodeHash := root
 	// It starts in height-1 because 0 is the level of the leafs
-	for h := int(DefaultHeight - 1); h >= 0; h-- {
-		var currentNode *treeNode
+	for h := int(types.DefaultHeight - 1); h >= 0; h-- {
+		var currentNode *types.TreeNode
 		currentNode, err = t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
 			if err == ErrNotFound {
@@ -125,24 +104,24 @@ func (t *Tree) getSiblings(tx *sql.Tx, index uint32, root common.Hash) (
 }
 
 // GetProof returns the merkle proof for a given index and root.
-func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([DefaultHeight]common.Hash, error) {
+func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([types.DefaultHeight]common.Hash, error) {
 	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
-		return [DefaultHeight]common.Hash{}, err
+		return [types.DefaultHeight]common.Hash{}, err
 	}
 	defer tx.Rollback()
 	siblings, isErrNotFound, err := t.getSiblings(tx, index, root)
 	if err != nil {
-		return [DefaultHeight]common.Hash{}, err
+		return [types.DefaultHeight]common.Hash{}, err
 	}
 	if isErrNotFound {
-		return [DefaultHeight]common.Hash{}, ErrNotFound
+		return [types.DefaultHeight]common.Hash{}, ErrNotFound
 	}
 	return siblings, nil
 }
 
-func (t *Tree) getRHTNode(tx *sql.Tx, nodeHash common.Hash) (*treeNode, error) {
-	node := &treeNode{}
+func (t *Tree) getRHTNode(tx *sql.Tx, nodeHash common.Hash) (*types.TreeNode, error) {
+	node := &types.TreeNode{}
 	err := meddler.QueryRow(tx, node, `select * from rht where hash = $1`, nodeHash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -170,31 +149,38 @@ func generateZeroHashes(height uint8) []common.Hash {
 	return zeroHashes
 }
 
-func (t *Tree) storeNodes(tx *sql.Tx, nodes []treeNode) error {
+func (t *Tree) storeNodes(tx *sql.Tx, nodes []types.TreeNode) error {
 	for _, node := range nodes {
 		if err := meddler.Insert(tx, "rht", &node); err != nil {
+			if sqliteErr, ok := db.SQLiteErr(err); ok {
+				if sqliteErr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
+					// ignore repeated entries. This is likely to happen due to not
+					// cleaning RHT when reorg
+					continue
+				}
+			}
 			return err
 		}
 	}
 	return nil
 }
 
-func (t *Tree) storeRoot(tx *sql.Tx, root Root) error {
+func (t *Tree) storeRoot(tx *sql.Tx, root types.Root) error {
 	return meddler.Insert(tx, "root", &root)
 }
 
 // GetLastRoot returns the last processed root
-func (t *Tree) GetLastRoot(ctx context.Context) (Root, error) {
+func (t *Tree) GetLastRoot(ctx context.Context) (types.Root, error) {
 	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
-		return Root{}, err
+		return types.Root{}, err
 	}
 	defer tx.Rollback()
 	return t.getLastRootWithTx(tx)
 }
 
-func (t *Tree) getLastRootWithTx(tx *sql.Tx) (Root, error) {
-	var root Root
+func (t *Tree) getLastRootWithTx(tx *sql.Tx) (types.Root, error) {
+	var root types.Root
 	err := meddler.QueryRow(tx, &root, `SELECT * FROM root ORDER BY block_num DESC, block_position DESC LIMIT 1;`)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -206,14 +192,14 @@ func (t *Tree) getLastRootWithTx(tx *sql.Tx) (Root, error) {
 }
 
 // GetRootByIndex returns the root associated to the index
-func (t *Tree) GetRootByIndex(ctx context.Context, index uint32) (Root, error) {
+func (t *Tree) GetRootByIndex(ctx context.Context, index uint32) (types.Root, error) {
 	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
-		return Root{}, err
+		return types.Root{}, err
 	}
 	defer tx.Rollback()
 
-	var root Root
+	var root types.Root
 	err = meddler.QueryRow(tx, &root, `SELECT * FROM root WHERE position = $1;`, index)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -225,14 +211,14 @@ func (t *Tree) GetRootByIndex(ctx context.Context, index uint32) (Root, error) {
 }
 
 // GetRootByHash returns the root associated to the hash
-func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (Root, error) {
+func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (types.Root, error) {
 	tx, err := t.db.BeginTx(ctx, nil)
 	if err != nil {
-		return Root{}, err
+		return types.Root{}, err
 	}
 	defer tx.Rollback()
 
-	var root Root
+	var root types.Root
 	err = meddler.QueryRow(tx, &root, `SELECT * FROM root WHERE hash = $1;`, hash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -251,7 +237,7 @@ func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (com
 	defer tx.Rollback()
 
 	currentNodeHash := root
-	for h := int(DefaultHeight - 1); h >= 0; h-- {
+	for h := int(types.DefaultHeight - 1); h >= 0; h-- {
 		currentNode, err := t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
 			return common.Hash{}, err

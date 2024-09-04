@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree"
+	treeTypes "github.com/0xPolygon/cdk/tree/types"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -143,9 +144,9 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 		db: db,
 	}
 
-	// l1InfoTree, err := tree.NewAppendOnlyTree(ctx, db, dbPrefix+l1InfoTreeSuffix)
+	// l1InfoTree, err := treeTypes.NewAppendOnlyTree(ctx, db, dbPrefix+l1InfoTreeSuffix)
 	// p.l1InfoTree = l1InfoTree
-	// rollupExitTree, err := tree.NewUpdatableTree(ctx, db, dbPrefix+rollupExitTreeSuffix)
+	// rollupExitTree, err := treeTypes.NewUpdatableTree(ctx, db, dbPrefix+rollupExitTreeSuffix)
 	// if err != nil {
 	// 	return nil, err
 	// }
@@ -158,18 +159,18 @@ func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) 
 	return tree.EmptyProof, ethCommon.Hash{}, nil
 	// tx, err := p.db.BeginRo(ctx)
 	// if err != nil {
-	// 	return tree.EmptyProof, ethCommon.Hash{}, err
+	// 	return treeTypes.EmptyProof, ethCommon.Hash{}, err
 	// }
 	// defer tx.Rollback()
 
 	// root, err := p.l1InfoTree.GetRootByIndex(tx, index)
 	// if err != nil {
-	// 	return tree.EmptyProof, ethCommon.Hash{}, err
+	// 	return treeTypes.EmptyProof, ethCommon.Hash{}, err
 	// }
 
 	// proof, err := p.l1InfoTree.GetProof(ctx, index, root)
 	// if err != nil {
-	// 	return tree.EmptyProof, ethCommon.Hash{}, err
+	// 	return treeTypes.EmptyProof, ethCommon.Hash{}, err
 	// }
 
 	// // TODO: check if we need to return root or wat
@@ -348,8 +349,8 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		rollupExitTreeRollback()
 		l1InfoTreeRollback()
 	}
-	l1InfoTreeLeavesToAdd := []tree.Leaf{}
-	rollupExitTreeLeavesToAdd := []tree.Leaf{}
+	l1InfoTreeLeavesToAdd := []treeTypes.Leaf{}
+	rollupExitTreeLeavesToAdd := []treeTypes.Leaf{}
 	if len(b.Events) > 0 {
 		var initialL1InfoIndex uint32
 		var l1InfoLeavesAdded uint32
@@ -379,7 +380,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 					rollback()
 					return err
 				}
-				l1InfoTreeLeavesToAdd = append(l1InfoTreeLeavesToAdd, tree.Leaf{
+				l1InfoTreeLeavesToAdd = append(l1InfoTreeLeavesToAdd, treeTypes.Leaf{
 					Index: leafToStore.Index,
 					Hash:  leafToStore.Hash(),
 				})
@@ -387,7 +388,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 			}
 
 			if event.VerifyBatches != nil {
-				rollupExitTreeLeavesToAdd = append(rollupExitTreeLeavesToAdd, tree.Leaf{
+				rollupExitTreeLeavesToAdd = append(rollupExitTreeLeavesToAdd, treeTypes.Leaf{
 					Index: event.VerifyBatches.RollupID - 1,
 					Hash:  event.VerifyBatches.ExitRoot,
 				})

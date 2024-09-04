@@ -4,13 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 // AppendOnlyTree is a tree where leaves are added sequentially (by index)
 type AppendOnlyTree struct {
 	*Tree
-	lastLeftCache [DefaultHeight]common.Hash
+	lastLeftCache [types.DefaultHeight]common.Hash
 	lastIndex     int64
 }
 
@@ -20,7 +21,7 @@ func NewAppendOnlyTree(db *sql.DB) *AppendOnlyTree {
 	return &AppendOnlyTree{Tree: t}
 }
 
-func (t *AppendOnlyTree) AddLeaf(tx *sql.Tx, blockNum, blockPosition uint64, leaf Leaf) error {
+func (t *AppendOnlyTree) AddLeaf(tx *sql.Tx, blockNum, blockPosition uint64, leaf types.Leaf) error {
 	if int64(leaf.Index) != t.lastIndex+1 {
 		// rebuild cache
 		if err := t.initCache(tx); err != nil {
@@ -35,9 +36,9 @@ func (t *AppendOnlyTree) AddLeaf(tx *sql.Tx, blockNum, blockPosition uint64, lea
 	}
 	// Calculate new tree nodes
 	currentChildHash := leaf.Hash
-	newNodes := []treeNode{}
-	for h := uint8(0); h < DefaultHeight; h++ {
-		var parent treeNode
+	newNodes := []types.TreeNode{}
+	for h := uint8(0); h < types.DefaultHeight; h++ {
+		var parent types.TreeNode
 		if leaf.Index&(1<<h) > 0 {
 			// Add child to the right
 			parent = newTreeNode(t.lastLeftCache[h], currentChildHash)
@@ -52,7 +53,7 @@ func (t *AppendOnlyTree) AddLeaf(tx *sql.Tx, blockNum, blockPosition uint64, lea
 	}
 
 	// store root
-	if err := t.storeRoot(tx, Root{
+	if err := t.storeRoot(tx, types.Root{
 		Hash:          currentChildHash,
 		Index:         leaf.Index,
 		BlockNum:      blockNum,
@@ -70,7 +71,7 @@ func (t *AppendOnlyTree) AddLeaf(tx *sql.Tx, blockNum, blockPosition uint64, lea
 }
 
 func (t *AppendOnlyTree) initCache(tx *sql.Tx) error {
-	siblings := [DefaultHeight]common.Hash{}
+	siblings := [types.DefaultHeight]common.Hash{}
 	lastRoot, err := t.getLastRootWithTx(tx)
 	if err != nil {
 		if err == ErrNotFound {
@@ -84,7 +85,7 @@ func (t *AppendOnlyTree) initCache(tx *sql.Tx) error {
 	currentNodeHash := lastRoot.Hash
 	index := t.lastIndex
 	// It starts in height-1 because 0 is the level of the leafs
-	for h := int(DefaultHeight - 1); h >= 0; h-- {
+	for h := int(types.DefaultHeight - 1); h >= 0; h-- {
 		currentNode, err := t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
 			return fmt.Errorf(

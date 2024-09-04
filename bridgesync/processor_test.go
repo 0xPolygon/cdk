@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	migrationsBridge "github.com/0xPolygon/cdk/bridgesync/migrations"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree/testvectors"
 	"github.com/ethereum/go-ethereum/common"
@@ -297,6 +298,7 @@ func TestProceessor(t *testing.T) {
 	}
 
 	for _, a := range actions {
+		log.Debugf("%s: %s", a.method(), a.desc())
 		t.Run(fmt.Sprintf("%s: %s", a.method(), a.desc()), a.execute)
 	}
 }
@@ -310,6 +312,8 @@ var (
 		Num: 1,
 		Events: []interface{}{
 			Event{Bridge: &Bridge{
+				BlockNum:           1,
+				BlockPos:           0,
 				LeafType:           1,
 				OriginNetwork:      1,
 				OriginAddress:      common.HexToAddress("01"),
@@ -320,6 +324,8 @@ var (
 				DepositCount:       0,
 			}},
 			Event{Claim: &Claim{
+				BlockNum:           1,
+				BlockPos:           1,
 				GlobalIndex:        big.NewInt(1),
 				OriginNetwork:      1,
 				OriginAddress:      common.HexToAddress("01"),
@@ -332,6 +338,8 @@ var (
 		Num: 3,
 		Events: []interface{}{
 			Event{Bridge: &Bridge{
+				BlockNum:           3,
+				BlockPos:           0,
 				LeafType:           2,
 				OriginNetwork:      2,
 				OriginAddress:      common.HexToAddress("02"),
@@ -342,6 +350,8 @@ var (
 				DepositCount:       1,
 			}},
 			Event{Bridge: &Bridge{
+				BlockNum:           3,
+				BlockPos:           1,
 				LeafType:           3,
 				OriginNetwork:      3,
 				OriginAddress:      common.HexToAddress("03"),
@@ -361,6 +371,8 @@ var (
 		Num: 5,
 		Events: []interface{}{
 			Event{Claim: &Claim{
+				BlockNum:           4,
+				BlockPos:           0,
 				GlobalIndex:        big.NewInt(4),
 				OriginNetwork:      4,
 				OriginAddress:      common.HexToAddress("04"),
@@ -368,6 +380,8 @@ var (
 				Amount:             big.NewInt(4),
 			}},
 			Event{Claim: &Claim{
+				BlockNum:           4,
+				BlockPos:           1,
 				GlobalIndex:        big.NewInt(5),
 				OriginNetwork:      5,
 				OriginAddress:      common.HexToAddress("05"),

@@ -2,6 +2,8 @@ package tree
 
 import (
 	"database/sql"
+
+	"github.com/0xPolygon/cdk/tree/types"
 )
 
 // UpdatableTree is a tree that have updatable leaves, and doesn't need to have sequential inserts
@@ -18,7 +20,7 @@ func NewUpdatableTree(db *sql.DB) (*UpdatableTree, error) {
 	return ut, nil
 }
 
-func (t *UpdatableTree) UpsertLeaf(tx *sql.Tx, blockNum, blockPosition uint64, leaf Leaf) error {
+func (t *UpdatableTree) UpsertLeaf(tx *sql.Tx, blockNum, blockPosition uint64, leaf types.Leaf) error {
 	root, err := t.getLastRootWithTx(tx)
 	if err != nil {
 		return err
@@ -28,9 +30,9 @@ func (t *UpdatableTree) UpsertLeaf(tx *sql.Tx, blockNum, blockPosition uint64, l
 		return err
 	}
 	currentChildHash := leaf.Hash
-	newNodes := []treeNode{}
-	for h := uint8(0); h < DefaultHeight; h++ {
-		var parent treeNode
+	newNodes := []types.TreeNode{}
+	for h := uint8(0); h < types.DefaultHeight; h++ {
+		var parent types.TreeNode
 		if leaf.Index&(1<<h) > 0 {
 			// Add child to the right
 			parent = newTreeNode(siblings[h], currentChildHash)
@@ -41,7 +43,7 @@ func (t *UpdatableTree) UpsertLeaf(tx *sql.Tx, blockNum, blockPosition uint64, l
 		currentChildHash = parent.Hash
 		newNodes = append(newNodes, parent)
 	}
-	if err := t.storeRoot(tx, Root{
+	if err := t.storeRoot(tx, types.Root{
 		Hash:          currentChildHash,
 		Index:         leaf.Index,
 		BlockNum:      blockNum,

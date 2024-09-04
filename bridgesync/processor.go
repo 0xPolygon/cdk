@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree"
+	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/russross/meddler"
@@ -31,7 +32,7 @@ type Bridge struct {
 	OriginAddress      common.Address `meddler:"origin_address"`
 	DestinationNetwork uint32         `meddler:"destination_network"`
 	DestinationAddress common.Address `meddler:"destination_address"`
-	Amount             *big.Int       `meddler:"amount"`
+	Amount             *big.Int       `meddler:"amount,bigint"`
 	Metadata           []byte         `meddler:"metadata"`
 	DepositCount       uint32         `meddler:"deposit_count"`
 }
@@ -65,21 +66,21 @@ func (b *Bridge) Hash() common.Hash {
 
 // Claim representation of a claim event
 type Claim struct {
-	BlockNum            uint64                          `meddler:"block_num"`
-	BlockPos            uint64                          `meddler:"block_pos"`
-	GlobalIndex         *big.Int                        `meddler:"global_index"`
-	OriginNetwork       uint32                          `meddler:"origin_network"`
-	OriginAddress       common.Address                  `meddler:"origin_address"`
-	DestinationAddress  common.Address                  `meddler:"destination_address"`
-	Amount              *big.Int                        `meddler:"amount"`
-	ProofLocalExitRoot  [tree.DefaultHeight]common.Hash `meddler:"proof_local_exit_root"`
-	ProofRollupExitRoot [tree.DefaultHeight]common.Hash `meddler:"proof_rollup_exit_root"`
-	MainnetExitRoot     common.Hash                     `meddler:"mainnet_exit_root"`
-	RollupExitRoot      common.Hash                     `meddler:"rollup_exit_root"`
-	GlobalExitRoot      common.Hash                     `meddler:"global_exit_root"`
-	DestinationNetwork  uint32                          `meddler:"destination_network"`
-	Metadata            []byte                          `meddler:"metadata"`
-	IsMessage           bool                            `meddler:"is_message"`
+	BlockNum            uint64         `meddler:"block_num"`
+	BlockPos            uint64         `meddler:"block_pos"`
+	GlobalIndex         *big.Int       `meddler:"global_index,bigint"`
+	OriginNetwork       uint32         `meddler:"origin_network"`
+	OriginAddress       common.Address `meddler:"origin_address"`
+	DestinationAddress  common.Address `meddler:"destination_address"`
+	Amount              *big.Int       `meddler:"amount,bigint"`
+	ProofLocalExitRoot  types.Proof    `meddler:"proof_local_exit_root,merkleproof"`
+	ProofRollupExitRoot types.Proof    `meddler:"proof_rollup_exit_root,merkleproof"`
+	MainnetExitRoot     common.Hash    `meddler:"mainnet_exit_root"`
+	RollupExitRoot      common.Hash    `meddler:"rollup_exit_root"`
+	GlobalExitRoot      common.Hash    `meddler:"global_exit_root"`
+	DestinationNetwork  uint32         `meddler:"destination_network"`
+	Metadata            []byte         `meddler:"metadata"`
+	IsMessage           bool           `meddler:"is_message"`
 }
 
 // Event combination of bridge and claim events
@@ -148,7 +149,7 @@ func (p *processor) GetClaims(
 		return nil, err
 	}
 
-	claims := []Claim{}
+	claims := []*Claim{}
 	err = meddler.QueryAll(tx, &claims, `
 		SELECT * FROM claim
 		WHERE block_num >= $1 AND block_num <= $2;
@@ -156,7 +157,7 @@ func (p *processor) GetClaims(
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
-	return claims, err
+	return db.SlicePtrsToSlice(claims).([]Claim), err
 }
 
 func (p *processor) isBlockProcessed(tx *sql.Tx, blockNum uint64) error {
@@ -208,9 +209,6 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 
 	_, err = tx.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
 	if err != nil {
-		if errRllbck := tx.Rollback(); errRllbck != nil {
-			log.Errorf("error while rolling back tx %v", errRllbck)
-		}
 		return err
 	}
 
@@ -238,13 +236,13 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		}
 	}()
 
+	if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, block.Num); err != nil {
+		return err
+	}
 	for _, e := range block.Events {
-		if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, block.Num); err != nil {
-			return err
-		}
 		event := e.(Event)
 		if event.Bridge != nil {
-			if err = p.exitTree.AddLeaf(tx, block.Num, event.Pos, tree.Leaf{
+			if err = p.exitTree.AddLeaf(tx, block.Num, event.Pos, types.Leaf{
 				Index: event.Bridge.DepositCount,
 				Hash:  event.Bridge.Hash(),
 			}); err != nil {

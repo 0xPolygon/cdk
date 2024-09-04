@@ -8,6 +8,7 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree"
+	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -116,17 +117,17 @@ func (s *L1InfoTreeSync) GetInfoByIndex(ctx context.Context, index uint32) (*L1I
 }
 
 // GetL1InfoTreeRootByIndex returns the root of the L1 info tree at the moment the leaf with the given index was added
-func (s *L1InfoTreeSync) GetL1InfoTreeRootByIndex(ctx context.Context, index uint32) (tree.Root, error) {
+func (s *L1InfoTreeSync) GetL1InfoTreeRootByIndex(ctx context.Context, index uint32) (types.Root, error) {
 	return s.processor.l1InfoTree.GetRootByIndex(ctx, index)
 }
 
 // GetLastRollupExitRoot return the last rollup exit root processed
-func (s *L1InfoTreeSync) GetLastRollupExitRoot(ctx context.Context) (tree.Root, error) {
+func (s *L1InfoTreeSync) GetLastRollupExitRoot(ctx context.Context) (types.Root, error) {
 	return s.processor.rollupExitTree.GetLastRoot(ctx)
 }
 
 // GetLastL1InfoTreeRoot return the last root and index processed from the L1 Info tree
-func (s *L1InfoTreeSync) GetLastL1InfoTreeRoot(ctx context.Context) (tree.Root, error) {
+func (s *L1InfoTreeSync) GetLastL1InfoTreeRoot(ctx context.Context) (types.Root, error) {
 	return s.processor.l1InfoTree.GetLastRoot(ctx)
 }
 

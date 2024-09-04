@@ -6,7 +6,7 @@ import (
 
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sync"
-	"github.com/0xPolygon/cdk/tree"
+	tree "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 
