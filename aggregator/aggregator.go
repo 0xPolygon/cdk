@@ -787,12 +787,13 @@ func (a *Aggregator) Channel(stream prover.AggregatorService_ChannelServer) erro
 	if ok {
 		proverAddr = p.Addr
 	}
-	prover, err := prover.New(stream, proverAddr, a.cfg.ProofStatePollingInterval)
+	proverLogger := log.WithFields("module", cdkcommon.PROVER)
+	prover, err := prover.New(proverLogger, stream, proverAddr, a.cfg.ProofStatePollingInterval)
 	if err != nil {
 		return err
 	}
 
-	tmpLogger := a.logger.WithFields(
+	tmpLogger := proverLogger.WithFields(
 		"prover", prover.Name(),
 		"proverId", prover.ID(),
 		"proverAddr", prover.Addr(),

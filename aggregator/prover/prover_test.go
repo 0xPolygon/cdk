@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk/aggregator/prover"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,7 +40,7 @@ func TestCalculateStateRoots(t *testing.T) {
 		require.NoError(t, err)
 
 		// Get the state root from the batch proof
-		fileStateRoot, err := prover.GetStateRootFromProof(string(data))
+		fileStateRoot, err := prover.GetStateRootFromProof(log.GetDefaultLogger(), string(data))
 		require.NoError(t, err)
 
 		// Get the expected state root

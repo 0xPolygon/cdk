@@ -359,8 +359,8 @@ func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
 		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf("failed to get Global Exit Root Manager: %w", err)
 	}
 	if precalculatedAddr != checkGERAddr {
-		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf(
-			"error deploying bridge, unexpected Global Exit Root Manager address",
+		return nil, common.Address{}, nil, common.Address{}, nil, errors.New(
+			"error deploying bridge, unexpected GER Manager address",
 		)
 	}
 

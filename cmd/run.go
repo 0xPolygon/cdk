@@ -18,7 +18,6 @@ import (
 	"github.com/0xPolygon/cdk/aggregator/db"
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/claimsponsor"
-	"github.com/0xPolygon/cdk/common"
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/config"
 	"github.com/0xPolygon/cdk/dataavailability"
@@ -92,13 +91,13 @@ func start(cliCtx *cli.Context) error {
 
 	for _, component := range components {
 		switch component {
-		case common.SEQUENCE_SENDER:
+		case cdkcommon.SEQUENCE_SENDER:
 			c.SequenceSender.Log = c.Log
 			seqSender := createSequenceSender(*c, l1Client, l1InfoTreeSync)
 			// start sequence sender in a goroutine, checking for errors
 			go seqSender.Start(cliCtx.Context)
 
-		case common.AGGREGATOR:
+		case cdkcommon.AGGREGATOR:
 			aggregator := createAggregator(cliCtx.Context, *c, !cliCtx.Bool(config.FlagMigrations))
 			// start aggregator in a goroutine, checking for errors
 			go func() {
@@ -106,10 +105,10 @@ func start(cliCtx *cli.Context) error {
 					log.Fatal(err)
 				}
 			}()
-		case common.AGGORACLE:
+		case cdkcommon.AGGORACLE:
 			aggOracle := createAggoracle(*c, l1Client, l2Client, l1InfoTreeSync)
 			go aggOracle.Start(cliCtx.Context)
-		case common.RPC:
+		case cdkcommon.RPC:
 			server := createRPC(
 				c.RPC,
 				c.Common.NetworkID,
@@ -478,7 +477,7 @@ func runL1InfoTreeSyncerIfNeeded(
 	l1Client *ethclient.Client,
 	reorgDetector *reorgdetector.ReorgDetector,
 ) *l1infotreesync.L1InfoTreeSync {
-	if !isNeeded([]string{common.AGGORACLE, common.RPC, common.SEQUENCE_SENDER}, components) {
+	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.SEQUENCE_SENDER}, components) {
 		return nil
 	}
 	l1InfoTreeSync, err := l1infotreesync.New(
@@ -504,7 +503,10 @@ func runL1InfoTreeSyncerIfNeeded(
 }
 
 func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client {
-	if !isNeeded([]string{common.SEQUENCE_SENDER, common.AGGREGATOR, common.AGGORACLE, common.RPC}, components) {
+	if !isNeeded([]string{
+		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
+		cdkcommon.AGGORACLE, cdkcommon.RPC,
+	}, components) {
 		return nil
 	}
 	log.Debugf("dialing L1 client at: %s", urlRPCL1)
@@ -517,7 +519,7 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 }
 
 func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client {
-	if !isNeeded([]string{common.AGGORACLE, common.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC}, components) {
 		return nil
 	}
 	log.Debugf("dialing L2 client at: %s", urlRPCL2)
@@ -535,7 +537,7 @@ func runReorgDetectorL1IfNeeded(
 	l1Client *ethclient.Client,
 	cfg *reorgdetector.Config,
 ) (*reorgdetector.ReorgDetector, chan error) {
-	if !isNeeded([]string{common.SEQUENCE_SENDER, common.AGGREGATOR, common.AGGORACLE, common.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR, cdkcommon.AGGORACLE, cdkcommon.RPC}, components) {
 		return nil, nil
 	}
 	rd := newReorgDetector(cfg, l1Client)
@@ -557,7 +559,7 @@ func runReorgDetectorL2IfNeeded(
 	l2Client *ethclient.Client,
 	cfg *reorgdetector.Config,
 ) (*reorgdetector.ReorgDetector, chan error) {
-	if !isNeeded([]string{common.AGGORACLE, common.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC}, components) {
 		return nil, nil
 	}
 	rd := newReorgDetector(cfg, l2Client)
@@ -579,17 +581,20 @@ func runClaimSponsorIfNeeded(
 	l2Client *ethclient.Client,
 	cfg claimsponsor.EVMClaimSponsorConfig,
 ) *claimsponsor.ClaimSponsor {
-	if !isNeeded([]string{common.RPC}, components) || !cfg.Enabled {
+	if !isNeeded([]string{cdkcommon.RPC}, components) || !cfg.Enabled {
 		return nil
 	}
+
+	logger := log.WithFields("module", cdkcommon.CLAIM_SPONSOR)
 	// In the future there may support different backends other than EVM, and this will require different config.
 	// But today only EVM is supported
 	ethTxManagerL2, err := ethtxmanager.New(cfg.EthTxManager)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	go ethTxManagerL2.Start()
 	cs, err := claimsponsor.NewEVMClaimSponsor(
+		logger,
 		cfg.DBPath,
 		l2Client,
 		cfg.BridgeAddrL2,
@@ -603,7 +608,7 @@ func runClaimSponsorIfNeeded(
 		cfg.WaitTxToBeMinedPeriod.Duration,
 	)
 	if err != nil {
-		log.Fatalf("error creating claim sponsor: %s", err)
+		logger.Fatalf("error creating claim sponsor: %s", err)
 	}
 	go cs.Start(ctx)
 
@@ -618,7 +623,7 @@ func runL1Bridge2InfoIndexSyncIfNeeded(
 	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
 	l1Client *ethclient.Client,
 ) *l1bridge2infoindexsync.L1Bridge2InfoIndexSync {
-	if !isNeeded([]string{common.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.RPC}, components) {
 		return nil
 	}
 	l1Bridge2InfoIndexSync, err := l1bridge2infoindexsync.New(
@@ -646,7 +651,7 @@ func runLastGERSyncIfNeeded(
 	l2Client *ethclient.Client,
 	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
 ) *lastgersync.LastGERSync {
-	if !isNeeded([]string{common.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.RPC}, components) {
 		return nil
 	}
 	lastGERSync, err := lastgersync.New(
@@ -677,7 +682,7 @@ func runBridgeSyncL1IfNeeded(
 	reorgDetectorL1 *reorgdetector.ReorgDetector,
 	l1Client *ethclient.Client,
 ) *bridgesync.BridgeSync {
-	if !isNeeded([]string{common.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.RPC}, components) {
 		return nil
 	}
 	bridgeSyncL1, err := bridgesync.NewL1(
@@ -709,7 +714,7 @@ func runBridgeSyncL2IfNeeded(
 	l2Client *ethclient.Client,
 ) *bridgesync.BridgeSync {
 	// TODO: will be needed by AGGSENDER
-	if !isNeeded([]string{common.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.RPC}, components) {
 		return nil
 	}
 	bridgeSyncL2, err := bridgesync.NewL2(
