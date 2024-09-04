@@ -36,11 +36,12 @@ func getDefaultLog() *Logger {
 		return l
 	}
 	// default level: debug
-	zapLogger, _, err := NewLogger(Config{
-		Environment: EnvironmentDevelopment,
-		Level:       "debug",
-		Outputs:     []string{"stderr"},
-	})
+	zapLogger, _, err := NewLogger(
+		Config{
+			Environment: EnvironmentDevelopment,
+			Level:       "debug",
+			Outputs:     []string{"stderr"},
+		})
 	if err != nil {
 		panic(err)
 	}
