@@ -84,12 +84,12 @@ func (a *AggOracle) Start(ctx context.Context) {
 				a.logger.Debugf("GER %s already injected", gerToInject.Hex())
 				continue
 			}
-			log.Infof("injecting new GER: %s", gerToInject.Hex())
+			a.logger.Infof("injecting new GER: %s", gerToInject.Hex())
 			if err := a.chainSender.UpdateGERWaitUntilMined(ctx, gerToInject); err != nil {
 				a.logger.Errorf("error calling updateGERWaitUntilMined, when trying to inject GER %s: %v", gerToInject.Hex(), err)
 				continue
 			}
-			log.Infof("GER %s injected", gerToInject.Hex())
+			a.logger.Infof("GER %s injected", gerToInject.Hex())
 		case <-ctx.Done():
 			return
 		}
