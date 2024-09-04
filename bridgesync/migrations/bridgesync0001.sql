@@ -9,7 +9,7 @@ CREATE TABLE block (
 );
 
 CREATE TABLE bridge (
-    block_num           INTEGER NOT NULL REFERENCES block (num) ON DELETE CASCADE,
+    block_num           INTEGER NOT NULL REFERENCES block(num) ON DELETE CASCADE,
     block_pos           INTEGER NOT NULL,
     leaf_type           INTEGER NOT NULL,
 	origin_network      INTEGER NOT NULL,
@@ -23,8 +23,8 @@ CREATE TABLE bridge (
 );
 
 CREATE TABLE claim (
-    block_num               BIGINT NOT NULL REFERENCES block (block_num) ON DELETE CASCADE,
-    block_pos               BIGINT NOT NULL,
+    block_num               INTEGER NOT NULL REFERENCES block(num) ON DELETE CASCADE,
+    block_pos               INTEGER NOT NULL,
     global_index            DECIMAL(78, 0) NOT NULL,
 	origin_network          INTEGER NOT NULL,
 	origin_address          VARCHAR NOT NULL,

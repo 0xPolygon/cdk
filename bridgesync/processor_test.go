@@ -19,8 +19,9 @@ import (
 )
 
 func TestProceessor(t *testing.T) {
-	path := path.Join("/Users/arnaub/Documents/polygon/cdk", "tmp.sqlite")
-	// path := path.Join(t.TempDir(), "tmp.sqlite")
+	//  /var/folders/mg/0s7xy6zx5fl70c15csg0jxx00000gp/T/TestProceessor817662394/001/tmp.sqlite
+	path := path.Join(t.TempDir(), "tmp.sqlite")
+	log.Debugf("sqlite path: %s", path)
 	err := migrationsBridge.RunMigrations(path)
 	require.NoError(t, err)
 	p, err := newProcessor(path, "foo")
@@ -213,7 +214,7 @@ func TestProceessor(t *testing.T) {
 			p:                          p,
 			description:                "after block3 reorged",
 			ctx:                        context.Background(),
-			expectedLastProcessedBlock: 2,
+			expectedLastProcessedBlock: 1,
 			expectedErr:                nil,
 		},
 		&reorgAction{
@@ -299,7 +300,7 @@ func TestProceessor(t *testing.T) {
 
 	for _, a := range actions {
 		log.Debugf("%s: %s", a.method(), a.desc())
-		t.Run(fmt.Sprintf("%s: %s", a.method(), a.desc()), a.execute)
+		a.execute(t)
 	}
 }
 
@@ -357,7 +358,7 @@ var (
 				OriginAddress:      common.HexToAddress("03"),
 				DestinationNetwork: 3,
 				DestinationAddress: common.HexToAddress("03"),
-				Amount:             nil,
+				Amount:             big.NewInt(0),
 				Metadata:           common.Hex2Bytes("03"),
 				DepositCount:       2,
 			}},

@@ -124,7 +124,7 @@ func (p *processor) GetBridges(
 		return nil, err
 	}
 
-	bridges := []Bridge{}
+	bridges := []*Bridge{}
 	err = meddler.QueryAll(tx, &bridges, `
 		SELECT * FROM bridge
 		WHERE block_num >= $1 AND block_num <= $2;
@@ -132,7 +132,7 @@ func (p *processor) GetBridges(
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
-	return bridges, err
+	return db.SlicePtrsToSlice(bridges).([]Bridge), err
 }
 
 func (p *processor) GetClaims(
