@@ -9,9 +9,9 @@ CREATE TABLE block (
 );
 
 CREATE TABLE bridge (
-    block_num           INTEGER NOT NULL REFERENCES block(num) ON DELETE CASCADE,
-    block_pos           INTEGER NOT NULL,
-    leaf_type           INTEGER NOT NULL,
+	block_num           INTEGER NOT NULL REFERENCES block(num) ON DELETE CASCADE,
+	block_pos           INTEGER NOT NULL,
+	leaf_type           INTEGER NOT NULL,
 	origin_network      INTEGER NOT NULL,
 	origin_address      VARCHAR NOT NULL,
 	destination_network INTEGER NOT NULL,
@@ -19,13 +19,13 @@ CREATE TABLE bridge (
 	amount              DECIMAL(78, 0) NOT NULL,
 	metadata            BLOB,
 	deposit_count       INTEGER NOT NULL,
-    PRIMARY KEY (block_num, block_pos)
+	PRIMARY KEY (block_num, block_pos)
 );
 
 CREATE TABLE claim (
-    block_num               INTEGER NOT NULL REFERENCES block(num) ON DELETE CASCADE,
-    block_pos               INTEGER NOT NULL,
-    global_index            DECIMAL(78, 0) NOT NULL,
+	block_num               INTEGER NOT NULL REFERENCES block(num) ON DELETE CASCADE,
+	block_pos               INTEGER NOT NULL,
+	global_index            DECIMAL(78, 0) NOT NULL,
 	origin_network          INTEGER NOT NULL,
 	origin_address          VARCHAR NOT NULL,
 	destination_address     VARCHAR NOT NULL,
@@ -38,5 +38,5 @@ CREATE TABLE claim (
 	destination_network     INTEGER NOT NULL,
 	metadata                BLOB,
 	is_message              BOOLEAN,
-    PRIMARY KEY (block_num, block_pos)
+	PRIMARY KEY (block_num, block_pos)
 );

@@ -32,7 +32,7 @@ type processor struct {
 
 // UpdateL1InfoTree representation of the UpdateL1InfoTree event
 type UpdateL1InfoTree struct {
-	BlockPosition   uint64 // TODO: set @ downloader
+	BlockPosition   uint64
 	MainnetExitRoot ethCommon.Hash
 	RollupExitRoot  ethCommon.Hash
 	ParentHash      ethCommon.Hash
@@ -41,7 +41,7 @@ type UpdateL1InfoTree struct {
 
 // VerifyBatches representation of the VerifyBatches and VerifyBatchesTrustedAggregator events
 type VerifyBatches struct {
-	BlockPosition uint64 // TODO: set @ downloader
+	BlockPosition uint64
 	RollupID      uint32
 	NumBatch      uint64
 	StateRoot     ethCommon.Hash
