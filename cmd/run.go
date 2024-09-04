@@ -287,6 +287,7 @@ func createAggoracle(
 	l2Client *ethclient.Client,
 	syncer *l1infotreesync.L1InfoTreeSync,
 ) *aggoracle.AggOracle {
+	logger := log.WithFields("module", cdkcommon.AGGORACLE)
 	var sender aggoracle.ChainSender
 	switch cfg.AggOracle.TargetChainType {
 	case aggoracle.EVMChain:
@@ -301,6 +302,7 @@ func createAggoracle(
 		}
 		go ethTxManager.Start()
 		sender, err = chaingersender.NewEVMChainGERSender(
+			logger,
 			cfg.AggOracle.EVMSender.GlobalExitRootL2Addr,
 			cfg.AggOracle.EVMSender.SenderAddr,
 			l2Client,
@@ -318,6 +320,7 @@ func createAggoracle(
 		)
 	}
 	aggOracle, err := aggoracle.New(
+		logger,
 		sender,
 		l1Client,
 		syncer,
@@ -325,7 +328,7 @@ func createAggoracle(
 		cfg.AggOracle.WaitPeriodNextGER.Duration,
 	)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	return aggOracle

@@ -23,6 +23,7 @@ type ChainSender interface {
 }
 
 type AggOracle struct {
+	logger        *log.Logger
 	ticker        *time.Ticker
 	l1Client      ethereum.ChainReader
 	l1Info        L1InfoTreer
@@ -31,6 +32,7 @@ type AggOracle struct {
 }
 
 func New(
+	logger *log.Logger,
 	chainSender ChainSender,
 	l1Client ethereum.ChainReader,
 	l1InfoTreeSyncer L1InfoTreer,
@@ -44,6 +46,7 @@ func New(
 	}
 
 	return &AggOracle{
+		logger:        logger,
 		ticker:        ticker,
 		l1Client:      l1Client,
 		l1Info:        l1InfoTreeSyncer,
@@ -64,29 +67,26 @@ func (a *AggOracle) Start(ctx context.Context) {
 			blockNumToFetch, gerToInject, err = a.getLastFinalisedGER(ctx, blockNumToFetch)
 			if err != nil {
 				if errors.Is(err, l1infotreesync.ErrBlockNotProcessed) {
-					log.Debugf("syncer is not ready for the block %d", blockNumToFetch)
+					a.logger.Debugf("syncer is not ready for the block %d", blockNumToFetch)
 				} else if errors.Is(err, l1infotreesync.ErrNotFound) {
 					blockNumToFetch = 0
-					log.Debugf("syncer has not found any GER until block %d", blockNumToFetch)
+					a.logger.Debugf("syncer has not found any GER until block %d", blockNumToFetch)
 				} else {
-					log.Error("error calling getLastFinalisedGER: ", err)
+					a.logger.Error("error calling getLastFinalisedGER: ", err)
 				}
 
 				continue
 			}
 			if alreadyInjected, err := a.chainSender.IsGERAlreadyInjected(gerToInject); err != nil {
-				log.Error("error calling isGERAlreadyInjected: ", err)
-
+				a.logger.Error("error calling isGERAlreadyInjected: ", err)
 				continue
 			} else if alreadyInjected {
-				log.Debugf("GER %s already injected", gerToInject.Hex())
-
+				a.logger.Debugf("GER %s already injected", gerToInject.Hex())
 				continue
 			}
 			log.Infof("injecting new GER: %s", gerToInject.Hex())
 			if err := a.chainSender.UpdateGERWaitUntilMined(ctx, gerToInject); err != nil {
-				log.Errorf("error calling updateGERWaitUntilMined, when trying to inject GER %s: %v", gerToInject.Hex(), err)
-
+				a.logger.Errorf("error calling updateGERWaitUntilMined, when trying to inject GER %s: %v", gerToInject.Hex(), err)
 				continue
 			}
 			log.Infof("GER %s injected", gerToInject.Hex())

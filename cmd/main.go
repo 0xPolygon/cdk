@@ -13,8 +13,8 @@ import (
 const appName = "cdk"
 
 const (
-	// NETWORK_CONFIGFILE name to identify the netowk_custom (genesis) config-file
-	NETWORK_CONFIGFILE = "custom_network"
+	// NETWORK_CONFIGFILE name to identify the network_custom (genesis) config-file
+	NETWORK_CONFIGFILE = "custom_network" //nolint:stylecheck
 )
 
 var (

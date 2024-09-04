@@ -16,6 +16,7 @@ import (
 	"github.com/0xPolygon/cdk/aggoracle/chaingersender"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -63,7 +64,7 @@ func SetupAggoracleWithEVMChain(t *testing.T) *AggoracleWithEVMChainEnv {
 	ctx := context.Background()
 	l1Client, syncer, gerL1Contract, gerL1Addr, bridgeL1Contract, bridgeL1Addr, authL1, rd := CommonSetup(t)
 	sender, l2Client, gerL2Contract, gerL2Addr, bridgeL2Contract, bridgeL2Addr, authL2, ethTxManMockL2 := EVMSetup(t)
-	oracle, err := aggoracle.New(sender, l1Client.Client(), syncer, etherman.LatestBlock, time.Millisecond*20) //nolint:gomnd
+	oracle, err := aggoracle.New(log.GetDefaultLogger(), sender, l1Client.Client(), syncer, etherman.LatestBlock, time.Millisecond*20) //nolint:gomnd
 	require.NoError(t, err)
 	go oracle.Start(ctx)
 
@@ -142,7 +143,8 @@ func EVMSetup(t *testing.T) (
 	l2Client, gerL2Addr, gerL2Sc, bridgeL2Addr, bridgeL2Sc, err := newSimulatedEVMAggSovereignChain(authL2)
 	require.NoError(t, err)
 	ethTxManMock := NewEthTxManMock(t, l2Client, authL2)
-	sender, err := chaingersender.NewEVMChainGERSender(gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50) //nolint:gomnd
+	sender, err := chaingersender.NewEVMChainGERSender(log.GetDefaultLogger(),
+		gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50) //nolint:gomnd
 	require.NoError(t, err)
 
 	return sender, l2Client, gerL2Sc, gerL2Addr, bridgeL2Sc, bridgeL2Addr, authL2, ethTxManMock
