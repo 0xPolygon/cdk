@@ -11,7 +11,7 @@ import (
 // AppendOnlyTree is a tree where leaves are added sequentially (by index)
 type AppendOnlyTree struct {
 	*Tree
-	lastLeftCache types.Proof
+	lastLeftCache [types.DefaultHeight]common.Hash
 	lastIndex     int64
 }
 
@@ -24,7 +24,31 @@ func NewAppendOnlyTree(db *sql.DB, dbPrefix string) *AppendOnlyTree {
 	}
 }
 
+func (t *AppendOnlyTree) AddLeaf(tx *sql.Tx, blockNum, blockPosition uint64, leaf types.Leaf) error {
 	if int64(leaf.Index) != t.lastIndex+1 {
+		// rebuild cache
+		if err := t.initCache(tx); err != nil {
+			return err
+		}
+		if int64(leaf.Index) != t.lastIndex+1 {
+			return fmt.Errorf(
+				"mismatched index. Expected: %d, actual: %d",
+				t.lastIndex+1, leaf.Index,
+			)
+		}
+	}
+	// Calculate new tree nodes
+	currentChildHash := leaf.Hash
+	newNodes := []types.TreeNode{}
+	for h := uint8(0); h < types.DefaultHeight; h++ {
+		var parent types.TreeNode
+		if leaf.Index&(1<<h) > 0 {
+			// Add child to the right
+			parent = newTreeNode(t.lastLeftCache[h], currentChildHash)
+		} else {
+			// Add child to the left
+			parent = newTreeNode(currentChildHash, t.zeroHashes[h])
+			// Update cache
 			t.lastLeftCache[h] = currentChildHash
 		}
 		currentChildHash = parent.Hash
