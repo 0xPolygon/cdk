@@ -158,7 +158,9 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 			return err
 		}
 
-		rpcBatch.SetL1InfoTreeIndex(batchRaw.Blocks[len(batchRaw.Blocks)-1].IndexL1InfoTree)
+		if len(batchRaw.Blocks) > 0 {
+			rpcBatch.SetL1InfoTreeIndex(batchRaw.Blocks[len(batchRaw.Blocks)-1].IndexL1InfoTree)
+		}
 
 		data := &sequenceData{
 			batchClosed: rpcBatch.IsClosed(),

@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes/rpcbatch"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -18,9 +19,12 @@ func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (*rpcbatch.RPCBatch
 		Coinbase       string   `mapstructure:"coinbase"`
 		GlobalExitRoot string   `mapstructure:"globalExitRoot"`
 		Closed         bool     `mapstructure:"closed"`
+		Timestamp      string   `mapstructure:"timestamp"`
 	}
 
 	zkEVMBatchData := zkEVMBatch{}
+
+	log.Infof("Getting batch %d from RPC", batchNumber)
 
 	response, err := rpc.JSONRPCCall(s.cfg.RPCURL, "zkevm_getBatchByNumber", batchNumber)
 	if err != nil {
@@ -48,22 +52,28 @@ func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (*rpcbatch.RPCBatch
 		return nil, fmt.Errorf("error creating the rpc batch: %v", err)
 	}
 
-	lastL2BlockTimestamp, err := s.getL2BlockTimestampFromRPC(zkEVMBatchData.Blocks[len(zkEVMBatchData.Blocks)-1])
-	if err != nil {
-		return nil, fmt.Errorf("error getting the last l2 block timestamp from the rpc: %v", err)
+	if len(zkEVMBatchData.Blocks) > 0 {
+		lastL2BlockTimestamp, err := s.getL2BlockTimestampFromRPC(zkEVMBatchData.Blocks[len(zkEVMBatchData.Blocks)-1])
+		if err != nil {
+			return nil, fmt.Errorf("error getting the last l2 block timestamp from the rpc: %v", err)
+		}
+		rpcBatch.SetLastL2BLockTimestamp(lastL2BlockTimestamp)
+	} else {
+		log.Infof("No blocks in the batch, setting the last l2 block timestamp from the batch data")
+		rpcBatch.SetLastL2BLockTimestamp(new(big.Int).SetBytes(common.FromHex(zkEVMBatchData.Timestamp)).Uint64())
 	}
-
-	rpcBatch.SetLastL2BLockTimestamp(lastL2BlockTimestamp)
 
 	return rpcBatch, nil
 }
 
 func (s *SequenceSender) getL2BlockTimestampFromRPC(blockHash string) (uint64, error) {
 	type zkeEVML2Block struct {
-		timestamp string `mapstructure:"timestamp"`
+		Timestamp string `mapstructure:"timestamp"`
 	}
 
 	l2Block := zkeEVML2Block{}
+
+	log.Infof("Getting l2 block timestamp from RPC. Block hash: %s", blockHash)
 
 	response, err := rpc.JSONRPCCall(s.cfg.RPCURL, "eth_getBlockByHash", blockHash, false)
 	if err != nil {
@@ -81,5 +91,5 @@ func (s *SequenceSender) getL2BlockTimestampFromRPC(blockHash string) (uint64, e
 		return 0, fmt.Errorf("error unmarshalling the l2 block from the response calling eth_getBlockByHash: %v", err)
 	}
 
-	return new(big.Int).SetBytes(common.FromHex(l2Block.timestamp)).Uint64(), nil
+	return new(big.Int).SetBytes(common.FromHex(l2Block.Timestamp)).Uint64(), nil
 }

@@ -486,15 +486,12 @@ func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client
 }
 
 func runReorgDetectorL1IfNeeded(ctx context.Context, components []string, l1Client *ethclient.Client, dbPath string) *reorgdetector.ReorgDetector {
-	/*
-		if !isNeeded([]string{SEQUENCE_SENDER, AGGREGATOR, AGGORACLE, RPC}, components) {
-			return nil
-		}
-		rd := newReorgDetector(ctx, dbPath, l1Client)
-		go rd.Start(ctx)
-		return rd
-	*/
-	return nil
+	if !isNeeded([]string{SEQUENCE_SENDER, AGGREGATOR, AGGORACLE, RPC}, components) {
+		return nil
+	}
+	rd := newReorgDetector(ctx, dbPath, l1Client)
+	go rd.Start(ctx)
+	return rd
 }
 
 func runReorgDetectorL2IfNeeded(ctx context.Context, components []string, l2Client *ethclient.Client, dbPath string) *reorgdetector.ReorgDetector {
