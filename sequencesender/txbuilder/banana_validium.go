@@ -37,6 +37,7 @@ type rollupBananaValidiumContractor interface {
 }
 
 func NewTxBuilderBananaValidium(
+	logger *log.Logger,
 	rollupContract rollupBananaValidiumContractor,
 	gerContract globalExitRootBananaContractor,
 	da dataavailability.SequenceSenderBanana, opts bind.TransactOpts, maxBatchesForL1 uint64,
@@ -44,8 +45,11 @@ func NewTxBuilderBananaValidium(
 	ethClient l1Client,
 	blockFinality *big.Int,
 ) *TxBuilderBananaValidium {
+	txBuilderBase := *NewTxBuilderBananaBase(logger, rollupContract,
+		gerContract, l1InfoTree, ethClient, blockFinality, opts)
+
 	return &TxBuilderBananaValidium{
-		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, l1InfoTree, ethClient, blockFinality, opts),
+		TxBuilderBananaBase: txBuilderBase,
 		da:                  da,
 		condNewSeq:          NewConditionalNewSequenceNumBatches(maxBatchesForL1),
 		rollupContract:      rollupContract,
@@ -74,25 +78,25 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(
 	var err error
 	ethseq, err := convertToSequenceBanana(sequences)
 	if err != nil {
-		log.Error("error converting sequences to etherman: ", err)
+		t.logger.Error("error converting sequences to etherman: ", err)
 		return nil, err
 	}
 
 	dataAvailabilityMessage, err = t.da.PostSequenceBanana(ctx, ethseq)
 	if err != nil {
-		log.Error("error posting sequences to the data availability protocol: ", err)
+		t.logger.Error("error posting sequences to the data availability protocol: ", err)
 		return nil, err
 	}
 	if dataAvailabilityMessage == nil {
 		err := fmt.Errorf("data availability message is nil")
-		log.Error("error posting sequences to the data availability protocol: ", err.Error())
+		t.logger.Error("error posting sequences to the data availability protocol: ", err.Error())
 		return nil, err
 	}
 
 	// Build sequence data
 	tx, err := t.internalBuildSequenceBatchesTx(ethseq, dataAvailabilityMessage)
 	if err != nil {
-		log.Errorf("error estimating new sequenceBatches to add to ethtxmanager: ", err)
+		t.logger.Errorf("error estimating new sequenceBatches to add to ethtxmanager: ", err)
 		return nil, err
 	}
 	return tx, nil
@@ -130,15 +134,15 @@ func (t *TxBuilderBananaValidium) sequenceBatchesValidium(
 		}
 	}
 
-	log.Infof("building banana sequence tx. AccInputHash: %s", sequence.AccInputHash.Hex())
+	t.logger.Infof("building banana sequence tx. AccInputHash: %s", sequence.AccInputHash.Hex())
 	tx, err := t.rollupContract.SequenceBatchesValidium(
 		&opts, batches, sequence.CounterL1InfoRoot, sequence.MaxSequenceTimestamp,
 		sequence.AccInputHash, sequence.L2Coinbase, dataAvailabilityMessage,
 	)
 	if err != nil {
-		log.Debugf("Batches to send: %+v", batches)
-		log.Debug("l2CoinBase: ", sequence.L2Coinbase)
-		log.Debug("Sequencer address: ", opts.From)
+		t.logger.Debugf("Batches to send: %+v", batches)
+		t.logger.Debug("l2CoinBase: ", sequence.L2Coinbase)
+		t.logger.Debug("Sequencer address: ", opts.From)
 	}
 
 	return tx, err

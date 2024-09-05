@@ -183,6 +183,7 @@ func createSequenceSender(
 	l1Client *ethclient.Client,
 	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
 ) *sequencesender.SequenceSender {
+	logger := log.WithFields("module", cdkcommon.SEQUENCE_SENDER)
 	ethman, err := etherman.NewClient(ethermanconfig.Config{
 		EthermanConfig: ethtxman.Config{
 			URL:              cfg.SequenceSender.EthTxManager.Etherman.URL,
@@ -196,27 +197,27 @@ func createSequenceSender(
 		},
 	}, cfg.NetworkConfig.L1Config, cfg.Common)
 	if err != nil {
-		log.Fatalf("Failed to create etherman. Err: %w, ", err)
+		logger.Fatalf("Failed to create etherman. Err: %w, ", err)
 	}
 
 	auth, _, err := ethman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	cfg.SequenceSender.SenderAddress = auth.From
 	blockFialityType := etherman.BlockNumberFinality(cfg.SequenceSender.BlockFinality)
 
 	blockFinality, err := blockFialityType.ToBlockNum()
 	if err != nil {
-		log.Fatalf("Failed to create block finality. Err: %w, ", err)
+		logger.Fatalf("Failed to create block finality. Err: %w, ", err)
 	}
-	txBuilder, err := newTxBuilder(cfg, ethman, l1Client, l1InfoTreeSync, blockFinality)
+	txBuilder, err := newTxBuilder(cfg, logger, ethman, l1Client, l1InfoTreeSync, blockFinality)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
-	seqSender, err := sequencesender.New(cfg.SequenceSender, ethman, txBuilder)
+	seqSender, err := sequencesender.New(cfg.SequenceSender, logger, ethman, txBuilder)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	return seqSender
@@ -224,6 +225,7 @@ func createSequenceSender(
 
 func newTxBuilder(
 	cfg config.Config,
+	logger *log.Logger,
 	ethman *etherman.Client,
 	l1Client *ethclient.Client,
 	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
@@ -243,6 +245,7 @@ func newTxBuilder(
 	case contracts.VersionBanana:
 		if cfg.Common.IsValidiumMode {
 			txBuilder = txbuilder.NewTxBuilderBananaValidium(
+				logger,
 				ethman.Contracts.Banana.Rollup,
 				ethman.Contracts.Banana.GlobalExitRoot,
 				da,
@@ -254,6 +257,7 @@ func newTxBuilder(
 			)
 		} else {
 			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(
+				logger,
 				ethman.Contracts.Banana.Rollup,
 				ethman.Contracts.Banana.GlobalExitRoot,
 				*auth,
@@ -266,11 +270,11 @@ func newTxBuilder(
 	case contracts.VersionElderberry:
 		if cfg.Common.IsValidiumMode {
 			txBuilder = txbuilder.NewTxBuilderElderberryValidium(
-				ethman.Contracts.Elderberry.Rollup, da, *auth, cfg.SequenceSender.MaxBatchesForL1,
+				logger, ethman.Contracts.Elderberry.Rollup, da, *auth, cfg.SequenceSender.MaxBatchesForL1,
 			)
 		} else {
 			txBuilder = txbuilder.NewTxBuilderElderberryZKEVM(
-				ethman.Contracts.Elderberry.Rollup, *auth, cfg.SequenceSender.MaxTxSizeForL1,
+				logger, ethman.Contracts.Elderberry.Rollup, *auth, cfg.SequenceSender.MaxTxSizeForL1,
 			)
 		}
 	default:

@@ -9,6 +9,7 @@ import (
 
 	"github.com/0xPolygon/cdk/dataavailability/mocks_da"
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder/mocks_txbuilder"
@@ -90,6 +91,7 @@ func newBananaValidiumTestData(t *testing.T, maxBatchesForL1 uint64) *testDataBa
 
 	opts := bind.TransactOpts{}
 	sut := txbuilder.NewTxBuilderBananaValidium(
+		log.GetDefaultLogger(),
 		zkevmContractMock,
 		gerContractMock,
 		daMock,

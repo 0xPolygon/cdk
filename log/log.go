@@ -258,21 +258,6 @@ func Errorf(template string, args ...interface{}) {
 	GetDefaultLogger().Errorf(template, args...)
 }
 
-// appendStackTraceMaybeKV will append the stacktrace to the KV
-func appendStackTraceMaybeKV(msg string, kv []interface{}) string {
-	for i := range kv {
-		if i%2 == 0 {
-			continue
-		}
-		if err, ok := kv[i].(error); ok {
-			err = tracerr.Wrap(err)
-			st := tracerr.StackTrace(err)
-			return fmt.Sprintf("%v: %v%v\n", msg, err, sprintStackTrace(st))
-		}
-	}
-	return msg
-}
-
 // Debugw calls log.Debugw
 func (l *Logger) Debugw(msg string, kv ...interface{}) {
 	l.x.Debugw(msg, kv...)
@@ -323,6 +308,21 @@ func Errorw(msg string, kv ...interface{}) {
 func Fatalw(msg string, kv ...interface{}) {
 	msg = appendStackTraceMaybeKV(msg, kv)
 	GetDefaultLogger().Fatalw(msg, kv...)
+}
+
+// appendStackTraceMaybeKV will append the stacktrace to the KV
+func appendStackTraceMaybeKV(msg string, kv []interface{}) string {
+	for i := range kv {
+		if i%2 == 0 {
+			continue
+		}
+		if err, ok := kv[i].(error); ok {
+			err = tracerr.Wrap(err)
+			st := tracerr.StackTrace(err)
+			return fmt.Sprintf("%v: %v%v\n", msg, err, sprintStackTrace(st))
+		}
+	}
+	return msg
 }
 
 func (l *Logger) IsEnabledLogLevel(lvl zapcore.Level) bool {

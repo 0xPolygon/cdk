@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
-	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
@@ -84,9 +83,7 @@ type ethTxAdditionalData struct {
 }
 
 // New inits sequence sender
-func New(cfg Config, etherman *etherman.Client, txBuilder txbuilder.TxBuilder) (*SequenceSender, error) {
-	logger := log.WithFields("module", cdkcommon.SEQUENCE_SENDER)
-
+func New(cfg Config, logger *log.Logger, etherman *etherman.Client, txBuilder txbuilder.TxBuilder) (*SequenceSender, error) {
 	// Create sequencesender
 	s := SequenceSender{
 		cfg:               cfg,

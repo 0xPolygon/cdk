@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder/mocks_txbuilder"
@@ -96,6 +97,7 @@ func newBananaBaseTestData(t *testing.T) *testDataBananaBase {
 	l1Client := mocks_txbuilder.NewL1Client(t)
 	l1InfoSyncer := mocks_txbuilder.NewL1InfoSyncer(t)
 	sut := txbuilder.NewTxBuilderBananaBase(
+		log.GetDefaultLogger(),
 		zkevmContractMock,
 		gerContractMock,
 		l1InfoSyncer, l1Client, big.NewInt(0), opts,

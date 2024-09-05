@@ -31,10 +31,11 @@ type rollupElderberryZKEVMContractor interface {
 }
 
 func NewTxBuilderElderberryZKEVM(
-	zkevm rollupElderberryZKEVMContractor, opts bind.TransactOpts, maxTxSizeForL1 uint64,
+	logger *log.Logger, zkevm rollupElderberryZKEVMContractor,
+	opts bind.TransactOpts, maxTxSizeForL1 uint64,
 ) *TxBuilderElderberryZKEVM {
 	return &TxBuilderElderberryZKEVM{
-		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(opts),
+		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(logger, opts),
 		condNewSeq:              NewConditionalNewSequenceMaxSize(maxTxSizeForL1),
 		rollupContract:          zkevm,
 	}
@@ -103,9 +104,8 @@ func (t *TxBuilderElderberryZKEVM) sequenceBatchesRollup(
 }
 
 func (t *TxBuilderElderberryZKEVM) warningMessage(
-	batches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, l2Coinbase common.Address, opts *bind.TransactOpts,
-) {
-	log.Warnf("Sequencer address: ", opts.From, "l2CoinBase: ", l2Coinbase, " Batches to send: %+v", batches)
+	batches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, l2Coinbase common.Address, opts *bind.TransactOpts) {
+	t.logger.Warnf("Sequencer address: ", opts.From, "l2CoinBase: ", l2Coinbase, " Batches to send: %+v", batches)
 }
 
 func (t *TxBuilderElderberryZKEVM) String() string {
