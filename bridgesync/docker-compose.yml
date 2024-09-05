@@ -1,7 +1,3 @@
-networks:
-  default:
-    name: test-claimdata
-    
 services:
   test-claimdata-l1:
     container_name: test-claimdata-l1

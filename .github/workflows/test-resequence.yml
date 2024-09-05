@@ -1,0 +1,100 @@
+name: Resequence test
+on:
+  push:
+    branches:
+      # Disable test for the moment as it takes too long
+      - "this-test-is-disabled"
+
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Resequence:
+    runs-on: ubuntu-latest
+    # TODO: Add "cdk-validium" once it's ready
+    # strategy:
+    #   matrix:
+    #     da-mode: [ "rollup" ]
+    steps:
+      - name: Checkout cdk
+        uses: actions/checkout@v4
+        with:
+          path: cdk
+
+      - name: Checkout kurtosis-cdk
+        uses: actions/checkout@v4
+        with:
+          repository: 0xPolygonHermez/cdk-erigon
+          ref: banana
+          path: cdk-erigon
+
+      - name: Checkout kurtosis-cdk
+        uses: actions/checkout@v4
+        with:
+          repository: 0xPolygon/kurtosis-cdk
+          ref: 3debe0a4dd000e02f7e6bde3247432211bf0336f
+          path: kurtosis-cdk
+
+      - name: Install Kurtosis CDK tools
+        uses: ./kurtosis-cdk/.github/actions/setup-kurtosis-cdk
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install yq
+        run: |
+          sudo curl -L https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_amd64 -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          /usr/local/bin/yq --version
+
+      - name: Install polycli
+        run: |
+          tmp_dir=$(mktemp -d) && curl -L https://github.com/0xPolygon/polygon-cli/releases/download/v0.1.48/polycli_v0.1.48_linux_amd64.tar.gz | tar -xz -C "$tmp_dir" && mv "$tmp_dir"/* /usr/local/bin/polycli && rm -rf "$tmp_dir"
+          sudo chmod +x /usr/local/bin/polycli
+          /usr/local/bin/polycli version
+
+      - name: Build docker image
+        working-directory: ./cdk
+        run: docker build -t cdk:local --file Dockerfile .
+
+      - name: Remove unused flags
+        working-directory: ./kurtosis-cdk
+        run: |
+          sed -i '/zkevm.sequencer-batch-seal-time:/d' templates/cdk-erigon/config.yml
+          sed -i '/zkevm.sequencer-non-empty-batch-seal-time:/d' templates/cdk-erigon/config.yml
+
+      - name: Configure Kurtosis CDK
+        working-directory: ./kurtosis-cdk
+        run: |
+          /usr/local/bin/yq -i '.args.cdk_erigon_node_image = "jerrycgh/cdk-erigon:d5d04906f723f3f1d8c43c9e6baf3e18c27ff348"' params.yml
+          /usr/local/bin/yq -i '.args.cdk_node_image = "cdk:local"' params.yml
+
+      - name: Deploy Kurtosis CDK package
+        working-directory: ./kurtosis-cdk
+        run: kurtosis run --enclave cdk-v1 --args-file params.yml --image-download always .
+
+      - name: Test resequence
+        working-directory: ./cdk-erigon
+        run: .github/scripts/test_resequence.sh
+
+      - name: Prepare logs
+        if: always()
+        working-directory: ./kurtosis-cdk
+        run: |
+          mkdir -p ci_logs
+          cd ci_logs
+          kurtosis service logs cdk-v1 cdk-erigon-node-001 --all > cdk-erigon-node-001.log
+          kurtosis service logs cdk-v1 cdk-erigon-sequencer-001 --all > cdk-erigon-sequencer-001.log
+          kurtosis service logs cdk-v1 zkevm-agglayer-001 --all > zkevm-agglayer-001.log
+          kurtosis service logs cdk-v1 zkevm-prover-001 --all > zkevm-prover-001.log
+          kurtosis service logs cdk-v1 cdk-node-001 --all > cdk-node-001.log
+          kurtosis service logs cdk-v1 zkevm-bridge-service-001 --all > zkevm-bridge-service-001.log
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: logs_${{ github.run_id }}
+          path: ./kurtosis-cdk/ci_logs

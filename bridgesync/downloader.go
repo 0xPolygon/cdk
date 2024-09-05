@@ -37,10 +37,6 @@ type EthClienter interface {
 	Client() *rpc.Client
 }
 
-type ClientCaller interface {
-	Call(result interface{}, method string, args ...interface{}) error
-}
-
 func buildAppender(client EthClienter, bridge common.Address, syncFullClaims bool) (sync.LogAppenderMap, error) {
 	bridgeContractV1, err := polygonzkevmbridge.NewPolygonzkevmbridge(bridge, client)
 	if err != nil {

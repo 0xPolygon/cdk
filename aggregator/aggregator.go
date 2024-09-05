@@ -69,6 +69,8 @@ type Aggregator struct {
 	l1Syncr      synchronizer.Synchronizer
 	halted       atomic.Bool
 
+	streamClientMutex *sync.Mutex
+
 	profitabilityChecker    aggregatorTxProfitabilityChecker
 	timeSendFinalProof      time.Time
 	timeCleanupLockedProofs types.Duration
@@ -178,6 +180,7 @@ func New(
 		etherman:                etherman,
 		ethTxManager:            ethTxManager,
 		streamClient:            streamClient,
+		streamClientMutex:       &sync.Mutex{},
 		l1Syncr:                 l1Syncr,
 		profitabilityChecker:    profitabilityChecker,
 		stateDBMutex:            &sync.Mutex{},
@@ -202,6 +205,14 @@ func New(
 	}
 
 	return a, nil
+}
+
+func (a *Aggregator) resetCurrentBatchData() {
+	a.currentBatchStreamData = []byte{}
+	a.currentStreamBatchRaw = state.BatchRawV2{
+		Blocks: make([]state.L2BlockRaw, 0),
+	}
+	a.currentStreamL2Block = state.L2BlockRaw{}
 }
 
 func (a *Aggregator) retrieveWitness() {
@@ -253,7 +264,7 @@ func (a *Aggregator) handleReorg(reorgData synchronizer.ReorgExecutionResult) {
 	// Halt the aggregator
 	a.halted.Store(true)
 	for {
-		log.Warnf("Halting the aggregator due to a L1 reorg. Reorged data has been deleted so it is safe to manually restart the aggregator.")
+		log.Errorf("Halting the aggregator due to a L1 reorg. Reorged data has been deleted so it is safe to manually restart the aggregator.")
 		time.Sleep(10 * time.Second) // nolint:gomnd
 	}
 }
@@ -261,12 +272,24 @@ func (a *Aggregator) handleReorg(reorgData synchronizer.ReorgExecutionResult) {
 func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBatchesData) {
 	log.Warnf("Rollback batches event, rollbackBatchesData: %+v", rollbackData)
 
-	// Stop Reading the data stream
-	err := a.streamClient.ExecCommandStop()
-	if err != nil {
-		log.Errorf("failed to stop data stream: %v", err)
-	} else {
-		log.Info("Data stream client stopped")
+	a.streamClientMutex.Lock()
+	defer a.streamClientMutex.Unlock()
+
+	dsClientWasRunning := a.streamClient.IsStarted()
+
+	var err error
+
+	if dsClientWasRunning {
+		// Disable the process entry function to avoid processing the data stream
+		a.streamClient.ResetProcessEntryFunc()
+
+		// Stop Reading the data stream
+		err = a.streamClient.ExecCommandStop()
+		if err != nil {
+			log.Errorf("failed to stop data stream: %v.", err)
+		} else {
+			log.Info("Data stream client stopped")
+		}
 	}
 
 	// Get new last verified batch number from L1
@@ -324,8 +347,13 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 	}
 
 	if err == nil {
+		// Reset current batch data previously read from the data stream
+		a.resetCurrentBatchData()
+		a.currentStreamBatch = state.Batch{}
+		log.Info("Current batch data reset")
+
 		var marshalledBookMark []byte
-		// Resume reading the data stream
+		// Reset the data stream reading point
 		bookMark := &datastream.BookMark{
 			Type:  datastream.BookmarkType_BOOKMARK_TYPE_BATCH,
 			Value: rollbackData.LastBatchNumber + 1,
@@ -335,20 +363,32 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		if err != nil {
 			log.Error("failed to marshal bookmark: %v", err)
 		} else {
-			err = a.streamClient.ExecCommandStartBookmark(marshalledBookMark)
-			if err != nil {
-				log.Errorf("failed to connect to data stream: %v", err)
+			// Restart the stream client if needed
+			if dsClientWasRunning {
+				a.streamClient.SetProcessEntryFunc(a.handleReceivedDataStream)
+				err = a.streamClient.Start()
+				if err != nil {
+					log.Errorf("failed to start stream client, error: %v", err)
+				} else {
+					// Resume data stream reading
+					err = a.streamClient.ExecCommandStartBookmark(marshalledBookMark)
+					if err != nil {
+						log.Errorf("failed to connect to data stream: %v", err)
+					}
+					log.Info("Data stream client resumed")
+				}
 			}
-			log.Info("Data stream client resumed")
 		}
 	}
 
 	if err == nil {
 		log.Info("Handling rollback batches event finished successfully")
 	} else {
+		// Halt the aggregator
+		a.halted.Store(true)
 		for {
-			log.Errorf("Error handling rollback batches event: %v", err)
-			time.Sleep(a.cfg.RetryTime.Duration)
+			log.Errorf("Halting the aggregator due to an error handling rollback batches event: %v", err)
+			time.Sleep(10 * time.Second) // nolint:gomnd
 		}
 	}
 }
@@ -521,11 +561,7 @@ func (a *Aggregator) handleReceivedDataStream(entry *datastreamer.FileEntry, cli
 				}
 
 				// Reset current batch data
-				a.currentBatchStreamData = []byte{}
-				a.currentStreamBatchRaw = state.BatchRawV2{
-					Blocks: make([]state.L2BlockRaw, 0),
-				}
-				a.currentStreamL2Block = state.L2BlockRaw{}
+				a.resetCurrentBatchData()
 
 			case datastreamer.EntryType(datastream.EntryType_ENTRY_TYPE_L2_BLOCK):
 				// Add previous block (if any) to the current batch
@@ -653,6 +689,9 @@ func (a *Aggregator) Start() error {
 		}
 
 		// Start stream client
+		a.streamClientMutex.Lock()
+		defer a.streamClientMutex.Unlock()
+
 		err = a.streamClient.Start()
 		if err != nil {
 			log.Fatalf("failed to start stream client, error: %v", err)
