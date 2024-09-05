@@ -324,3 +324,7 @@ func Fatalw(msg string, kv ...interface{}) {
 	msg = appendStackTraceMaybeKV(msg, kv)
 	GetDefaultLogger().Fatalw(msg, kv...)
 }
+
+func (l *Logger) IsEnabledLogLevel(lvl zapcore.Level) bool {
+	return l.x.Level().Enabled(lvl)
+}

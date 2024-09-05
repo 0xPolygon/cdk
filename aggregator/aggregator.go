@@ -32,6 +32,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/state/entities"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer"
 	"github.com/ethereum/go-ethereum/common"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/peer"
@@ -1727,7 +1728,7 @@ func (a *Aggregator) buildInputProver(
 	forcedBlockhashL1 := common.Hash{}
 	l1InfoRoot := batchToVerify.L1InfoRoot.Bytes()
 	if !isForcedBatch {
-		tree, err := l1infotree.NewL1InfoTree(32, [][32]byte{}) //nolint:gomnd
+		tree, err := l1infotree.NewL1InfoTree(a.logger, 32, [][32]byte{}) // nolint:gomnd
 		if err != nil {
 			return nil, err
 		}
@@ -1830,8 +1831,7 @@ func (a *Aggregator) buildInputProver(
 		},
 	}
 
-	printInputProver(inputProver)
-
+	printInputProver(a.logger, inputProver)
 	return inputProver, nil
 }
 
@@ -1877,17 +1877,21 @@ func (a *Aggregator) getWitness(batchNumber uint64, URL string, fullWitness bool
 	return bytes, nil
 }
 
-func printInputProver(inputProver *prover.StatelessInputProver) {
-	log.Debugf("Witness length: %v", len(inputProver.PublicInputs.Witness))
-	log.Debugf("BatchL2Data length: %v", len(inputProver.PublicInputs.BatchL2Data))
-	// log.Debugf("Full DataStream: %v", common.Bytes2Hex(inputProver.PublicInputs.DataStream))
-	log.Debugf("OldAccInputHash: %v", common.BytesToHash(inputProver.PublicInputs.OldAccInputHash))
-	log.Debugf("L1InfoRoot: %v", common.BytesToHash(inputProver.PublicInputs.L1InfoRoot))
-	log.Debugf("TimestampLimit: %v", inputProver.PublicInputs.TimestampLimit)
-	log.Debugf("SequencerAddr: %v", inputProver.PublicInputs.SequencerAddr)
-	log.Debugf("AggregatorAddr: %v", inputProver.PublicInputs.AggregatorAddr)
-	log.Debugf("L1InfoTreeData: %+v", inputProver.PublicInputs.L1InfoTreeData)
-	log.Debugf("ForcedBlockhashL1: %v", common.BytesToHash(inputProver.PublicInputs.ForcedBlockhashL1))
+func printInputProver(logger *log.Logger, inputProver *prover.StatelessInputProver) {
+	if !logger.IsEnabledLogLevel(zapcore.DebugLevel) {
+		return
+	}
+
+	logger.Debugf("Witness length: %v", len(inputProver.PublicInputs.Witness))
+	logger.Debugf("BatchL2Data length: %v", len(inputProver.PublicInputs.BatchL2Data))
+	// logger.Debugf("Full DataStream: %v", common.Bytes2Hex(inputProver.PublicInputs.DataStream))
+	logger.Debugf("OldAccInputHash: %v", common.BytesToHash(inputProver.PublicInputs.OldAccInputHash))
+	logger.Debugf("L1InfoRoot: %v", common.BytesToHash(inputProver.PublicInputs.L1InfoRoot))
+	logger.Debugf("TimestampLimit: %v", inputProver.PublicInputs.TimestampLimit)
+	logger.Debugf("SequencerAddr: %v", inputProver.PublicInputs.SequencerAddr)
+	logger.Debugf("AggregatorAddr: %v", inputProver.PublicInputs.AggregatorAddr)
+	logger.Debugf("L1InfoTreeData: %+v", inputProver.PublicInputs.L1InfoTreeData)
+	logger.Debugf("ForcedBlockhashL1: %v", common.BytesToHash(inputProver.PublicInputs.ForcedBlockhashL1))
 }
 
 // healthChecker will provide an implementation of the HealthCheck interface.
