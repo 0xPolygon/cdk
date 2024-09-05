@@ -14,6 +14,7 @@ GasOffset = 80000
 WaitPeriodPurgeTxFile = "60m"
 MaxPendingTx = 1
 RPCURL = "http://127.0.0.1:8123"
+GetBatchWaitInterval = "10s"
 	[SequenceSender.StreamClient]
 		Server = "127.0.0.1:6900"
 	[SequenceSender.EthTxManager]
