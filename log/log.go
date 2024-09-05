@@ -122,6 +122,11 @@ func (l *Logger) WithFields(keyValuePairs ...interface{}) *Logger {
 	}
 }
 
+// GetSugaredLogger is a getter function that returns instance of already built zap.SugaredLogger.
+func (l *Logger) GetSugaredLogger() *zap.SugaredLogger {
+	return l.x
+}
+
 func sprintStackTrace(st []tracerr.Frame) string {
 	builder := strings.Builder{}
 	// Skip deepest frame because it belongs to the go runtime and we don't

@@ -748,7 +748,7 @@ func createRPC(
 	bridgeL1 *bridgesync.BridgeSync,
 	bridgeL2 *bridgesync.BridgeSync,
 ) *jRPC.Server {
-	return jRPC.NewServer(cfg, []jRPC.Service{
+	services := []jRPC.Service{
 		{
 			Name: rpc.BRIDGE,
 			Service: rpc.NewBridgeEndpoints(
@@ -763,5 +763,7 @@ func createRPC(
 				bridgeL2,
 			),
 		},
-	})
+	}
+	sugaredLogger := log.WithFields("module", cdkcommon.RPC).GetSugaredLogger()
+	return jRPC.NewServer(cfg, services, jRPC.WithLogger(sugaredLogger))
 }
