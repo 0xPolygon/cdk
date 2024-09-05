@@ -200,7 +200,7 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 	client, gerAddr, verifyAddr, gerSc, verifySC, err := newSimulatedClient(auth)
 	require.NoError(t, err)
-	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Second / 2)})
+	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 30)})
 	require.NoError(t, err)
 	require.NoError(t, rd.Start(ctx))
 	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, time.Second, 5)
@@ -233,25 +233,10 @@ func TestWithReorgs(t *testing.T) {
 	}
 
 	// Block 4
-	client.Commit()
-	time.Sleep(time.Second * 5)
+	commitBlocks(t, client, 1, time.Second*5)
 
-	syncerUpToDate := false
-	var errMsg string
-	for i := 0; i < 50; i++ {
-		lpb, err := syncer.GetLastProcessedBlock(ctx)
-		require.NoError(t, err)
-		lb, err := client.Client().BlockNumber(ctx)
-		require.NoError(t, err)
-		if lpb == lb {
-			syncerUpToDate = true
-			break
-		}
-		time.Sleep(time.Second / 2)
-		errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb, lpb)
-	}
-
-	require.True(t, syncerUpToDate, errMsg)
+	// Make sure syncer is up to date
+	waitForSyncerToCatchUp(ctx, t, syncer, client)
 
 	// Assert rollup exit root
 	expectedRollupExitRoot, err := verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
@@ -278,33 +263,10 @@ func TestWithReorgs(t *testing.T) {
 	err = client.Fork(reorgFrom)
 	require.NoError(t, err)
 
-	// Block 4 after the fork with no events
-	client.Commit()
-	time.Sleep(time.Millisecond * 100)
-
-	// Block 5 after the fork
-	client.Commit()
-	time.Sleep(time.Millisecond * 100)
-
-	// Block 6 after the fork to finalize the chain
-	client.Commit()
-	time.Sleep(time.Millisecond * 100)
+	commitBlocks(t, client, 3, time.Millisecond*100) // Block 4, 5, 6 after the fork
 
 	// Make sure syncer is up to date
-	for i := 0; i < 50; i++ {
-		lpb, err := syncer.GetLastProcessedBlock(ctx)
-		require.NoError(t, err)
-		lb, err := client.Client().BlockNumber(ctx)
-		require.NoError(t, err)
-		if lpb == lb {
-			syncerUpToDate = true
-			break
-		}
-		time.Sleep(time.Second / 2)
-		errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb, lpb)
-	}
-
-	require.True(t, syncerUpToDate, errMsg)
+	waitForSyncerToCatchUp(ctx, t, syncer, client)
 
 	// Assert rollup exit root after the fork - should be zero since there are no events in the block after the fork
 	expectedRollupExitRoot, err = verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
@@ -312,8 +274,7 @@ func TestWithReorgs(t *testing.T) {
 	actualRollupExitRoot, err = syncer.GetLastRollupExitRoot(ctx) // TODO: <- Fails
 	require.NoError(t, err)
 	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot) // TODO: <- Fails
-	// require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot)
-	require.Equal(t, common.Hash{}, common.Hash(expectedRollupExitRoot))
+	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot)
 
 	// Forking from block 3 again
 	err = client.Fork(reorgFrom)
@@ -339,36 +300,10 @@ func TestWithReorgs(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// Block 4 after the fork with events
-	client.Commit()
-	time.Sleep(time.Millisecond * 100)
+	commitBlocks(t, client, 4, time.Millisecond*100) // Block 4, 5, 6, 7 after the fork
 
-	// Block 5 after the fork
-	client.Commit()
-	time.Sleep(time.Millisecond * 100)
-
-	// Block 6 after the fork
-	client.Commit()
-	time.Sleep(time.Millisecond * 100)
-
-	// Block 7 after the fork to finalize the chain
-	client.Commit()
-	time.Sleep(time.Millisecond * 100)
-
-	for i := 0; i < 50; i++ {
-		lpb, err := syncer.GetLastProcessedBlock(ctx)
-		require.NoError(t, err)
-		lb, err := client.Client().BlockNumber(ctx)
-		require.NoError(t, err)
-		if lpb == lb {
-			syncerUpToDate = true
-			break
-		}
-		time.Sleep(time.Second / 2)
-		errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb, lpb)
-	}
-
-	require.True(t, syncerUpToDate, errMsg)
+	// Make sure syncer is up to date
+	waitForSyncerToCatchUp(ctx, t, syncer, client)
 
 	// Assert rollup exit root after the fork - should be zero since there are no events in the block after the fork
 	expectedRollupExitRoot, err = verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
@@ -445,10 +380,7 @@ func TestStressAndReorgs(t *testing.T) {
 		}
 	}
 
-	for i := 0; i < extraBlocksToMine; i++ {
-		client.Commit()
-		time.Sleep(time.Millisecond * 100)
-	}
+	commitBlocks(t, client, extraBlocksToMine, time.Millisecond*100)
 
 	syncerUpToDate := false
 	var errMsg string
@@ -487,4 +419,36 @@ func TestStressAndReorgs(t *testing.T) {
 
 	require.Equal(t, common.Hash(expectedL1InfoRoot), lastRoot.Hash)
 	require.Equal(t, common.Hash(expectedGER), info.GlobalExitRoot, fmt.Sprintf("%+v", info))
+}
+
+func waitForSyncerToCatchUp(ctx context.Context, t *testing.T, syncer *l1infotreesync.L1InfoTreeSync, client *simulated.Backend) {
+	t.Helper()
+
+	syncerUpToDate := false
+	var errMsg string
+
+	for i := 0; i < 50; i++ {
+		lpb, err := syncer.GetLastProcessedBlock(ctx)
+		require.NoError(t, err)
+		lb, err := client.Client().BlockNumber(ctx)
+		require.NoError(t, err)
+		if lpb == lb {
+			syncerUpToDate = true
+			break
+		}
+		time.Sleep(time.Second / 2)
+		errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb, lpb)
+	}
+
+	require.True(t, syncerUpToDate, errMsg)
+}
+
+// commitBlocks commits the specified number of blocks with the given client and waits for the specified duration after each block
+func commitBlocks(t *testing.T, client *simulated.Backend, numBlocks int, waitDuration time.Duration) {
+	t.Helper()
+
+	for i := 0; i < numBlocks; i++ {
+		client.Commit()
+		time.Sleep(waitDuration)
+	}
 }
