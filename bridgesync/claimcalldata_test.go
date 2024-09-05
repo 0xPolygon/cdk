@@ -199,7 +199,7 @@ func TestClaimCalldata(t *testing.T) {
 	expectedClaim.IsMessage = true
 	expectedClaim.GlobalIndex = big.NewInt(425)
 	expectedClaim2.IsMessage = true
-	expectedClaim2.GlobalIndex = big.NewInt(426)
+	expectedClaim2.GlobalIndex = big.NewInt(425)
 	tx, err = claimCaller.ClaimMessage2(
 		auth,
 		proofLocal,
@@ -235,7 +235,7 @@ func TestClaimCalldata(t *testing.T) {
 
 	// 2 indirect call claim message (1 ok, 1 reverted)
 	expectedClaim.IsMessage = true
-	expectedClaim.GlobalIndex = big.NewInt(427)
+	expectedClaim.GlobalIndex = big.NewInt(426)
 	tx, err = claimCaller.ClaimMessage2(
 		auth,
 		proofLocal,
@@ -265,8 +265,8 @@ func TestClaimCalldata(t *testing.T) {
 
 	// 2 indirect call claim message (1 reverted, 1 ok)
 	expectedClaim2.IsMessage = true
-	expectedClaim.GlobalIndex = big.NewInt(429)
-	expectedClaim2.GlobalIndex = big.NewInt(430)
+	expectedClaim.GlobalIndex = big.NewInt(427)
+	expectedClaim2.GlobalIndex = big.NewInt(427)
 	tx, err = claimCaller.ClaimMessage2(
 		auth,
 		proofLocal,
@@ -296,9 +296,9 @@ func TestClaimCalldata(t *testing.T) {
 
 	// 2 indirect call claim asset
 	expectedClaim.IsMessage = false
-	expectedClaim.GlobalIndex = big.NewInt(431)
+	expectedClaim.GlobalIndex = big.NewInt(428)
 	expectedClaim2.IsMessage = false
-	expectedClaim2.GlobalIndex = big.NewInt(432)
+	expectedClaim2.GlobalIndex = big.NewInt(428)
 	tx, err = claimCaller.ClaimAsset2(
 		auth,
 		proofLocal,
@@ -335,7 +335,7 @@ func TestClaimCalldata(t *testing.T) {
 
 	// 2 indirect call claim asset (1 ok, 1 reverted)
 	expectedClaim.IsMessage = false
-	expectedClaim.GlobalIndex = big.NewInt(433)
+	expectedClaim.GlobalIndex = big.NewInt(429)
 	tx, err = claimCaller.ClaimAsset2(
 		auth,
 		proofLocal,
@@ -367,8 +367,8 @@ func TestClaimCalldata(t *testing.T) {
 
 	// 2 indirect call claim asset (1 reverted, 1 ok)
 	expectedClaim2.IsMessage = false
-	expectedClaim.GlobalIndex = big.NewInt(435)
-	expectedClaim2.GlobalIndex = big.NewInt(436)
+	expectedClaim.GlobalIndex = big.NewInt(430)
+	expectedClaim2.GlobalIndex = big.NewInt(430)
 	tx, err = claimCaller.ClaimAsset2(
 		auth,
 		proofLocal,

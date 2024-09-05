@@ -76,7 +76,6 @@ contract ClaimMockCaller {
         if(reverted[0]) {
             newAmount1 = 0;
         }
-        uint256 globalIndex2 = globalIndex + 1;
         uint256 newAmount2 = amount+1;
         if(reverted[1]) {
             newAmount2 = 0;
@@ -104,7 +103,7 @@ contract ClaimMockCaller {
             mstore(x,argSig)
             mstore(add(x,164),value1)
             mstore(add(x,1156),value2)
-            mstore(add(x,2052),globalIndex2)
+            mstore(add(x,2052),globalIndex)
             mstore(add(x,2084),mainnetExitRoot)
             mstore(add(x,2116),rollupExitRoot)
             mstore(add(x,2148),originNetwork)
@@ -174,7 +173,6 @@ contract ClaimMockCaller {
         if(reverted[0]) {
             newAmount1 = 0;
         }
-        uint256 globalIndex2 = globalIndex + 1;
         uint256 newAmount2 = amount+1;
         if(reverted[1]) {
             newAmount2 = 0;
@@ -202,7 +200,7 @@ contract ClaimMockCaller {
             mstore(x,argSig)
             mstore(add(x,164),value1)
             mstore(add(x,1156),value2)
-            mstore(add(x,2052),globalIndex2)
+            mstore(add(x,2052),globalIndex)
             mstore(add(x,2084),mainnetExitRoot)
             mstore(add(x,2116),rollupExitRoot)
             mstore(add(x,2148),originNetwork)
