@@ -29,7 +29,7 @@ func NewUpdatableTree(ctx context.Context, db kv.RwDB, dbPrefix string) (*Updata
 		return nil, err
 	}
 	if rootIndex == -1 {
-		root = t.zeroHashes[defaultHeight]
+		root = t.zeroHashes[DefaultHeight]
 	}
 	ut := &UpdatableTree{
 		Tree:     t,
@@ -70,7 +70,7 @@ func (t *UpdatableTree) upsertLeaf(tx kv.RwTx, leaf Leaf) error {
 	}
 	currentChildHash := leaf.Hash
 	newNodes := []treeNode{}
-	for h := uint8(0); h < defaultHeight; h++ {
+	for h := uint8(0); h < DefaultHeight; h++ {
 		var parent treeNode
 		if leaf.Index&(1<<h) > 0 {
 			// Add child to the right
@@ -130,7 +130,7 @@ func (t *UpdatableTree) Reorg(tx kv.RwTx, firstReorgedIndex uint64) (func(), err
 	}
 
 	// no root found after reorg, going back to empty tree
-	t.lastRoot = t.zeroHashes[defaultHeight]
+	t.lastRoot = t.zeroHashes[DefaultHeight]
 	return rollback, nil
 }
 
