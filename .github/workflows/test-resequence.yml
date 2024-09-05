@@ -34,7 +34,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 0xPolygon/kurtosis-cdk
-          ref: 6751b0eb4656abbaed7d45b40a52b2117d5440e1
+          ref: a48a68f7a998f4edd1b7e076c938dc450f73b891
           path: kurtosis-cdk
 
       - name: Install Kurtosis CDK tools

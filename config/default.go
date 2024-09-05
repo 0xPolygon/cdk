@@ -30,8 +30,6 @@ MaxBatchesForL1 = 300
 BlockFinality = "FinalizedBlock"
 RPCURL = ""
 GetBatchWaitInterval = "10s"
-	[SequenceSender.StreamClient]
-		Server = "127.0.0.1:6900"
 	[SequenceSender.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2m"

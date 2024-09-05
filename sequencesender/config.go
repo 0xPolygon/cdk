@@ -53,9 +53,6 @@ type Config struct {
 	// MaxPendingTx is the maximum number of pending transactions (those that are not in a final state)
 	MaxPendingTx uint64
 
-	// StreamClient is the config for the stream client
-	StreamClient StreamClientCfg `mapstructure:"StreamClient"`
-
 	// EthTxManager is the config for the ethtxmanager
 	EthTxManager ethtxmanager.Config `mapstructure:"EthTxManager"`
 

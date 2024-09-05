@@ -1,6 +1,8 @@
 package rpcbatch
 
 import (
+	"fmt"
+
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -108,7 +110,9 @@ func (b *RPCBatch) SetL1InfoTreeIndex(index uint32) {
 
 // String
 func (b *RPCBatch) String() string {
-	return "RPCBatch"
+	return fmt.Sprintf("Batch/RPC: LastCoinbase: %s, ForcedBatchTimestamp: %d, ForcedGlobalExitRoot: %x, ForcedBlockHashL1: %x, L2Data: %x, LastL2BLockTimestamp: %d, BatchNumber: %d, GlobalExitRoot: %x, L1InfoTreeIndex: %d",
+		b.LastCoinbase().String(), b.ForcedBatchTimestamp(), b.ForcedGlobalExitRoot().String(), b.ForcedBlockHashL1().String(), b.L2Data(), b.LastL2BLockTimestamp(), b.BatchNumber(), b.GlobalExitRoot().String(), b.L1InfoTreeIndex(),
+	)
 }
 
 // IsClosed
