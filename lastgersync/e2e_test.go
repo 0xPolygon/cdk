@@ -40,7 +40,7 @@ func TestE2E(t *testing.T) {
 		_, err := env.GERL1Contract.UpdateExitRoot(env.AuthL1, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
 		env.L1Client.Commit()
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(time.Millisecond * 150)
 		expectedGER, err := env.GERL1Contract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
 		isInjected, err := env.AggOracleSender.IsGERAlreadyInjected(expectedGER)

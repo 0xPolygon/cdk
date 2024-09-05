@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/l1infotreesync/migrations"
@@ -240,7 +241,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	}()
 
 	if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, b.Num); err != nil {
-		return err
+		return fmt.Errorf("err: %w", err)
 	}
 
 	var initialL1InfoIndex uint32
@@ -248,8 +249,9 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	lastIndex, err := p.getLastIndex(tx)
 	if err == ErrNotFound {
 		initialL1InfoIndex = 0
+		err = nil
 	} else if err != nil {
-		return err
+		return fmt.Errorf("err: %w", err)
 	} else {
 		initialL1InfoIndex = lastIndex + 1
 	}
@@ -270,14 +272,14 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 			info.Hash = info.hash()
 			err = meddler.Insert(tx, "l1info_leaf", info)
 			if err != nil {
-				return err
+				return fmt.Errorf("err: %w", err)
 			}
 			err = p.l1InfoTree.AddLeaf(tx, info.BlockNumber, info.BlockPosition, treeTypes.Leaf{
 				Index: info.L1InfoTreeIndex,
 				Hash:  info.Hash,
 			})
 			if err != nil {
-				return err
+				return fmt.Errorf("err: %w", err)
 			}
 			l1InfoLeavesAdded++
 		}
@@ -288,7 +290,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 				Hash:  event.VerifyBatches.ExitRoot,
 			})
 			if err != nil {
-				return err
+				return fmt.Errorf("err: %w", err)
 			}
 		}
 
@@ -300,7 +302,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	}
 
 	if err := tx.Commit(); err != nil {
-		return err
+		return fmt.Errorf("err: %w", err)
 	}
 	log.Infof("block %d processed with %d events", b.Num, len(b.Events))
 	return nil
