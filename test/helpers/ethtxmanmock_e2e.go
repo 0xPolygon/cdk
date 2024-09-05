@@ -20,6 +20,8 @@ func NewEthTxManMock(
 	client *simulated.Backend,
 	auth *bind.TransactOpts,
 ) *EthTxManagerMock {
+	t.Helper()
+
 	ethTxMock := NewEthTxManagerMock(t)
 	ethTxMock.On("Add", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {

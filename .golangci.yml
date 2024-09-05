@@ -70,7 +70,7 @@ issues:
   # new-from-rev: origin/develop # report only new issues with reference to develop branch
   whole-files: true
   exclude-rules:
-    - path: _test\.go
+    - path: '(_test\.go|^test/.*)'
       linters:
         - gosec
         - unparam

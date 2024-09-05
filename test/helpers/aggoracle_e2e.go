@@ -51,6 +51,8 @@ type AggoracleWithEVMChainEnv struct {
 }
 
 func SetupAggoracleWithEVMChain(t *testing.T) *AggoracleWithEVMChainEnv {
+	t.Helper()
+
 	ctx := context.Background()
 	l1Client, syncer, gerL1Contract, gerL1Addr, bridgeL1Contract, bridgeL1Addr, authL1, rd := CommonSetup(t)
 	sender, l2Client, gerL2Contract, gerL2Addr, bridgeL2Contract, bridgeL2Addr, authL2, ethTxManMockL2 := EVMSetup(t)
@@ -90,6 +92,8 @@ func CommonSetup(t *testing.T) (
 	*bind.TransactOpts,
 	*reorgdetector.ReorgDetector,
 ) {
+	t.Helper()
+
 	// Config and spin up
 	ctx := context.Background()
 	// Simulated L1
@@ -122,6 +126,8 @@ func EVMSetup(t *testing.T) (
 	*bind.TransactOpts,
 	*EthTxManagerMock,
 ) {
+	t.Helper()
+
 	privateKeyL2, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	authL2, err := bind.NewKeyedTransactorWithChainID(privateKeyL2, big.NewInt(1337))

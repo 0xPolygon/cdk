@@ -97,7 +97,10 @@ func (b *BridgeEndpoints) L1InfoTreeIndexForBridge(networkID uint32, depositCoun
 			"TODO: batchsync / certificatesync missing implementation",
 		)
 	}
-	return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("this client does not support network %d", networkID))
+	return zeroHex, rpc.NewRPCError(
+		rpc.DefaultErrorCode,
+		fmt.Sprintf("this client does not support network %d", networkID),
+	)
 }
 
 // InjectedInfoAfterIndex return the first GER injected onto the network that is linked
@@ -131,7 +134,10 @@ func (b *BridgeEndpoints) InjectedInfoAfterIndex(networkID uint32, l1InfoTreeInd
 		}
 		return info, nil
 	}
-	return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("this client does not support network %d", networkID))
+	return zeroHex, rpc.NewRPCError(
+		rpc.DefaultErrorCode,
+		fmt.Sprintf("this client does not support network %d", networkID),
+	)
 }
 
 type ClaimProof struct {
@@ -179,10 +185,16 @@ func (b *BridgeEndpoints) ClaimProof(
 		}
 		proofLocalExitRoot, err = b.bridgeL2.GetProof(ctx, depositCount, localExitRoot)
 		if err != nil {
-			return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get local exit proof, error: %s", err))
+			return zeroHex, rpc.NewRPCError(
+				rpc.DefaultErrorCode,
+				fmt.Sprintf("failed to get local exit proof, error: %s", err),
+			)
 		}
 	} else {
-		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("this client does not support network %d", networkID))
+		return zeroHex, rpc.NewRPCError(
+			rpc.DefaultErrorCode,
+			fmt.Sprintf("this client does not support network %d", networkID),
+		)
 	}
 	return ClaimProof{
 		ProofLocalExitRoot:  proofLocalExitRoot,
