@@ -18,6 +18,7 @@ import (
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
+	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -137,7 +138,8 @@ func TestE2E(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, rd.Start(ctx))
 
-	bridgeSync, err := bridgesync.NewL1(ctx, dbPathBridgeSync, bridgeAddr, 10, etherman.LatestBlock, rd, client.Client(), 0, time.Millisecond*10, 0, 0)
+	testClient := helpers.TestClient{ClientRenamed: client.Client()}
+	bridgeSync, err := bridgesync.NewL1(ctx, dbPathBridgeSync, bridgeAddr, 10, etherman.LatestBlock, rd, testClient, 0, time.Millisecond*10, 0, 0)
 	require.NoError(t, err)
 	go bridgeSync.Start(ctx)
 

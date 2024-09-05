@@ -22,7 +22,8 @@ func TestE2EL1toEVML2(t *testing.T) {
 	ctx := context.Background()
 	env := helpers.SetupAggoracleWithEVMChain(t)
 	dbPathBridgeSyncL1 := t.TempDir()
-	bridgeSyncL1, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, env.BridgeL1Addr, 10, etherman.LatestBlock, env.ReorgDetector, env.L1Client.Client(), 0, time.Millisecond*10, 0, 0)
+	testClient := helpers.TestClient{ClientRenamed: env.L1Client.Client()}
+	bridgeSyncL1, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, env.BridgeL1Addr, 10, etherman.LatestBlock, env.ReorgDetector, testClient, 0, time.Millisecond*10, 0, 0)
 	require.NoError(t, err)
 	go bridgeSyncL1.Start(ctx)
 

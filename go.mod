@@ -10,6 +10,7 @@ require (
 	github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.10-0.20240716105056-c051c96d0234
 	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.7.0
 	github.com/ethereum/go-ethereum v1.14.5
+	github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3
 	github.com/hermeznetwork/tracerr v0.3.2
 	github.com/iden3/go-iden3-crypto v0.0.16
 	github.com/invopop/jsonschema v0.12.0
