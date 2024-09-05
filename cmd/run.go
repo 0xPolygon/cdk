@@ -752,10 +752,12 @@ func createRPC(
 	bridgeL1 *bridgesync.BridgeSync,
 	bridgeL2 *bridgesync.BridgeSync,
 ) *jRPC.Server {
+	logger := log.WithFields("module", cdkcommon.RPC)
 	services := []jRPC.Service{
 		{
 			Name: rpc.BRIDGE,
 			Service: rpc.NewBridgeEndpoints(
+				logger,
 				cfg.WriteTimeout.Duration,
 				cfg.ReadTimeout.Duration,
 				cdkNetworkID,
@@ -768,6 +770,6 @@ func createRPC(
 			),
 		},
 	}
-	sugaredLogger := log.WithFields("module", cdkcommon.RPC).GetSugaredLogger()
-	return jRPC.NewServer(cfg, services, jRPC.WithLogger(sugaredLogger))
+
+	return jRPC.NewServer(cfg, services, jRPC.WithLogger(logger.GetSugaredLogger()))
 }

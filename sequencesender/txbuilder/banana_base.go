@@ -128,7 +128,7 @@ func (t *TxBuilderBananaBase) NewSequence(
 		}
 
 		accInputHash = cdkcommon.CalculateAccInputHash(
-			accInputHash, batch.L2Data, infoRootHash, timestamp, batch.LastCoinbase, blockHash,
+			t.logger, accInputHash, batch.L2Data, infoRootHash, timestamp, batch.LastCoinbase, blockHash,
 		)
 	}
 

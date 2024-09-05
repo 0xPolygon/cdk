@@ -551,6 +551,7 @@ func (a *Aggregator) handleReceivedDataStream(
 					}
 
 					accInputHash := cdkcommon.CalculateAccInputHash(
+						a.logger,
 						oldDBBatch.Batch.AccInputHash,
 						a.currentStreamBatch.BatchL2Data,
 						a.currentStreamBatch.L1InfoRoot,
