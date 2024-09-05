@@ -10,7 +10,7 @@ import (
 )
 
 func Test001(t *testing.T) {
-	dbPath := path.Join(t.TempDir(), "tmp.db")
+	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
 
 	err := RunMigrations(dbPath)
 	require.NoError(t, err)

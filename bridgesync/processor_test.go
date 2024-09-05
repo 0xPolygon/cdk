@@ -19,7 +19,7 @@ import (
 )
 
 func TestProceessor(t *testing.T) {
-	path := path.Join(t.TempDir(), "tmp.sqlite")
+	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	log.Debugf("sqlite path: %s", path)
 	err := migrationsBridge.RunMigrations(path)
 	require.NoError(t, err)

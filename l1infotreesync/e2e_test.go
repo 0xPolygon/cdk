@@ -69,7 +69,7 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
-	dbPath := path.Join(t.TempDir(), "tmp.sqlite")
+	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
@@ -175,7 +175,7 @@ func TestStressAndReorgs(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	dbPathSyncer := path.Join(t.TempDir(), "tmp.sqlite")
+	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	dbPathReorg := t.TempDir()
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)

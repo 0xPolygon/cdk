@@ -46,7 +46,7 @@ func newSimulatedClient(t *testing.T, auth *bind.TransactOpts) (
 
 func TestBridgeEventE2E(t *testing.T) {
 	ctx := context.Background()
-	dbPathSyncer := path.Join(t.TempDir(), "tmp.sqlite")
+	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	dbPathReorg := t.TempDir()
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)

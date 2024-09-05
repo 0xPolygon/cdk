@@ -120,8 +120,8 @@ func newSimulatedClient(authDeployer, authCaller *bind.TransactOpts) (
 
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
-	dbPathBridgeSync := path.Join(t.TempDir(), "tmp.sqlite")
-	dbPathL1Sync := path.Join(t.TempDir(), "tmp.sqlite")
+	dbPathBridgeSync := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPathL1Sync := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	dbPathReorg := t.TempDir()
 	dbPathL12InfoSync := t.TempDir()
 

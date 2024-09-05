@@ -29,11 +29,13 @@ func TestMTAddLeaf(t *testing.T) {
 
 	for ti, testVector := range mtTestVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
-			dbPath := path.Join(t.TempDir(), "tmp.db")
+			dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
 			log.Debug("DB created at: ", dbPath)
 			err := migrations.RunMigrations(dbPath)
 			require.NoError(t, err)
 			db, err := db.NewSQLiteDB(dbPath)
+			require.NoError(t, err)
+			_, err = db.Exec(`select * from root`)
 			require.NoError(t, err)
 			merkletree := tree.NewAppendOnlyTree(db, "")
 
@@ -82,7 +84,7 @@ func TestMTGetProof(t *testing.T) {
 
 	for ti, testVector := range mtTestVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
-			dbPath := path.Join(t.TempDir(), "tmp.db")
+			dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
 			err := migrations.RunMigrations(dbPath)
 			require.NoError(t, err)
 			db, err := db.NewSQLiteDB(dbPath)
