@@ -213,10 +213,7 @@ func TestWithReorgs(t *testing.T) {
 	reorgFrom := header.Hash()
 	fmt.Println("start from header:", header.Number)
 
-	{
-		i := 1
-		rollupID := uint32(1)
-
+	updateL1InfoTreeAndRollupExitTree := func(i int, rollupID uint32) {
 		// Update L1 Info Tree
 		_, err := gerSc.UpdateExitRoot(auth, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
@@ -231,6 +228,9 @@ func TestWithReorgs(t *testing.T) {
 		_, err = verifySC.VerifyBatches(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, false)
 		require.NoError(t, err)
 	}
+
+	// create some events and update the trees
+	updateL1InfoTreeAndRollupExitTree(1, 1)
 
 	// Block 4
 	commitBlocks(t, client, 1, time.Second*5)
@@ -263,7 +263,8 @@ func TestWithReorgs(t *testing.T) {
 	err = client.Fork(reorgFrom)
 	require.NoError(t, err)
 
-	commitBlocks(t, client, 3, time.Millisecond*100) // Block 4, 5, 6 after the fork
+	// Block 4, 5, 6 after the fork
+	commitBlocks(t, client, 3, time.Millisecond*100)
 
 	// Make sure syncer is up to date
 	waitForSyncerToCatchUp(ctx, t, syncer, client)
@@ -281,26 +282,11 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(time.Millisecond * 100)
 
-	{
-		i := 2
-		rollupID := uint32(1)
+	// create some events and update the trees
+	updateL1InfoTreeAndRollupExitTree(2, 1)
 
-		// Update L1 Info Tree
-		_, err := gerSc.UpdateExitRoot(auth, common.HexToHash(strconv.Itoa(i)))
-		require.NoError(t, err)
-
-		// Update L1 Info Tree + Rollup Exit Tree
-		newLocalExitRoot := common.HexToHash(strconv.Itoa(i) + "ffff" + strconv.Itoa(1))
-		_, err = verifySC.VerifyBatches(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, true)
-		require.NoError(t, err)
-
-		// Update Rollup Exit Tree
-		newLocalExitRoot = common.HexToHash(strconv.Itoa(i) + "ffff" + strconv.Itoa(2))
-		_, err = verifySC.VerifyBatches(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, false)
-		require.NoError(t, err)
-	}
-
-	commitBlocks(t, client, 4, time.Millisecond*100) // Block 4, 5, 6, 7 after the fork
+	// Block 4, 5, 6, 7 after the fork
+	commitBlocks(t, client, 4, time.Millisecond*100)
 
 	// Make sure syncer is up to date
 	waitForSyncerToCatchUp(ctx, t, syncer, client)
