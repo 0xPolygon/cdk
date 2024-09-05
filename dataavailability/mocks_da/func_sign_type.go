@@ -25,6 +25,10 @@ func (_m *FuncSignType) EXPECT() *FuncSignType_Expecter {
 func (_m *FuncSignType) Execute(c client.Client) ([]byte, error) {
 	ret := _m.Called(c)
 
+	if len(ret) == 0 {
+		panic("no return value specified for Execute")
+	}
+
 	var r0 []byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func(client.Client) ([]byte, error)); ok {
@@ -75,13 +79,12 @@ func (_c *FuncSignType_Execute_Call) RunAndReturn(run func(client.Client) ([]byt
 	return _c
 }
 
-type mockConstructorTestingTNewFuncSignType interface {
+// NewFuncSignType creates a new instance of FuncSignType. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewFuncSignType(t interface {
 	mock.TestingT
 	Cleanup(func())
-}
-
-// NewFuncSignType creates a new instance of FuncSignType. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-func NewFuncSignType(t mockConstructorTestingTNewFuncSignType) *FuncSignType {
+}) *FuncSignType {
 	mock := &FuncSignType{}
 	mock.Mock.Test(t)
 

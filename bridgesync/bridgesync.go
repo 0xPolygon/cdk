@@ -47,6 +47,7 @@ func NewL1(
 		waitForNewBlocksPeriod,
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
+		false,
 	)
 }
 
@@ -77,6 +78,7 @@ func NewL2(
 		waitForNewBlocksPeriod,
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
+		true,
 	)
 }
 
@@ -93,6 +95,7 @@ func newBridgeSync(
 	waitForNewBlocksPeriod time.Duration,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
+	syncFullClaims bool,
 ) (*BridgeSync, error) {
 	processor, err := newProcessor(ctx, dbPath, l1OrL2ID)
 	if err != nil {
@@ -115,7 +118,7 @@ func newBridgeSync(
 		RetryAfterErrorPeriod:      retryAfterErrorPeriod,
 	}
 
-	appender, err := buildAppender(ethClient, bridge)
+	appender, err := buildAppender(ethClient, bridge, syncFullClaims)
 	if err != nil {
 		return nil, err
 	}

@@ -6,10 +6,11 @@ require (
 	github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240819092536-5a65d4761b2f
 	github.com/0xPolygon/cdk-data-availability v0.0.9
 	github.com/0xPolygon/cdk-rpc v0.0.0-20240419104226-c0a62ba0f49d
-	github.com/0xPolygonHermez/zkevm-data-streamer v0.2.3
+	github.com/0xPolygonHermez/zkevm-data-streamer v0.2.6
 	github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.10-0.20240716105056-c051c96d0234
 	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.7.0
 	github.com/ethereum/go-ethereum v1.14.5
+	github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3
 	github.com/hermeznetwork/tracerr v0.3.2
 	github.com/iden3/go-iden3-crypto v0.0.16
 	github.com/invopop/jsonschema v0.12.0
@@ -26,6 +27,7 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.24.0
 	golang.org/x/net v0.26.0
+	golang.org/x/sync v0.7.0
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.34.2
 )
@@ -140,7 +142,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
-	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect

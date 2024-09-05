@@ -101,7 +101,7 @@ func CommonSetup(t *testing.T) (
 	require.NoError(t, err)
 	// Reorg detector
 	dbPathReorgDetector := t.TempDir()
-	reorg, err := reorgdetector.New(ctx, l1Client.Client(), dbPathReorgDetector)
+	reorg, err := reorgdetector.New(l1Client.Client(), reorgdetector.Config{DBPath: dbPathReorgDetector})
 	require.NoError(t, err)
 	// Syncer
 	dbPathSyncer := t.TempDir()

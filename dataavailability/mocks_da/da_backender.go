@@ -29,6 +29,10 @@ func (_m *DABackender) EXPECT() *DABackender_Expecter {
 func (_m *DABackender) GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
 	ret := _m.Called(ctx, batchHashes, dataAvailabilityMessage)
 
+	if len(ret) == 0 {
+		panic("no return value specified for GetSequence")
+	}
+
 	var r0 [][]byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, []common.Hash, []byte) ([][]byte, error)); ok {
@@ -85,6 +89,10 @@ func (_c *DABackender_GetSequence_Call) RunAndReturn(run func(context.Context, [
 func (_m *DABackender) Init() error {
 	ret := _m.Called()
 
+	if len(ret) == 0 {
+		panic("no return value specified for Init")
+	}
+
 	var r0 error
 	if rf, ok := ret.Get(0).(func() error); ok {
 		r0 = rf()
@@ -125,6 +133,10 @@ func (_c *DABackender_Init_Call) RunAndReturn(run func() error) *DABackender_Ini
 // PostSequenceBanana provides a mock function with given fields: ctx, sequence
 func (_m *DABackender) PostSequenceBanana(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
 	ret := _m.Called(ctx, sequence)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PostSequenceBanana")
+	}
 
 	var r0 []byte
 	var r1 error
@@ -181,6 +193,10 @@ func (_c *DABackender_PostSequenceBanana_Call) RunAndReturn(run func(context.Con
 func (_m *DABackender) PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error) {
 	ret := _m.Called(ctx, batchesData)
 
+	if len(ret) == 0 {
+		panic("no return value specified for PostSequenceElderberry")
+	}
+
 	var r0 []byte
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, [][]byte) ([]byte, error)); ok {
@@ -232,13 +248,12 @@ func (_c *DABackender_PostSequenceElderberry_Call) RunAndReturn(run func(context
 	return _c
 }
 
-type mockConstructorTestingTNewDABackender interface {
+// NewDABackender creates a new instance of DABackender. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewDABackender(t interface {
 	mock.TestingT
 	Cleanup(func())
-}
-
-// NewDABackender creates a new instance of DABackender. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-func NewDABackender(t mockConstructorTestingTNewDABackender) *DABackender {
+}) *DABackender {
 	mock := &DABackender{}
 	mock.Mock.Test(t)
 

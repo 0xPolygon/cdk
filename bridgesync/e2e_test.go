@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/reorgdetector"
+	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -51,11 +52,12 @@ func TestBridgeEventE2E(t *testing.T) {
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
 	require.NoError(t, err)
 	client, bridgeAddr, bridgeSc := newSimulatedClient(t, auth)
-	rd, err := reorgdetector.New(ctx, client.Client(), dbPathReorg)
+	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg})
 	require.NoError(t, err)
 	go rd.Start(ctx)
 
-	syncer, err := bridgesync.NewL1(ctx, dbPathSyncer, bridgeAddr, 10, etherman.LatestBlock, rd, client.Client(), 0, time.Millisecond*10, 0, 0)
+	testClient := helpers.TestClient{ClientRenamed: client.Client()}
+	syncer, err := bridgesync.NewL1(ctx, dbPathSyncer, bridgeAddr, 10, etherman.LatestBlock, rd, testClient, 0, time.Millisecond*10, 0, 0)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
