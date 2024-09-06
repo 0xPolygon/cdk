@@ -1,0 +1,24 @@
+services:
+  test-claimdata-l1:
+    container_name: test-claimdata-l1
+    image: hermeznetwork/geth-zkevm-contracts:elderberry-fork.9-geth1.13.11
+    environment:
+      - DEV_PERIOD
+    ports:
+      - "8545:8545"
+    entrypoint:
+      - geth
+      - --http
+      - --http.addr
+      - "0.0.0.0"
+      - "--http.corsdomain"
+      - "*"
+      - "--http.vhosts"
+      - "*"
+      - --dev
+      - --dev.period
+      - "1"
+      - "--datadir"
+      - "/geth_data"
+      - "--http.api"
+      - "admin,eth,debug,miner,net,txpool,personal,web3"

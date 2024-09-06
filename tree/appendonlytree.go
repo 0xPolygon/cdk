@@ -12,7 +12,7 @@ import (
 // AppendOnlyTree is a tree where leaves are added sequentially (by index)
 type AppendOnlyTree struct {
 	*Tree
-	lastLeftCache [defaultHeight]common.Hash
+	lastLeftCache [DefaultHeight]common.Hash
 	lastIndex     int64
 }
 
@@ -36,7 +36,7 @@ func (t *AppendOnlyTree) AddLeaves(tx kv.RwTx, leaves []Leaf) (func(), error) {
 	}
 
 	backupIndx := t.lastIndex
-	backupCache := [defaultHeight]common.Hash{}
+	backupCache := [DefaultHeight]common.Hash{}
 	copy(backupCache[:], t.lastLeftCache[:])
 	rollback := func() {
 		t.lastIndex = backupIndx
@@ -62,7 +62,7 @@ func (t *AppendOnlyTree) addLeaf(tx kv.RwTx, leaf Leaf) error {
 	// Calculate new tree nodes
 	currentChildHash := leaf.Hash
 	newNodes := []treeNode{}
-	for h := uint8(0); h < defaultHeight; h++ {
+	for h := uint8(0); h < DefaultHeight; h++ {
 		var parent treeNode
 		if leaf.Index&(1<<h) > 0 {
 			// Add child to the right
@@ -157,7 +157,7 @@ func (t *AppendOnlyTree) initLastIndex(tx kv.Tx) (common.Hash, error) {
 }
 
 func (t *AppendOnlyTree) initLastLeftCache(tx kv.Tx, lastIndex int64, lastRoot common.Hash) error {
-	siblings := [defaultHeight]common.Hash{}
+	siblings := [DefaultHeight]common.Hash{}
 	if lastIndex == -1 {
 		t.lastLeftCache = siblings
 		return nil
@@ -166,7 +166,7 @@ func (t *AppendOnlyTree) initLastLeftCache(tx kv.Tx, lastIndex int64, lastRoot c
 
 	currentNodeHash := lastRoot
 	// It starts in height-1 because 0 is the level of the leafs
-	for h := int(defaultHeight - 1); h >= 0; h-- {
+	for h := int(DefaultHeight - 1); h >= 0; h-- {
 		currentNode, err := t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
 			return fmt.Errorf(

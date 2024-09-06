@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultHeight   uint8 = 32
+	DefaultHeight   uint8 = 32
 	rootTableSufix        = "-root"
 	rhtTableSufix         = "-rht"
 	indexTableSufix       = "-index"
@@ -84,7 +84,7 @@ func newTree(db kv.RwDB, dbPrefix string) *Tree {
 		rootTable:  rootTable,
 		indexTable: indexTable,
 		db:         db,
-		zeroHashes: generateZeroHashes(defaultHeight),
+		zeroHashes: generateZeroHashes(DefaultHeight),
 	}
 
 	return t
@@ -119,7 +119,7 @@ func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
 ) {
 	currentNodeHash := root
 	// It starts in height-1 because 0 is the level of the leafs
-	for h := int(defaultHeight - 1); h >= 0; h-- {
+	for h := int(DefaultHeight - 1); h >= 0; h-- {
 		var currentNode *treeNode
 		currentNode, err = t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
@@ -170,18 +170,18 @@ func (t *Tree) getSiblings(tx kv.Tx, index uint32, root common.Hash) (
 }
 
 // GetProof returns the merkle proof for a given index and root.
-func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([defaultHeight]common.Hash, error) {
+func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) ([DefaultHeight]common.Hash, error) {
 	tx, err := t.db.BeginRw(ctx)
 	if err != nil {
-		return [defaultHeight]common.Hash{}, err
+		return [DefaultHeight]common.Hash{}, err
 	}
 	defer tx.Rollback()
 	siblings, isErrNotFound, err := t.getSiblings(tx, index, root)
 	if err != nil {
-		return [defaultHeight]common.Hash{}, err
+		return [DefaultHeight]common.Hash{}, err
 	}
 	if isErrNotFound {
-		return [defaultHeight]common.Hash{}, ErrNotFound
+		return [DefaultHeight]common.Hash{}, ErrNotFound
 	}
 	return siblings, nil
 }
@@ -286,7 +286,7 @@ func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (com
 	defer tx.Rollback()
 
 	currentNodeHash := root
-	for h := int(defaultHeight - 1); h >= 0; h-- {
+	for h := int(DefaultHeight - 1); h >= 0; h-- {
 		currentNode, err := t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
 			return common.Hash{}, err

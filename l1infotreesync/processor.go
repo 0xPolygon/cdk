@@ -289,12 +289,13 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+
 	c, err := tx.Cursor(blockTable)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
+
 	firstKey := common.Uint64ToBytes(firstReorgedBlock)
 	firstReorgedL1InfoTreeIndex := int64(-1)
 	for blkKey, blkValue, err := c.Seek(firstKey); blkKey != nil; blkKey, blkValue, err = c.Next() {
