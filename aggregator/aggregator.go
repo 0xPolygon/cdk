@@ -403,7 +403,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		a.halted.Store(true)
 		for {
 			log.Errorf("Halting the aggregator due to an error handling rollback batches event: %v", err)
-			time.Sleep(10 * time.Second) // nolint:gomnd
+			time.Sleep(10 * time.Second) //nolint:gomnd
 		}
 	}
 }
