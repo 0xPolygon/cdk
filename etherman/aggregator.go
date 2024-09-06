@@ -67,9 +67,9 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(
 }
 
 // GetBatchAccInputHash gets the batch accumulated input hash from the ethereum
-func (etherman *Client) GetBatchAccInputHash(ctx context.Context, batchNumber uint64) (common.Hash, error) {
-	rollupData, err := etherman.Contracts.Banana.RollupManager.GetRollupSequencedBatches(
-		&bind.CallOpts{Pending: false}, etherman.RollupID, batchNumber,
+func (etherMan *Client) GetBatchAccInputHash(ctx context.Context, batchNumber uint64) (common.Hash, error) {
+	rollupData, err := etherMan.Contracts.Banana.RollupManager.GetRollupSequencedBatches(
+		&bind.CallOpts{Pending: false}, etherMan.RollupID, batchNumber,
 	)
 	if err != nil {
 		return common.Hash{}, err
@@ -79,7 +79,7 @@ func (etherman *Client) GetBatchAccInputHash(ctx context.Context, batchNumber ui
 }
 
 // GetRollupId returns the rollup id
-func (etherMan *Client) GetRollupId() uint32 {
+func (etherMan *Client) GetRollupId() uint32 { //nolint:stylecheck
 	return etherMan.RollupID
 }
 

@@ -89,7 +89,7 @@ type Config struct {
 	ChainID uint64
 
 	// ForkID is the L2 ForkID provided by the Network Config
-	ForkId uint64 `mapstructure:"ForkId"`
+	ForkId uint64 `mapstructure:"ForkId"` //nolint:stylecheck
 
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs

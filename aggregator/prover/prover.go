@@ -23,13 +23,13 @@ const (
 )
 
 var (
-	ErrBadProverResponse    = errors.New("Prover returned wrong type for response")  //nolint:revive
-	ErrProverInternalError  = errors.New("Prover returned INTERNAL_ERROR response")  //nolint:revive
-	ErrProverCompletedError = errors.New("Prover returned COMPLETED_ERROR response") //nolint:revive
-	ErrBadRequest           = errors.New("Prover returned ERROR for a bad request")  //nolint:revive
-	ErrUnspecified          = errors.New("Prover returned an UNSPECIFIED response")  //nolint:revive
-	ErrUnknown              = errors.New("Prover returned an unknown response")      //nolint:revive
-	ErrProofCanceled        = errors.New("Proof has been canceled")                  //nolint:revive
+	ErrBadProverResponse    = errors.New("prover returned wrong type for response")  //nolint:revive
+	ErrProverInternalError  = errors.New("prover returned INTERNAL_ERROR response")  //nolint:revive
+	ErrProverCompletedError = errors.New("prover returned COMPLETED_ERROR response") //nolint:revive
+	ErrBadRequest           = errors.New("prover returned ERROR for a bad request")  //nolint:revive
+	ErrUnspecified          = errors.New("prover returned an UNSPECIFIED response")  //nolint:revive
+	ErrUnknown              = errors.New("prover returned an unknown response")      //nolint:revive
+	ErrProofCanceled        = errors.New("proof has been canceled")                  //nolint:revive
 )
 
 // Prover abstraction of the grpc prover client.

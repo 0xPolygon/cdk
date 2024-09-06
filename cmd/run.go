@@ -519,7 +519,19 @@ func runReorgDetectorL1IfNeeded(
 		return nil
 	}
 	rd := newReorgDetector(cfg, l1Client)
-	go rd.Start(ctx)
+
+	errChan := make(chan error, 1)
+	go func() {
+		if err := rd.Start(ctx); err != nil {
+			errChan <- err
+		}
+		close(errChan)
+	}()
+	go func() {
+		if err := <-errChan; err != nil {
+			log.Errorf("Failed to start ReorgDetector: %v", err)
+		}
+	}()
 
 	return rd
 }
@@ -534,7 +546,19 @@ func runReorgDetectorL2IfNeeded(
 		return nil
 	}
 	rd := newReorgDetector(cfg, l2Client)
-	go rd.Start(ctx)
+
+	errChan := make(chan error, 1)
+	go func() {
+		if err := rd.Start(ctx); err != nil {
+			errChan <- err
+		}
+		close(errChan)
+	}()
+	go func() {
+		if err := <-errChan; err != nil {
+			log.Errorf("Failed to start ReorgDetector: %v", err)
+		}
+	}()
 
 	return rd
 }
