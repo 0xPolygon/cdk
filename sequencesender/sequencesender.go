@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
+	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes/rpcbatch"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
@@ -127,52 +128,70 @@ func (s *SequenceSender) Start(ctx context.Context) {
 
 // batchRetrieval keeps reading batches from the RPC
 func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
+	ticker := time.NewTicker(s.cfg.GetBatchWaitInterval.Duration)
+	defer ticker.Stop()
+
 	currentBatchNumber := s.latestVirtualBatchNumber + 1
 	for {
-		rpcBatch, err := s.getBatchFromRPC(currentBatchNumber)
-		if err != nil {
-			if err == state.ErrNotFound {
-				log.Infof("batch %d not found in RPC", currentBatchNumber)
-			} else {
-				log.Errorf("error getting batch %d from RPC: %v", currentBatchNumber, err)
+		select {
+		case <-ctx.Done():
+			log.Info("context cancelled, stopping batch retrieval")
+			return ctx.Err()
+		default:
+			// Try to retrieve batch from RPC
+			rpcBatch, err := s.getBatchFromRPC(currentBatchNumber)
+			if err != nil {
+				if err == state.ErrNotFound {
+					log.Infof("batch %d not found in RPC", currentBatchNumber)
+				} else {
+					log.Errorf("error getting batch %d from RPC: %v", currentBatchNumber, err)
+				}
+				<-ticker.C
+				continue
 			}
-			time.Sleep(s.cfg.GetBatchWaitInterval.Duration)
-			continue
+
+			// Check if the batch is closed
+			if !rpcBatch.IsClosed() {
+				log.Infof("batch %d is not closed yet", currentBatchNumber)
+				<-ticker.C
+				continue
+			}
+
+			// Process and decode the batch
+			if err := s.populateSequenceData(rpcBatch, currentBatchNumber); err != nil {
+				return err
+			}
+
+			// Increment the batch number for the next iteration
+			currentBatchNumber++
 		}
-
-		// Check if the batch is closed
-		if !rpcBatch.IsClosed() {
-			log.Infof("batch %d is not closed yet", currentBatchNumber)
-			time.Sleep(s.cfg.GetBatchWaitInterval.Duration)
-			continue
-		}
-
-		// Create new batch
-		s.mutexSequence.Lock()
-		s.sequenceList = append(s.sequenceList, currentBatchNumber)
-
-		// Decode batch to retrieve the l1 info tree index
-		batchRaw, err := state.DecodeBatchV2(rpcBatch.L2Data())
-		if err != nil {
-			log.Errorf("Failed to decode batch data, err: %v", err)
-			return err
-		}
-
-		if len(batchRaw.Blocks) > 0 {
-			rpcBatch.SetL1InfoTreeIndex(batchRaw.Blocks[len(batchRaw.Blocks)-1].IndexL1InfoTree)
-		}
-
-		data := &sequenceData{
-			batchClosed: rpcBatch.IsClosed(),
-			batch:       rpcBatch,
-			batchRaw:    batchRaw,
-		}
-
-		s.sequenceData[currentBatchNumber] = data
-		s.mutexSequence.Unlock()
-
-		currentBatchNumber++
 	}
+}
+
+func (s *SequenceSender) populateSequenceData(rpcBatch *rpcbatch.RPCBatch, batchNumber uint64) error {
+	s.mutexSequence.Lock()
+	defer s.mutexSequence.Unlock()
+
+	s.sequenceList = append(s.sequenceList, batchNumber)
+
+	// Decode batch to retrieve the l1 info tree index
+	batchRaw, err := state.DecodeBatchV2(rpcBatch.L2Data())
+	if err != nil {
+		log.Errorf("Failed to decode batch data, err: %v", err)
+		return err
+	}
+
+	if len(batchRaw.Blocks) > 0 {
+		rpcBatch.SetL1InfoTreeIndex(batchRaw.Blocks[len(batchRaw.Blocks)-1].IndexL1InfoTree)
+	}
+
+	s.sequenceData[batchNumber] = &sequenceData{
+		batchClosed: rpcBatch.IsClosed(),
+		batch:       rpcBatch,
+		batchRaw:    batchRaw,
+	}
+
+	return nil
 }
 
 // sequenceSending starts loop to check if there are sequences to send and sends them if it's convenient

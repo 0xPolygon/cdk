@@ -14,12 +14,12 @@ import (
 
 func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (*rpcbatch.RPCBatch, error) {
 	type zkEVMBatch struct {
-		Blocks         []string `mapstructure:"blocks"`
-		BatchL2Data    string   `mapstructure:"batchL2Data"`
-		Coinbase       string   `mapstructure:"coinbase"`
-		GlobalExitRoot string   `mapstructure:"globalExitRoot"`
-		Closed         bool     `mapstructure:"closed"`
-		Timestamp      string   `mapstructure:"timestamp"`
+		Blocks         []string `json:"blocks"`
+		BatchL2Data    string   `json:"batchL2Data"`
+		Coinbase       string   `json:"coinbase"`
+		GlobalExitRoot string   `json:"globalExitRoot"`
+		Closed         bool     `json:"closed"`
+		Timestamp      string   `json:"timestamp"`
 	}
 
 	zkEVMBatchData := zkEVMBatch{}
@@ -68,7 +68,7 @@ func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (*rpcbatch.RPCBatch
 
 func (s *SequenceSender) getL2BlockTimestampFromRPC(blockHash string) (uint64, error) {
 	type zkeEVML2Block struct {
-		Timestamp string `mapstructure:"timestamp"`
+		Timestamp string `json:"timestamp"`
 	}
 
 	l2Block := zkeEVML2Block{}

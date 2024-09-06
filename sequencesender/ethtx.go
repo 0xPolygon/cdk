@@ -56,11 +56,12 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 			log.Errorf("trying to resend a tx with nil hash")
 			return errors.New("resend tx with nil hash monitor id")
 		}
-		paramTo = &s.ethTransactions[*txOldHash].To
-		paramNonce = &s.ethTransactions[*txOldHash].Nonce
+		oldEthTx := s.ethTransactions[*txOldHash]
+		paramTo = &oldEthTx.To
+		paramNonce = &oldEthTx.Nonce
 		paramData = s.ethTxData[*txOldHash]
-		valueFromBatch = s.ethTransactions[*txOldHash].FromBatch
-		valueToBatch = s.ethTransactions[*txOldHash].ToBatch
+		valueFromBatch = oldEthTx.FromBatch
+		valueToBatch = oldEthTx.ToBatch
 	}
 	if paramTo != nil {
 		valueToAddress = *paramTo
@@ -93,7 +94,10 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 	s.ethTransactions[txHash] = &txData
 	txResults := make(map[common.Hash]ethtxmanager.TxResult, 0)
 	s.copyTxData(txHash, paramData, txResults)
-	_ = s.getResultAndUpdateEthTx(ctx, txHash)
+	err = s.getResultAndUpdateEthTx(ctx, txHash)
+	if err != nil {
+		log.Errorf("error getting result for tx %v: %v", txHash, err)
+	}
 	if !resend {
 		s.latestSentToL1Batch = valueToBatch
 	} else {
@@ -168,7 +172,10 @@ func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) {
 			continue
 		}
 
-		_ = s.getResultAndUpdateEthTx(ctx, hash)
+		err := s.getResultAndUpdateEthTx(ctx, hash)
+		if err != nil {
+			log.Errorf("error getting result for tx %v: %v", hash, err)
+		}
 		txSync++
 		txStatus := s.ethTransactions[hash].Status
 		// Count if it is not in a final state
@@ -284,8 +291,8 @@ func (s *SequenceSender) updateEthTxResult(txData *ethTxData, txResult ethtxmana
 func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash common.Hash) error {
 	txData, exists := s.ethTransactions[txHash]
 	if !exists {
-		log.Errorf("transaction %v not found in memory", txHash)
-		return errors.New("transaction not found in memory structure")
+		log.Infof("transaction %v not found in memory", txHash)
+		return nil
 	}
 
 	txResult, err := s.ethTxManager.Result(ctx, txHash)
@@ -297,6 +304,7 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 		if errSend == nil {
 			txData.OnMonitor = false
 		}
+		return errSend
 	} else if err != nil {
 		log.Errorf("error getting result for tx %v: %v", txHash, err)
 		return err

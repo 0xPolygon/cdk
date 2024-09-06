@@ -8,14 +8,14 @@ import (
 )
 
 type RPCBatch struct {
-	batchNumber          uint64         `mapstructure:"batchNumber"`
-	blockHashes          []string       `mapstructure:"blocks"`
-	batchL2Data          []byte         `mapstructure:"batchL2Data"`
-	globalExitRoot       common.Hash    `mapstructure:"globalExitRoot"`
-	coinbase             common.Address `mapstructure:"coinbase"`
-	closed               bool           `mapstructure:"closed"`
-	lastL2BlockTimestamp uint64         `mapstructure:"lastL2BlockTimestamp"`
-	l1InfoTreeIndex      uint32         `mapstructure:"l1InfoTreeIndex"`
+	batchNumber          uint64         `json:"batchNumber"`
+	blockHashes          []string       `json:"blocks"`
+	batchL2Data          []byte         `json:"batchL2Data"`
+	globalExitRoot       common.Hash    `json:"globalExitRoot"`
+	coinbase             common.Address `json:"coinbase"`
+	closed               bool           `json:"closed"`
+	lastL2BlockTimestamp uint64         `json:"lastL2BlockTimestamp"`
+	l1InfoTreeIndex      uint32         `json:"l1InfoTreeIndex"`
 }
 
 func New(batchNumber uint64, blockHashes []string, batchL2Data []byte, globalExitRoot common.Hash, coinbase common.Address, closed bool) (*RPCBatch, error) {
