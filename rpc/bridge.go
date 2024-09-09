@@ -8,11 +8,9 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
-	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/claimsponsor"
-	"github.com/0xPolygon/cdk/l1infotreesync"
-	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/cdk/rpc/types"
 	"github.com/ethereum/go-ethereum/common"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
@@ -34,11 +32,11 @@ type BridgeEndpoints struct {
 	readTimeout  time.Duration
 	writeTimeout time.Duration
 	networkID    uint32
-	sponsor      *claimsponsor.ClaimSponsor
-	l1InfoTree   *l1infotreesync.L1InfoTreeSync
-	injectedGERs *lastgersync.LastGERSync
-	bridgeL1     *bridgesync.BridgeSync
-	bridgeL2     *bridgesync.BridgeSync
+	sponsor      ClaimSponsorer
+	l1InfoTree   L1InfoTreer
+	injectedGERs LastGERer
+	bridgeL1     Bridger
+	bridgeL2     Bridger
 }
 
 // NewBridgeEndpoints returns InteropEndpoints
@@ -46,11 +44,11 @@ func NewBridgeEndpoints(
 	writeTimeout time.Duration,
 	readTimeout time.Duration,
 	networkID uint32,
-	sponsor *claimsponsor.ClaimSponsor,
-	l1InfoTree *l1infotreesync.L1InfoTreeSync,
-	injectedGERs *lastgersync.LastGERSync,
-	bridgeL1 *bridgesync.BridgeSync,
-	bridgeL2 *bridgesync.BridgeSync,
+	sponsor ClaimSponsorer,
+	l1InfoTree L1InfoTreer,
+	injectedGERs LastGERer,
+	bridgeL1 Bridger,
+	bridgeL2 Bridger,
 ) *BridgeEndpoints {
 	meter := otel.Meter(meterName)
 	return &BridgeEndpoints{
@@ -138,12 +136,6 @@ func (b *BridgeEndpoints) InjectedInfoAfterIndex(networkID uint32, l1InfoTreeInd
 	return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("this client does not support network %d", networkID))
 }
 
-type ClaimProof struct {
-	ProofLocalExitRoot  [32]common.Hash
-	ProofRollupExitRoot [32]common.Hash
-	L1InfoTreeLeaf      l1infotreesync.L1InfoTreeLeaf
-}
-
 // ClaimProof returns the proofs needed to claim a bridge. NetworkID and depositCount refere to the bridge origin
 // while globalExitRoot should be already injected on the destination network.
 // This call needs to be done to a client of the same network were the bridge tx was sent
@@ -183,7 +175,7 @@ func (b *BridgeEndpoints) ClaimProof(networkID uint32, depositCount uint32, l1In
 	} else {
 		return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("this client does not support network %d", networkID))
 	}
-	return ClaimProof{
+	return types.ClaimProof{
 		ProofLocalExitRoot:  proofLocalExitRoot,
 		ProofRollupExitRoot: proofRollupExitRoot,
 		L1InfoTreeLeaf:      *info,
@@ -262,23 +254,23 @@ func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL1Bridge(ctx context.Context
 	lowerLimit := firstInfo.BlockNumber
 	upperLimit := lastInfo.BlockNumber
 	for lowerLimit <= upperLimit {
-		targetBlock := (firstInfo.BlockNumber + lastInfo.BlockNumber) / 2
+		targetBlock := (lowerLimit + upperLimit) / 2
 		targetInfo, err := b.l1InfoTree.GetFirstInfoAfterBlock(targetBlock)
 		if err != nil {
 			return 0, err
 		}
-		root, err = b.bridgeL1.GetRootByLER(ctx, targetInfo.MainnetExitRoot)
+		root, err := b.bridgeL1.GetRootByLER(ctx, targetInfo.MainnetExitRoot)
 		if err != nil {
 			return 0, err
 		}
 		if root.Index < depositCount {
-			lowerLimit = targetInfo.BlockNumber + 1
+			lowerLimit = targetBlock + 1
 		} else if root.Index == depositCount {
 			bestResult = targetInfo
 			break
 		} else {
 			bestResult = targetInfo
-			upperLimit = targetInfo.BlockNumber - 1
+			upperLimit = targetBlock - 1
 		}
 	}
 
@@ -315,7 +307,7 @@ func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL2Bridge(ctx context.Context
 	lowerLimit := firstVerified.BlockNumber
 	upperLimit := lastVerified.BlockNumber
 	for lowerLimit <= upperLimit {
-		targetBlock := (firstVerified.BlockNumber + lastVerified.BlockNumber) / 2
+		targetBlock := (lowerLimit + upperLimit) / 2
 		targetVerified, err := b.l1InfoTree.GetFirstVerifiedBatchesAfterBlock(b.networkID-1, targetBlock)
 		if err != nil {
 			return 0, err
@@ -325,13 +317,13 @@ func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL2Bridge(ctx context.Context
 			return 0, err
 		}
 		if root.Index < depositCount {
-			lowerLimit = targetVerified.BlockNumber + 1
+			lowerLimit = targetBlock + 1
 		} else if root.Index == depositCount {
 			bestResult = targetVerified
 			break
 		} else {
 			bestResult = targetVerified
-			upperLimit = targetVerified.BlockNumber - 1
+			upperLimit = targetBlock - 1
 		}
 	}
 

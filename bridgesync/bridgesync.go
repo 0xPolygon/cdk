@@ -156,7 +156,7 @@ func (s *BridgeSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) 
 	return s.processor.GetLastProcessedBlock(ctx)
 }
 
-func (s *BridgeSync) GetBridgeRootByHash(ctx context.Context, root common.Hash) (tree.Root, error) {
+func (s *BridgeSync) GetBridgeRootByHash(ctx context.Context, root common.Hash) (*tree.Root, error) {
 	return s.processor.exitTree.GetRootByHash(ctx, root)
 }
 
@@ -168,7 +168,7 @@ func (s *BridgeSync) GetBridges(ctx context.Context, fromBlock, toBlock uint64) 
 	return s.processor.GetBridges(ctx, fromBlock, toBlock)
 }
 
-func (s *BridgeSync) GetProof(ctx context.Context, depositCount uint32, localExitRoot common.Hash) ([32]common.Hash, error) {
+func (s *BridgeSync) GetProof(ctx context.Context, depositCount uint32, localExitRoot common.Hash) (tree.Proof, error) {
 	return s.processor.exitTree.GetProof(ctx, depositCount, localExitRoot)
 }
 
@@ -180,7 +180,7 @@ func (s *BridgeSync) GetBlockByLER(ctx context.Context, ler common.Hash) (uint64
 	return root.BlockNum, nil
 }
 
-func (s *BridgeSync) GetRootByLER(ctx context.Context, ler common.Hash) (tree.Root, error) {
+func (s *BridgeSync) GetRootByLER(ctx context.Context, ler common.Hash) (*tree.Root, error) {
 	root, err := s.processor.exitTree.GetRootByHash(ctx, ler)
 	if err != nil {
 		return root, err

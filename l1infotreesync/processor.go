@@ -356,3 +356,31 @@ func (p *processor) GetFirstL1InfoWithRollupExitRoot(rollupExitRoot ethCommon.Ha
 		LIMIT 1;
 	`, rollupExitRoot)
 }
+
+func (p *processor) GetLastInfo() (*L1InfoTreeLeaf, error) {
+	info := &L1InfoTreeLeaf{}
+	return info, meddler.QueryRow(p.db, info, `
+		SELECT * FROM l1info_leaf
+		ORDER BY block_num ASC, block_pos ASC
+		LIMIT 1;
+	`)
+}
+
+func (p *processor) GetFirstInfo() (*L1InfoTreeLeaf, error) {
+	info := &L1InfoTreeLeaf{}
+	return info, meddler.QueryRow(p.db, info, `
+		SELECT * FROM l1info_leaf
+		ORDER BY block_num DESC, block_pos DESC
+		LIMIT 1;
+	`)
+}
+
+func (p *processor) GetFirstInfoAfterBlock(blockNum uint64) (*L1InfoTreeLeaf, error) {
+	info := &L1InfoTreeLeaf{}
+	return info, meddler.QueryRow(p.db, info, `
+		SELECT * FROM l1info_leaf
+		WHERE block_num >= $1
+		ORDER BY block_num ASC, block_pos ASC
+		LIMIT 1;
+	`, blockNum)
+}

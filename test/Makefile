@@ -21,6 +21,11 @@ generate-mocks-da: ## Generates mocks for dataavailability, using mockery tool
 	rm -Rf ../dataavailability/mocks_da
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../dataavailability --output ../dataavailability/mocks_da --outpkg mocks_da ${COMMON_MOCKERY_PARAMS}
 	
+.PHONY: generate-mocks-rpc
+generate-mocks-rpc: ## Generates mocks for rpc, using mockery tool
+	rm -Rf ../rpc/mocks
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../rpc --output ../rpc/mocks --outpkg mocks ${COMMON_MOCKERY_PARAMS}
+
 
 .PHONY: test-e2e-elderberry-validium
 test-e2e-elderberry-validium: stop ## Runs e2e tests checking elderberry/validium

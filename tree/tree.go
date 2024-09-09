@@ -208,17 +208,17 @@ func (t *Tree) GetRootByIndex(ctx context.Context, index uint32) (types.Root, er
 }
 
 // GetRootByHash returns the root associated to the hash
-func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (types.Root, error) {
-	var root types.Root
+func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (*types.Root, error) {
+	root := &types.Root{}
 	if err := meddler.QueryRow(
-		t.db, &root,
+		t.db, root,
 		fmt.Sprintf(`SELECT * FROM %s WHERE hash = $1;`, t.rootTable),
 		hash.Hex(),
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return root, ErrNotFound
+			return nil, ErrNotFound
 		}
-		return root, err
+		return nil, err
 	}
 	return root, nil
 }
