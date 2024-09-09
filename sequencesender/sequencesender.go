@@ -132,20 +132,19 @@ func New(cfg Config, etherman *etherman.Client, txBuilder txbuilder.TxBuilder) (
 
 // Start starts the sequence sender
 func (s *SequenceSender) Start(ctx context.Context) {
-	s.nonceMutex.Lock()
-	defer s.nonceMutex.Unlock()
-
 	// Start ethtxmanager client
 	go s.ethTxManager.Start()
 
 	// Get current nonce
 	var err error
+	s.nonceMutex.Lock()
 	s.currentNonce, err = s.etherman.CurrentNonce(ctx, s.cfg.L2Coinbase)
 	if err != nil {
 		log.Fatalf("failed to get current nonce from %v, error: %v", s.cfg.L2Coinbase, err)
 	} else {
 		log.Infof("current nonce for %v is %d", s.cfg.L2Coinbase, s.currentNonce)
 	}
+	s.nonceMutex.Unlock()
 
 	// Get latest virtual state batch from L1
 	err = s.updateLatestVirtualBatch()
