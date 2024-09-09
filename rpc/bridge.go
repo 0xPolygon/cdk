@@ -10,7 +10,6 @@ import (
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/claimsponsor"
-	"github.com/0xPolygon/cdk/l1bridge2infoindexsync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/log"
@@ -26,21 +25,20 @@ const (
 )
 
 var (
-	ErrNotVerifiedYet = errors.New("this bridge has not been verified on L1 yet")
+	ErrNotOnL1Info = errors.New("this bridge has not been included on the L1 Info Tree yet")
 )
 
 // BridgeEndpoints contains implementations for the "bridge" RPC endpoints
 type BridgeEndpoints struct {
-	meter          metric.Meter
-	readTimeout    time.Duration
-	writeTimeout   time.Duration
-	networkID      uint32
-	sponsor        *claimsponsor.ClaimSponsor
-	l1InfoTree     *l1infotreesync.L1InfoTreeSync
-	l1Bridge2Index *l1bridge2infoindexsync.L1Bridge2InfoIndexSync
-	injectedGERs   *lastgersync.LastGERSync
-	bridgeL1       *bridgesync.BridgeSync
-	bridgeL2       *bridgesync.BridgeSync
+	meter        metric.Meter
+	readTimeout  time.Duration
+	writeTimeout time.Duration
+	networkID    uint32
+	sponsor      *claimsponsor.ClaimSponsor
+	l1InfoTree   *l1infotreesync.L1InfoTreeSync
+	injectedGERs *lastgersync.LastGERSync
+	bridgeL1     *bridgesync.BridgeSync
+	bridgeL2     *bridgesync.BridgeSync
 }
 
 // NewBridgeEndpoints returns InteropEndpoints
@@ -50,23 +48,21 @@ func NewBridgeEndpoints(
 	networkID uint32,
 	sponsor *claimsponsor.ClaimSponsor,
 	l1InfoTree *l1infotreesync.L1InfoTreeSync,
-	l1Bridge2Index *l1bridge2infoindexsync.L1Bridge2InfoIndexSync,
 	injectedGERs *lastgersync.LastGERSync,
 	bridgeL1 *bridgesync.BridgeSync,
 	bridgeL2 *bridgesync.BridgeSync,
 ) *BridgeEndpoints {
 	meter := otel.Meter(meterName)
 	return &BridgeEndpoints{
-		meter:          meter,
-		readTimeout:    readTimeout,
-		writeTimeout:   writeTimeout,
-		networkID:      networkID,
-		sponsor:        sponsor,
-		l1InfoTree:     l1InfoTree,
-		l1Bridge2Index: l1Bridge2Index,
-		injectedGERs:   injectedGERs,
-		bridgeL1:       bridgeL1,
-		bridgeL2:       bridgeL2,
+		meter:        meter,
+		readTimeout:  readTimeout,
+		writeTimeout: writeTimeout,
+		networkID:    networkID,
+		sponsor:      sponsor,
+		l1InfoTree:   l1InfoTree,
+		injectedGERs: injectedGERs,
+		bridgeL1:     bridgeL1,
+		bridgeL2:     bridgeL2,
 	}
 }
 
@@ -84,11 +80,13 @@ func (b *BridgeEndpoints) L1InfoTreeIndexForBridge(networkID uint32, depositCoun
 	c.Add(ctx, 1)
 
 	if networkID == 0 {
-		l1InfoTreeIndex, err := b.l1Bridge2Index.GetL1InfoTreeIndexByDepositCount(ctx, depositCount)
+		l1InfoTreeIndex, err := b.getFirstL1InfoTreeIndexForL1Bridge(ctx, depositCount)
 		// TODO: special treatment of the error when not found,
 		// as it's expected that it will take some time for the L1 Info tree to be updated
 		if err != nil {
-			return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get l1InfoTreeIndex, error: %s", err))
+			return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf(
+				"failed to get l1InfoTreeIndex for networkID %d and deposit count %d, error: %s", networkID, depositCount, err),
+			)
 		}
 		return l1InfoTreeIndex, nil
 	}
@@ -97,7 +95,9 @@ func (b *BridgeEndpoints) L1InfoTreeIndexForBridge(networkID uint32, depositCoun
 		// TODO: special treatment of the error when not found,
 		// as it's expected that it will take some time for the L1 Info tree to be updated
 		if err != nil {
-			return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get l1InfoTreeIndex, error: %s", err))
+			return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf(
+				"failed to get l1InfoTreeIndex for networkID %d and deposit count %d, error: %s", networkID, depositCount, err),
+			)
 		}
 		return l1InfoTreeIndex, nil
 	}
@@ -236,7 +236,60 @@ func (b *BridgeEndpoints) GetSponsoredClaimStatus(globalIndex *big.Int) (interfa
 	return claim.Status, nil
 }
 
+func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL1Bridge(ctx context.Context, depositCount uint32) (uint32, error) {
+	lastInfo, err := b.l1InfoTree.GetLastInfo()
+	if err != nil {
+		return 0, err
+	}
+
+	root, err := b.bridgeL1.GetRootByLER(ctx, lastInfo.MainnetExitRoot)
+	if err != nil {
+		return 0, err
+	}
+	if root.Index < depositCount {
+		return 0, ErrNotOnL1Info
+	}
+
+	firstInfo, err := b.l1InfoTree.GetFirstInfo()
+	if err != nil {
+		return 0, err
+	}
+
+	// Binary search between the first and last blcoks where L1 info tree was updated.
+	// Find the smallest l1 info tree index that is greater than depositCount and matches with
+	// a MER that is included on the l1 info tree
+	bestResult := lastInfo
+	lowerLimit := firstInfo.BlockNumber
+	upperLimit := lastInfo.BlockNumber
+	for lowerLimit <= upperLimit {
+		targetBlock := (firstInfo.BlockNumber + lastInfo.BlockNumber) / 2
+		targetInfo, err := b.l1InfoTree.GetFirstInfoAfterBlock(targetBlock)
+		if err != nil {
+			return 0, err
+		}
+		root, err = b.bridgeL1.GetRootByLER(ctx, targetInfo.MainnetExitRoot)
+		if err != nil {
+			return 0, err
+		}
+		if root.Index < depositCount {
+			lowerLimit = targetInfo.BlockNumber + 1
+		} else if root.Index == depositCount {
+			bestResult = targetInfo
+			break
+		} else {
+			bestResult = targetInfo
+			upperLimit = targetInfo.BlockNumber - 1
+		}
+	}
+
+	return bestResult.L1InfoTreeIndex, nil
+}
+
 func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL2Bridge(ctx context.Context, depositCount uint32) (uint32, error) {
+	// NOTE: this code assumes that all the rollup exit roots
+	// (produced by the smart contract call verifyBatches / verifyBatchesTrustedAggregator)
+	// are included in the L1 info tree. As per the current implementation (smart contracts) of the protocol
+	// this is true. This could change in the future
 	lastVerified, err := b.l1InfoTree.GetLastVerifiedBatches(b.networkID - 1)
 	if err != nil {
 		return 0, err
@@ -247,7 +300,7 @@ func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL2Bridge(ctx context.Context
 		return 0, err
 	}
 	if root.Index < depositCount {
-		return 0, ErrNotVerifiedYet
+		return 0, ErrNotOnL1Info
 	}
 
 	firstVerified, err := b.l1InfoTree.GetFirstVerifiedBatches(b.networkID - 1)

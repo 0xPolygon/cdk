@@ -24,7 +24,6 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/etherman/contracts"
-	"github.com/0xPolygon/cdk/l1bridge2infoindexsync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/log"
@@ -68,7 +67,6 @@ func start(cliCtx *cli.Context) error {
 	claimSponsor := runClaimSponsorIfNeeded(cliCtx.Context, components, l2Client, c.ClaimSponsor)
 	l1BridgeSync := runBridgeSyncL1IfNeeded(cliCtx.Context, components, c.BridgeL1Sync, reorgDetectorL1, l1Client)
 	l2BridgeSync := runBridgeSyncL2IfNeeded(cliCtx.Context, components, c.BridgeL2Sync, reorgDetectorL2, l2Client)
-	l1Bridge2InfoIndexSync := runL1Bridge2InfoIndexSyncIfNeeded(cliCtx.Context, components, c.L1Bridge2InfoIndexSync, l1BridgeSync, l1InfoTreeSync, l1Client)
 	lastGERSync := runLastGERSyncIfNeeded(cliCtx.Context, components, c.LastGERSync, reorgDetectorL2, l2Client, l1InfoTreeSync)
 
 	for _, component := range components {
@@ -96,7 +94,6 @@ func start(cliCtx *cli.Context) error {
 				c.Common.NetworkID,
 				claimSponsor,
 				l1InfoTreeSync,
-				l1Bridge2InfoIndexSync,
 				lastGERSync,
 				l1BridgeSync,
 				l2BridgeSync,
@@ -538,33 +535,6 @@ func runClaimSponsorIfNeeded(
 	return cs
 }
 
-func runL1Bridge2InfoIndexSyncIfNeeded(
-	ctx context.Context,
-	components []string,
-	cfg l1bridge2infoindexsync.Config,
-	l1BridgeSync *bridgesync.BridgeSync,
-	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
-	l1Client *ethclient.Client,
-) *l1bridge2infoindexsync.L1Bridge2InfoIndexSync {
-	if !isNeeded([]string{RPC}, components) {
-		return nil
-	}
-	l1Bridge2InfoIndexSync, err := l1bridge2infoindexsync.New(
-		cfg.DBPath,
-		l1BridgeSync,
-		l1InfoTreeSync,
-		l1Client,
-		cfg.RetryAfterErrorPeriod.Duration,
-		cfg.MaxRetryAttemptsAfterError,
-		cfg.WaitForSyncersPeriod.Duration,
-	)
-	if err != nil {
-		log.Fatalf("error creating l1Bridge2InfoIndexSync: %s", err)
-	}
-	go l1Bridge2InfoIndexSync.Start(ctx)
-	return l1Bridge2InfoIndexSync
-}
-
 func runLastGERSyncIfNeeded(
 	ctx context.Context,
 	components []string,
@@ -662,7 +632,6 @@ func createRPC(
 	cdkNetworkID uint32,
 	sponsor *claimsponsor.ClaimSponsor,
 	l1InfoTree *l1infotreesync.L1InfoTreeSync,
-	l1Bridge2Index *l1bridge2infoindexsync.L1Bridge2InfoIndexSync,
 	injectedGERs *lastgersync.LastGERSync,
 	bridgeL1 *bridgesync.BridgeSync,
 	bridgeL2 *bridgesync.BridgeSync,
@@ -676,7 +645,6 @@ func createRPC(
 				cdkNetworkID,
 				sponsor,
 				l1InfoTree,
-				l1Bridge2Index,
 				injectedGERs,
 				bridgeL1,
 				bridgeL2,

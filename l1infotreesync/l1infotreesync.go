@@ -158,3 +158,15 @@ func (s *L1InfoTreeSync) GetFirstVerifiedBatchesAfterBlock(rollupID uint32, bloc
 func (s *L1InfoTreeSync) GetFirstL1InfoWithRollupExitRoot(rollupExitRoot common.Hash) (*L1InfoTreeLeaf, error) {
 	return s.processor.GetFirstL1InfoWithRollupExitRoot(rollupExitRoot)
 }
+
+func (s *L1InfoTreeSync) GetLastInfo() (*L1InfoTreeLeaf, error) {
+	return nil, nil
+}
+
+func (s *L1InfoTreeSync) GetFirstInfo() (*L1InfoTreeLeaf, error) {
+	return nil, nil
+}
+
+func (s *L1InfoTreeSync) GetFirstInfoAfterBlock(blockNum uint64) (*L1InfoTreeLeaf, error) {
+	return nil, nil
+}
