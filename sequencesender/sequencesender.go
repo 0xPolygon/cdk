@@ -32,6 +32,7 @@ type SequenceSender struct {
 	ethTxManager           *ethtxmanager.Client
 	etherman               *etherman.Client
 	currentNonce           uint64
+	nonceMutex             sync.Mutex
 	latestVirtualBatch     uint64                     // Latest virtualized batch obtained from L1
 	latestVirtualTime      time.Time                  // Latest virtual batch timestamp
 	latestSentToL1Batch    uint64                     // Latest batch sent to L1
@@ -131,6 +132,9 @@ func New(cfg Config, etherman *etherman.Client, txBuilder txbuilder.TxBuilder) (
 
 // Start starts the sequence sender
 func (s *SequenceSender) Start(ctx context.Context) {
+	s.nonceMutex.Lock()
+	defer s.nonceMutex.Unlock()
+
 	// Start ethtxmanager client
 	go s.ethTxManager.Start()
 
@@ -572,8 +576,11 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 	var valueToAddress common.Address
 
 	if !resend {
-		paramTo = to
-		paramNonce = &s.currentNonce
+		s.nonceMutex.Lock()
+		nonce := s.currentNonce
+		s.currentNonce++
+		s.nonceMutex.Unlock()
+		paramNonce = &nonce
 		paramData = data
 		valueFromBatch = fromBatch
 		valueToBatch = toBatch
