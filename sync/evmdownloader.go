@@ -178,7 +178,7 @@ func (d *EVMDownloaderImplementation) GetEventsByBlockRange(ctx context.Context,
 			if b.Hash != l.BlockHash {
 				d.log.Infof(
 					"there has been a block hash change between the event query and the block query "+
-						"for block %d: %s vs %s. Retrtying.",
+						"for block %d: %s vs %s. Retrying.",
 					l.BlockNumber, b.Hash, l.BlockHash,
 				)
 				return d.GetEventsByBlockRange(ctx, fromBlock, toBlock)

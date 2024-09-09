@@ -37,7 +37,7 @@ linters:
   - goconst # Repeated strings that could be replaced by a constant
   - forcetypeassert # Finds forced type assertions
   - dogsled # Checks assignments with too many blank identifiers (e.g. x, , , _, := f())
-  # - dupl # Code clone detection
+  - dupl # Code clone detection
   - errname # Checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error
   - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13
   - gocritic # gocritic is a Go source code linter that maintains checks that are not in other linters
@@ -75,8 +75,15 @@ issues:
         - gosec
         - unparam
         - lll
+    - path: 'etherman/contracts/contracts_banana.go'
+      linters:
+        - dupl
+    - path: 'etherman/contracts/contracts_elderberry.go'
+      linters:
+        - dupl
   include:
     - EXC0012 # Exported (.+) should have comment( \(or a comment on this block\))? or be unexported
     - EXC0013 # Package comment should be of the form "(.+)...
     - EXC0014 # Comment on exported (.+) should be of the form "(.+)..."
     - EXC0015 # Should have a package comment
+  
