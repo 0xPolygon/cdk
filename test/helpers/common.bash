@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 function deployContract() {
-    local rpc_url="$1"
-    local private_key="$2"
-    local contract_artifact="$3"
+    local private_key="$1"
+    local contract_artifact="$2"
 
     if [[ ! -f "$contract_artifact" ]]; then
         echo "Error: Contract artifact $contract_artifact does not exist."
@@ -43,15 +42,14 @@ function deployContract() {
 function sendTx() {
     # Check if at least 3 arguments are provided
     if [[ $# -lt 3 ]]; then
-        echo "Usage: sendTx <rpc_url> <private_key> <receiver> [<value_or_function_signature> <param1> <param2> ...]"
+        echo "Usage: sendTx <private_key> <receiver> <value_or_function_signature>] [<param1> <param2> ...]"
         return 1
     fi
 
     # Assign variables from function arguments
-    local rpc_url="$1"
-    local private_key="$2"
-    local receiver="$3"
-    shift 3 # Shift the first 3 arguments (rpc_url, private_key, receiver)
+    local private_key="$1"
+    local receiver="$2"
+    shift 2 # Shift the first 2 arguments (private_key, receiver)
 
     local first_remaining_arg="$1"
     shift # Shift the first remaining argument (value or function signature)
@@ -63,25 +61,31 @@ function sendTx() {
     fi
 
     # Check if the first remaining argument is a numeric value (Ether to be transferred)
-    if [[ "$first_remaining_arg" =~ ^[0-9]+$ ]]; then
+    if [[ "$first_remaining_arg" =~ ^[0-9]+(ether)?$ ]]; then
         # Case: EOA transaction (Ether transfer)
-        echo "Sending Ether transaction to EOA: $receiver with value: $first_remaining_arg Wei"
+        echo "Sending EOA transaction (RPC URL: $rpc_url) to: $receiver with value: $first_remaining_arg"
         cast_output=$(cast send --rpc-url "$rpc_url" \
             --private-key "$private_key" \
             "$receiver" --value "$first_remaining_arg" \
+            --legacy \
             2>&1)
     else
         # Case: Smart contract transaction (contract interaction with function signature and parameters)
         local functionSignature="$first_remaining_arg"
         local params=("$@") # Collect all remaining arguments as function parameters
-        echo "Sending smart contract transaction to $receiver with function signature: $functionSignature and params: ${params[*]}"
+        echo "Sending smart contract transaction (RPC URL: $rpc_url) to $receiver with function signature: $functionSignature and params: ${params[*]}"
 
         # Prepare the function signature with parameters for cast send
         cast_output=$(cast send --rpc-url "$rpc_url" \
             --private-key "$private_key" \
             "$receiver" "$functionSignature" "${params[@]}" \
+            --legacy \
             2>&1)
     fi
+
+    # Print the cast output
+    echo "cast send output:"
+    echo "$cast_output"
 
     # Check if the transaction was successful
     if [[ $? -ne 0 ]]; then
@@ -90,14 +94,15 @@ function sendTx() {
         return 1
     fi
 
-    # Transaction was successful, extract and display the transaction hash
-    tx_hash=$(echo "$cast_output" | grep -oP '(?<=Transaction hash: )0x[a-fA-F0-9]+')
+    # Extract the transaction hash from the output
+    local tx_hash=$(echo "$cast_output" | grep 'transactionHash' | sed 's/transactionHash\s\+//')
+    echo "Tx hash: $tx_hash"
 
     if [[ -z "$tx_hash" ]]; then
         echo "Error: Failed to extract transaction hash."
         return 1
     fi
 
-    echo "Transaction successful! Transaction hash: $tx_hash"
+    echo "Transaction successful (transaction hash: $tx_hash)"
     return 0
 }
