@@ -581,6 +581,7 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 		s.currentNonce++
 		s.nonceMutex.Unlock()
 		paramNonce = &nonce
+		paramTo = to
 		paramData = data
 		valueFromBatch = fromBatch
 		valueToBatch = toBatch
