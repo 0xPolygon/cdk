@@ -25,7 +25,7 @@ contract ClaimMock {
         address destinationAddress,
         uint256 amount,
         bytes calldata metadata
-    ) external {
+    ) external payable {
         emit ClaimEvent(
             globalIndex,
             originNetwork,
@@ -33,7 +33,7 @@ contract ClaimMock {
             destinationAddress,
             amount
         );
-        if(amount == 0) {
+        if(msg.value == 1) {
             revert();
         }
     }
@@ -50,8 +50,8 @@ contract ClaimMock {
         address destinationAddress,
         uint256 amount,
         bytes calldata metadata
-    ) external {
-        if(amount == 0) {
+    ) external payable {
+        if(msg.value == 1) {
             revert();
         }
         emit ClaimEvent(

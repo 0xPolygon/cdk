@@ -70,9 +70,9 @@ func TestClaimCalldata(t *testing.T) {
 		Metadata:            []byte{},
 	}
 	expectedClaim2 := Claim{
-		OriginNetwork:       69,
-		OriginAddress:       common.HexToAddress("ffaaffaa"),
-		DestinationAddress:  common.HexToAddress("123456789"),
+		OriginNetwork:       87,
+		OriginAddress:       common.HexToAddress("eebbeebb"),
+		DestinationAddress:  common.HexToAddress("2233445566"),
 		Amount:              big.NewInt(4),
 		MainnetExitRoot:     common.HexToHash("5ca1e"),
 		RollupExitRoot:      common.HexToHash("dead"),
@@ -82,6 +82,9 @@ func TestClaimCalldata(t *testing.T) {
 		Metadata:            []byte{},
 	}
 	auth.GasLimit = 999999 // for some reason gas estimation fails :(
+
+	abi, err := claimmock.ClaimmockMetaData.GetAbi()
+	require.NoError(t, err)
 
 	// direct call claim asset
 	expectedClaim.GlobalIndex = big.NewInt(421)
@@ -138,9 +141,42 @@ func TestClaimCalldata(t *testing.T) {
 		expectedClaim: expectedClaim,
 	})
 
+	// indirect call claim asset bytes
+	expectedClaim.GlobalIndex = big.NewInt(423)
+	expectedClaim.IsMessage = false
+	expectedClaimBytes, err := abi.Pack(
+		"claimAsset",
+		proofLocal,
+		proofRollup,
+		expectedClaim.GlobalIndex,
+		expectedClaim.MainnetExitRoot,
+		expectedClaim.RollupExitRoot,
+		expectedClaim.OriginNetwork,
+		expectedClaim.OriginAddress,
+		expectedClaim.DestinationNetwork,
+		expectedClaim.DestinationAddress,
+		expectedClaim.Amount,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.ClaimBytes(
+		auth,
+		expectedClaimBytes,
+		false,
+	)
+	require.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	testCases = append(testCases, testCase{
+		description:   "indirect call to claim asset bytes",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[0],
+		expectedClaim: expectedClaim,
+	})
+
 	// direct call claim message
 	expectedClaim.IsMessage = true
-	expectedClaim.GlobalIndex = big.NewInt(423)
+	expectedClaim.GlobalIndex = big.NewInt(424)
 	tx, err = bridgeContract.ClaimMessage(
 		auth,
 		proofLocal,
@@ -167,7 +203,7 @@ func TestClaimCalldata(t *testing.T) {
 
 	// indirect call claim message
 	expectedClaim.IsMessage = true
-	expectedClaim.GlobalIndex = big.NewInt(424)
+	expectedClaim.GlobalIndex = big.NewInt(425)
 	tx, err = claimCaller.ClaimMessage(
 		auth,
 		proofLocal,
@@ -193,15 +229,11 @@ func TestClaimCalldata(t *testing.T) {
 		expectedClaim: expectedClaim,
 	})
 
-	reverted := [2]bool{false, false}
-
-	// 2 indirect call claim message
+	// indirect call claim message bytes
+	expectedClaim.GlobalIndex = big.NewInt(426)
 	expectedClaim.IsMessage = true
-	expectedClaim.GlobalIndex = big.NewInt(425)
-	expectedClaim2.IsMessage = true
-	expectedClaim2.GlobalIndex = big.NewInt(425)
-	tx, err = claimCaller.ClaimMessage2(
-		auth,
+	expectedClaimBytes, err = abi.Pack(
+		"claimMessage",
 		proofLocal,
 		proofRollup,
 		expectedClaim.GlobalIndex,
@@ -209,23 +241,166 @@ func TestClaimCalldata(t *testing.T) {
 		expectedClaim.RollupExitRoot,
 		expectedClaim.OriginNetwork,
 		expectedClaim.OriginAddress,
-		0,
+		expectedClaim.DestinationNetwork,
 		expectedClaim.DestinationAddress,
 		expectedClaim.Amount,
-		nil,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.ClaimBytes(
+		auth,
+		expectedClaimBytes,
+		false,
+	)
+	require.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	testCases = append(testCases, testCase{
+		description:   "indirect call to claim message bytes",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[0],
+		expectedClaim: expectedClaim,
+	})
+
+	// indirect call claim message bytes
+	expectedClaim.GlobalIndex = big.NewInt(427)
+	expectedClaim.IsMessage = true
+	expectedClaimBytes, err = abi.Pack(
+		"claimMessage",
+		proofLocal,
+		proofRollup,
+		expectedClaim.GlobalIndex,
+		expectedClaim.MainnetExitRoot,
+		expectedClaim.RollupExitRoot,
+		expectedClaim.OriginNetwork,
+		expectedClaim.OriginAddress,
+		expectedClaim.DestinationNetwork,
+		expectedClaim.DestinationAddress,
+		expectedClaim.Amount,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.ClaimBytes(
+		auth,
+		expectedClaimBytes,
+		true,
+	)
+	require.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	log.Infof("%+v", r.Logs)
+
+	reverted := [2]bool{false, false}
+
+	// 2 indirect call claim message (same global index)
+	expectedClaim.IsMessage = true
+	expectedClaim.GlobalIndex = big.NewInt(427)
+	expectedClaim2.IsMessage = true
+	expectedClaim2.GlobalIndex = big.NewInt(427)
+	expectedClaimBytes, err = abi.Pack(
+		"claimMessage",
+		proofLocal,
+		proofRollup,
+		expectedClaim.GlobalIndex,
+		expectedClaim.MainnetExitRoot,
+		expectedClaim.RollupExitRoot,
+		expectedClaim.OriginNetwork,
+		expectedClaim.OriginAddress,
+		expectedClaim.DestinationNetwork,
+		expectedClaim.DestinationAddress,
+		expectedClaim.Amount,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	expectedClaimBytes2, err := abi.Pack(
+		"claimMessage",
+		proofLocal,
+		proofRollup,
+		expectedClaim2.GlobalIndex,
+		expectedClaim2.MainnetExitRoot,
+		expectedClaim2.RollupExitRoot,
+		expectedClaim2.OriginNetwork,
+		expectedClaim2.OriginAddress,
+		expectedClaim2.DestinationNetwork,
+		expectedClaim2.DestinationAddress,
+		expectedClaim2.Amount,
+		expectedClaim2.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.Claim2Bytes(
+		auth,
+		expectedClaimBytes,
+		expectedClaimBytes2,
 		reverted,
 	)
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
 	testCases = append(testCases, testCase{
-		description:   "2 indirect call claim message 1",
+		description:   "2 indirect call claim message 1 (same globalIndex)",
 		bridgeAddr:    bridgeAddr,
 		log:           *r.Logs[0],
 		expectedClaim: expectedClaim,
 	})
 	testCases = append(testCases, testCase{
-		description:   "2 indirect call claim message 2",
+		description:   "2 indirect call claim message 2 (same globalIndex)",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[1],
+		expectedClaim: expectedClaim2,
+	})
+
+	// 2 indirect call claim message (diff global index)
+	expectedClaim.IsMessage = true
+	expectedClaim.GlobalIndex = big.NewInt(428)
+	expectedClaim2.IsMessage = true
+	expectedClaim2.GlobalIndex = big.NewInt(429)
+	expectedClaimBytes, err = abi.Pack(
+		"claimMessage",
+		proofLocal,
+		proofRollup,
+		expectedClaim.GlobalIndex,
+		expectedClaim.MainnetExitRoot,
+		expectedClaim.RollupExitRoot,
+		expectedClaim.OriginNetwork,
+		expectedClaim.OriginAddress,
+		expectedClaim.DestinationNetwork,
+		expectedClaim.DestinationAddress,
+		expectedClaim.Amount,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	expectedClaimBytes2, err = abi.Pack(
+		"claimMessage",
+		proofLocal,
+		proofRollup,
+		expectedClaim2.GlobalIndex,
+		expectedClaim2.MainnetExitRoot,
+		expectedClaim2.RollupExitRoot,
+		expectedClaim2.OriginNetwork,
+		expectedClaim2.OriginAddress,
+		expectedClaim2.DestinationNetwork,
+		expectedClaim2.DestinationAddress,
+		expectedClaim2.Amount,
+		expectedClaim2.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.Claim2Bytes(
+		auth,
+		expectedClaimBytes,
+		expectedClaimBytes2,
+		reverted,
+	)
+	require.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	testCases = append(testCases, testCase{
+		description:   "2 indirect call claim message 1 (diff globalIndex)",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[0],
+		expectedClaim: expectedClaim,
+	})
+	testCases = append(testCases, testCase{
+		description:   "2 indirect call claim message 2 (diff globalIndex)",
 		bridgeAddr:    bridgeAddr,
 		log:           *r.Logs[1],
 		expectedClaim: expectedClaim2,
@@ -233,11 +408,13 @@ func TestClaimCalldata(t *testing.T) {
 
 	reverted = [2]bool{false, true}
 
-	// 2 indirect call claim message (1 ok, 1 reverted)
+	// 2 indirect call claim message (same global index) (1 ok, 1 reverted)
 	expectedClaim.IsMessage = true
-	expectedClaim.GlobalIndex = big.NewInt(426)
-	tx, err = claimCaller.ClaimMessage2(
-		auth,
+	expectedClaim.GlobalIndex = big.NewInt(430)
+	expectedClaim2.IsMessage = true
+	expectedClaim2.GlobalIndex = big.NewInt(430)
+	expectedClaimBytes, err = abi.Pack(
+		"claimMessage",
 		proofLocal,
 		proofRollup,
 		expectedClaim.GlobalIndex,
@@ -245,17 +422,89 @@ func TestClaimCalldata(t *testing.T) {
 		expectedClaim.RollupExitRoot,
 		expectedClaim.OriginNetwork,
 		expectedClaim.OriginAddress,
-		0,
+		expectedClaim.DestinationNetwork,
 		expectedClaim.DestinationAddress,
 		expectedClaim.Amount,
-		nil,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	expectedClaimBytes2, err = abi.Pack(
+		"claimMessage",
+		proofLocal,
+		proofRollup,
+		expectedClaim2.GlobalIndex,
+		expectedClaim2.MainnetExitRoot,
+		expectedClaim2.RollupExitRoot,
+		expectedClaim2.OriginNetwork,
+		expectedClaim2.OriginAddress,
+		expectedClaim2.DestinationNetwork,
+		expectedClaim2.DestinationAddress,
+		expectedClaim2.Amount,
+		expectedClaim2.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.Claim2Bytes(
+		auth,
+		expectedClaimBytes,
+		expectedClaimBytes2,
 		reverted,
 	)
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
 	testCases = append(testCases, testCase{
-		description:   "2 indirect (ok, reverted) call claim message",
+		description:   "2 indirect call claim message (same globalIndex) (1 ok, 1 reverted)",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[0],
+		expectedClaim: expectedClaim,
+	})
+
+	// 2 indirect call claim message (diff global index) (1 ok, 1 reverted)
+	expectedClaim.IsMessage = true
+	expectedClaim.GlobalIndex = big.NewInt(431)
+	expectedClaim2.IsMessage = true
+	expectedClaim2.GlobalIndex = big.NewInt(432)
+	expectedClaimBytes, err = abi.Pack(
+		"claimMessage",
+		proofLocal,
+		proofRollup,
+		expectedClaim.GlobalIndex,
+		expectedClaim.MainnetExitRoot,
+		expectedClaim.RollupExitRoot,
+		expectedClaim.OriginNetwork,
+		expectedClaim.OriginAddress,
+		expectedClaim.DestinationNetwork,
+		expectedClaim.DestinationAddress,
+		expectedClaim.Amount,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	expectedClaimBytes2, err = abi.Pack(
+		"claimMessage",
+		proofLocal,
+		proofRollup,
+		expectedClaim2.GlobalIndex,
+		expectedClaim2.MainnetExitRoot,
+		expectedClaim2.RollupExitRoot,
+		expectedClaim2.OriginNetwork,
+		expectedClaim2.OriginAddress,
+		expectedClaim2.DestinationNetwork,
+		expectedClaim2.DestinationAddress,
+		expectedClaim2.Amount,
+		expectedClaim2.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.Claim2Bytes(
+		auth,
+		expectedClaimBytes,
+		expectedClaimBytes2,
+		reverted,
+	)
+	require.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	testCases = append(testCases, testCase{
+		description:   "2 indirect call claim message (diff globalIndex) (1 ok, 1 reverted)",
 		bridgeAddr:    bridgeAddr,
 		log:           *r.Logs[0],
 		expectedClaim: expectedClaim,
@@ -263,12 +512,13 @@ func TestClaimCalldata(t *testing.T) {
 
 	reverted = [2]bool{true, false}
 
-	// 2 indirect call claim message (1 reverted, 1 ok)
+	// 2 indirect call claim message (same global index) (1 reverted, 1 ok)
+	expectedClaim.IsMessage = true
+	expectedClaim.GlobalIndex = big.NewInt(433)
 	expectedClaim2.IsMessage = true
-	expectedClaim.GlobalIndex = big.NewInt(427)
-	expectedClaim2.GlobalIndex = big.NewInt(427)
-	tx, err = claimCaller.ClaimMessage2(
-		auth,
+	expectedClaim2.GlobalIndex = big.NewInt(433)
+	expectedClaimBytes, err = abi.Pack(
+		"claimMessage",
 		proofLocal,
 		proofRollup,
 		expectedClaim.GlobalIndex,
@@ -276,17 +526,89 @@ func TestClaimCalldata(t *testing.T) {
 		expectedClaim.RollupExitRoot,
 		expectedClaim.OriginNetwork,
 		expectedClaim.OriginAddress,
-		0,
+		expectedClaim.DestinationNetwork,
 		expectedClaim.DestinationAddress,
 		expectedClaim.Amount,
-		nil,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	expectedClaimBytes2, err = abi.Pack(
+		"claimMessage",
+		proofLocal,
+		proofRollup,
+		expectedClaim2.GlobalIndex,
+		expectedClaim2.MainnetExitRoot,
+		expectedClaim2.RollupExitRoot,
+		expectedClaim2.OriginNetwork,
+		expectedClaim2.OriginAddress,
+		expectedClaim2.DestinationNetwork,
+		expectedClaim2.DestinationAddress,
+		expectedClaim2.Amount,
+		expectedClaim2.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.Claim2Bytes(
+		auth,
+		expectedClaimBytes,
+		expectedClaimBytes2,
 		reverted,
 	)
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
 	testCases = append(testCases, testCase{
-		description:   "2 indirect (reverted,ok) call claim message",
+		description:   "2 indirect call claim message (same globalIndex) (reverted,ok)",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[0],
+		expectedClaim: expectedClaim2,
+	})
+
+	// 2 indirect call claim message (diff global index) (1 reverted, 1 ok)
+	expectedClaim.IsMessage = true
+	expectedClaim.GlobalIndex = big.NewInt(434)
+	expectedClaim2.IsMessage = true
+	expectedClaim2.GlobalIndex = big.NewInt(435)
+	expectedClaimBytes, err = abi.Pack(
+		"claimMessage",
+		proofLocal,
+		proofRollup,
+		expectedClaim.GlobalIndex,
+		expectedClaim.MainnetExitRoot,
+		expectedClaim.RollupExitRoot,
+		expectedClaim.OriginNetwork,
+		expectedClaim.OriginAddress,
+		expectedClaim.DestinationNetwork,
+		expectedClaim.DestinationAddress,
+		expectedClaim.Amount,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	expectedClaimBytes2, err = abi.Pack(
+		"claimMessage",
+		proofLocal,
+		proofRollup,
+		expectedClaim2.GlobalIndex,
+		expectedClaim2.MainnetExitRoot,
+		expectedClaim2.RollupExitRoot,
+		expectedClaim2.OriginNetwork,
+		expectedClaim2.OriginAddress,
+		expectedClaim2.DestinationNetwork,
+		expectedClaim2.DestinationAddress,
+		expectedClaim2.Amount,
+		expectedClaim2.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.Claim2Bytes(
+		auth,
+		expectedClaimBytes,
+		expectedClaimBytes2,
+		reverted,
+	)
+	require.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	testCases = append(testCases, testCase{
+		description:   "2 indirect call claim message (diff globalIndex) (reverted,ok)",
 		bridgeAddr:    bridgeAddr,
 		log:           *r.Logs[0],
 		expectedClaim: expectedClaim2,
@@ -294,13 +616,13 @@ func TestClaimCalldata(t *testing.T) {
 
 	reverted = [2]bool{false, false}
 
-	// 2 indirect call claim asset
+	// 2 indirect call claim asset (same global index)
 	expectedClaim.IsMessage = false
-	expectedClaim.GlobalIndex = big.NewInt(428)
+	expectedClaim.GlobalIndex = big.NewInt(436)
 	expectedClaim2.IsMessage = false
-	expectedClaim2.GlobalIndex = big.NewInt(428)
-	tx, err = claimCaller.ClaimAsset2(
-		auth,
+	expectedClaim2.GlobalIndex = big.NewInt(436)
+	expectedClaimBytes, err = abi.Pack(
+		"claimAsset",
 		proofLocal,
 		proofRollup,
 		expectedClaim.GlobalIndex,
@@ -308,24 +630,101 @@ func TestClaimCalldata(t *testing.T) {
 		expectedClaim.RollupExitRoot,
 		expectedClaim.OriginNetwork,
 		expectedClaim.OriginAddress,
-		0,
+		expectedClaim.DestinationNetwork,
 		expectedClaim.DestinationAddress,
 		expectedClaim.Amount,
-		nil,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	expectedClaimBytes2, err = abi.Pack(
+		"claimAsset",
+		proofLocal,
+		proofRollup,
+		expectedClaim2.GlobalIndex,
+		expectedClaim2.MainnetExitRoot,
+		expectedClaim2.RollupExitRoot,
+		expectedClaim2.OriginNetwork,
+		expectedClaim2.OriginAddress,
+		expectedClaim2.DestinationNetwork,
+		expectedClaim2.DestinationAddress,
+		expectedClaim2.Amount,
+		expectedClaim2.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.Claim2Bytes(
+		auth,
+		expectedClaimBytes,
+		expectedClaimBytes2,
 		reverted,
 	)
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
-	log.Infof("%+v", r)
 	testCases = append(testCases, testCase{
-		description:   "2 indirect call claim asset 1",
+		description:   "2 indirect call claim asset 1 (same globalIndex)",
 		bridgeAddr:    bridgeAddr,
 		log:           *r.Logs[0],
 		expectedClaim: expectedClaim,
 	})
 	testCases = append(testCases, testCase{
-		description:   "2 indirect call claim asset 2",
+		description:   "2 indirect call claim asset 2 (same globalIndex)",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[1],
+		expectedClaim: expectedClaim2,
+	})
+
+	// 2 indirect call claim asset (diff global index)
+	expectedClaim.IsMessage = false
+	expectedClaim.GlobalIndex = big.NewInt(437)
+	expectedClaim2.IsMessage = false
+	expectedClaim2.GlobalIndex = big.NewInt(438)
+	expectedClaimBytes, err = abi.Pack(
+		"claimAsset",
+		proofLocal,
+		proofRollup,
+		expectedClaim.GlobalIndex,
+		expectedClaim.MainnetExitRoot,
+		expectedClaim.RollupExitRoot,
+		expectedClaim.OriginNetwork,
+		expectedClaim.OriginAddress,
+		expectedClaim.DestinationNetwork,
+		expectedClaim.DestinationAddress,
+		expectedClaim.Amount,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	expectedClaimBytes2, err = abi.Pack(
+		"claimAsset",
+		proofLocal,
+		proofRollup,
+		expectedClaim2.GlobalIndex,
+		expectedClaim2.MainnetExitRoot,
+		expectedClaim2.RollupExitRoot,
+		expectedClaim2.OriginNetwork,
+		expectedClaim2.OriginAddress,
+		expectedClaim2.DestinationNetwork,
+		expectedClaim2.DestinationAddress,
+		expectedClaim2.Amount,
+		expectedClaim2.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.Claim2Bytes(
+		auth,
+		expectedClaimBytes,
+		expectedClaimBytes2,
+		reverted,
+	)
+	require.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	testCases = append(testCases, testCase{
+		description:   "2 indirect call claim asset 1 (diff globalIndex)",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[0],
+		expectedClaim: expectedClaim,
+	})
+	testCases = append(testCases, testCase{
+		description:   "2 indirect call claim asset 2 (diff globalIndex)",
 		bridgeAddr:    bridgeAddr,
 		log:           *r.Logs[1],
 		expectedClaim: expectedClaim2,
@@ -333,11 +732,13 @@ func TestClaimCalldata(t *testing.T) {
 
 	reverted = [2]bool{false, true}
 
-	// 2 indirect call claim asset (1 ok, 1 reverted)
+	// 2 indirect call claim asset (same global index) (1 ok, 1 reverted)
 	expectedClaim.IsMessage = false
-	expectedClaim.GlobalIndex = big.NewInt(429)
-	tx, err = claimCaller.ClaimAsset2(
-		auth,
+	expectedClaim.GlobalIndex = big.NewInt(439)
+	expectedClaim2.IsMessage = false
+	expectedClaim2.GlobalIndex = big.NewInt(439)
+	expectedClaimBytes, err = abi.Pack(
+		"claimAsset",
 		proofLocal,
 		proofRollup,
 		expectedClaim.GlobalIndex,
@@ -345,19 +746,89 @@ func TestClaimCalldata(t *testing.T) {
 		expectedClaim.RollupExitRoot,
 		expectedClaim.OriginNetwork,
 		expectedClaim.OriginAddress,
-		0,
+		expectedClaim.DestinationNetwork,
 		expectedClaim.DestinationAddress,
 		expectedClaim.Amount,
-		nil,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	expectedClaimBytes2, err = abi.Pack(
+		"claimAsset",
+		proofLocal,
+		proofRollup,
+		expectedClaim2.GlobalIndex,
+		expectedClaim2.MainnetExitRoot,
+		expectedClaim2.RollupExitRoot,
+		expectedClaim2.OriginNetwork,
+		expectedClaim2.OriginAddress,
+		expectedClaim2.DestinationNetwork,
+		expectedClaim2.DestinationAddress,
+		expectedClaim2.Amount,
+		expectedClaim2.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.Claim2Bytes(
+		auth,
+		expectedClaimBytes,
+		expectedClaimBytes2,
 		reverted,
 	)
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
-	log.Infof("%+v", r)
-	expectedClaim.IsMessage = false
 	testCases = append(testCases, testCase{
-		description:   "2 indirect (ok, reverted) call claim asset",
+		description:   "2 indirect call claim asset (same globalIndex) (1 ok, 1 reverted)",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[0],
+		expectedClaim: expectedClaim,
+	})
+
+	// 2 indirect call claim message (diff global index) (1 ok, 1 reverted)
+	expectedClaim.IsMessage = false
+	expectedClaim.GlobalIndex = big.NewInt(440)
+	expectedClaim2.IsMessage = false
+	expectedClaim2.GlobalIndex = big.NewInt(441)
+	expectedClaimBytes, err = abi.Pack(
+		"claimAsset",
+		proofLocal,
+		proofRollup,
+		expectedClaim.GlobalIndex,
+		expectedClaim.MainnetExitRoot,
+		expectedClaim.RollupExitRoot,
+		expectedClaim.OriginNetwork,
+		expectedClaim.OriginAddress,
+		expectedClaim.DestinationNetwork,
+		expectedClaim.DestinationAddress,
+		expectedClaim.Amount,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	expectedClaimBytes2, err = abi.Pack(
+		"claimAsset",
+		proofLocal,
+		proofRollup,
+		expectedClaim2.GlobalIndex,
+		expectedClaim2.MainnetExitRoot,
+		expectedClaim2.RollupExitRoot,
+		expectedClaim2.OriginNetwork,
+		expectedClaim2.OriginAddress,
+		expectedClaim2.DestinationNetwork,
+		expectedClaim2.DestinationAddress,
+		expectedClaim2.Amount,
+		expectedClaim2.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.Claim2Bytes(
+		auth,
+		expectedClaimBytes,
+		expectedClaimBytes2,
+		reverted,
+	)
+	require.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	testCases = append(testCases, testCase{
+		description:   "2 indirect call claim asset (diff globalIndex) (1 ok, 1 reverted)",
 		bridgeAddr:    bridgeAddr,
 		log:           *r.Logs[0],
 		expectedClaim: expectedClaim,
@@ -365,12 +836,13 @@ func TestClaimCalldata(t *testing.T) {
 
 	reverted = [2]bool{true, false}
 
-	// 2 indirect call claim asset (1 reverted, 1 ok)
+	// 2 indirect call claim asset (same global index) (1 reverted, 1 ok)
+	expectedClaim.IsMessage = false
+	expectedClaim.GlobalIndex = big.NewInt(442)
 	expectedClaim2.IsMessage = false
-	expectedClaim.GlobalIndex = big.NewInt(430)
-	expectedClaim2.GlobalIndex = big.NewInt(430)
-	tx, err = claimCaller.ClaimAsset2(
-		auth,
+	expectedClaim2.GlobalIndex = big.NewInt(442)
+	expectedClaimBytes, err = abi.Pack(
+		"claimAsset",
 		proofLocal,
 		proofRollup,
 		expectedClaim.GlobalIndex,
@@ -378,19 +850,89 @@ func TestClaimCalldata(t *testing.T) {
 		expectedClaim.RollupExitRoot,
 		expectedClaim.OriginNetwork,
 		expectedClaim.OriginAddress,
-		0,
+		expectedClaim.DestinationNetwork,
 		expectedClaim.DestinationAddress,
 		expectedClaim.Amount,
-		nil,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	expectedClaimBytes2, err = abi.Pack(
+		"claimAsset",
+		proofLocal,
+		proofRollup,
+		expectedClaim2.GlobalIndex,
+		expectedClaim2.MainnetExitRoot,
+		expectedClaim2.RollupExitRoot,
+		expectedClaim2.OriginNetwork,
+		expectedClaim2.OriginAddress,
+		expectedClaim2.DestinationNetwork,
+		expectedClaim2.DestinationAddress,
+		expectedClaim2.Amount,
+		expectedClaim2.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.Claim2Bytes(
+		auth,
+		expectedClaimBytes,
+		expectedClaimBytes2,
 		reverted,
 	)
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
-	log.Infof("%+v", r)
-	expectedClaim2.IsMessage = false
 	testCases = append(testCases, testCase{
-		description:   "2 indirect (reverted,ok) call claim asset",
+		description:   "2 indirect call claim asset (same globalIndex) (reverted,ok)",
+		bridgeAddr:    bridgeAddr,
+		log:           *r.Logs[0],
+		expectedClaim: expectedClaim2,
+	})
+
+	// 2 indirect call claim asset (diff global index) (1 reverted, 1 ok)
+	expectedClaim.IsMessage = false
+	expectedClaim.GlobalIndex = big.NewInt(443)
+	expectedClaim2.IsMessage = false
+	expectedClaim2.GlobalIndex = big.NewInt(444)
+	expectedClaimBytes, err = abi.Pack(
+		"claimAsset",
+		proofLocal,
+		proofRollup,
+		expectedClaim.GlobalIndex,
+		expectedClaim.MainnetExitRoot,
+		expectedClaim.RollupExitRoot,
+		expectedClaim.OriginNetwork,
+		expectedClaim.OriginAddress,
+		expectedClaim.DestinationNetwork,
+		expectedClaim.DestinationAddress,
+		expectedClaim.Amount,
+		expectedClaim.Metadata,
+	)
+	require.NoError(t, err)
+	expectedClaimBytes2, err = abi.Pack(
+		"claimAsset",
+		proofLocal,
+		proofRollup,
+		expectedClaim2.GlobalIndex,
+		expectedClaim2.MainnetExitRoot,
+		expectedClaim2.RollupExitRoot,
+		expectedClaim2.OriginNetwork,
+		expectedClaim2.OriginAddress,
+		expectedClaim2.DestinationNetwork,
+		expectedClaim2.DestinationAddress,
+		expectedClaim2.Amount,
+		expectedClaim2.Metadata,
+	)
+	require.NoError(t, err)
+	tx, err = claimCaller.Claim2Bytes(
+		auth,
+		expectedClaimBytes,
+		expectedClaimBytes2,
+		reverted,
+	)
+	require.NoError(t, err)
+	time.Sleep(1 * time.Second)
+	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	testCases = append(testCases, testCase{
+		description:   "2 indirect call claim asset (diff globalIndex) (reverted,ok)",
 		bridgeAddr:    bridgeAddr,
 		log:           *r.Logs[0],
 		expectedClaim: expectedClaim2,
