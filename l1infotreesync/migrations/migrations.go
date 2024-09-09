@@ -32,11 +32,8 @@ var Migrations = &migrate.MemoryMigrationSource{
 }
 
 func RunMigrations(dbPath string) error {
-	migs := []*migrate.Migration{}
-	retMigs := treeMigrations.MigrationsWithPrefix(RollupExitTreePrefix)
-	migs = append(migs, retMigs...)
-	l1InfoMigs := treeMigrations.MigrationsWithPrefix(L1InfoTreePrefix)
-	migs = append(migs, l1InfoMigs...)
+	migs := treeMigrations.MigrationsWithPrefix(RollupExitTreePrefix)
+	migs = append(migs, treeMigrations.MigrationsWithPrefix(L1InfoTreePrefix)...)
 	migs = append(migs, Migrations.Migrations...)
 	for _, m := range migs {
 		log.Debugf("%+v", m.Id)

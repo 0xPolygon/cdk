@@ -3,13 +3,13 @@ package db
 import (
 	"database/sql"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // NewSQLiteDB creates a new SQLite DB
 func NewSQLiteDB(dbPath string) (*sql.DB, error) {
 	initMeddler()
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
 	}

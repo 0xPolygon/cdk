@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/0xPolygon/cdk/log"
+	_ "github.com/mattn/go-sqlite3"
 	migrate "github.com/rubenv/sql-migrate"
-	_ "modernc.org/sqlite"
 )
 
 // RunMigrations will execute pending migrations if needed to keep

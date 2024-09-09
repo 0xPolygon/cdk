@@ -71,7 +71,7 @@ func TestBridgeEventE2E(t *testing.T) {
 			DepositCount:       uint32(i),
 			DestinationNetwork: 3,
 			DestinationAddress: common.HexToAddress("f00"),
-			Metadata:           nil,
+			Metadata:           []byte{},
 		}
 		tx, err := bridgeSc.BridgeAsset(
 			auth,

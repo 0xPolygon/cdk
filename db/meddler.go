@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -8,8 +9,8 @@ import (
 
 	tree "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
+	sqlite "github.com/mattn/go-sqlite3"
 	"github.com/russross/meddler"
-	"modernc.org/sqlite"
 )
 
 // initMeddler registers tags to be used to read/write from SQL DBs using meddler
@@ -20,16 +21,16 @@ func initMeddler() {
 	meddler.Register("hash", HashMeddler{})
 }
 
-func SQLiteErr(err error) (*sqlite.Error, bool) {
-	if sqliteErr, ok := err.(*sqlite.Error); ok {
+func SQLiteErr(err error) (sqlite.Error, bool) {
+	if sqliteErr, ok := err.(sqlite.Error); ok {
 		return sqliteErr, true
 	}
 	if driverErr, ok := meddler.DriverErr(err); ok {
-		if sqliteErr, ok := driverErr.(*sqlite.Error); ok {
+		if sqliteErr, ok := driverErr.(sqlite.Error); ok {
 			return sqliteErr, true
 		}
 	}
-	return nil, false
+	return sqlite.Error{}, false
 }
 
 // SliceToSlicePtrs converts any []Foo to []*Foo
@@ -71,8 +72,10 @@ func (b BigIntMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 	if ptr == nil {
 		return fmt.Errorf("BigIntMeddler.PostRead: nil pointer")
 	}
-	field := fieldPtr.(**big.Int)
-	var ok bool
+	field, ok := fieldPtr.(**big.Int)
+	if !ok {
+		return errors.New("fieldPtr is not *big.Int")
+	}
 	*field, ok = new(big.Int).SetString(*ptr, 10)
 	if !ok {
 		return fmt.Errorf("big.Int.SetString failed on \"%v\"", *ptr)
@@ -82,7 +85,10 @@ func (b BigIntMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 
 // PreWrite is called before an Insert or Update operation for fields that have the BigIntMeddler
 func (b BigIntMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{}, err error) {
-	field := fieldPtr.(*big.Int)
+	field, ok := fieldPtr.(*big.Int)
+	if !ok {
+		return nil, errors.New("fieldPtr is not *big.Int")
+	}
 
 	return field.String(), nil
 }
@@ -100,9 +106,12 @@ func (b MerkleProofMeddler) PreRead(fieldAddr interface{}) (scanTarget interface
 func (b MerkleProofMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 	ptr := scanTarget.(*string)
 	if ptr == nil {
-		return fmt.Errorf("ProofMeddler.PostRead: nil pointer")
+		return errors.New("ProofMeddler.PostRead: nil pointer")
 	}
-	field := fieldPtr.(*tree.Proof)
+	field, ok := fieldPtr.(*tree.Proof)
+	if !ok {
+		return errors.New("fieldPtr is not tree.Proof")
+	}
 	strHashes := strings.Split(*ptr, ",")
 	if len(strHashes) != int(tree.DefaultHeight) {
 		return fmt.Errorf("unexpected len of hashes: expected %d actual %d", tree.DefaultHeight, len(strHashes))
@@ -115,7 +124,10 @@ func (b MerkleProofMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 
 // PreWrite is called before an Insert or Update operation for fields that have the ProofMeddler
 func (b MerkleProofMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{}, err error) {
-	field := fieldPtr.(tree.Proof)
+	field, ok := fieldPtr.(tree.Proof)
+	if !ok {
+		return nil, errors.New("fieldPtr is not tree.Proof")
+	}
 	var s string
 	for _, f := range field {
 		s += f.Hex() + ","
@@ -139,13 +151,19 @@ func (b HashMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 	if ptr == nil {
 		return fmt.Errorf("HashMeddler.PostRead: nil pointer")
 	}
-	field := fieldPtr.(*common.Hash)
+	field, ok := fieldPtr.(*common.Hash)
+	if !ok {
+		return errors.New("fieldPtr is not common.Hash")
+	}
 	*field = common.HexToHash(*ptr)
 	return nil
 }
 
 // PreWrite is called before an Insert or Update operation for fields that have the ProofMeddler
 func (b HashMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{}, err error) {
-	field := fieldPtr.(common.Hash)
+	field, ok := fieldPtr.(common.Hash)
+	if !ok {
+		return nil, errors.New("fieldPtr is not common.Hash")
+	}
 	return field.Hex(), nil
 }

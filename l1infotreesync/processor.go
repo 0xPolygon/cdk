@@ -155,15 +155,10 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 
 // GetInfoByIndex returns the value of a leaf (not the hash) of the L1 info tree
 func (p *processor) GetInfoByIndex(ctx context.Context, index uint32) (*L1InfoTreeLeaf, error) {
-	tx, err := p.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	return p.getInfoByIndexWithTx(tx, index)
+	return p.getInfoByIndexWithTx(p.db, index)
 }
 
-func (p *processor) getInfoByIndexWithTx(tx *sql.Tx, index uint32) (*L1InfoTreeLeaf, error) {
+func (p *processor) getInfoByIndexWithTx(tx db.DBer, index uint32) (*L1InfoTreeLeaf, error) {
 	info := &L1InfoTreeLeaf{}
 	return info, meddler.QueryRow(
 		tx, info,
@@ -173,15 +168,10 @@ func (p *processor) getInfoByIndexWithTx(tx *sql.Tx, index uint32) (*L1InfoTreeL
 
 // GetLastProcessedBlock returns the last processed block
 func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
-	tx, err := p.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return 0, err
-	}
-	defer tx.Rollback()
-	return p.getLastProcessedBlockWithTx(tx)
+	return p.getLastProcessedBlockWithTx(p.db)
 }
 
-func (p *processor) getLastProcessedBlockWithTx(tx *sql.Tx) (uint64, error) {
+func (p *processor) getLastProcessedBlockWithTx(tx db.DBer) (uint64, error) {
 	var lastProcessedBlock uint64
 	row := tx.QueryRow("SELECT num FROM BLOCK ORDER BY num DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedBlock)
@@ -308,7 +298,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	return nil
 }
 
-func (p *processor) getLastIndex(tx *sql.Tx) (uint32, error) {
+func (p *processor) getLastIndex(tx db.DBer) (uint32, error) {
 	var lastProcessedIndex uint32
 	row := tx.QueryRow("SELECT position FROM l1info_leaf ORDER BY block_num DESC, block_pos DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedIndex)

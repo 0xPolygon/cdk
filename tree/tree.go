@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/russross/meddler"
 	"golang.org/x/crypto/sha3"
-	sqlite3 "modernc.org/sqlite/lib"
 )
 
 var (
@@ -50,7 +49,7 @@ func newTree(db *sql.DB, tablePrefix string) *Tree {
 	return t
 }
 
-func (t *Tree) getSiblings(tx *sql.Tx, index uint32, root common.Hash) (
+func (t *Tree) getSiblings(tx db.DBer, index uint32, root common.Hash) (
 	siblings [32]common.Hash,
 	hasUsedZeroHashes bool,
 	err error,
@@ -109,12 +108,7 @@ func (t *Tree) getSiblings(tx *sql.Tx, index uint32, root common.Hash) (
 
 // GetProof returns the merkle proof for a given index and root.
 func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) (types.Proof, error) {
-	tx, err := t.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return types.Proof{}, err
-	}
-	defer tx.Rollback()
-	siblings, isErrNotFound, err := t.getSiblings(tx, index, root)
+	siblings, isErrNotFound, err := t.getSiblings(t.db, index, root)
 	if err != nil {
 		return types.Proof{}, err
 	}
@@ -124,7 +118,7 @@ func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) (ty
 	return siblings, nil
 }
 
-func (t *Tree) getRHTNode(tx *sql.Tx, nodeHash common.Hash) (*types.TreeNode, error) {
+func (t *Tree) getRHTNode(tx db.DBer, nodeHash common.Hash) (*types.TreeNode, error) {
 	node := &types.TreeNode{}
 	err := meddler.QueryRow(
 		tx, node,
@@ -157,11 +151,11 @@ func generateZeroHashes(height uint8) []common.Hash {
 	return zeroHashes
 }
 
-func (t *Tree) storeNodes(tx *sql.Tx, nodes []types.TreeNode) error {
+func (t *Tree) storeNodes(tx db.DBer, nodes []types.TreeNode) error {
 	for _, node := range nodes {
 		if err := meddler.Insert(tx, t.rhtTable, &node); err != nil {
 			if sqliteErr, ok := db.SQLiteErr(err); ok {
-				if sqliteErr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
+				if sqliteErr.ExtendedCode == 1555 { // 1555 is the error code for primary key violation
 					// ignore repeated entries. This is likely to happen due to not
 					// cleaning RHT when reorg
 					continue
@@ -173,21 +167,16 @@ func (t *Tree) storeNodes(tx *sql.Tx, nodes []types.TreeNode) error {
 	return nil
 }
 
-func (t *Tree) storeRoot(tx *sql.Tx, root types.Root) error {
+func (t *Tree) storeRoot(tx db.DBer, root types.Root) error {
 	return meddler.Insert(tx, t.rootTable, &root)
 }
 
 // GetLastRoot returns the last processed root
 func (t *Tree) GetLastRoot(ctx context.Context) (types.Root, error) {
-	tx, err := t.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return types.Root{}, err
-	}
-	defer tx.Rollback()
-	return t.getLastRootWithTx(tx)
+	return t.getLastRootWithTx(t.db)
 }
 
-func (t *Tree) getLastRootWithTx(tx *sql.Tx) (types.Root, error) {
+func (t *Tree) getLastRootWithTx(tx db.DBer) (types.Root, error) {
 	var root types.Root
 	err := meddler.QueryRow(
 		tx, &root,
@@ -204,19 +193,12 @@ func (t *Tree) getLastRootWithTx(tx *sql.Tx) (types.Root, error) {
 
 // GetRootByIndex returns the root associated to the index
 func (t *Tree) GetRootByIndex(ctx context.Context, index uint32) (types.Root, error) {
-	tx, err := t.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return types.Root{}, err
-	}
-	defer tx.Rollback()
-
 	var root types.Root
-	err = meddler.QueryRow(
-		tx, &root,
+	if err := meddler.QueryRow(
+		t.db, &root,
 		fmt.Sprintf(`SELECT * FROM %s WHERE position = $1;`, t.rootTable),
 		index,
-	)
-	if err != nil {
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return root, ErrNotFound
 		}
@@ -227,19 +209,12 @@ func (t *Tree) GetRootByIndex(ctx context.Context, index uint32) (types.Root, er
 
 // GetRootByHash returns the root associated to the hash
 func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (types.Root, error) {
-	tx, err := t.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return types.Root{}, err
-	}
-	defer tx.Rollback()
-
 	var root types.Root
-	err = meddler.QueryRow(
-		tx, &root,
+	if err := meddler.QueryRow(
+		t.db, &root,
 		fmt.Sprintf(`SELECT * FROM %s WHERE hash = $1;`, t.rootTable),
 		hash.Hex(),
-	)
-	if err != nil {
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return root, ErrNotFound
 		}
@@ -249,15 +224,9 @@ func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (types.Root,
 }
 
 func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (common.Hash, error) {
-	tx, err := t.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return common.Hash{}, err
-	}
-	defer tx.Rollback()
-
 	currentNodeHash := root
 	for h := int(types.DefaultHeight - 1); h >= 0; h-- {
-		currentNode, err := t.getRHTNode(tx, currentNodeHash)
+		currentNode, err := t.getRHTNode(t.db, currentNodeHash)
 		if err != nil {
 			return common.Hash{}, err
 		}
@@ -272,7 +241,7 @@ func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (com
 }
 
 // Reorg deletes all the data relevant from firstReorgedBlock (includded) and onwards
-func (t *Tree) Reorg(tx *sql.Tx, firstReorgedBlock uint64) error {
+func (t *Tree) Reorg(tx db.DBer, firstReorgedBlock uint64) error {
 	_, err := tx.Exec(
 		fmt.Sprintf(`DELETE FROM %s WHERE block_num >= $1`, t.rootTable),
 		firstReorgedBlock,

@@ -19,7 +19,9 @@ type AppendOnlyTree struct {
 func NewAppendOnlyTree(db *sql.DB, dbPrefix string) *AppendOnlyTree {
 	t := newTree(db, dbPrefix)
 	return &AppendOnlyTree{
-		Tree:      t,
+		Tree: t,
+		// -1 is used to indicate no leafs, 0 means the first leaf is added (at index 0) and so on.
+		// In order to differentiate the "cache not initialised" we need any value smaller than -1
 		lastIndex: -2,
 	}
 }

@@ -124,8 +124,7 @@ func (p *processor) GetBridges(
 	}
 	defer tx.Rollback()
 
-	err = p.isBlockProcessed(tx, toBlock)
-	if err != nil {
+	if err = p.isBlockProcessed(tx, toBlock); err != nil {
 		return nil, err
 	}
 
@@ -149,8 +148,7 @@ func (p *processor) GetClaims(
 	}
 	defer tx.Rollback()
 
-	err = p.isBlockProcessed(tx, toBlock)
-	if err != nil {
+	if err = p.isBlockProcessed(tx, toBlock); err != nil {
 		return nil, err
 	}
 
@@ -165,7 +163,7 @@ func (p *processor) GetClaims(
 	return db.SlicePtrsToSlice(claims).([]Claim), err
 }
 
-func (p *processor) isBlockProcessed(tx *sql.Tx, blockNum uint64) error {
+func (p *processor) isBlockProcessed(tx db.DBer, blockNum uint64) error {
 	lpb, err := p.getLastProcessedBlockWithTx(tx)
 	if err != nil {
 		return err
@@ -179,15 +177,10 @@ func (p *processor) isBlockProcessed(tx *sql.Tx, blockNum uint64) error {
 // GetLastProcessedBlock returns the last processed block by the processor, including blocks
 // that don't have events
 func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
-	tx, err := p.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return 0, err
-	}
-	defer tx.Rollback()
-	return p.getLastProcessedBlockWithTx(tx)
+	return p.getLastProcessedBlockWithTx(p.db)
 }
 
-func (p *processor) getLastProcessedBlockWithTx(tx *sql.Tx) (uint64, error) {
+func (p *processor) getLastProcessedBlockWithTx(tx db.DBer) (uint64, error) {
 	var lastProcessedBlock uint64
 	row := tx.QueryRow("SELECT num FROM BLOCK ORDER BY num DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedBlock)
