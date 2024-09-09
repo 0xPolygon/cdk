@@ -1,5 +1,5 @@
 setup() {
-    bats_load_library 'bats-support' 
+    bats_load_library 'bats-support'
     bats_load_library 'bats-assert'
 
     # get the containing directory of this file
@@ -9,18 +9,26 @@ setup() {
     # make executables in src/ visible to PATH
     PATH="$DIR/../src:$PATH"
 
-    readonly skey=${RAW_PRIVATE_KEY:-"bc6a95c870cce28fe9686fdd70a3a595769e019bb396cd725bc16ec553f07c83"}
-    readonly destination_net=${DESTINATION_NET:-"1"}
+    $DIR/scripts/kurtosis_prepare_params_yml.sh ../kurtosis-cdk cdk-validium
+
+    # Check if the genesis file is already downloaded
+    if [ ! -f "./tmp/cdk/genesis/genesis.json" ]; then
+        kurtosis files download cdk-v1 genesis ./tmp/cdk/genesis
+    fi
+    # Download the genesis file
+    readonly bridge_default_address=$(jq -r ".genesis[] | select(.contractName == \"PolygonZkEVMBridge proxy\") | .address" ./tmp/cdk/genesis/genesis.json)
+
+    readonly skey=${RAW_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
+    readonly destination_net=${DESTINATION_NET:-"0"}
     readonly destination_addr=${DESTINATION_ADDRESS:-"0x0bb7AA0b4FdC2D2862c088424260e99ed6299148"}
     readonly ether_value=${ETHER_VALUE:-"0.0200000054"}
     readonly token_addr=${TOKEN_ADDRESS:-"0x0000000000000000000000000000000000000000"}
     readonly is_forced=${IS_FORCED:-"true"}
-    readonly bridge_addr=${BRIDGE_ADDRESS:-"0x528e26b25a34a4A5d0dbDa1d57D318153d2ED582"}
+    readonly bridge_addr=${BRIDGE_ADDRESS:-$bridge_default_address}
     readonly meta_bytes=${META_BYTES:-"0x"}
-    readonly subcommand=${1:-"deposit"}
 
-    readonly rpc_url=${ETH_RPC_URL:-"https://rpc.cardona.zkevm-rpc.com"}
-    readonly bridge_api_url=${BRIDGE_API_URL:-"https://bridge-api-cdk-validium-cardona-03-zkevm.polygondev.tools"}
+    readonly rpc_url=${ETH_RPC_URL:-"$(kurtosis port print cdk-v1 cdk-erigon-node-001 http-rpc)"}
+    readonly bridge_api_url=${BRIDGE_API_URL:-"$(kurtosis port print cdk-v1 zkevm-bridge-service-001 rpc)"}
 
     readonly dry_run=${DRY_RUN:-"false"}
     readonly claim_sig="claimAsset(bytes32[32],bytes32[32],uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)"
@@ -29,33 +37,19 @@ setup() {
     readonly amount=$(cast to-wei $ether_value ether)
     readonly current_addr="$(cast wallet address --private-key $skey)"
     readonly rpc_network_id=$(cast call --rpc-url $rpc_url $bridge_addr 'networkID()(uint32)')
-
-
-    2>&1 echo "Running LxLy " $subcommand
-
-    2>&1 echo "Checking the current network id: "
-    2>&1 echo $rpc_network_id
-
-    2>&1 echo "The current private key has address: "
-    2>&1 echo $current_addr
-
-    if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
-        2>&1 echo "Checking the current ETH balance: "
-        2>&1 cast balance -e --rpc-url $rpc_url $current_addr
-    else
-        2>&1 echo "Checking the current token balance for token at $token_addr: "
-        2>&1 cast call --rpc-url $rpc_url $token_addr 'balanceOf(address)(uint256)' $current_addr
-    fi
 }
 
 @test "Run deposit" {
     load 'helpers/lxly-bridge-test'
+    echo "Running LxLy deposit" >&3
     run deposit
-    assert_output --partial 'foo'
+    assert_success
+    assert_output --partial 'transactionHash'
 }
 
 @test "Run claim" {
     load 'helpers/lxly-bridge-test'
+    echo "Running LxLy claim"
     run claim
-    assert_output --partial 'execution reverted'
+    assert_success
 }
