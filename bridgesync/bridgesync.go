@@ -172,10 +172,18 @@ func (s *BridgeSync) GetProof(ctx context.Context, depositCount uint32, localExi
 	return s.processor.exitTree.GetProof(ctx, depositCount, localExitRoot)
 }
 
-func (p *processor) GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error) {
-	root, err := p.exitTree.GetRootByHash(ctx, ler)
+func (s *BridgeSync) GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error) {
+	root, err := s.processor.exitTree.GetRootByHash(ctx, ler)
 	if err != nil {
 		return 0, err
 	}
 	return root.BlockNum, nil
+}
+
+func (s *BridgeSync) GetRootByLER(ctx context.Context, ler common.Hash) (tree.Root, error) {
+	root, err := s.processor.exitTree.GetRootByHash(ctx, ler)
+	if err != nil {
+		return root, err
+	}
+	return root, nil
 }

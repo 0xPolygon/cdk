@@ -142,3 +142,19 @@ func (s *L1InfoTreeSync) GetLocalExitRoot(ctx context.Context, networkID uint32,
 	}
 	return s.processor.rollupExitTree.GetLeaf(ctx, networkID-1, rollupExitRoot)
 }
+
+func (s *L1InfoTreeSync) GetLastVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
+	return s.processor.GetLastVerifiedBatches(rollupID)
+}
+
+func (s *L1InfoTreeSync) GetFirstVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
+	return s.processor.GetFirstVerifiedBatches(rollupID)
+}
+
+func (s *L1InfoTreeSync) GetFirstVerifiedBatchesAfterBlock(rollupID uint32, blockNum uint64) (*VerifyBatches, error) {
+	return s.processor.GetFirstVerifiedBatchesAfterBlock(rollupID, blockNum)
+}
+
+func (s *L1InfoTreeSync) GetFirstL1InfoWithRollupExitRoot(rollupExitRoot common.Hash) (*L1InfoTreeLeaf, error) {
+	return s.processor.GetFirstL1InfoWithRollupExitRoot(rollupExitRoot)
+}

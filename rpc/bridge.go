@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -22,6 +23,10 @@ const (
 	// BRIDGE is the namespace of the bridge service
 	BRIDGE    = "bridge"
 	meterName = "github.com/0xPolygon/cdk/rpc"
+)
+
+var (
+	ErrNotVerifiedYet = errors.New("this bridge has not been verified on L1 yet")
 )
 
 // BridgeEndpoints contains implementations for the "bridge" RPC endpoints
@@ -88,9 +93,13 @@ func (b *BridgeEndpoints) L1InfoTreeIndexForBridge(networkID uint32, depositCoun
 		return l1InfoTreeIndex, nil
 	}
 	if networkID == b.networkID {
+		l1InfoTreeIndex, err := b.getFirstL1InfoTreeIndexForL2Bridge(ctx, depositCount)
 		// TODO: special treatment of the error when not found,
 		// as it's expected that it will take some time for the L1 Info tree to be updated
-		return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("TODO: batchsync / certificatesync missing implementation"))
+		if err != nil {
+			return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get l1InfoTreeIndex, error: %s", err))
+		}
+		return l1InfoTreeIndex, nil
 	}
 	return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("this client does not support network %d", networkID))
 }
@@ -194,7 +203,7 @@ func (b *BridgeEndpoints) SponsorClaim(claim claimsponsor.Claim) (interface{}, r
 	c.Add(ctx, 1)
 
 	if b.sponsor == nil {
-		return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("this client does not support claim sponsoring"))
+		return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, "this client does not support claim sponsoring")
 	}
 	if claim.DestinationNetwork != b.networkID {
 		return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("this client only sponsors claims for network %d", b.networkID))
@@ -218,11 +227,64 @@ func (b *BridgeEndpoints) GetSponsoredClaimStatus(globalIndex *big.Int) (interfa
 	c.Add(ctx, 1)
 
 	if b.sponsor == nil {
-		return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("this client does not support claim sponsoring"))
+		return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, "this client does not support claim sponsoring")
 	}
 	claim, err := b.sponsor.GetClaim(ctx, globalIndex)
 	if err != nil {
 		return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get claim status, error: %s", err))
 	}
 	return claim.Status, nil
+}
+
+func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL2Bridge(ctx context.Context, depositCount uint32) (uint32, error) {
+	lastVerified, err := b.l1InfoTree.GetLastVerifiedBatches(b.networkID - 1)
+	if err != nil {
+		return 0, err
+	}
+
+	root, err := b.bridgeL2.GetRootByLER(ctx, lastVerified.ExitRoot)
+	if err != nil {
+		return 0, err
+	}
+	if root.Index < depositCount {
+		return 0, ErrNotVerifiedYet
+	}
+
+	firstVerified, err := b.l1InfoTree.GetFirstVerifiedBatches(b.networkID - 1)
+	if err != nil {
+		return 0, err
+	}
+
+	// Binary search between the first and last blcoks where batches were verified.
+	// Find the smallest deposit count that is greater than depositCount and matches with
+	// a LER that is verified
+	bestResult := lastVerified
+	lowerLimit := firstVerified.BlockNumber
+	upperLimit := lastVerified.BlockNumber
+	for lowerLimit <= upperLimit {
+		targetBlock := (firstVerified.BlockNumber + lastVerified.BlockNumber) / 2
+		targetVerified, err := b.l1InfoTree.GetFirstVerifiedBatchesAfterBlock(b.networkID-1, targetBlock)
+		if err != nil {
+			return 0, err
+		}
+		root, err = b.bridgeL2.GetRootByLER(ctx, targetVerified.ExitRoot)
+		if err != nil {
+			return 0, err
+		}
+		if root.Index < depositCount {
+			lowerLimit = targetVerified.BlockNumber + 1
+		} else if root.Index == depositCount {
+			bestResult = targetVerified
+			break
+		} else {
+			bestResult = targetVerified
+			upperLimit = targetVerified.BlockNumber - 1
+		}
+	}
+
+	info, err := b.l1InfoTree.GetFirstL1InfoWithRollupExitRoot(bestResult.RollupExitRoot)
+	if err != nil {
+		return 0, err
+	}
+	return info.L1InfoTreeIndex, nil
 }
