@@ -605,9 +605,6 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 		log.Errorf("error adding sequence to ethtxmanager: %v", err)
 		return err
 	}
-	if !resend {
-		s.currentNonce++
-	}
 
 	// Add new eth tx
 	txData := ethTxData{
