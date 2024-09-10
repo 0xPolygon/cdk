@@ -6,6 +6,7 @@ setup() {
 
     # Check if the genesis file is already downloaded
     if [ ! -f "./tmp/cdk/genesis/genesis.json" ]; then
+        mkdir -p ./tmp/cdk
         kurtosis files download cdk-v1 genesis ./tmp/cdk/genesis
     fi
     # Download the genesis file
