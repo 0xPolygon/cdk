@@ -24,6 +24,7 @@ CREATE TABLE l1info_leaf (
 CREATE TABLE verify_batches (
     block_num           INTEGER NOT NULL REFERENCES block(num) ON DELETE CASCADE,
     block_pos           INTEGER NOT NULL,
+    rollup_id           INTEGER NOT NULL,
     batch_num           INTEGER NOT NULL,
     state_root          VARCHAR NOT NULL,
     exit_root           VARCHAR NOT NULL,

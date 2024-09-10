@@ -21,7 +21,6 @@ import (
 
 var (
 	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
-	ErrNotFound          = errors.New("not found")
 	ErrNoBlock0          = errors.New("blockNum must be greater than 0")
 )
 
@@ -43,15 +42,15 @@ type UpdateL1InfoTree struct {
 // VerifyBatches representation of the VerifyBatches and VerifyBatchesTrustedAggregator events
 type VerifyBatches struct {
 	BlockNumber   uint64            `meddler:"block_num"`
-	BlockPosition uint64            `meddler:"block_num"`
-	RollupID      uint32            `meddler:"block_pos"`
+	BlockPosition uint64            `meddler:"block_pos"`
+	RollupID      uint32            `meddler:"rollup_id"`
 	NumBatch      uint64            `meddler:"batch_num"`
 	StateRoot     ethCommon.Hash    `meddler:"state_root,hash"`
 	ExitRoot      ethCommon.Hash    `meddler:"exit_root,hash"`
 	Aggregator    ethCommon.Address `meddler:"aggregator,address"`
 
 	// Not provided by downloader
-	RollupExitRoot ethCommon.Hash `meddler:"exit_root,hash"`
+	RollupExitRoot ethCommon.Hash `meddler:"rollup_exit_root,hash"`
 }
 
 type InitL1InfoRootMap struct {
@@ -150,7 +149,7 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, db.ErrNotFound
 		}
 		return nil, err
 	}
@@ -241,7 +240,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	var initialL1InfoIndex uint32
 	var l1InfoLeavesAdded uint32
 	lastIndex, err := p.getLastIndex(tx)
-	if err == ErrNotFound {
+	if err == db.ErrNotFound {
 		initialL1InfoIndex = 0
 		err = nil
 	} else if err != nil {
@@ -312,75 +311,82 @@ func (p *processor) getLastIndex(tx db.DBer) (uint32, error) {
 	row := tx.QueryRow("SELECT position FROM l1info_leaf ORDER BY block_num DESC, block_pos DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedIndex)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, ErrNotFound
+		return 0, db.ErrNotFound
 	}
 	return lastProcessedIndex, err
 }
 
 func (p *processor) GetLastVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
 	verified := &VerifyBatches{}
-	return verified, meddler.QueryRow(p.db, verified, `
-		SELECT * FROM verified_batches
+	err := meddler.QueryRow(p.db, verified, `
+		SELECT * FROM verify_batches
 		WHERE rollup_id = $1
 		ORDER BY block_num DESC, block_pos DESC
 		LIMIT 1;
 	`, rollupID)
+	return verified, db.ReturnErrNotFound(err)
 }
 
 func (p *processor) GetFirstVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
 	verified := &VerifyBatches{}
-	return verified, meddler.QueryRow(p.db, verified, `
-		SELECT * FROM verified_batches
+	err := meddler.QueryRow(p.db, verified, `
+		SELECT * FROM verify_batches
 		WHERE rollup_id = $1
 		ORDER BY block_num ASC, block_pos ASC
 		LIMIT 1;
 	`, rollupID)
+	return verified, db.ReturnErrNotFound(err)
 }
 
 func (p *processor) GetFirstVerifiedBatchesAfterBlock(rollupID uint32, blockNum uint64) (*VerifyBatches, error) {
 	verified := &VerifyBatches{}
-	return verified, meddler.QueryRow(p.db, verified, `
-		SELECT * FROM verified_batches
+	err := meddler.QueryRow(p.db, verified, `
+		SELECT * FROM verify_batches
 		WHERE rollup_id = $1 AND block_num >= $2
 		ORDER BY block_num ASC, block_pos ASC
 		LIMIT 1;
 	`, rollupID, blockNum)
+	return verified, db.ReturnErrNotFound(err)
 }
 
 func (p *processor) GetFirstL1InfoWithRollupExitRoot(rollupExitRoot ethCommon.Hash) (*L1InfoTreeLeaf, error) {
 	info := &L1InfoTreeLeaf{}
-	return info, meddler.QueryRow(p.db, info, `
+	err := meddler.QueryRow(p.db, info, `
 		SELECT * FROM l1info_leaf
 		WHERE rollup_exit_root = $1
 		ORDER BY block_num ASC, block_pos ASC
 		LIMIT 1;
-	`, rollupExitRoot)
+	`, rollupExitRoot.Hex())
+	return info, db.ReturnErrNotFound(err)
 }
 
 func (p *processor) GetLastInfo() (*L1InfoTreeLeaf, error) {
 	info := &L1InfoTreeLeaf{}
-	return info, meddler.QueryRow(p.db, info, `
-		SELECT * FROM l1info_leaf
-		ORDER BY block_num ASC, block_pos ASC
-		LIMIT 1;
-	`)
-}
-
-func (p *processor) GetFirstInfo() (*L1InfoTreeLeaf, error) {
-	info := &L1InfoTreeLeaf{}
-	return info, meddler.QueryRow(p.db, info, `
+	err := meddler.QueryRow(p.db, info, `
 		SELECT * FROM l1info_leaf
 		ORDER BY block_num DESC, block_pos DESC
 		LIMIT 1;
 	`)
+	return info, db.ReturnErrNotFound(err)
+}
+
+func (p *processor) GetFirstInfo() (*L1InfoTreeLeaf, error) {
+	info := &L1InfoTreeLeaf{}
+	err := meddler.QueryRow(p.db, info, `
+		SELECT * FROM l1info_leaf
+		ORDER BY block_num ASC, block_pos ASC
+		LIMIT 1;
+	`)
+	return info, db.ReturnErrNotFound(err)
 }
 
 func (p *processor) GetFirstInfoAfterBlock(blockNum uint64) (*L1InfoTreeLeaf, error) {
 	info := &L1InfoTreeLeaf{}
-	return info, meddler.QueryRow(p.db, info, `
+	err := meddler.QueryRow(p.db, info, `
 		SELECT * FROM l1info_leaf
 		WHERE block_num >= $1
 		ORDER BY block_num ASC, block_pos ASC
 		LIMIT 1;
 	`, blockNum)
+	return info, db.ReturnErrNotFound(err)
 }

@@ -2,8 +2,13 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 
 	_ "github.com/mattn/go-sqlite3"
+)
+
+var (
+	ErrNotFound = errors.New("not found")
 )
 
 // NewSQLiteDB creates a new SQLite DB
@@ -20,4 +25,11 @@ func NewSQLiteDB(dbPath string) (*sql.DB, error) {
 		pragma journal_size_limit  = 6144000;
 	`)
 	return db, err
+}
+
+func ReturnErrNotFound(err error) error {
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	}
+	return err
 }
