@@ -39,10 +39,6 @@ func TestGetFirstL1InfoTreeIndexForL1Bridge(t *testing.T) {
 		b.l1InfoTree.On("GetLastInfo").
 			Return(lastL1Info, nil).
 			Once()
-		lastL1InfoRootByLER := &tree.Root{Index: uint32(lastL1Info.BlockNumber)}
-		b.bridgeL1.On("GetRootByLER", ctx, lastL1Info.MainnetExitRoot).
-			Return(lastL1InfoRootByLER, nil).
-			Once()
 		b.l1InfoTree.On("GetFirstInfo").
 			Return(firstL1Info, nil).
 			Once()
@@ -60,6 +56,9 @@ func TestGetFirstL1InfoTreeIndexForL1Bridge(t *testing.T) {
 			Run(func(args mock.Arguments) {
 				ler := args.Get(1).(common.Hash)
 				index := cdkCommon.BytesToUint32(ler.Bytes()[28:]) // hash is 32 bytes, uint32 is just 4
+				if ler == common.HexToHash("alfa") {
+					index = uint32(lastL1Info.BlockNumber)
+				}
 				rootByLER.Index = index
 			}).
 			Return(rootByLER, nil)
@@ -229,6 +228,44 @@ func TestGetFirstL1InfoTreeIndexForL2Bridge(t *testing.T) {
 		BlockNumber: 1000,
 		ExitRoot:    common.HexToHash("alfa"),
 	}
+	mockHappyPath := func() {
+		// to make this work, assume that block number == l1 info tree index == deposit count
+		b.l1InfoTree.On("GetLastVerifiedBatches", uint32(1)).
+			Return(lastVerified, nil).
+			Once()
+		b.l1InfoTree.On("GetFirstVerifiedBatches", uint32(1)).
+			Return(firstVerified, nil).
+			Once()
+		verifiedAfterBlock := &l1infotreesync.VerifyBatches{}
+		b.l1InfoTree.On("GetFirstVerifiedBatchesAfterBlock", uint32(1), mock.Anything).
+			Run(func(args mock.Arguments) {
+				blockNum := args.Get(1).(uint64)
+				verifiedAfterBlock.BlockNumber = blockNum
+				verifiedAfterBlock.ExitRoot = common.BytesToHash(cdkCommon.Uint32ToBytes(uint32(blockNum)))
+				verifiedAfterBlock.RollupExitRoot = common.BytesToHash(cdkCommon.Uint32ToBytes(uint32(blockNum)))
+			}).
+			Return(verifiedAfterBlock, nil)
+		rootByLER := &tree.Root{}
+		b.bridgeL2.On("GetRootByLER", ctx, mock.Anything).
+			Run(func(args mock.Arguments) {
+				ler := args.Get(1).(common.Hash)
+				index := cdkCommon.BytesToUint32(ler.Bytes()[28:]) // hash is 32 bytes, uint32 is just 4
+				if ler == common.HexToHash("alfa") {
+					index = uint32(lastVerified.BlockNumber)
+				}
+				rootByLER.Index = index
+			}).
+			Return(rootByLER, nil)
+		info := &l1infotreesync.L1InfoTreeLeaf{}
+		b.l1InfoTree.On("GetFirstL1InfoWithRollupExitRoot", mock.Anything).
+			Run(func(args mock.Arguments) {
+				exitRoot := args.Get(0).(common.Hash)
+				index := cdkCommon.BytesToUint32(exitRoot.Bytes()[28:]) // hash is 32 bytes, uint32 is just 4
+				info.L1InfoTreeIndex = index
+			}).
+			Return(info, nil).
+			Once()
+	}
 	testCases := []testCase{
 		{
 			description: "error on GetLastVerified",
@@ -328,6 +365,41 @@ func TestGetFirstL1InfoTreeIndexForL2Bridge(t *testing.T) {
 			depositCount:  11,
 			expectedIndex: 0,
 			expectedErr:   fooErr,
+		},
+		{
+			description:   "happy path 1",
+			setupMocks:    mockHappyPath,
+			depositCount:  10,
+			expectedIndex: 10,
+			expectedErr:   nil,
+		},
+		{
+			description:   "happy path 2",
+			setupMocks:    mockHappyPath,
+			depositCount:  11,
+			expectedIndex: 11,
+			expectedErr:   nil,
+		},
+		{
+			description:   "happy path 3",
+			setupMocks:    mockHappyPath,
+			depositCount:  333,
+			expectedIndex: 333,
+			expectedErr:   nil,
+		},
+		{
+			description:   "happy path 4",
+			setupMocks:    mockHappyPath,
+			depositCount:  420,
+			expectedIndex: 420,
+			expectedErr:   nil,
+		},
+		{
+			description:   "happy path 5",
+			setupMocks:    mockHappyPath,
+			depositCount:  69,
+			expectedIndex: 69,
+			expectedErr:   nil,
 		},
 	}
 
