@@ -520,7 +520,7 @@ func runReorgDetectorL1IfNeeded(
 	}
 	rd := newReorgDetector(cfg, l1Client)
 
-	errChan := make(chan error, 1)
+	errChan := make(chan error)
 	go func() {
 		if err := rd.Start(ctx); err != nil {
 			errChan <- err
@@ -547,7 +547,7 @@ func runReorgDetectorL2IfNeeded(
 	}
 	rd := newReorgDetector(cfg, l2Client)
 
-	errChan := make(chan error, 1)
+	errChan := make(chan error)
 	go func() {
 		if err := rd.Start(ctx); err != nil {
 			errChan <- err
