@@ -1,15 +1,8 @@
 setup() {
-    bats_load_library 'bats-support'
-    bats_load_library 'bats-assert'
+    load 'helpers/common-setup'
+    _common_setup
 
-    # get the containing directory of this file
-    # use $BATS_TEST_FILENAME instead of ${BASH_SOURCE[0]} or $0,
-    # as those will point to the bats executable's location or the preprocessed file respectively
-    DIR="$( cd "$( dirname "$BATS_TEST_FILENAME" )" >/dev/null 2>&1 && pwd )"
-    # make executables in src/ visible to PATH
-    PATH="$DIR/../src:$PATH"
-
-    $DIR/scripts/kurtosis_prepare_params_yml.sh ../kurtosis-cdk cdk-validium
+    $PROJECT_ROOT/test/scripts/kurtosis_prepare_params_yml.sh ../kurtosis-cdk cdk-validium
 
     # Check if the genesis file is already downloaded
     if [ ! -f "./tmp/cdk/genesis/genesis.json" ]; then
