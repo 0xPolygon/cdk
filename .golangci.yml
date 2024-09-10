@@ -75,10 +75,7 @@ issues:
         - gosec
         - unparam
         - lll
-    - path: 'etherman/contracts/contracts_banana.go'
-      linters:
-        - dupl
-    - path: 'etherman/contracts/contracts_elderberry.go'
+    - path: 'etherman/contracts/contracts_(banana|elderberry)\.go'
       linters:
         - dupl
   include:

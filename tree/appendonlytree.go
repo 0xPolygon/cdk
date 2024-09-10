@@ -77,7 +77,7 @@ func (t *AppendOnlyTree) addLeaf(tx kv.RwTx, leaf Leaf) error {
 				right: t.zeroHashes[h],
 			}
 			// Update cache
-			// TODO: review this part of the logic, skipping? optimisaton?
+			// TODO: review this part of the logic, skipping? optimisation?
 			// from OG implementation
 			t.lastLeftCache[h] = currentChildHash
 		}
