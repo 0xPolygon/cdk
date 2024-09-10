@@ -65,3 +65,4 @@ jobs:
       working-directory: test
       env:
         KURTOSIS_FOLDER: ${{ github.workspace }}/kurtosis-cdk
+        BATS_LIB_PATH: /usr/lib/
