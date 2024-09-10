@@ -71,8 +71,6 @@ func (s *SequenceSender) getL2BlockTimestampFromRPC(blockHash string) (uint64, e
 		Timestamp string `json:"timestamp"`
 	}
 
-	l2Block := zkeEVML2Block{}
-
 	log.Infof("Getting l2 block timestamp from RPC. Block hash: %s", blockHash)
 
 	response, err := rpc.JSONRPCCall(s.cfg.RPCURL, "eth_getBlockByHash", blockHash, false)
@@ -85,7 +83,8 @@ func (s *SequenceSender) getL2BlockTimestampFromRPC(blockHash string) (uint64, e
 		return 0, fmt.Errorf("error in the response calling eth_getBlockByHash: %v", response.Error)
 	}
 
-	// Get the batch number from the response hex string
+	//  Get the l2 block from the response
+	l2Block := zkeEVML2Block{}
 	err = json.Unmarshal(response.Result, &l2Block)
 	if err != nil {
 		return 0, fmt.Errorf("error unmarshalling the l2 block from the response calling eth_getBlockByHash: %v", err)

@@ -440,9 +440,10 @@ func (s *SequenceSender) getLatestVirtualBatch() error {
 	if err != nil {
 		log.Errorf("error getting latest virtual batch, error: %v", err)
 		return errors.New("fail to get latest virtual batch")
-	} else {
-		log.Infof("latest virtual batch is %d", s.latestVirtualBatchNumber)
 	}
+
+	log.Infof("latest virtual batch is %d", s.latestVirtualBatchNumber)
+
 	return nil
 }
 

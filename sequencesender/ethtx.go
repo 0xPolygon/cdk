@@ -213,7 +213,7 @@ func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) error {
 	for _, result := range results {
 		txSequence, exists := s.ethTransactions[result.ID]
 		if !exists {
-			log.Infof("transaction %v missing in memory structure. Adding it", result.ID)
+			log.Debugf("transaction %v missing in memory structure. Adding it", result.ID)
 			// No info: from/to batch and the sent timestamp
 			s.ethTransactions[result.ID] = &ethTxData{
 				SentL1Timestamp: time.Time{},
@@ -352,7 +352,7 @@ func (s *SequenceSender) saveSentSequencesTransactions(ctx context.Context) erro
 	// Purge tx
 	s.purgeEthTx(ctx)
 
-	// Ceate file
+	// Create file
 	fileName := s.cfg.SequencesTxFileName[0:strings.IndexRune(s.cfg.SequencesTxFileName, '.')] + ".tmp"
 	s.sequencesTxFile, err = os.Create(fileName)
 	if err != nil {
