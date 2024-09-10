@@ -32,6 +32,7 @@ type SequenceSender struct {
 	ethTxManager           *ethtxmanager.Client
 	etherman               *etherman.Client
 	currentNonce           uint64
+	nonceMutex             sync.Mutex
 	latestVirtualBatch     uint64                     // Latest virtualized batch obtained from L1
 	latestVirtualTime      time.Time                  // Latest virtual batch timestamp
 	latestSentToL1Batch    uint64                     // Latest batch sent to L1
@@ -136,12 +137,14 @@ func (s *SequenceSender) Start(ctx context.Context) {
 
 	// Get current nonce
 	var err error
+	s.nonceMutex.Lock()
 	s.currentNonce, err = s.etherman.CurrentNonce(ctx, s.cfg.L2Coinbase)
 	if err != nil {
 		log.Fatalf("failed to get current nonce from %v, error: %v", s.cfg.L2Coinbase, err)
 	} else {
 		log.Infof("current nonce for %v is %d", s.cfg.L2Coinbase, s.currentNonce)
 	}
+	s.nonceMutex.Unlock()
 
 	// Get latest virtual state batch from L1
 	err = s.updateLatestVirtualBatch()
@@ -572,8 +575,12 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 	var valueToAddress common.Address
 
 	if !resend {
+		s.nonceMutex.Lock()
+		nonce := s.currentNonce
+		s.currentNonce++
+		s.nonceMutex.Unlock()
+		paramNonce = &nonce
 		paramTo = to
-		paramNonce = &s.currentNonce
 		paramData = data
 		valueFromBatch = fromBatch
 		valueToBatch = toBatch
@@ -597,9 +604,6 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 	if err != nil {
 		log.Errorf("error adding sequence to ethtxmanager: %v", err)
 		return err
-	}
-	if !resend {
-		s.currentNonce++
 	}
 
 	// Add new eth tx
