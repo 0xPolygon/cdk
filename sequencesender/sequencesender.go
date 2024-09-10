@@ -25,6 +25,7 @@ type SequenceSender struct {
 	ethTxManager             *ethtxmanager.Client
 	etherman                 *etherman.Client
 	currentNonce             uint64
+	nonceMutex               sync.Mutex
 	latestVirtualBatchNumber uint64                     // Latest virtualized batch obtained from L1
 	latestVirtualTime        time.Time                  // Latest virtual batch timestamp
 	latestSentToL1Batch      uint64                     // Latest batch sent to L1
@@ -92,12 +93,14 @@ func (s *SequenceSender) Start(ctx context.Context) {
 
 	// Get current nonce
 	var err error
+	s.nonceMutex.Lock()
 	s.currentNonce, err = s.etherman.CurrentNonce(ctx, s.cfg.L2Coinbase)
 	if err != nil {
 		log.Fatalf("failed to get current nonce from %v, error: %v", s.cfg.L2Coinbase, err)
 	} else {
 		log.Infof("current nonce for %v is %d", s.cfg.L2Coinbase, s.currentNonce)
 	}
+	s.nonceMutex.Unlock()
 
 	// Get latest virtual state batch from L1
 	err = s.getLatestVirtualBatch()

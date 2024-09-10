@@ -46,8 +46,12 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 	var valueToAddress common.Address
 
 	if !resend {
+		s.nonceMutex.Lock()
+		nonce := s.currentNonce
+		s.currentNonce++
+		s.nonceMutex.Unlock()
+		paramNonce = &nonce
 		paramTo = to
-		paramNonce = &s.currentNonce
 		paramData = data
 		valueFromBatch = fromBatch
 		valueToBatch = toBatch
@@ -72,9 +76,6 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 	if err != nil {
 		log.Errorf("error adding sequence to ethtxmanager: %v", err)
 		return err
-	}
-	if !resend {
-		s.currentNonce++
 	}
 
 	// Add new eth tx
