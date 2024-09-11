@@ -4,9 +4,6 @@ function deployContract() {
     local private_key="$1"
     local contract_artifact="$2"
 
-    # Track each line executed
-    set -x
-
     # Check if rpc_url is available
     if [[ -z "$rpc_url" ]]; then
         echo "Error: rpc_url environment variable is not set."
@@ -57,13 +54,14 @@ function deployContract() {
         return 1
     fi
 
-    echo "Deployed contract address: $deployed_contract_address"
+    if [[ ! "$deployed_contract_address" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
+        echo "Error: Invalid contract address $deployed_contract_address"
+        return 1
+    fi
 
     # Print contract address for return
     echo "$deployed_contract_address"
 
-    # Disable execution tracing
-    set +x
     return 0
 }
 
@@ -77,16 +75,16 @@ function sendTx() {
     # Assign variables from function arguments
     local private_key="$1" # Sender private key
     local receiver="$2"    # Receiver address
-    shift 2                # Shift the first 2 arguments (private_key, receiver)
-
-    local first_remaining_arg="$1"
-    shift # Shift the first remaining argument (value or function signature)
-
     # Error handling: Ensure the receiver is a valid Ethereum address
     if [[ ! "$receiver" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
         echo "Error: Invalid receiver address '$receiver'."
         return 1
     fi
+
+    shift 2 # Shift the first 2 arguments (private_key, receiver)
+
+    local first_remaining_arg="$1"
+    shift # Shift the first remaining argument (value or function signature)
 
     local senderAddr=$(cast wallet address "$private_key")
 
@@ -134,6 +132,7 @@ function sendTx() {
     fi
 
     echo "Transaction successful (transaction hash: $tx_hash)"
+
     return 0
 }
 
