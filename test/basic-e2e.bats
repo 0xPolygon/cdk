@@ -20,20 +20,20 @@ setup() {
 
 @test "Deploy ERC20Mock contract" {
     local private_key="12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"
-    local contract_artifact="./test/contracts/erc20mock/ERC20Mock.json"
+    local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
 
     # Deploy ERC20Mock
     run deployContract $private_key $contract_artifact
     assert_success
-    contract_addr="$output"
+    contract_addr=$(echo "$output" | tail -n 1)
     echo "Contract addr: $contract_addr"
 
     # Mint ERC20 tokens
-    local receiver="0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"
     local mintFnSig="function mint(address to, uint256 amount)"
+    local receiver="0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"
     local amount="5"
 
-    run sendTx $private_key $contract_addr $mintFnSig $receiver $amount
+    run sendTx "$private_key" "$contract_addr" "$mintFnSig" "$receiver" "$amount"
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
@@ -41,7 +41,7 @@ setup() {
     local balanceOfFnSig="function balanceOf(address) (uint256)"
     run queryContract $contract_addr $balanceOfFnSig $receiver
     assert_success
-    receiverBalance="$output"
+    receiverBalance=$(echo "$output" | tail -n 1)
 
     # Convert balance and amount to a standard format for comparison (e.g., remove any leading/trailing whitespace)
     receiverBalance=$(echo "$receiverBalance" | xargs)

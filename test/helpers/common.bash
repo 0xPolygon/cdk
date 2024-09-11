@@ -68,45 +68,56 @@ function deployContract() {
 function sendTx() {
     # Check if at least 3 arguments are provided
     if [[ $# -lt 3 ]]; then
-        echo "Usage: sendTx <private_key> <receiver> <value_or_function_signature>] [<param1> <param2> ...]"
+        echo "Usage: sendTx <private_key> <receiver> <value_or_function_signature> [<param1> <param2> ...]"
         return 1
     fi
 
-    # Assign variables from function arguments
-    local private_key="$1" # Sender private key
-    local receiver="$2"    # Receiver address
+    local private_key="$1"           # Sender private key
+    local receiver="$2"              # Receiver address
+    local value_or_function_sig="$3" # Value or function signature
+
     # Error handling: Ensure the receiver is a valid Ethereum address
     if [[ ! "$receiver" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
         echo "Error: Invalid receiver address '$receiver'."
         return 1
     fi
 
-    shift 2 # Shift the first 2 arguments (private_key, receiver)
+    shift 3 # Shift the first 3 arguments (private_key, receiver, value_or_function_sig)
 
-    local first_remaining_arg="$1"
-    shift # Shift the first remaining argument (value or function signature)
-
-    local senderAddr=$(cast wallet address "$private_key")
+    local senderAddr
+    senderAddr=$(cast wallet address "$private_key")
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to extract the sender address for $private_key"
+        return 1
+    fi
 
     # Check if the first remaining argument is a numeric value (Ether to be transferred)
-    if [[ "$first_remaining_arg" =~ ^[0-9]+(ether)?$ ]]; then
+    if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
         # Case: EOA transaction (Ether transfer)
-        echo "Sending EOA transaction (RPC URL: $rpc_url, sender: $senderAddr) to: $receiver with value: $first_remaining_arg"
+        echo "Sending EOA transaction (RPC URL: $rpc_url, sender: $senderAddr) to: $receiver with value: $value_or_function_sig"
         cast_output=$(cast send --rpc-url "$rpc_url" \
             --private-key "$private_key" \
-            "$receiver" --value "$first_remaining_arg" \
+            "$receiver" --value "$value_or_function_sig" \
             --legacy \
             2>&1)
     else
         # Case: Smart contract transaction (contract interaction with function signature and parameters)
-        local functionSignature="$first_remaining_arg"
         local params=("$@") # Collect all remaining arguments as function parameters
-        echo "Sending smart contract transaction (RPC URL: $rpc_url, sender: $senderAddr) to $receiver with function signature: $functionSignature and params: ${params[*]}"
 
-        # Prepare the function signature with parameters for cast send
+        echo "$value_or_function_sig"
+
+        # Verify if the function signature starts with "function"
+        if [[ ! "$value_or_function_sig" =~ ^function\ .+\(.+\)$ ]]; then
+            echo "Error: Invalid function signature format '$value_or_function_sig'."
+            return 1
+        fi
+
+        echo "Sending smart contract transaction (RPC URL: $rpc_url, sender: $senderAddr) to $receiver with function signature: $value_or_function_sig and params: ${params[*]}"
+
+        # Send the smart contract interaction using cast
         cast_output=$(cast send --rpc-url "$rpc_url" \
             --private-key "$private_key" \
-            "$receiver" "$functionSignature" "${params[@]}" \
+            "$receiver" "$value_or_function_sig" "${params[@]}" \
             --legacy \
             2>&1)
     fi
@@ -123,7 +134,8 @@ function sendTx() {
     fi
 
     # Extract the transaction hash from the output
-    local tx_hash=$(echo "$cast_output" | grep 'transactionHash' | sed 's/transactionHash\s\+//')
+    local tx_hash
+    tx_hash=$(echo "$cast_output" | grep 'transactionHash' | sed 's/transactionHash\s\+//')
     echo "Tx hash: $tx_hash"
 
     if [[ -z "$tx_hash" ]]; then
