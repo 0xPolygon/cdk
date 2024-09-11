@@ -20,6 +20,14 @@ func NewEthTxManMock(
 	client *simulated.Backend,
 	auth *bind.TransactOpts,
 ) *EthTxManagerMock {
+	t.Helper()
+
+	const (
+		ArgToIndex   = 1
+		ArgDataIndex = 4
+		ZeroValue    = 0
+	)
+
 	ethTxMock := NewEthTxManagerMock(t)
 	ethTxMock.On("Add", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
@@ -31,17 +39,17 @@ func NewEthTxManMock(
 			}
 			gas, err := client.Client().EstimateGas(ctx, ethereum.CallMsg{
 				From:  auth.From,
-				To:    args.Get(1).(*common.Address),
-				Value: big.NewInt(0),
-				Data:  args.Get(4).([]byte),
+				To:    args.Get(ArgToIndex).(*common.Address),
+				Value: big.NewInt(ZeroValue),
+				Data:  args.Get(ArgDataIndex).([]byte),
 			})
 			if err != nil {
 				log.Error(err)
 				res, err := client.Client().CallContract(ctx, ethereum.CallMsg{
 					From:  auth.From,
-					To:    args.Get(1).(*common.Address),
-					Value: big.NewInt(0),
-					Data:  args.Get(4).([]byte),
+					To:    args.Get(ArgToIndex).(*common.Address),
+					Value: big.NewInt(ZeroValue),
+					Data:  args.Get(ArgDataIndex).([]byte),
 				}, nil)
 				log.Debugf("contract call: %s", res)
 				if err != nil {
@@ -53,11 +61,22 @@ func NewEthTxManMock(
 			if err != nil {
 				log.Error(err)
 			}
+
+			to, ok := args.Get(ArgToIndex).(*common.Address)
+			if !ok {
+				log.Error("expected *common.Address for ArgToIndex")
+				return
+			}
+			data, ok := args.Get(ArgDataIndex).([]byte)
+			if !ok {
+				log.Error("expected []byte for ArgDataIndex")
+				return
+			}
 			tx := types.NewTx(&types.LegacyTx{
-				To:       args.Get(1).(*common.Address),
+				To:       to,
 				Nonce:    nonce,
-				Value:    big.NewInt(0),
-				Data:     args.Get(4).([]byte),
+				Value:    big.NewInt(ZeroValue),
+				Data:     data,
 				Gas:      gas,
 				GasPrice: price,
 			})

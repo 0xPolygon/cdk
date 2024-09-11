@@ -34,9 +34,11 @@ func (c *Client) L1InfoTreeIndexForBridge(networkID uint32, depositCount uint32)
 }
 
 // InjectedInfoAfterIndex return the first GER injected onto the network that is linked
-// to the given index or greater. This call is usefull to understand when a bridge is ready to be claimed
+// to the given index or greater. This call is useful to understand when a bridge is ready to be claimed
 // on its destination network
-func (c *Client) InjectedInfoAfterIndex(networkID uint32, l1InfoTreeIndex uint32) (*l1infotreesync.L1InfoTreeLeaf, error) {
+func (c *Client) InjectedInfoAfterIndex(
+	networkID uint32, l1InfoTreeIndex uint32,
+) (*l1infotreesync.L1InfoTreeLeaf, error) {
 	response, err := rpc.JSONRPCCall(c.url, "bridge_injectedInfoAfterIndex", networkID, l1InfoTreeIndex)
 	if err != nil {
 		return nil, err

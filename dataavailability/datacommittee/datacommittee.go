@@ -63,6 +63,7 @@ func New(
 	ethClient, err := ethclient.Dial(l1RPCURL)
 	if err != nil {
 		log.Errorf("error connecting to %s: %+v", l1RPCURL, err)
+
 		return nil, err
 	}
 
@@ -94,13 +95,14 @@ func (d *Backend) Init() error {
 		}
 	}
 	d.selectedCommitteeMember = selectedCommitteeMember
+
 	return nil
 }
 
 // GetSequence gets backend data one hash at a time. This should be optimized on the DAC side to get them all at once.
 func (d *Backend) GetSequence(_ context.Context, hashes []common.Hash, _ []byte) ([][]byte, error) {
 	// TODO: optimize this on the DAC side by implementing a multi batch retrieve api)
-	var batchData [][]byte
+	batchData := make([][]byte, 0, len(hashes))
 	for _, h := range hashes {
 		data, err := d.GetBatchL2Data(h)
 		if err != nil {
@@ -108,6 +110,7 @@ func (d *Backend) GetSequence(_ context.Context, hashes []common.Hash, _ []byte)
 		}
 		batchData = append(batchData, data)
 	}
+
 	return batchData, nil
 }
 
@@ -129,6 +132,7 @@ func (d *Backend) GetBatchL2Data(hash common.Hash) ([]byte, error) {
 			if d.selectedCommitteeMember == intialMember {
 				break
 			}
+
 			continue
 		}
 		actualTransactionsHash := crypto.Keccak256Hash(data)
@@ -144,13 +148,16 @@ func (d *Backend) GetBatchL2Data(hash common.Hash) ([]byte, error) {
 			if d.selectedCommitteeMember == intialMember {
 				break
 			}
+
 			continue
 		}
+
 		return data, nil
 	}
 	if err := d.Init(); err != nil {
-		return nil, fmt.Errorf("error loading data committee: %s", err)
+		return nil, fmt.Errorf("error loading data committee: %w", err)
 	}
+
 	return nil, fmt.Errorf("couldn't get the data from any committee member")
 }
 
@@ -160,6 +167,7 @@ type signatureMsg struct {
 	err       error
 }
 
+// PostSequenceElderberry submits batches and collects signatures from committee members.
 func (d *Backend) PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error) {
 	// Get current committee
 	committee, err := d.getCurrentDataCommittee()
@@ -188,9 +196,11 @@ func (d *Backend) PostSequenceElderberry(ctx context.Context, batchesData [][]by
 		go requestSignatureFromMember(signatureCtx, &signedSequenceElderberry,
 			func(c client.Client) ([]byte, error) { return c.SignSequence(ctx, signedSequenceElderberry) }, member, ch)
 	}
+
 	return collectSignatures(committee, ch, cancelSignatureCollection)
 }
 
+// PostSequenceBanana submits a sequence to the data committee and collects the signed response from them.
 func (d *Backend) PostSequenceBanana(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
 	// Get current committee
 	committee, err := d.getCurrentDataCommittee()
@@ -245,7 +255,9 @@ func (d *Backend) PostSequenceBanana(ctx context.Context, sequence etherman.Sequ
 	return collectSignatures(committee, ch, cancelSignatureCollection)
 }
 
-func collectSignatures(committee *DataCommittee, ch chan signatureMsg, cancelSignatureCollection context.CancelFunc) ([]byte, error) {
+func collectSignatures(
+	committee *DataCommittee, ch chan signatureMsg, cancelSignatureCollection context.CancelFunc,
+) ([]byte, error) {
 	// Collect signatures
 	// Stop requesting as soon as we have N valid signatures
 	var (
@@ -260,6 +272,7 @@ func collectSignatures(committee *DataCommittee, ch chan signatureMsg, cancelSig
 			failedToCollect++
 			if len(committee.Members)-int(failedToCollect) < int(committee.RequiredSignatures) {
 				cancelSignatureCollection()
+
 				return nil, errors.New("too many members failed to send their signature")
 			}
 		} else {
@@ -299,6 +312,7 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 			addr: member.Addr,
 			err:  err,
 		}
+
 		return
 	}
 	// verify returned signature
@@ -309,6 +323,7 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 			addr: member.Addr,
 			err:  err,
 		}
+
 		return
 	}
 	if signer != member.Addr {
@@ -316,6 +331,7 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 			addr: member.Addr,
 			err:  fmt.Errorf("invalid signer. Expected %s, actual %s", member.Addr.Hex(), signer.Hex()),
 		}
+
 		return
 	}
 	ch <- signatureMsg{
@@ -339,6 +355,7 @@ func buildSignaturesAndAddrs(sigs signatureMsgs, members []DataCommitteeMember) 
 		res = append(res, member.Addr.Bytes()...)
 	}
 	log.Debugf("full res %s", common.Bytes2Hex(res))
+
 	return res
 }
 
@@ -394,5 +411,6 @@ func (d *Backend) getCurrentDataCommitteeMembers() ([]DataCommitteeMember, error
 			URL:  member.Url,
 		})
 	}
+
 	return members, nil
 }

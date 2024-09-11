@@ -103,6 +103,7 @@ func (l *storeLeaf) Hash() ethCommon.Hash {
 	t := make([]byte, 8) //nolint:gomnd
 	binary.BigEndian.PutUint64(t, l.Timestamp)
 	copy(res[:], keccak256.Hash(l.GlobalExitRoot().Bytes(), l.ParentHash.Bytes(), t))
+
 	return res
 }
 
@@ -120,6 +121,7 @@ func (l *storeLeaf) GlobalExitRoot() ethCommon.Hash {
 	hasher.Write(l.MainnetExitRoot[:])
 	hasher.Write(l.RollupExitRoot[:])
 	copy(gerBytes[:], hasher.Sum(nil))
+
 	return gerBytes
 }
 
@@ -132,6 +134,7 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 		}
 		tree.AddTables(cfg, dbPrefix+rollupExitTreeSuffix)
 		tree.AddTables(cfg, dbPrefix+l1InfoTreeSuffix)
+
 		return cfg
 	}
 	db, err := mdbx.NewMDBX(nil).
@@ -155,11 +158,14 @@ func newProcessor(ctx context.Context, dbPath string) (*processor, error) {
 		return nil, err
 	}
 	p.rollupExitTree = rollupExitTree
+
 	return p, nil
 }
 
 // GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
-func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([32]ethCommon.Hash, ethCommon.Hash, error) {
+func (p *processor) GetL1InfoTreeMerkleProof(
+	ctx context.Context, index uint32,
+) ([32]ethCommon.Hash, ethCommon.Hash, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
 		return tree.EmptyProof, ethCommon.Hash{}, err
@@ -215,6 +221,7 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	if err := json.Unmarshal(v, &blk); err != nil {
 		return nil, err
 	}
+
 	return p.getInfoByIndexWithTx(tx, blk.LastIndex-1)
 }
 
@@ -225,6 +232,7 @@ func (p *processor) GetInfoByIndex(ctx context.Context, index uint32) (*L1InfoTr
 		return nil, err
 	}
 	defer tx.Rollback()
+
 	return p.getInfoByIndexWithTx(tx, index)
 }
 
@@ -240,6 +248,7 @@ func (p *processor) getInfoByIndexWithTx(tx kv.Tx, index uint32) (*L1InfoTreeLea
 	if err := json.Unmarshal(infoBytes, &info); err != nil {
 		return nil, err
 	}
+
 	return &L1InfoTreeLeaf{
 		L1InfoTreeIndex:   info.Index,
 		PreviousBlockHash: info.ParentHash,
@@ -258,6 +267,7 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	defer tx.Rollback()
+
 	return p.getLastProcessedBlockWithTx(tx)
 }
 
@@ -268,6 +278,7 @@ func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
 	} else if blockNumBytes == nil {
 		return 0, nil
 	}
+
 	return common.BytesToUint64(blockNumBytes), nil
 }
 
@@ -290,11 +301,13 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	for blkKey, blkValue, err := c.Seek(firstKey); blkKey != nil; blkKey, blkValue, err = c.Next() {
 		if err != nil {
 			tx.Rollback()
+
 			return err
 		}
 		var blk blockWithLeafs
 		if err := json.Unmarshal(blkValue, &blk); err != nil {
 			tx.Rollback()
+
 			return err
 		}
 		for i := blk.FirstIndex; i < blk.LastIndex; i++ {
@@ -303,16 +316,19 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 			}
 			if err := p.deleteLeaf(tx, i); err != nil {
 				tx.Rollback()
+
 				return err
 			}
 		}
 		if err := tx.Delete(blockTable, blkKey); err != nil {
 			tx.Rollback()
+
 			return err
 		}
 	}
 	if err := p.updateLastProcessedBlock(tx, firstReorgedBlock-1); err != nil {
 		tx.Rollback()
+
 		return err
 	}
 	var rollbackL1InfoTree func()
@@ -321,13 +337,16 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		if err != nil {
 			tx.Rollback()
 			rollbackL1InfoTree()
+
 			return err
 		}
 	}
 	if err := tx.Commit(); err != nil {
 		rollbackL1InfoTree()
+
 		return err
 	}
+
 	return nil
 }
 
@@ -335,6 +354,7 @@ func (p *processor) deleteLeaf(tx kv.RwTx, index uint32) error {
 	if err := tx.Delete(infoTable, common.Uint32ToBytes(index)); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -345,7 +365,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	if err != nil {
 		return err
 	}
-	events := make([]Event, len(b.Events))
+	events := make([]Event, 0, len(b.Events))
 	rollupExitTreeRollback := func() {}
 	l1InfoTreeRollback := func() {}
 	rollback := func() {
@@ -359,16 +379,20 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		var initialL1InfoIndex uint32
 		var l1InfoLeavesAdded uint32
 		lastIndex, err := p.getLastIndex(tx)
-		if err == ErrNotFound {
+		if errors.Is(err, ErrNotFound) {
 			initialL1InfoIndex = 0
 		} else if err != nil {
 			rollback()
+
 			return err
 		} else {
 			initialL1InfoIndex = lastIndex + 1
 		}
 		for _, e := range b.Events {
-			event := e.(Event)
+			event, ok := e.(Event)
+			if !ok {
+				log.Errorf("unexpected type %T in events", e)
+			}
 			events = append(events, event)
 			if event.UpdateL1InfoTree != nil {
 				index := initialL1InfoIndex + l1InfoLeavesAdded
@@ -382,6 +406,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 				}
 				if err := p.storeLeafInfo(tx, leafToStore); err != nil {
 					rollback()
+
 					return err
 				}
 				l1InfoTreeLeavesToAdd = append(l1InfoTreeLeavesToAdd, tree.Leaf{
@@ -412,15 +437,18 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 			blockValue, err := json.Marshal(bwl)
 			if err != nil {
 				rollback()
+
 				return err
 			}
 			if err := tx.Put(blockTable, common.Uint64ToBytes(b.Num), blockValue); err != nil {
 				rollback()
+
 				return err
 			}
 			l1InfoTreeRollback, err = p.l1InfoTree.AddLeaves(tx, l1InfoTreeLeavesToAdd)
 			if err != nil {
 				rollback()
+
 				return err
 			}
 		}
@@ -429,20 +457,24 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 			rollupExitTreeRollback, err = p.rollupExitTree.UpseartLeaves(tx, rollupExitTreeLeavesToAdd, b.Num)
 			if err != nil {
 				rollback()
+
 				return err
 			}
 		}
 	}
 	if err := p.updateLastProcessedBlock(tx, b.Num); err != nil {
 		rollback()
+
 		return err
 	}
 
 	if err := tx.Commit(); err != nil {
 		rollback()
+
 		return err
 	}
 	log.Infof("block %d processed with events: %+v", b.Num, events)
+
 	return nil
 }
 
@@ -469,6 +501,7 @@ func (p *processor) getLastIndex(tx kv.Tx) (uint32, error) {
 	if err := json.Unmarshal(blkBytes, &blk); err != nil {
 		return 0, err
 	}
+
 	return blk.LastIndex - 1, nil
 }
 
@@ -477,10 +510,12 @@ func (p *processor) storeLeafInfo(tx kv.RwTx, leaf storeLeaf) error {
 	if err != nil {
 		return err
 	}
+
 	return tx.Put(infoTable, common.Uint32ToBytes(leaf.Index), leafValue)
 }
 
 func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {
 	blockNumBytes := common.Uint64ToBytes(blockNum)
+
 	return tx.Put(lastBlockTable, lastBlockKey, blockNumBytes)
 }

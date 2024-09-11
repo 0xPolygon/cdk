@@ -25,9 +25,18 @@ type EthClienter interface {
 
 type EthTxManager interface {
 	Remove(ctx context.Context, id common.Hash) error
-	ResultsByStatus(ctx context.Context, statuses []ethtxmanager.MonitoredTxStatus) ([]ethtxmanager.MonitoredTxResult, error)
+	ResultsByStatus(ctx context.Context,
+		statuses []ethtxmanager.MonitoredTxStatus,
+	) ([]ethtxmanager.MonitoredTxResult, error)
 	Result(ctx context.Context, id common.Hash) (ethtxmanager.MonitoredTxResult, error)
-	Add(ctx context.Context, to *common.Address, forcedNonce *uint64, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar) (common.Hash, error)
+	Add(ctx context.Context,
+		to *common.Address,
+		forcedNonce *uint64,
+		value *big.Int,
+		data []byte,
+		gasOffset uint64,
+		sidecar *types.BlobTxSidecar,
+	) (common.Hash, error)
 }
 
 type EVMChainGERSender struct {
@@ -61,6 +70,7 @@ func NewEVMChainGERSender(
 	if err != nil {
 		return nil, err
 	}
+
 	return &EVMChainGERSender{
 		gerContract:         gerContract,
 		gerAddr:             l2GlobalExitRoot,
@@ -77,6 +87,7 @@ func (c *EVMChainGERSender) IsGERAlreadyInjected(ger common.Hash) (bool, error) 
 	if err != nil {
 		return false, fmt.Errorf("error calling gerContract.GlobalExitRootMap: %w", err)
 	}
+
 	return timestamp.Cmp(big.NewInt(0)) != 0, nil
 }
 

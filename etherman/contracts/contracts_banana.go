@@ -30,17 +30,23 @@ type ContractsBanana struct {
 }
 
 func NewContractsBanana(cfg config.L1Config, backend bind.ContractBackend) (*ContractsBanana, error) {
-
-	ger, err := NewContractMagic[GlobalExitRootBananaType](polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2, cfg.GlobalExitRootManagerAddr, backend, ContractNameGlobalExitRoot, VersionBanana)
+	ger, err := NewContractMagic[GlobalExitRootBananaType](
+		polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2,
+		cfg.GlobalExitRootManagerAddr,
+		backend, ContractNameGlobalExitRoot, VersionBanana)
 	if err != nil {
 		return nil, err
 	}
-	rollup, err := NewContractMagic[RollupBananaType](polygonvalidiumetrog.NewPolygonvalidiumetrog, cfg.ZkEVMAddr, backend, ContractNameRollup, VersionBanana)
+	rollup, err := NewContractMagic[RollupBananaType](
+		polygonvalidiumetrog.NewPolygonvalidiumetrog, cfg.ZkEVMAddr,
+		backend, ContractNameRollup, VersionBanana)
 	if err != nil {
 		return nil, err
 	}
 
-	rollupManager, err := NewContractMagic[RollupManagerBananaType](polygonrollupmanager.NewPolygonrollupmanager, cfg.RollupManagerAddr, backend, ContractNameRollupManager, VersionBanana)
+	rollupManager, err := NewContractMagic[RollupManagerBananaType](
+		polygonrollupmanager.NewPolygonrollupmanager, cfg.RollupManagerAddr,
+		backend, ContractNameRollupManager, VersionBanana)
 	if err != nil {
 		return nil, err
 	}
@@ -53,6 +59,6 @@ func NewContractsBanana(cfg config.L1Config, backend bind.ContractBackend) (*Con
 }
 
 func (c *ContractsBanana) String() string {
-	return "RollupManager: " + c.RollupManager.String() + "\nGlobalExitRoot: " + c.GlobalExitRoot.String() + "\nRollup: " + c.Rollup.String()
-
+	return "RollupManager: " + c.RollupManager.String() + "\nGlobalExitRoot: " +
+		c.GlobalExitRoot.String() + "\nRollup: " + c.Rollup.String()
 }

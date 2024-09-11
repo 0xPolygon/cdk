@@ -23,6 +23,7 @@ const (
 )
 
 var (
+	// ErrBlockNotProcessed indicates that the given block(s) have not been processed yet.
 	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
 	ErrNotFound          = errors.New("not found")
 	lastBlockKey         = []byte("lb")
@@ -56,6 +57,7 @@ func (b *Bridge) Hash() common.Hash {
 	if b.Amount == nil {
 		b.Amount = big.NewInt(0)
 	}
+
 	return common.BytesToHash(keccak256.Hash(
 		[]byte{b.LeafType},
 		origNet,
@@ -110,6 +112,7 @@ func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, err
 			lastBlockTable: {},
 		}
 		tree.AddTables(cfg, dbPrefix)
+
 		return cfg
 	}
 	db, err := mdbx.NewMDBX(nil).
@@ -123,6 +126,7 @@ func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, err
 	if err != nil {
 		return nil, err
 	}
+
 	return &processor{
 		db:             db,
 		eventsTable:    eventsTable,
@@ -143,11 +147,13 @@ func (p *processor) GetClaimsAndBridges(
 	if err != nil {
 		return nil, err
 	}
+
 	defer tx.Rollback()
 	lpb, err := p.getLastProcessedBlockWithTx(tx)
 	if err != nil {
 		return nil, err
 	}
+
 	if lpb < toBlock {
 		return nil, ErrBlockNotProcessed
 	}
@@ -161,6 +167,7 @@ func (p *processor) GetClaimsAndBridges(
 		if err != nil {
 			return nil, err
 		}
+
 		if dbCommon.BytesToUint64(k) > toBlock {
 			break
 		}
@@ -182,7 +189,9 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	defer tx.Rollback()
+
 	return p.getLastProcessedBlockWithTx(tx)
 }
 
@@ -214,21 +223,26 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	for k, v, err := c.Seek(firstKey); k != nil; k, _, err = c.Next() {
 		if err != nil {
 			tx.Rollback()
+
 			return err
 		}
 		if err := tx.Delete(p.eventsTable, k); err != nil {
 			tx.Rollback()
+
 			return err
 		}
 		if firstDepositCountReorged == -1 {
 			events := []Event{}
 			if err := json.Unmarshal(v, &events); err != nil {
 				tx.Rollback()
+
 				return err
 			}
+
 			for _, event := range events {
 				if event.Bridge != nil {
 					firstDepositCountReorged = int64(event.Bridge.DepositCount)
+
 					break
 				}
 			}
@@ -236,6 +250,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	}
 	if err := p.updateLastProcessedBlock(tx, firstReorgedBlock-1); err != nil {
 		tx.Rollback()
+
 		return err
 	}
 	exitTreeRollback := func() {}
@@ -243,13 +258,16 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		if exitTreeRollback, err = p.exitTree.Reorg(tx, uint32(firstDepositCountReorged)); err != nil {
 			tx.Rollback()
 			exitTreeRollback()
+
 			return err
 		}
 	}
 	if err := tx.Commit(); err != nil {
 		exitTreeRollback()
+
 		return err
 	}
+
 	return nil
 }
 
@@ -263,29 +281,36 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	leaves := []tree.Leaf{}
 	if len(block.Events) > 0 {
 		events := []Event{}
+
 		for _, e := range block.Events {
-			event := e.(Event)
-			events = append(events, event)
-			if event.Bridge != nil {
-				leaves = append(leaves, tree.Leaf{
-					Index: event.Bridge.DepositCount,
-					Hash:  event.Bridge.Hash(),
-				})
+			if event, ok := e.(Event); ok {
+				events = append(events, event)
+				if event.Bridge != nil {
+					leaves = append(leaves, tree.Leaf{
+						Index: event.Bridge.DepositCount,
+						Hash:  event.Bridge.Hash(),
+					})
+				}
+			} else {
+				p.log.Errorf("unexpected type %T; expected Event", e)
 			}
 		}
 		value, err := json.Marshal(events)
 		if err != nil {
 			tx.Rollback()
+
 			return err
 		}
 		if err := tx.Put(p.eventsTable, dbCommon.Uint64ToBytes(block.Num), value); err != nil {
 			tx.Rollback()
+
 			return err
 		}
 	}
 
 	if err := p.updateLastProcessedBlock(tx, block.Num); err != nil {
 		tx.Rollback()
+
 		return err
 	}
 
@@ -293,21 +318,27 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if err != nil {
 		tx.Rollback()
 		exitTreeRollback()
+
 		return err
 	}
 	if err := tx.Commit(); err != nil {
 		exitTreeRollback()
+
 		return err
 	}
+
 	p.log.Debugf("processed %d events until block %d", len(block.Events), block.Num)
+
 	return nil
 }
 
 func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {
 	blockNumBytes := dbCommon.Uint64ToBytes(blockNum)
+
 	return tx.Put(p.lastBlockTable, lastBlockKey, blockNumBytes)
 }
 
+// GenerateGlobalIndex creates a global index based on network type, rollup index, and local exit root index.
 func GenerateGlobalIndex(mainnetFlag bool, rollupIndex uint32, localExitRootIndex uint32) *big.Int {
 	var (
 		globalIndexBytes []byte
@@ -323,5 +354,6 @@ func GenerateGlobalIndex(mainnetFlag bool, rollupIndex uint32, localExitRootInde
 	}
 	leri := big.NewInt(0).SetUint64(uint64(localExitRootIndex)).FillBytes(buf[:])
 	globalIndexBytes = append(globalIndexBytes, leri...)
+
 	return big.NewInt(0).SetBytes(globalIndexBytes)
 }

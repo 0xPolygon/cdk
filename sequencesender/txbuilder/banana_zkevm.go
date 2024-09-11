@@ -21,7 +21,14 @@ type TxBuilderBananaZKEVM struct {
 
 type rollupBananaZKEVMContractor interface {
 	rollupBananaBaseContractor
-	SequenceBatches(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, indexL1InfoRoot uint32, maxSequenceTimestamp uint64, expectedFinalAccInputHash [32]byte, l2Coinbase common.Address) (*types.Transaction, error)
+	SequenceBatches(
+		opts *bind.TransactOpts,
+		batches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData,
+		indexL1InfoRoot uint32,
+		maxSequenceTimestamp uint64,
+		expectedFinalAccInputHash [32]byte,
+		l2Coinbase common.Address,
+	) (*types.Transaction, error)
 }
 
 type globalExitRootBananaZKEVMContractor interface {
@@ -44,7 +51,9 @@ func NewTxBuilderBananaZKEVM(
 	}
 }
 
-func (t *TxBuilderBananaZKEVM) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
+func (t *TxBuilderBananaZKEVM) NewSequenceIfWorthToSend(
+	ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64,
+) (seqsendertypes.Sequence, error) {
 	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, l2Coinbase)
 }
 
@@ -55,7 +64,9 @@ func (t *TxBuilderBananaZKEVM) SetCondNewSeq(cond CondNewSequence) CondNewSequen
 	return previous
 }
 
-func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
+func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(
+	ctx context.Context, sequences seqsendertypes.Sequence,
+) (*types.Transaction, error) {
 	var err error
 	ethseq, err := convertToSequenceBanana(sequences)
 	if err != nil {
@@ -78,7 +89,9 @@ func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, seque
 	return tx, nil
 }
 
-func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, sequence etherman.SequenceBanana) (*types.Transaction, error) {
+func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(
+	opts bind.TransactOpts, sequence etherman.SequenceBanana,
+) (*types.Transaction, error) {
 	batches := make([]polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, len(sequence.Batches))
 	for i, batch := range sequence.Batches {
 		var ger common.Hash
@@ -94,7 +107,9 @@ func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, seq
 		}
 	}
 
-	tx, err := t.rollupContract.SequenceBatches(&opts, batches, sequence.CounterL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase)
+	tx, err := t.rollupContract.SequenceBatches(
+		&opts, batches, sequence.CounterL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase,
+	)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", sequence.L2Coinbase)

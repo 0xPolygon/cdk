@@ -17,6 +17,8 @@ This test ara auxiliars function based on the common behaviour of the interfaces
 */
 
 func testSequenceIfWorthToSendNoNewSeq(t *testing.T, sut txbuilder.TxBuilder) {
+	t.Helper()
+
 	cond := mocks_txbuilder.NewCondNewSequence(t)
 	sut.SetCondNewSeq(cond)
 	cond.EXPECT().NewSequenceIfWorthToSend(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
@@ -26,6 +28,8 @@ func testSequenceIfWorthToSendNoNewSeq(t *testing.T, sut txbuilder.TxBuilder) {
 }
 
 func testSequenceIfWorthToSendErr(t *testing.T, sut txbuilder.TxBuilder) {
+	t.Helper()
+
 	cond := mocks_txbuilder.NewCondNewSequence(t)
 	sut.SetCondNewSeq(cond)
 	returnErr := fmt.Errorf("test-error")
@@ -36,6 +40,8 @@ func testSequenceIfWorthToSendErr(t *testing.T, sut txbuilder.TxBuilder) {
 }
 
 func testSetCondNewSeq(t *testing.T, sut txbuilder.TxBuilder) {
+	t.Helper()
+
 	cond := mocks_txbuilder.NewCondNewSequence(t)
 	sut.SetCondNewSeq(cond)
 	cond2 := mocks_txbuilder.NewCondNewSequence(t)
