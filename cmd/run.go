@@ -62,8 +62,20 @@ func start(cliCtx *cli.Context) error {
 	components := cliCtx.StringSlice(config.FlagComponents)
 	l1Client := runL1ClientIfNeeded(components, c.Etherman.URL)
 	l2Client := runL2ClientIfNeeded(components, c.AggOracle.EVMSender.URLRPCL2)
-	reorgDetectorL1 := runReorgDetectorL1IfNeeded(cliCtx.Context, components, l1Client, &c.ReorgDetectorL1)
-	reorgDetectorL2 := runReorgDetectorL2IfNeeded(cliCtx.Context, components, l2Client, &c.ReorgDetectorL2)
+	reorgDetectorL1, errChanL1 := runReorgDetectorL1IfNeeded(cliCtx.Context, components, l1Client, &c.ReorgDetectorL1)
+	go func() {
+		if err := <-errChanL1; err != nil {
+			log.Fatal("Error from ReorgDetectorL1: ", err)
+		}
+	}()
+
+	reorgDetectorL2, errChanL2 := runReorgDetectorL2IfNeeded(cliCtx.Context, components, l2Client, &c.ReorgDetectorL2)
+	go func() {
+		if err := <-errChanL2; err != nil {
+			log.Fatal("Error from ReorgDetectorL2: ", err)
+		}
+	}()
+
 	l1InfoTreeSync := runL1InfoTreeSyncerIfNeeded(cliCtx.Context, components, *c, l1Client, reorgDetectorL1)
 	claimSponsor := runClaimSponsorIfNeeded(cliCtx.Context, components, l2Client, c.ClaimSponsor)
 	l1BridgeSync := runBridgeSyncL1IfNeeded(cliCtx.Context, components, c.BridgeL1Sync, reorgDetectorL1, l1Client)
@@ -514,9 +526,9 @@ func runReorgDetectorL1IfNeeded(
 	components []string,
 	l1Client *ethclient.Client,
 	cfg *reorgdetector.Config,
-) *reorgdetector.ReorgDetector {
+) (*reorgdetector.ReorgDetector, chan error) {
 	if !isNeeded([]string{SEQUENCE_SENDER, AGGREGATOR, AGGORACLE, RPC}, components) {
-		return nil
+		return nil, nil
 	}
 	rd := newReorgDetector(cfg, l1Client)
 
@@ -527,13 +539,8 @@ func runReorgDetectorL1IfNeeded(
 		}
 		close(errChan)
 	}()
-	go func() {
-		if err := <-errChan; err != nil {
-			log.Errorf("Failed to start ReorgDetector: %v", err)
-		}
-	}()
 
-	return rd
+	return rd, errChan
 }
 
 func runReorgDetectorL2IfNeeded(
@@ -541,9 +548,9 @@ func runReorgDetectorL2IfNeeded(
 	components []string,
 	l2Client *ethclient.Client,
 	cfg *reorgdetector.Config,
-) *reorgdetector.ReorgDetector {
+) (*reorgdetector.ReorgDetector, chan error) {
 	if !isNeeded([]string{AGGORACLE, RPC}, components) {
-		return nil
+		return nil, nil
 	}
 	rd := newReorgDetector(cfg, l2Client)
 
@@ -554,13 +561,8 @@ func runReorgDetectorL2IfNeeded(
 		}
 		close(errChan)
 	}()
-	go func() {
-		if err := <-errChan; err != nil {
-			log.Errorf("Failed to start ReorgDetector: %v", err)
-		}
-	}()
 
-	return rd
+	return rd, errChan
 }
 
 func runClaimSponsorIfNeeded(
