@@ -1045,28 +1045,6 @@ func (a *Aggregator) buildFinalProof(
 		finalProof.Public.NewLocalExitRoot = finalDBBatch.Batch.LocalExitRoot.Bytes()
 	}
 
-	// Sanity Check: state root from the proof must match the one from the final batch
-	if a.cfg.FinalProofSanityCheckEnabled {
-		finalDBBatch, err := a.state.GetBatch(ctx, proof.BatchNumberFinal, nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve batch with number [%d]", proof.BatchNumberFinal)
-		}
-
-		if common.BytesToHash(finalProof.Public.NewStateRoot).String() != finalDBBatch.Batch.StateRoot.String() {
-			for {
-				log.Errorf(
-					"State root from the final proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]",
-					proof.BatchNumberFinal,
-					common.BytesToHash(finalProof.Public.NewStateRoot).String(),
-					finalDBBatch.Batch.StateRoot.String(),
-				)
-				time.Sleep(a.cfg.RetryTime.Duration)
-			}
-		} else {
-			log.Infof("State root sanity check from the final proof for batch %d passed", proof.BatchNumberFinal)
-		}
-	}
-
 	return finalProof, nil
 }
 

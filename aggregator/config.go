@@ -82,9 +82,6 @@ type Config struct {
 	// BatchProofSanityCheckEnabled is a flag to enable the sanity check of the batch proof
 	BatchProofSanityCheckEnabled bool `mapstructure:"BatchProofSanityCheckEnabled"`
 
-	// FinalProofSanityCheckEnabled is a flag to enable the sanity check of the final proof
-	FinalProofSanityCheckEnabled bool `mapstructure:"FinalProofSanityCheckEnabled"`
-
 	// ChainID is the L2 ChainID provided by the Network Config
 	ChainID uint64
 
