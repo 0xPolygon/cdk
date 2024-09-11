@@ -16,7 +16,9 @@ import (
 )
 
 // BuildTrustedVerifyBatchesTxData builds a []bytes to be sent to the PoE SC method TrustedVerifyBatches.
-func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, beneficiary common.Address) (to *common.Address, data []byte, err error) {
+func (etherMan *Client) BuildTrustedVerifyBatchesTxData(
+	lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, beneficiary common.Address,
+) (to *common.Address, data []byte, err error) {
 	opts, err := etherMan.generateRandomAuth()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to build trusted verify batches, err: %w", err)
@@ -36,6 +38,7 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 	proof, err := convertProof(inputs.FinalProof.Proof)
 	if err != nil {
 		log.Errorf("error converting proof. Error: %v, Proof: %s", err, inputs.FinalProof.Proof)
+
 		return nil, nil, err
 	}
 
@@ -56,6 +59,7 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 		if parsedErr, ok := TryParseError(err); ok {
 			err = parsedErr
 		}
+
 		return nil, nil, err
 	}
 
@@ -63,16 +67,19 @@ func (etherMan *Client) BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVe
 }
 
 // GetBatchAccInputHash gets the batch accumulated input hash from the ethereum
-func (etherman *Client) GetBatchAccInputHash(ctx context.Context, batchNumber uint64) (common.Hash, error) {
-	rollupData, err := etherman.Contracts.Banana.RollupManager.GetRollupSequencedBatches(&bind.CallOpts{Pending: false}, etherman.RollupID, batchNumber)
+func (etherMan *Client) GetBatchAccInputHash(ctx context.Context, batchNumber uint64) (common.Hash, error) {
+	rollupData, err := etherMan.Contracts.Banana.RollupManager.GetRollupSequencedBatches(
+		&bind.CallOpts{Pending: false}, etherMan.RollupID, batchNumber,
+	)
 	if err != nil {
 		return common.Hash{}, err
 	}
+
 	return rollupData.AccInputHash, nil
 }
 
 // GetRollupId returns the rollup id
-func (etherMan *Client) GetRollupId() uint32 {
+func (etherMan *Client) GetRollupId() uint32 { //nolint:stylecheck
 	return etherMan.RollupID
 }
 
@@ -109,6 +116,7 @@ func convertProof(p string) ([24][32]byte, error) {
 		copy(aux[:], p)
 		proof[i] = aux
 	}
+
 	return proof, nil
 }
 
@@ -117,5 +125,6 @@ func DecodeBytes(val *string) ([]byte, error) {
 	if val == nil {
 		return []byte{}, nil
 	}
+
 	return hex.DecodeString(strings.TrimPrefix(*val, "0x"))
 }

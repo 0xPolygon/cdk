@@ -77,7 +77,7 @@ func (t *AppendOnlyTree) addLeaf(tx kv.RwTx, leaf Leaf) error {
 				right: t.zeroHashes[h],
 			}
 			// Update cache
-			// TODO: review this part of the logic, skipping ?optimizaton?
+			// TODO: review this part of the logic, skipping? optimisation?
 			// from OG implementation
 			t.lastLeftCache[h] = currentChildHash
 		}
@@ -86,7 +86,9 @@ func (t *AppendOnlyTree) addLeaf(tx kv.RwTx, leaf Leaf) error {
 	}
 
 	// store root
-	t.storeRoot(tx, uint64(leaf.Index), currentChildHash)
+	if err := t.storeRoot(tx, uint64(leaf.Index), currentChildHash); err != nil {
+		return fmt.Errorf("failed to store root: %w", err)
+	}
 	root := currentChildHash
 	if err := tx.Put(t.rootTable, dbCommon.Uint64ToBytes(uint64(leaf.Index)), root[:]); err != nil {
 		return err
@@ -168,7 +170,7 @@ func (t *AppendOnlyTree) initLastLeftCache(tx kv.Tx, lastIndex int64, lastRoot c
 		currentNode, err := t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
 			return fmt.Errorf(
-				"error getting node %s from the RHT at height %d with root %s: %v",
+				"error getting node %s from the RHT at height %d with root %s: %w",
 				currentNodeHash.Hex(), h, lastRoot.Hex(), err,
 			)
 		}

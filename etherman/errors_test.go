@@ -19,7 +19,7 @@ func TestTryParseWithExactMatch(t *testing.T) {
 
 func TestTryParseWithContains(t *testing.T) {
 	expected := ErrTimestampMustBeInsideRange
-	smartContractErr := fmt.Errorf(" execution reverted: ProofOfEfficiency::sequenceBatches: %s", expected)
+	smartContractErr := fmt.Errorf(" execution reverted: ProofOfEfficiency::sequenceBatches: %w", expected)
 
 	actualErr, ok := TryParseError(smartContractErr)
 

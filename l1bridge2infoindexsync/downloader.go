@@ -34,6 +34,7 @@ func (d *downloader) getLastFinalizedL1Block(ctx context.Context) (uint64, error
 	if err != nil {
 		return 0, err
 	}
+
 	return b.NumberU64(), nil
 }
 
@@ -50,6 +51,7 @@ func (d *downloader) getLastL1InfoIndexUntilBlock(ctx context.Context, blockNum 
 	if err != nil {
 		return 0, err
 	}
+
 	return info.L1InfoTreeIndex, nil
 }
 
@@ -58,6 +60,7 @@ func (d *downloader) getMainnetExitRootAtL1InfoTreeIndex(ctx context.Context, in
 	if err != nil {
 		return common.Hash{}, err
 	}
+
 	return leaf.MainnetExitRoot, nil
 }
 

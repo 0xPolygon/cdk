@@ -14,7 +14,7 @@ type ZKCounters struct {
 	UsedArithmetics      uint32
 	UsedBinaries         uint32
 	UsedSteps            uint32
-	UsedSha256Hashes_V2  uint32
+	UsedSha256Hashes_V2  uint32 //nolint:stylecheck
 }
 
 // BatchResources is a struct that contains the ZKEVM resources used by a batch/tx

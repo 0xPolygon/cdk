@@ -80,6 +80,7 @@ func New(
 	if err != nil {
 		return nil, err
 	}
+
 	return &L1InfoTreeSync{
 		processor: processor,
 		driver:    driver,
@@ -92,15 +93,20 @@ func (s *L1InfoTreeSync) Start(ctx context.Context) {
 }
 
 // GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
-func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) ([32]common.Hash, common.Hash, error) {
+func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProof(
+	ctx context.Context, index uint32,
+) ([32]common.Hash, common.Hash, error) {
 	return s.processor.GetL1InfoTreeMerkleProof(ctx, index)
 }
 
 // GetRollupExitTreeMerkleProof creates a merkle proof for the rollup exit tree
-func (s *L1InfoTreeSync) GetRollupExitTreeMerkleProof(ctx context.Context, networkID uint32, root common.Hash) ([32]common.Hash, error) {
+func (s *L1InfoTreeSync) GetRollupExitTreeMerkleProof(
+	ctx context.Context, networkID uint32, root common.Hash,
+) ([32]common.Hash, error) {
 	if networkID == 0 {
 		return tree.EmptyProof, nil
 	}
+
 	return s.processor.rollupExitTree.GetProof(ctx, networkID-1, root)
 }
 
@@ -141,9 +147,12 @@ func (s *L1InfoTreeSync) GetLastProcessedBlock(ctx context.Context) (uint64, err
 	return s.processor.GetLastProcessedBlock(ctx)
 }
 
-func (s *L1InfoTreeSync) GetLocalExitRoot(ctx context.Context, networkID uint32, rollupExitRoot common.Hash) (common.Hash, error) {
+func (s *L1InfoTreeSync) GetLocalExitRoot(
+	ctx context.Context, networkID uint32, rollupExitRoot common.Hash,
+) (common.Hash, error) {
 	if networkID == 0 {
 		return common.Hash{}, errors.New("network 0 is not a rollup, and it's not part of the rollup exit tree")
 	}
+
 	return s.processor.rollupExitTree.GetLeaf(ctx, networkID-1, rollupExitRoot)
 }

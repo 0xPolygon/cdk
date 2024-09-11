@@ -27,29 +27,34 @@ func NewL1InfoTree(height uint8, initialLeaves [][32]byte) (*L1InfoTree, error) 
 	mt.siblings, mt.currentRoot, err = mt.initSiblings(initialLeaves)
 	if err != nil {
 		log.Error("error initializing siblings. Error: ", err)
+
 		return nil, err
 	}
 	log.Debug("Initial count: ", mt.count)
 	log.Debug("Initial root: ", mt.currentRoot)
+
 	return mt, nil
 }
 
 // ResetL1InfoTree resets the L1InfoTree.
 func (mt *L1InfoTree) ResetL1InfoTree(initialLeaves [][32]byte) (*L1InfoTree, error) {
+	const defaultTreeHeight = 32
 	log.Info("Resetting L1InfoTree...")
 	newMT := &L1InfoTree{
-		zeroHashes: generateZeroHashes(32), // nolint:gomnd
-		height:     32,                     // nolint:gomnd
+		zeroHashes: generateZeroHashes(defaultTreeHeight),
+		height:     defaultTreeHeight,
 		count:      uint32(len(initialLeaves)),
 	}
 	var err error
 	newMT.siblings, newMT.currentRoot, err = newMT.initSiblings(initialLeaves)
 	if err != nil {
 		log.Error("error initializing siblings. Error: ", err)
+
 		return nil, err
 	}
 	log.Debug("Reset initial count: ", newMT.count)
 	log.Debug("Reset initial root: ", newMT.currentRoot)
+
 	return newMT, nil
 }
 
@@ -59,11 +64,12 @@ func buildIntermediate(leaves [][32]byte) ([][][]byte, [][32]byte) {
 		hashes [][32]byte
 	)
 	for i := 0; i < len(leaves); i += 2 {
-		var left, right int = i, i + 1
+		var left, right = i, i + 1
 		hash := Hash(leaves[left], leaves[right])
 		nodes = append(nodes, [][]byte{hash[:], leaves[left][:], leaves[right][:]})
 		hashes = append(hashes, hash)
 	}
+
 	return nodes, hashes
 }
 
@@ -117,7 +123,7 @@ func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint32, leaves [][32]byte) ([]
 			hashes [][32]byte
 		)
 		for i := 0; i < len(leaves); i += 2 {
-			var left, right int = i, i + 1
+			var left, right = i, i + 1
 			hash := Hash(leaves[left], leaves[right])
 			nsi = append(nsi, [][]byte{hash[:], leaves[left][:], leaves[right][:]})
 			hashes = append(hashes, hash)
@@ -165,6 +171,7 @@ func (mt *L1InfoTree) AddLeaf(index uint32, leaf [32]byte) (common.Hash, error) 
 	}
 	mt.currentRoot = cur
 	mt.count++
+
 	return cur, nil
 }
 
@@ -184,8 +191,10 @@ func (mt *L1InfoTree) initSiblings(initialLeaves [][32]byte) ([][32]byte, common
 		root, err := mt.BuildL1InfoRoot(initialLeaves)
 		if err != nil {
 			log.Error("error calculating initial root: ", err)
+
 			return nil, [32]byte{}, err
 		}
+
 		return siblings, root, nil
 	}
 

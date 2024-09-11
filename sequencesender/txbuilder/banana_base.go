@@ -58,7 +58,6 @@ func NewTxBuilderBananaBase(
 		blockFinality:          blockFinality,
 		opts:                   opts,
 	}
-
 }
 
 func (t *TxBuilderBananaBase) NewBatchFromL2Block(l2Block *datastream.L2Block) seqsendertypes.Batch {
@@ -72,11 +71,10 @@ func (t *TxBuilderBananaBase) NewBatchFromL2Block(l2Block *datastream.L2Block) s
 	return NewBananaBatch(batch)
 }
 
-func (t *TxBuilderBananaBase) NewSequence(ctx context.Context, batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
-	ethBatches, err := toEthermanBatches(batches)
-	if err != nil {
-		return nil, err
-	}
+func (t *TxBuilderBananaBase) NewSequence(
+	ctx context.Context, batches []seqsendertypes.Batch, coinbase common.Address,
+) (seqsendertypes.Sequence, error) {
+	ethBatches := toEthermanBatches(batches)
 	sequence := etherman.NewSequenceBanana(ethBatches, coinbase)
 	var greatestL1Index uint32
 	for _, b := range sequence.Batches {
@@ -86,11 +84,11 @@ func (t *TxBuilderBananaBase) NewSequence(ctx context.Context, batches []seqsend
 	}
 	header, err := t.ethClient.HeaderByNumber(ctx, t.blockFinality)
 	if err != nil {
-		return nil, fmt.Errorf("error calling HeaderByNumber, with block finality %d: %v", t.blockFinality.Int64(), err)
+		return nil, fmt.Errorf("error calling HeaderByNumber, with block finality %d: %w", t.blockFinality.Int64(), err)
 	}
 	info, err := t.l1InfoTree.GetLatestInfoUntilBlock(ctx, header.Number.Uint64())
 	if err != nil {
-		return nil, fmt.Errorf("error calling GetLatestInfoUntilBlock with block num %d: %v", header.Number.Uint64(), err)
+		return nil, fmt.Errorf("error calling GetLatestInfoUntilBlock with block num %d: %w", header.Number.Uint64(), err)
 	}
 	if info.L1InfoTreeIndex >= greatestL1Index {
 		sequence.CounterL1InfoRoot = info.L1InfoTreeIndex + 1
@@ -126,7 +124,9 @@ func (t *TxBuilderBananaBase) NewSequence(ctx context.Context, batches []seqsend
 			blockHash = batch.ForcedBlockHashL1
 		}
 
-		accInputHash = cdkcommon.CalculateAccInputHash(accInputHash, batch.L2Data, infoRootHash, timestamp, batch.LastCoinbase, blockHash)
+		accInputHash = cdkcommon.CalculateAccInputHash(
+			accInputHash, batch.L2Data, infoRootHash, timestamp, batch.LastCoinbase, blockHash,
+		)
 	}
 
 	sequence.OldAccInputHash = oldAccInputHash
@@ -156,17 +156,14 @@ func convertToSequenceBanana(sequences seqsendertypes.Sequence) (etherman.Sequen
 	}
 
 	for _, batch := range sequences.Batches() {
-		ethBatch, err := toEthermanBatch(batch)
-		if err != nil {
-			return etherman.SequenceBanana{}, err
-		}
+		ethBatch := toEthermanBatch(batch)
 		ethermanSequence.Batches = append(ethermanSequence.Batches, ethBatch)
 	}
 
 	return ethermanSequence, nil
 }
 
-func toEthermanBatch(batch seqsendertypes.Batch) (etherman.Batch, error) {
+func toEthermanBatch(batch seqsendertypes.Batch) etherman.Batch {
 	return etherman.Batch{
 		L2Data:               batch.L2Data(),
 		LastCoinbase:         batch.LastCoinbase(),
@@ -177,18 +174,14 @@ func toEthermanBatch(batch seqsendertypes.Batch) (etherman.Batch, error) {
 		L1InfoTreeIndex:      batch.L1InfoTreeIndex(),
 		LastL2BLockTimestamp: batch.LastL2BLockTimestamp(),
 		GlobalExitRoot:       batch.GlobalExitRoot(),
-	}, nil
+	}
 }
 
-func toEthermanBatches(batch []seqsendertypes.Batch) ([]etherman.Batch, error) {
+func toEthermanBatches(batch []seqsendertypes.Batch) []etherman.Batch {
 	result := make([]etherman.Batch, len(batch))
 	for i, b := range batch {
-		var err error
-		result[i], err = toEthermanBatch(b)
-		if err != nil {
-			return nil, err
-		}
+		result[i] = toEthermanBatch(b)
 	}
 
-	return result, nil
+	return result
 }

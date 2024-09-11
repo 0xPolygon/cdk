@@ -389,6 +389,8 @@ func buildAppender() LogAppenderMap {
 }
 
 func NewTestDownloader(t *testing.T) (*EVMDownloader, *L2Mock) {
+	t.Helper()
+
 	rh := &RetryHandler{
 		MaxRetryAttemptsAfterError: 5,
 		RetryAfterErrorPeriod:      time.Millisecond * 100,

@@ -22,13 +22,16 @@ import (
 )
 
 var (
-	bridgeEventSignature        = crypto.Keccak256Hash([]byte("BridgeEvent(uint8,uint32,address,uint32,address,uint256,bytes,uint32)"))
+	bridgeEventSignature = crypto.Keccak256Hash([]byte(
+		"BridgeEvent(uint8,uint32,address,uint32,address,uint256,bytes,uint32)",
+	))
 	claimEventSignature         = crypto.Keccak256Hash([]byte("ClaimEvent(uint256,uint32,address,address,uint256)"))
 	claimEventSignaturePreEtrog = crypto.Keccak256Hash([]byte("ClaimEvent(uint32,uint32,address,address,uint256)"))
 	methodIDClaimAsset          = common.Hex2Bytes("ccaa2d11")
 	methodIDClaimMessage        = common.Hex2Bytes("f5efcd79")
 )
 
+// EthClienter defines the methods required to interact with an Ethereum client.
 type EthClienter interface {
 	ethereum.LogFilterer
 	ethereum.BlockNumberReader
@@ -52,7 +55,7 @@ func buildAppender(client EthClienter, bridge common.Address, syncFullClaims boo
 		bridge, err := bridgeContractV2.ParseBridgeEvent(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using d.bridgeContractV2.ParseBridgeEvent: %v",
+				"error parsing log %+v using d.bridgeContractV2.ParseBridgeEvent: %w",
 				l, err,
 			)
 		}
@@ -66,6 +69,7 @@ func buildAppender(client EthClienter, bridge common.Address, syncFullClaims boo
 			Metadata:           bridge.Metadata,
 			DepositCount:       bridge.DepositCount,
 		}})
+
 		return nil
 	}
 
@@ -73,7 +77,7 @@ func buildAppender(client EthClienter, bridge common.Address, syncFullClaims boo
 		claimEvent, err := bridgeContractV2.ParseClaimEvent(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using d.bridgeContractV2.ParseClaimEvent: %v",
+				"error parsing log %+v using d.bridgeContractV2.ParseClaimEvent: %w",
 				l, err,
 			)
 		}
@@ -85,7 +89,9 @@ func buildAppender(client EthClienter, bridge common.Address, syncFullClaims boo
 			Amount:             claimEvent.Amount,
 		}
 		if syncFullClaims {
-			setClaimCalldata(client, bridge, l.TxHash, claim)
+			if err := setClaimCalldata(client, bridge, l.TxHash, claim); err != nil {
+				return err
+			}
 		}
 		b.Events = append(b.Events, Event{Claim: claim})
 		return nil
@@ -95,7 +101,7 @@ func buildAppender(client EthClienter, bridge common.Address, syncFullClaims boo
 		claimEvent, err := bridgeContractV1.ParseClaimEvent(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using d.bridgeContractV1.ParseClaimEvent: %v",
+				"error parsing log %+v using d.bridgeContractV1.ParseClaimEvent: %w",
 				l, err,
 			)
 		}
@@ -107,7 +113,9 @@ func buildAppender(client EthClienter, bridge common.Address, syncFullClaims boo
 			Amount:             claimEvent.Amount,
 		}
 		if syncFullClaims {
-			setClaimCalldata(client, bridge, l.TxHash, claim)
+			if err := setClaimCalldata(client, bridge, l.TxHash, claim); err != nil {
+				return err
+			}
 		}
 		b.Events = append(b.Events, Event{Claim: claim})
 		return nil
@@ -144,7 +152,13 @@ func setClaimCalldata(client EthClienter, bridge common.Address, txHash common.H
 		if callStack.Len() == 0 {
 			break
 		}
-		currentCall := callStack.Pop().(call)
+
+		currentCallInterface := callStack.Pop()
+		currentCall, ok := currentCallInterface.(call)
+		if !ok {
+			return fmt.Errorf("unexpected type for 'currentCall'. Expected 'call', got '%T'", currentCallInterface)
+		}
+
 		if currentCall.To == bridge {
 			found, err := setClaimIfFoundOnInput(
 				currentCall.Input,
@@ -169,9 +183,9 @@ func setClaimIfFoundOnInput(input []byte, claim *Claim) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	methodId := input[:4]
+	methodID := input[:4]
 	// Recover Method from signature and ABI
-	method, err := smcAbi.MethodById(methodId)
+	method, err := smcAbi.MethodById(methodID)
 	if err != nil {
 		return false, err
 	}
@@ -180,13 +194,13 @@ func setClaimIfFoundOnInput(input []byte, claim *Claim) (bool, error) {
 		return false, err
 	}
 	// Ignore other methods
-	if bytes.Equal(methodId, methodIDClaimAsset) || bytes.Equal(methodId, methodIDClaimMessage) {
+	if bytes.Equal(methodID, methodIDClaimAsset) || bytes.Equal(methodID, methodIDClaimMessage) {
 		found, err := decodeClaimCallDataAndSetIfFound(data, claim)
 		if err != nil {
 			return false, err
 		}
 		if found {
-			if bytes.Equal(methodId, methodIDClaimMessage) {
+			if bytes.Equal(methodID, methodIDClaimMessage) {
 				claim.IsMessage = true
 			}
 			return true, nil
@@ -228,25 +242,52 @@ func decodeClaimCallDataAndSetIfFound(data []interface{}, claim *Claim) (bool, e
 		10: metadata,
 	)
 	*/
-	actualGlobalIndex := data[2].(*big.Int)
+	actualGlobalIndex, ok := data[2].(*big.Int)
+	if !ok {
+		return false, fmt.Errorf("unexpected type for actualGlobalIndex, expected *big.Int got '%T'", data[2])
+	}
 	if actualGlobalIndex.Cmp(claim.GlobalIndex) != 0 {
 		// not the claim we're looking for
 		return false, nil
 	} else {
 		proofLER := [tree.DefaultHeight]common.Hash{}
-		proofLERBytes := data[0].([32][32]byte)
+		proofLERBytes, ok := data[0].([32][32]byte)
+		if !ok {
+			return false, fmt.Errorf("unexpected type for proofLERBytes, expected [32][32]byte got '%T'", data[0])
+		}
+
 		proofRER := [tree.DefaultHeight]common.Hash{}
-		proofRERBytes := data[1].([32][32]byte)
+		proofRERBytes, ok := data[1].([32][32]byte)
+		if !ok {
+			return false, fmt.Errorf("unexpected type for proofRERBytes, expected [32][32]byte got '%T'", data[1])
+		}
+
 		for i := 0; i < int(tree.DefaultHeight); i++ {
 			proofLER[i] = proofLERBytes[i]
 			proofRER[i] = proofRERBytes[i]
 		}
 		claim.ProofLocalExitRoot = proofLER
 		claim.ProofRollupExitRoot = proofRER
-		claim.MainnetExitRoot = data[3].([32]byte)
-		claim.RollupExitRoot = data[4].([32]byte)
-		claim.DestinationNetwork = data[7].(uint32)
-		claim.Metadata = data[10].([]byte)
+
+		claim.MainnetExitRoot, ok = data[3].([32]byte)
+		if !ok {
+			return false, fmt.Errorf("unexpected type for 'MainnetExitRoot'. Expected '[32]byte', got '%T'", data[3])
+		}
+
+		claim.RollupExitRoot, ok = data[4].([32]byte)
+		if !ok {
+			return false, fmt.Errorf("unexpected type for 'RollupExitRoot'. Expected '[32]byte', got '%T'", data[4])
+		}
+
+		claim.DestinationNetwork, ok = data[7].(uint32)
+		if !ok {
+			return false, fmt.Errorf("unexpected type for 'DestinationNetwork'. Expected 'uint32', got '%T'", data[7])
+		}
+		claim.Metadata, ok = data[10].([]byte)
+		if !ok {
+			return false, fmt.Errorf("unexpected type for 'claim Metadata'. Expected '[]byte', got '%T'", data[10])
+		}
+
 		return true, nil
 	}
 }

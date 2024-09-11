@@ -15,9 +15,14 @@ var (
 	//ErrInsufficientAllowance insufficient allowance
 	ErrInsufficientAllowance = errors.New("insufficient allowance")
 	// ErrBothGasPriceAndMaxFeeGasAreSpecified both gasPrice and (maxFeePerGas or maxPriorityFeePerGas) specified
-	ErrBothGasPriceAndMaxFeeGasAreSpecified = errors.New("both gasPrice and (maxFeePerGas or maxPriorityFeePerGas) specified")
-	// ErrMaxFeeGasAreSpecifiedButLondonNotActive maxFeePerGas or maxPriorityFeePerGas specified but london is not active yet
-	ErrMaxFeeGasAreSpecifiedButLondonNotActive = errors.New("maxFeePerGas or maxPriorityFeePerGas specified but london is not active yet")
+	ErrBothGasPriceAndMaxFeeGasAreSpecified = errors.New(
+		"both gasPrice and (maxFeePerGas or maxPriorityFeePerGas) specified",
+	)
+	// ErrMaxFeeGasAreSpecifiedButLondonNotActive maxFeePerGas or maxPriorityFeePerGas
+	// specified but london fork is not active yet
+	ErrMaxFeeGasAreSpecifiedButLondonNotActive = errors.New(
+		"maxFeePerGas or maxPriorityFeePerGas specified but london is not active yet",
+	)
 	// ErrNoSigner no signer to authorize the transaction with
 	ErrNoSigner = errors.New("no signer to authorize the transaction with")
 	// ErrMissingTrieNode means that a node is missing on the trie
@@ -48,5 +53,6 @@ func TryParseError(err error) (error, bool) {
 			}
 		}
 	}
+
 	return parsedError, exists
 }

@@ -36,11 +36,15 @@ var (
 	ErrDBTxNil = errors.New("the method requires a dbTx that is not nil")
 	// ErrExistingTxGreaterThanProcessedTx indicates that we have more txs stored
 	// in db than the txs we want to process.
-	ErrExistingTxGreaterThanProcessedTx = errors.New("there are more transactions in the database than in the processed transaction set")
+	ErrExistingTxGreaterThanProcessedTx = errors.New(
+		"there are more transactions in the database than in the processed transaction set",
+	)
 	// ErrOutOfOrderProcessedTx indicates the the processed transactions of an
 	// ongoing batch are not in the same order as the transactions stored in the
 	// database for the same batch.
-	ErrOutOfOrderProcessedTx = errors.New("the processed transactions are not in the same order as the stored transactions")
+	ErrOutOfOrderProcessedTx = errors.New(
+		"the processed transactions are not in the same order as the stored transactions",
+	)
 	// ErrInsufficientFundsForTransfer is returned if the transaction sender doesn't
 	// have enough funds for transfer(topmost call only).
 	ErrInsufficientFundsForTransfer = errors.New("insufficient funds for transfer")

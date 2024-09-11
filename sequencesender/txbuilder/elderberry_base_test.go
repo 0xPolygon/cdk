@@ -36,7 +36,6 @@ func TestElderberryBaseNewBatchFromL2Block(t *testing.T) {
 	require.Equal(t, l2Block.L1InfotreeIndex, batch.L1InfoTreeIndex())
 	require.Equal(t, common.BytesToAddress(l2Block.Coinbase), batch.LastCoinbase())
 	require.Equal(t, common.BytesToHash(l2Block.GlobalExitRoot), batch.GlobalExitRoot())
-
 }
 
 func TestElderberryBasegetLastSequencedBatchNumberEmpty(t *testing.T) {
@@ -92,6 +91,8 @@ func TestElderberryBaseGetLastSequencedBatchFirstBatchIsZeroThrowAPanic(t *testi
 }
 
 func newElderberryBaseSUT(t *testing.T) *TxBuilderElderberryBase {
+	t.Helper()
+
 	opts := bind.TransactOpts{}
 	sut := NewTxBuilderElderberryBase(opts)
 	require.NotNil(t, sut)
