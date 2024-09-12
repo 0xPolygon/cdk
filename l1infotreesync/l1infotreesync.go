@@ -99,7 +99,11 @@ func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProof(ctx context.Context, index uin
 }
 
 // GetRollupExitTreeMerkleProof creates a merkle proof for the rollup exit tree
-func (s *L1InfoTreeSync) GetRollupExitTreeMerkleProof(ctx context.Context, networkID uint32, root common.Hash) (types.Proof, error) {
+func (s *L1InfoTreeSync) GetRollupExitTreeMerkleProof(
+	ctx context.Context,
+	networkID uint32,
+	root common.Hash,
+) (types.Proof, error) {
 	if networkID == 0 {
 		return tree.EmptyProof, nil
 	}

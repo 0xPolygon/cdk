@@ -111,7 +111,9 @@ func newProcessor(dbPath string) (*processor, error) {
 }
 
 // GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
-func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) (treeTypes.Proof, treeTypes.Root, error) {
+func (p *processor) GetL1InfoTreeMerkleProof(
+	ctx context.Context, index uint32,
+) (treeTypes.Proof, treeTypes.Root, error) {
 	root, err := p.l1InfoTree.GetRootByIndex(ctx, index)
 	if err != nil {
 		return treeTypes.Proof{}, treeTypes.Root{}, err
@@ -243,7 +245,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	var initialL1InfoIndex uint32
 	var l1InfoLeavesAdded uint32
 	lastIndex, err := p.getLastIndex(tx)
-	if err == ErrNotFound {
+	if errors.Is(err, ErrNotFound) {
 		initialL1InfoIndex = 0
 		err = nil
 	} else if err != nil {
@@ -252,7 +254,10 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		initialL1InfoIndex = lastIndex + 1
 	}
 	for _, e := range b.Events {
-		event := e.(Event)
+		event, ok := e.(Event)
+		if !ok {
+			return errors.New("failed to convert from sync.Block.Event into Event")
+		}
 		if event.UpdateL1InfoTree != nil {
 			index := initialL1InfoIndex + l1InfoLeavesAdded
 			info := &L1InfoTreeLeaf{

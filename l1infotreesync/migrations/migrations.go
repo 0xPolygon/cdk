@@ -1,14 +1,13 @@
 package migrations
 
 import (
+	_ "embed"
 	"strings"
 
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	treeMigrations "github.com/0xPolygon/cdk/tree/migrations"
 	migrate "github.com/rubenv/sql-migrate"
-
-	_ "embed"
 )
 
 const (
