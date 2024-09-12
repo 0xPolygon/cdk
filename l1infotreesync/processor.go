@@ -90,6 +90,7 @@ func (l *L1InfoTreeLeaf) globalExitRoot() ethCommon.Hash {
 	hasher.Write(l.MainnetExitRoot[:])
 	hasher.Write(l.RollupExitRoot[:])
 	copy(gerBytes[:], hasher.Sum(nil))
+
 	return gerBytes
 }
 
@@ -212,6 +213,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+
 	return nil
 }
 

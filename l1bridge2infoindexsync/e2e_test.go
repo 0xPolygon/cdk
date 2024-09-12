@@ -38,7 +38,7 @@ func newSimulatedClient(authDeployer, authCaller *bind.TransactOpts) (
 	err error,
 ) {
 	ctx := context.Background()
-	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10) //nolint:gomnd
+	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10)
 	genesisAlloc := map[common.Address]types.Account{
 		authDeployer.From: {
 			Balance: balance,
@@ -47,27 +47,26 @@ func newSimulatedClient(authDeployer, authCaller *bind.TransactOpts) (
 			Balance: balance,
 		},
 	}
-	blockGasLimit := uint64(999999999999999999) //nolint:gomnd
+	blockGasLimit := uint64(999999999999999999)
 	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
 
 	bridgeImplementationAddr, _, _, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(authDeployer, client.Client())
 	if err != nil {
-		return
+		return nil, common.Address{}, common.Address{}, nil, nil, err
 	}
 	client.Commit()
 
 	nonce, err := client.Client().PendingNonceAt(ctx, authDeployer.From)
 	if err != nil {
-		return
+		return nil, common.Address{}, common.Address{}, nil, nil, err
 	}
 	precalculatedAddr := crypto.CreateAddress(authDeployer.From, nonce+1)
 	bridgeABI, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
 	if err != nil {
-		return
+		return nil, common.Address{}, common.Address{}, nil, nil, err
 	}
 	if bridgeABI == nil {
-		err = errors.New("GetABI returned nil")
-		return
+		return nil, common.Address{}, common.Address{}, nil, nil, errors.New("GetABI returned nil")
 	}
 	dataCallProxy, err := bridgeABI.Pack("initialize",
 		uint32(0),        // networkIDMainnet
@@ -78,7 +77,7 @@ func newSimulatedClient(authDeployer, authCaller *bind.TransactOpts) (
 		[]byte{}, // gasTokenMetadata
 	)
 	if err != nil {
-		return
+		return nil, common.Address{}, common.Address{}, nil, nil, err
 	}
 	bridgeAddr, _, _, err = transparentupgradableproxy.DeployTransparentupgradableproxy(
 		authDeployer,
@@ -88,16 +87,16 @@ func newSimulatedClient(authDeployer, authCaller *bind.TransactOpts) (
 		dataCallProxy,
 	)
 	if err != nil {
-		return
+		return nil, common.Address{}, common.Address{}, nil, nil, err
 	}
 	client.Commit()
 	bridgeContract, err = polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeAddr, client.Client())
 	if err != nil {
-		return
+		return nil, common.Address{}, common.Address{}, nil, nil, err
 	}
 	checkGERAddr, err := bridgeContract.GlobalExitRootManager(&bind.CallOpts{})
 	if err != nil {
-		return
+		return nil, common.Address{}, common.Address{}, nil, nil, err
 	}
 	if precalculatedAddr != checkGERAddr {
 		err = errors.New("error deploying bridge")
@@ -108,14 +107,15 @@ func newSimulatedClient(authDeployer, authCaller *bind.TransactOpts) (
 		authDeployer, client.Client(), authCaller.From, bridgeAddr,
 	)
 	if err != nil {
-		return
+		return nil, common.Address{}, common.Address{}, nil, nil, err
 	}
 	client.Commit()
 
 	if precalculatedAddr != gerAddr {
-		err = errors.New("error calculating addr")
+		return nil, common.Address{}, common.Address{}, nil, nil, errors.New("error calculating addr")
 	}
-	return
+
+	return client, gerAddr, bridgeAddr, gerContract, bridgeContract, nil
 }
 
 func TestE2E(t *testing.T) {
@@ -209,6 +209,7 @@ func TestE2E(t *testing.T) {
 			require.NoError(t, err)
 			if lpb == lb.NumberU64() {
 				syncerUpToDate = true
+
 				break
 			}
 			time.Sleep(time.Millisecond * 100)

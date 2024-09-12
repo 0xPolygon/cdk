@@ -15,11 +15,15 @@ import (
 )
 
 var (
-	updateL1InfoTreeSignatureV1             = crypto.Keccak256Hash([]byte("UpdateL1InfoTree(bytes32,bytes32)"))
-	updateL1InfoTreeSignatureV2             = crypto.Keccak256Hash([]byte("UpdateL1InfoTreeV2(bytes32,uint32,uint256,uint64)"))
-	verifyBatchesSignature                  = crypto.Keccak256Hash([]byte("VerifyBatches(uint32,uint64,bytes32,bytes32,address)"))
-	verifyBatchesTrustedAggregatorSignature = crypto.Keccak256Hash([]byte("VerifyBatchesTrustedAggregator(uint32,uint64,bytes32,bytes32,address)"))
-	initL1InfoRootMapSignature              = crypto.Keccak256Hash([]byte("InitL1InfoRootMap(uint32,bytes32)"))
+	updateL1InfoTreeSignatureV1 = crypto.Keccak256Hash([]byte("UpdateL1InfoTree(bytes32,bytes32)"))
+	updateL1InfoTreeSignatureV2 = crypto.Keccak256Hash([]byte("UpdateL1InfoTreeV2(bytes32,uint32,uint256,uint64)"))
+	verifyBatchesSignature      = crypto.Keccak256Hash(
+		[]byte("VerifyBatches(uint32,uint64,bytes32,bytes32,address)"),
+	)
+	verifyBatchesTrustedAggregatorSignature = crypto.Keccak256Hash(
+		[]byte("VerifyBatchesTrustedAggregator(uint32,uint64,bytes32,bytes32,address)"),
+	)
+	initL1InfoRootMapSignature = crypto.Keccak256Hash([]byte("InitL1InfoRootMap(uint32,bytes32)"))
 )
 
 type EthClienter interface {
@@ -43,7 +47,7 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 		init, err := ger.ParseInitL1InfoRootMap(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using ger.ParseInitL1InfoRootMap: %v",
+				"error parsing log %+v using ger.ParseInitL1InfoRootMap: %w",
 				l, err,
 			)
 		}
@@ -51,13 +55,14 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 			LeafCount:         init.LeafCount,
 			CurrentL1InfoRoot: init.CurrentL1InfoRoot,
 		}})
+
 		return nil
 	}
 	appender[updateL1InfoTreeSignatureV1] = func(b *sync.EVMBlock, l types.Log) error {
 		l1InfoTreeUpdate, err := ger.ParseUpdateL1InfoTree(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using ger.ParseUpdateL1InfoTree: %v",
+				"error parsing log %+v using ger.ParseUpdateL1InfoTree: %w",
 				l, err,
 			)
 		}
@@ -68,26 +73,28 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 			ParentHash:      b.ParentHash,
 			Timestamp:       b.Timestamp,
 		}})
+
 		return nil
 	}
 
 	// TODO: integrate this event to perform sanity checks
-	appender[updateL1InfoTreeSignatureV2] = func(b *sync.EVMBlock, l types.Log) error {
+	appender[updateL1InfoTreeSignatureV2] = func(b *sync.EVMBlock, l types.Log) error { //nolint:unparam
 		l1InfoTreeUpdate, err := ger.ParseUpdateL1InfoTreeV2(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using ger.ParseUpdateL1InfoTreeV2: %v",
+				"error parsing log %+v using ger.ParseUpdateL1InfoTreeV2: %w",
 				l, err,
 			)
 		}
 		log.Infof("updateL1InfoTreeSignatureV2: expected root: %s", common.Bytes2Hex(l1InfoTreeUpdate.CurrentL1InfoRoot[:]))
+
 		return nil
 	}
 	appender[verifyBatchesSignature] = func(b *sync.EVMBlock, l types.Log) error {
 		verifyBatches, err := rm.ParseVerifyBatches(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using rm.ParseVerifyBatches: %v",
+				"error parsing log %+v using rm.ParseVerifyBatches: %w",
 				l, err,
 			)
 		}
@@ -99,13 +106,14 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 			ExitRoot:      verifyBatches.ExitRoot,
 			Aggregator:    verifyBatches.Aggregator,
 		}})
+
 		return nil
 	}
 	appender[verifyBatchesTrustedAggregatorSignature] = func(b *sync.EVMBlock, l types.Log) error {
 		verifyBatches, err := rm.ParseVerifyBatchesTrustedAggregator(l)
 		if err != nil {
 			return fmt.Errorf(
-				"error parsing log %+v using rm.ParseVerifyBatches: %v",
+				"error parsing log %+v using rm.ParseVerifyBatches: %w",
 				l, err,
 			)
 		}
@@ -117,6 +125,7 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 			ExitRoot:      verifyBatches.ExitRoot,
 			Aggregator:    verifyBatches.Aggregator,
 		}})
+
 		return nil
 	}
 

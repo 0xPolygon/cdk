@@ -41,6 +41,7 @@ func (t *Tx) Sign(privateKey *ecdsa.PrivateKey) (*SignedTx, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &SignedTx{
 		Tx:        *t,
 		Signature: sig,
@@ -59,5 +60,6 @@ func (s *SignedTx) Signer() (common.Address, error) {
 	if err != nil {
 		return common.Address{}, err
 	}
+
 	return crypto.PubkeyToAddress(*pubKey), nil
 }

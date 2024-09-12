@@ -84,6 +84,7 @@ func newClaimSponsor(
 			claimTable: {},
 			queueTable: {},
 		}
+
 		return cfg
 	}
 	db, err := mdbx.NewMDBX(nil).
@@ -97,6 +98,7 @@ func newClaimSponsor(
 		MaxRetryAttemptsAfterError: maxRetryAttemptsAfterError,
 		RetryAfterErrorPeriod:      retryAfterErrorPeriod,
 	}
+
 	return &ClaimSponsor{
 		db:                    db,
 		sender:                sender,
@@ -120,19 +122,22 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 		if err2 != nil {
 			err = err2
 			log.Errorf("error calling BeginRw: %v", err)
+
 			continue
 		}
 		queueIndex, globalIndex, err2 := getFirstQueueIndex(tx)
 		if err2 != nil {
 			err = err2
 			tx.Rollback()
-			if err == ErrNotFound {
+			if errors.Is(err, ErrNotFound) {
 				log.Debugf("queue is empty")
 				err = nil
 				time.Sleep(c.waitOnEmptyQueue)
+
 				continue
 			}
 			log.Errorf("error calling getFirstQueueIndex: %v", err)
+
 			continue
 		}
 		claim, err2 := getClaim(tx, globalIndex)
@@ -140,6 +145,7 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 			err = err2
 			tx.Rollback()
 			log.Errorf("error calling getClaim with globalIndex %s: %v", globalIndex.String(), err)
+
 			continue
 		}
 		if claim.TxID == "" {
@@ -148,6 +154,7 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 				err = err2
 				tx.Rollback()
 				log.Errorf("error calling sendClaim with globalIndex %s: %v", globalIndex.String(), err)
+
 				continue
 			}
 			claim.TxID = txID
@@ -157,6 +164,7 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 				err = err2
 				tx.Rollback()
 				log.Errorf("error calling putClaim with globalIndex %s: %v", globalIndex.String(), err)
+
 				continue
 			}
 		}
@@ -164,6 +172,7 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 		if err2 != nil {
 			err = err2
 			log.Errorf("error calling tx.Commit after putting claim: %v", err)
+
 			continue
 		}
 
@@ -172,6 +181,7 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 		if err2 != nil {
 			err = err2
 			log.Errorf("error calling waitTxToBeSuccessOrFail for tx %s: %v", claim.TxID, err)
+
 			continue
 		}
 		log.Infof("tx %s with global index %s concluded with status: %s", claim.TxID, globalIndex.String(), status)
@@ -179,6 +189,7 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 		if err2 != nil {
 			err = err2
 			log.Errorf("error calling BeginRw: %v", err)
+
 			continue
 		}
 		claim.Status = status
@@ -187,6 +198,7 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 			err = err2
 			tx.Rollback()
 			log.Errorf("error calling putClaim with globalIndex %s: %v", globalIndex.String(), err)
+
 			continue
 		}
 		err2 = tx.Delete(queueTable, dbCommon.Uint64ToBytes(queueIndex))
@@ -194,12 +206,14 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 			err = err2
 			tx.Rollback()
 			log.Errorf("error calling delete on the queue table with index %d: %v", queueIndex, err)
+
 			continue
 		}
 		err2 = tx.Commit()
 		if err2 != nil {
 			err = err2
 			log.Errorf("error calling tx.Commit after putting claim: %v", err)
+
 			continue
 		}
 
@@ -236,12 +250,14 @@ func (c *ClaimSponsor) AddClaimToQueue(ctx context.Context, claim *Claim) error 
 	}
 
 	_, err = getClaim(tx, claim.GlobalIndex)
-	if err != ErrNotFound {
+	if !errors.Is(err, ErrNotFound) {
 		if err != nil {
 			tx.Rollback()
+
 			return err
 		} else {
 			tx.Rollback()
+
 			return errors.New("claim already added")
 		}
 	}
@@ -249,15 +265,17 @@ func (c *ClaimSponsor) AddClaimToQueue(ctx context.Context, claim *Claim) error 
 	err = putClaim(tx, claim)
 	if err != nil {
 		tx.Rollback()
+
 		return err
 	}
 
 	var queuePosition uint64
 	lastQueuePosition, _, err := getLastQueueIndex(tx)
-	if err == ErrNotFound {
+	if errors.Is(err, ErrNotFound) {
 		queuePosition = 0
 	} else if err != nil {
 		tx.Rollback()
+
 		return err
 	} else {
 		queuePosition = lastQueuePosition + 1
@@ -265,6 +283,7 @@ func (c *ClaimSponsor) AddClaimToQueue(ctx context.Context, claim *Claim) error 
 	err = tx.Put(queueTable, dbCommon.Uint64ToBytes(queuePosition), claim.Key())
 	if err != nil {
 		tx.Rollback()
+
 		return err
 	}
 
@@ -276,6 +295,7 @@ func putClaim(tx kv.RwTx, claim *Claim) error {
 	if err != nil {
 		return err
 	}
+
 	return tx.Put(claimTable, claim.Key(), value)
 }
 
@@ -306,6 +326,7 @@ func getLastQueueIndex(tx kv.Tx) (uint64, *big.Int, error) {
 	if err != nil {
 		return 0, nil, err
 	}
+
 	return getIndex(iter)
 }
 
@@ -318,6 +339,7 @@ func getFirstQueueIndex(tx kv.Tx) (uint64, *big.Int, error) {
 	if err != nil {
 		return 0, nil, err
 	}
+
 	return getIndex(iter)
 }
 
@@ -330,6 +352,7 @@ func getIndex(iter iter.KV) (uint64, *big.Int, error) {
 		return 0, nil, ErrNotFound
 	}
 	globalIndex := new(big.Int).SetBytes(v)
+
 	return dbCommon.BytesToUint64(k), globalIndex, nil
 }
 
@@ -339,6 +362,7 @@ func (c *ClaimSponsor) GetClaim(ctx context.Context, globalIndex *big.Int) (*Cla
 		return nil, err
 	}
 	defer tx.Rollback()
+
 	return getClaim(tx, globalIndex)
 }
 
@@ -352,5 +376,6 @@ func getClaim(tx kv.Tx, globalIndex *big.Int) (*Claim, error) {
 	}
 	claim := &Claim{}
 	err = json.Unmarshal(claimBytes, claim)
+
 	return claim, err
 }

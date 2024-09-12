@@ -1,0 +1,40 @@
+name: Test Unit and SonarCloud analysis
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'release/**'
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  test-unit:
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [1.22.4]
+        goarch: ["amd64"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+        env:
+          GOARCH: ${{ matrix.goarch }}
+
+      - name: Test
+        run: make test-unit
+          
+      - name: Analyze with SonarCloud
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

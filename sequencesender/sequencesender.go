@@ -32,6 +32,7 @@ type SequenceSender struct {
 	ethTxManager           *ethtxmanager.Client
 	etherman               *etherman.Client
 	currentNonce           uint64
+	nonceMutex             sync.Mutex
 	latestVirtualBatch     uint64                     // Latest virtualized batch obtained from L1
 	latestVirtualTime      time.Time                  // Latest virtual batch timestamp
 	latestSentToL1Batch    uint64                     // Latest batch sent to L1
@@ -136,12 +137,14 @@ func (s *SequenceSender) Start(ctx context.Context) {
 
 	// Get current nonce
 	var err error
+	s.nonceMutex.Lock()
 	s.currentNonce, err = s.etherman.CurrentNonce(ctx, s.cfg.L2Coinbase)
 	if err != nil {
 		log.Fatalf("failed to get current nonce from %v, error: %v", s.cfg.L2Coinbase, err)
 	} else {
 		log.Infof("current nonce for %v is %d", s.cfg.L2Coinbase, s.currentNonce)
 	}
+	s.nonceMutex.Unlock()
 
 	// Get latest virtual state batch from L1
 	err = s.updateLatestVirtualBatch()
@@ -286,7 +289,7 @@ func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 }
 
 // syncEthTxResults syncs results from L1 for transactions in the memory structure
-func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) {
+func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) { //nolint:unparam
 	s.mutexEthTx.Lock()
 	var txPending uint64
 	var txSync uint64
@@ -359,7 +362,9 @@ func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) error {
 }
 
 // copyTxData copies tx data in the internal structure
-func (s *SequenceSender) copyTxData(txHash common.Hash, txData []byte, txsResults map[common.Hash]ethtxmanager.TxResult) {
+func (s *SequenceSender) copyTxData(
+	txHash common.Hash, txData []byte, txsResults map[common.Hash]ethtxmanager.TxResult,
+) {
 	s.ethTxData[txHash] = make([]byte, len(txData))
 	copy(s.ethTxData[txHash], txData)
 
@@ -383,12 +388,16 @@ func (s *SequenceSender) updateEthTxResult(txData *ethTxData, txResult ethtxmana
 	if txData.Status != txResult.Status.String() {
 		log.Infof("update transaction %v to state %s", txResult.ID, txResult.Status.String())
 		txData.StatusTimestamp = time.Now()
-		stTrans := txData.StatusTimestamp.Format("2006-01-02T15:04:05.000-07:00") + ", " + txData.Status + ", " + txResult.Status.String()
+		stTrans := txData.StatusTimestamp.Format("2006-01-02T15:04:05.000-07:00") + ", " +
+			txData.Status + ", " + txResult.Status.String()
+
 		txData.Status = txResult.Status.String()
 		txData.StateHistory = append(txData.StateHistory, stTrans)
 
 		// Manage according to the state
-		statusConsolidated := txData.Status == ethtxmanager.MonitoredTxStatusSafe.String() || txData.Status == ethtxmanager.MonitoredTxStatusFinalized.String()
+		statusConsolidated := txData.Status == ethtxmanager.MonitoredTxStatusSafe.String() ||
+			txData.Status == ethtxmanager.MonitoredTxStatusFinalized.String()
+
 		if txData.Status == ethtxmanager.MonitoredTxStatusFailed.String() {
 			s.logFatalf("transaction %v result failed!")
 		} else if statusConsolidated && txData.ToBatch >= s.latestVirtualBatch {
@@ -416,7 +425,7 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 	}
 
 	txResult, err := s.ethTxManager.Result(ctx, txHash)
-	if err == ethtxmanager.ErrNotFound {
+	if errors.Is(err, ethtxmanager.ErrNotFound) {
 		log.Infof("transaction %v does not exist in ethtxmanager. Marking it", txHash)
 		txData.OnMonitor = false
 		// Resend tx
@@ -478,9 +487,12 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	lastL2BlockTimestamp := lastSequence.LastL2BLockTimestamp()
 
 	log.Debugf(sequence.String())
-	log.Infof("sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber(), lastSequence.BatchNumber())
+	log.Infof("sending sequences to L1. From batch %d to batch %d",
+		firstSequence.BatchNumber(), lastSequence.BatchNumber(),
+	)
 
-	// Wait until last L1 block timestamp is L1BlockTimestampMargin seconds above the timestamp of the last L2 block in the sequence
+	// Wait until last L1 block timestamp is L1BlockTimestampMargin seconds above the timestamp
+	// of the last L2 block in the sequence
 	timeMargin := int64(s.cfg.L1BlockTimestampMargin.Seconds())
 	for {
 		// Get header of the last L1 block
@@ -493,17 +505,27 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 		elapsed, waitTime := s.marginTimeElapsed(lastL2BlockTimestamp, lastL1BlockHeader.Time, timeMargin)
 
 		if !elapsed {
-			log.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block %d (ts: %d) and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
-				waitTime, lastL1BlockHeader.Number, lastL1BlockHeader.Time, lastSequence.BatchNumber(), lastL2BlockTimestamp, timeMargin)
+			log.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block %d (ts: %d) "+
+				"and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
+				waitTime, lastL1BlockHeader.Number, lastL1BlockHeader.Time,
+				lastSequence.BatchNumber(), lastL2BlockTimestamp, timeMargin,
+			)
 			time.Sleep(time.Duration(waitTime) * time.Second)
 		} else {
-			log.Infof("continuing, time difference between last L1 block %d (ts: %d) and last L2 block %d (ts: %d) in the sequence is greater than %d seconds",
-				lastL1BlockHeader.Number, lastL1BlockHeader.Time, lastSequence.BatchNumber, lastL2BlockTimestamp, timeMargin)
+			log.Infof("continuing, time difference between last L1 block %d (ts: %d) and last L2 block %d (ts: %d) "+
+				"in the sequence is greater than %d seconds",
+				lastL1BlockHeader.Number,
+				lastL1BlockHeader.Time,
+				lastSequence.BatchNumber,
+				lastL2BlockTimestamp,
+				timeMargin,
+			)
 			break
 		}
 	}
 
-	// Sanity check: Wait also until current time is L1BlockTimestampMargin seconds above the timestamp of the last L2 block in the sequence
+	// Sanity check: Wait also until current time is L1BlockTimestampMargin seconds above the
+	// timestamp of the last L2 block in the sequence
 	for {
 		currentTime := uint64(time.Now().Unix())
 
@@ -511,11 +533,13 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 
 		// Wait if the time difference is less than L1BlockTimestampMargin
 		if !elapsed {
-			log.Infof("waiting at least %d seconds to send sequences, time difference between now (ts: %d) and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
+			log.Infof("waiting at least %d seconds to send sequences, time difference between now (ts: %d) "+
+				"and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
 				waitTime, currentTime, lastSequence.BatchNumber, lastL2BlockTimestamp, timeMargin)
 			time.Sleep(time.Duration(waitTime) * time.Second)
 		} else {
-			log.Infof("[SeqSender]sending sequences now, time difference between now (ts: %d) and last L2 block %d (ts: %d) in the sequence is also greater than %d seconds",
+			log.Infof("[SeqSender]sending sequences now, time difference between now (ts: %d) and last L2 block %d (ts: %d) "+
+				"in the sequence is also greater than %d seconds",
 				currentTime, lastSequence.BatchNumber, lastL2BlockTimestamp, timeMargin)
 			break
 		}
@@ -523,7 +547,10 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 
 	// Send sequences to L1
 	log.Debugf(sequence.String())
-	log.Infof("sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber(), lastSequence.BatchNumber())
+	log.Infof(
+		"sending sequences to L1. From batch %d to batch %d",
+		firstSequence.BatchNumber(), lastSequence.BatchNumber(),
+	)
 
 	tx, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, sequence)
 	if err != nil {
@@ -562,7 +589,10 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 }
 
 // sendTx adds transaction to the ethTxManager to send it to L1
-func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *common.Hash, to *common.Address, fromBatch uint64, toBatch uint64, data []byte, gas uint64) error {
+func (s *SequenceSender) sendTx(
+	ctx context.Context, resend bool, txOldHash *common.Hash, to *common.Address,
+	fromBatch uint64, toBatch uint64, data []byte, gas uint64,
+) error {
 	// Params if new tx to send or resend a previous tx
 	var paramTo *common.Address
 	var paramNonce *uint64
@@ -572,8 +602,12 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 	var valueToAddress common.Address
 
 	if !resend {
+		s.nonceMutex.Lock()
+		nonce := s.currentNonce
+		s.currentNonce++
+		s.nonceMutex.Unlock()
+		paramNonce = &nonce
 		paramTo = to
-		paramNonce = &s.currentNonce
 		paramData = data
 		valueFromBatch = fromBatch
 		valueToBatch = toBatch
@@ -597,9 +631,6 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 	if err != nil {
 		log.Errorf("error adding sequence to ethtxmanager: %v", err)
 		return err
-	}
-	if !resend {
-		s.currentNonce++
 	}
 
 	// Add new eth tx
@@ -635,7 +666,8 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 	return nil
 }
 
-// getSequencesToSend generates sequences to be sent to L1. Empty array means there are no sequences to send or it's not worth sending
+// getSequencesToSend generates sequences to be sent to L1.
+// Empty array means there are no sequences to send or it's not worth sending
 func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes.Sequence, error) {
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	s.mutexSequence.Lock()
@@ -651,7 +683,10 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 		// Check if the next batch belongs to a new forkid, in this case we need to stop sequencing as we need to
 		// wait the upgrade of forkid is completed and s.cfg.NumBatchForkIdUpgrade is disabled (=0) again
 		if (s.cfg.ForkUpgradeBatchNumber != 0) && (batchNumber == (s.cfg.ForkUpgradeBatchNumber + 1)) {
-			return nil, fmt.Errorf("aborting sequencing process as we reached the batch %d where a new forkid is applied (upgrade)", s.cfg.ForkUpgradeBatchNumber+1)
+			return nil, fmt.Errorf(
+				"aborting sequencing process as we reached the batch %d where a new forkid is applied (upgrade)",
+				s.cfg.ForkUpgradeBatchNumber+1,
+			)
 		}
 
 		// Check if batch is closed
@@ -665,7 +700,10 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 
 		// If the coinbase changes, the sequence ends here
 		if len(sequenceBatches) > 0 && batch.LastCoinbase() != prevCoinbase {
-			log.Infof("batch with different coinbase (batch %v, sequence %v), sequence will be sent to this point", prevCoinbase, batch.LastCoinbase)
+			log.Infof(
+				"batch with different coinbase (batch %v, sequence %v), sequence will be sent to this point",
+				prevCoinbase, batch.LastCoinbase,
+			)
 			return s.TxBuilder.NewSequence(ctx, sequenceBatches, s.cfg.L2Coinbase)
 		}
 		prevCoinbase = batch.LastCoinbase()
@@ -681,9 +719,13 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 			return newSeq, nil
 		}
 
-		// Check if the current batch is the last before a change to a new forkid, in this case we need to close and send the sequence to L1
+		// Check if the current batch is the last before a change to a new forkid
+		// In this case we need to close and send the sequence to L1
 		if (s.cfg.ForkUpgradeBatchNumber != 0) && (batchNumber == (s.cfg.ForkUpgradeBatchNumber)) {
-			log.Infof("sequence should be sent to L1, as we have reached the batch %d from which a new forkid is applied (upgrade)", s.cfg.ForkUpgradeBatchNumber)
+			log.Infof("sequence should be sent to L1, as we have reached the batch %d "+
+				"from which a new forkid is applied (upgrade)",
+				s.cfg.ForkUpgradeBatchNumber,
+			)
 			return s.TxBuilder.NewSequence(ctx, sequenceBatches, s.cfg.L2Coinbase)
 		}
 	}
@@ -786,7 +828,9 @@ func (s *SequenceSender) entryTypeToString(entryType datastream.EntryType) strin
 }
 
 // handleReceivedDataStream manages the events received by the streaming
-func (s *SequenceSender) handleReceivedDataStream(entry *datastreamer.FileEntry, client *datastreamer.StreamClient, server *datastreamer.StreamServer) error {
+func (s *SequenceSender) handleReceivedDataStream(
+	entry *datastreamer.FileEntry, client *datastreamer.StreamClient, server *datastreamer.StreamServer,
+) error {
 	dsType := datastream.EntryType(entry.Type)
 
 	var prevEntryType datastream.EntryType
@@ -805,12 +849,22 @@ func (s *SequenceSender) handleReceivedDataStream(entry *datastreamer.FileEntry,
 			return err
 		}
 
-		log.Infof("received L2Block entry, l2Block.Number: %d, l2Block.BatchNumber: %d, entry.Number: %d", l2Block.Number, l2Block.BatchNumber, entry.Number)
+		log.Infof("received L2Block entry, l2Block.Number: %d, l2Block.BatchNumber: %d, entry.Number: %d",
+			l2Block.Number, l2Block.BatchNumber, entry.Number,
+		)
 
 		// Sanity checks
-		if s.prevStreamEntry != nil && !(prevEntryType == datastream.EntryType_ENTRY_TYPE_BATCH_START || prevEntryType == datastream.EntryType_ENTRY_TYPE_L2_BLOCK || prevEntryType == datastream.EntryType_ENTRY_TYPE_TRANSACTION) {
-			log.Fatalf("unexpected L2Block entry received, entry.Number: %d, l2Block.Number: %d, prevEntry: %s, prevEntry.Number: %d",
-				entry.Number, l2Block.Number, s.entryTypeToString(prevEntryType), s.prevStreamEntry.Number)
+		if s.prevStreamEntry != nil &&
+			!(prevEntryType == datastream.EntryType_ENTRY_TYPE_BATCH_START ||
+				prevEntryType == datastream.EntryType_ENTRY_TYPE_L2_BLOCK ||
+				prevEntryType == datastream.EntryType_ENTRY_TYPE_TRANSACTION) {
+			log.Fatalf("unexpected L2Block entry received, entry.Number: %d, l2Block.Number: %d, "+
+				"prevEntry: %s, prevEntry.Number: %d",
+				entry.Number,
+				l2Block.Number,
+				s.entryTypeToString(prevEntryType),
+				s.prevStreamEntry.Number,
+			)
 		} else if prevEntryType == datastream.EntryType_ENTRY_TYPE_L2_BLOCK {
 			prevL2Block := &datastream.L2Block{}
 
@@ -866,11 +920,16 @@ func (s *SequenceSender) handleReceivedDataStream(entry *datastreamer.FileEntry,
 			return err
 		}
 
-		log.Debugf("received Transaction entry, tx.L2BlockNumber: %d, tx.Index: %d, entry.Number: %d", l2Tx.L2BlockNumber, l2Tx.Index, entry.Number)
+		log.Debugf(
+			"received Transaction entry, tx.L2BlockNumber: %d, tx.Index: %d, entry.Number: %d",
+			l2Tx.L2BlockNumber, l2Tx.Index, entry.Number,
+		)
 
 		// Sanity checks
-		if !(prevEntryType == datastream.EntryType_ENTRY_TYPE_L2_BLOCK || prevEntryType == datastream.EntryType_ENTRY_TYPE_TRANSACTION) {
-			log.Fatalf("unexpected Transaction entry received, entry.Number: %d, transaction.L2BlockNumber: %d, transaction.Index: %d, prevEntry: %s, prevEntry.Number: %d",
+		if !(prevEntryType == datastream.EntryType_ENTRY_TYPE_L2_BLOCK ||
+			prevEntryType == datastream.EntryType_ENTRY_TYPE_TRANSACTION) {
+			log.Fatalf("unexpected Transaction entry received, entry.Number: %d, transaction.L2BlockNumber: %d, "+
+				"transaction.Index: %d, prevEntry: %s, prevEntry.Number: %d",
 				entry.Number, l2Tx.L2BlockNumber, l2Tx.Index, s.entryTypeToString(prevEntryType), s.prevStreamEntry.Number)
 		}
 
@@ -921,8 +980,11 @@ func (s *SequenceSender) handleReceivedDataStream(entry *datastreamer.FileEntry,
 		log.Infof("received BatchEnd entry, batchEnd.Number: %d, entry.Number: %d", batch.Number, entry.Number)
 
 		// Sanity checks
-		if !(prevEntryType == datastream.EntryType_ENTRY_TYPE_L2_BLOCK || prevEntryType == datastream.EntryType_ENTRY_TYPE_TRANSACTION) {
-			log.Fatalf("unexpected BatchEnd entry received, entry.Number: %d, batchEnd.Number: %d, prevEntry.Type: %s, prevEntry.Number: %d",
+		if !(prevEntryType == datastream.EntryType_ENTRY_TYPE_L2_BLOCK ||
+			prevEntryType == datastream.EntryType_ENTRY_TYPE_TRANSACTION) {
+			log.Fatalf(
+				"unexpected BatchEnd entry received, entry.Number: %d, batchEnd.Number: %d, "+
+					"prevEntry.Type: %s, prevEntry.Number: %d",
 				entry.Number, batch.Number, s.entryTypeToString(prevEntryType), s.prevStreamEntry.Number)
 		}
 
@@ -972,10 +1034,14 @@ func (s *SequenceSender) closeSequenceBatch() error {
 		} else {
 			dsNumberOfBlocks := len(s.sequenceData[s.wipBatch].batchRaw.Blocks)
 			if rpcNumberOfBlocks != dsNumberOfBlocks {
-				log.Fatalf("number of blocks in batch %d (%d) does not match the number of blocks in the batch from the RPC (%d)", s.wipBatch, dsNumberOfBlocks, rpcNumberOfBlocks)
+				log.Fatalf(
+					"number of blocks in batch %d (%d) does not match the number of blocks in the batch from the RPC (%d)",
+					s.wipBatch, dsNumberOfBlocks, rpcNumberOfBlocks,
+				)
 			}
 
-			if data.batchType == datastream.BatchType_BATCH_TYPE_REGULAR && common.Bytes2Hex(data.batch.L2Data()) != batchL2Data {
+			if data.batchType == datastream.BatchType_BATCH_TYPE_REGULAR &&
+				common.Bytes2Hex(data.batch.L2Data()) != batchL2Data {
 				log.Infof("datastream batchL2Data: %s", common.Bytes2Hex(data.batch.L2Data()))
 				log.Infof("RPC batchL2Data: %s", batchL2Data)
 				log.Fatalf("batchL2Data in batch %d does not match batchL2Data from the RPC (%d)", s.wipBatch)
@@ -1011,7 +1077,10 @@ func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (int, string, error
 	// Get the batch number from the response hex string
 	err = json.Unmarshal(response.Result, &zkEVMBatchData)
 	if err != nil {
-		return 0, "", fmt.Errorf("error unmarshalling the batch number from the response calling zkevm_getBatchByNumber: %v", err)
+		return 0, "", fmt.Errorf(
+			"error unmarshalling the batch number from the response calling zkevm_getBatchByNumber: %w",
+			err,
+		)
 	}
 
 	return len(zkEVMBatchData.Blocks), zkEVMBatchData.BatchL2Data, nil
@@ -1050,14 +1119,20 @@ func (s *SequenceSender) addNewSequenceBatch(l2Block *datastream.L2Block) {
 // addInfoSequenceBatchStart adds info from the batch start
 func (s *SequenceSender) addInfoSequenceBatchStart(batch *datastream.BatchStart) {
 	s.mutexSequence.Lock()
-	log.Infof("batch %d (%s) Start: type %d forkId %d chainId %d", batch.Number, datastream.BatchType_name[int32(batch.Type)], batch.Type, batch.ForkId, batch.ChainId)
+	log.Infof(
+		"batch %d (%s) Start: type %d forkId %d chainId %d",
+		batch.Number, datastream.BatchType_name[int32(batch.Type)], batch.Type, batch.ForkId, batch.ChainId,
+	)
 
 	// Current batch
 	data := s.sequenceData[s.wipBatch]
 	if data != nil {
 		wipBatch := data.batch
 		if wipBatch.BatchNumber()+1 != batch.Number {
-			s.logFatalf("batch start number (%d) does not match the current consecutive one (%d)", batch.Number, wipBatch.BatchNumber)
+			s.logFatalf(
+				"batch start number (%d) does not match the current consecutive one (%d)",
+				batch.Number, wipBatch.BatchNumber,
+			)
 		}
 		data.batchType = batch.Type
 	}
@@ -1095,7 +1170,10 @@ func (s *SequenceSender) addNewBatchL2Block(l2Block *datastream.L2Block) {
 		data.batch.SetLastL2BLockTimestamp(l2Block.Timestamp)
 		// Sanity check: should be the same coinbase within the batch
 		if common.BytesToAddress(l2Block.Coinbase) != data.batch.LastCoinbase() {
-			s.logFatalf("coinbase changed within the batch! (Previous %v, Current %v)", data.batch.LastCoinbase, common.BytesToAddress(l2Block.Coinbase))
+			s.logFatalf(
+				"coinbase changed within the batch! (Previous %v, Current %v)",
+				data.batch.LastCoinbase, common.BytesToAddress(l2Block.Coinbase),
+			)
 		}
 		data.batch.SetLastCoinbase(common.BytesToAddress(l2Block.Coinbase))
 		data.batch.SetL1InfoTreeIndex(l2Block.L1InfotreeIndex)
@@ -1122,7 +1200,9 @@ func (s *SequenceSender) addNewBatchL2Block(l2Block *datastream.L2Block) {
 // addNewBlockTx adds a new Tx to the current L2 block
 func (s *SequenceSender) addNewBlockTx(l2Tx *datastream.Transaction) {
 	s.mutexSequence.Lock()
-	log.Debugf("........new tx, length %d EGP %d SR %x..", len(l2Tx.Encoded), l2Tx.EffectiveGasPricePercentage, l2Tx.ImStateRoot[:8])
+	log.Debugf("........new tx, length %d EGP %d SR %x..",
+		len(l2Tx.Encoded), l2Tx.EffectiveGasPricePercentage, l2Tx.ImStateRoot[:8],
+	)
 
 	// Current L2 block
 	_, blockRaw := s.getWipL2Block()
@@ -1146,7 +1226,7 @@ func (s *SequenceSender) addNewBlockTx(l2Tx *datastream.Transaction) {
 }
 
 // getWipL2Block returns index of the array and pointer to the current L2 block (helper func)
-func (s *SequenceSender) getWipL2Block() (uint64, *state.L2BlockRaw) {
+func (s *SequenceSender) getWipL2Block() (uint64, *state.L2BlockRaw) { //nolint:unparam
 	// Current batch
 	var wipBatchRaw *state.BatchRawV2
 	if s.sequenceData[s.wipBatch] != nil {
@@ -1182,7 +1262,9 @@ func (s *SequenceSender) updateLatestVirtualBatch() error {
 
 // marginTimeElapsed checks if the time between currentTime and l2BlockTimestamp is greater than timeMargin.
 // If it's greater returns true, otherwise it returns false and the waitTime needed to achieve this timeMargin
-func (s *SequenceSender) marginTimeElapsed(l2BlockTimestamp uint64, currentTime uint64, timeMargin int64) (bool, int64) {
+func (s *SequenceSender) marginTimeElapsed(
+	l2BlockTimestamp uint64, currentTime uint64, timeMargin int64,
+) (bool, int64) {
 	// Check the time difference between L2 block and currentTime
 	var timeDiff int64
 	if l2BlockTimestamp >= currentTime {
@@ -1238,17 +1320,23 @@ func printBatch(raw *state.BatchRawV2, showBlock bool, showTx bool) {
 			lastBlock = &raw.Blocks[numBlocks-1]
 		}
 		if firstBlock != nil {
-			log.Debugf("//    block first (indL1info: %d, delta-timestamp: %d, #L2txs: %d)", firstBlock.IndexL1InfoTree, firstBlock.DeltaTimestamp, len(firstBlock.Transactions))
+			log.Debugf("//    block first (indL1info: %d, delta-timestamp: %d, #L2txs: %d)",
+				firstBlock.IndexL1InfoTree, firstBlock.DeltaTimestamp, len(firstBlock.Transactions),
+			)
 			// Tx info
 			if showTx {
 				for iTx, tx := range firstBlock.Transactions {
 					v, r, s := tx.Tx.RawSignatureValues()
-					log.Debugf("//       tx(%d) effPct: %d, encoded: %t, v: %v, r: %v, s: %v", iTx, tx.EfficiencyPercentage, tx.TxAlreadyEncoded, v, r, s)
+					log.Debugf("//       tx(%d) effPct: %d, encoded: %t, v: %v, r: %v, s: %v",
+						iTx, tx.EfficiencyPercentage, tx.TxAlreadyEncoded, v, r, s,
+					)
 				}
 			}
 		}
 		if lastBlock != nil {
-			log.Debugf("//    block last (indL1info: %d, delta-timestamp: %d, #L2txs: %d)", lastBlock.DeltaTimestamp, lastBlock.DeltaTimestamp, len(lastBlock.Transactions))
+			log.Debugf("//    block last (indL1info: %d, delta-timestamp: %d, #L2txs: %d)",
+				lastBlock.DeltaTimestamp, lastBlock.DeltaTimestamp, len(lastBlock.Transactions),
+			)
 		}
 	}
 }

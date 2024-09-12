@@ -20,10 +20,14 @@ func New(backend DABackender) (*DataAvailability, error) {
 	return da, da.backend.Init()
 }
 
-func (d *DataAvailability) PostSequenceBanana(ctx context.Context, sequenceBanana etherman.SequenceBanana) ([]byte, error) {
+// PostSequenceBanana sends sequence data to the backend and returns a response.
+func (d *DataAvailability) PostSequenceBanana(
+	ctx context.Context, sequenceBanana etherman.SequenceBanana,
+) ([]byte, error) {
 	return d.backend.PostSequenceBanana(ctx, sequenceBanana)
 }
 
+// PostSequenceElderberry sends batch data to the backend and returns a response.
 func (d *DataAvailability) PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error) {
 	return d.backend.PostSequenceElderberry(ctx, batchesData)
 }

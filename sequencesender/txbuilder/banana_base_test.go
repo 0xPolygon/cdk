@@ -88,6 +88,8 @@ type testDataBananaBase struct {
 }
 
 func newBananaBaseTestData(t *testing.T) *testDataBananaBase {
+	t.Helper()
+
 	zkevmContractMock := mocks_txbuilder.NewRollupBananaBaseContractor(t)
 	gerContractMock := mocks_txbuilder.NewGlobalExitRootBananaContractor(t)
 	opts := bind.TransactOpts{}

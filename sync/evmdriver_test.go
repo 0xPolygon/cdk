@@ -53,8 +53,18 @@ func TestSync(t *testing.T) {
 	}
 	reorg1Completed := reorgSemaphore{}
 	dm.On("Download", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		ctx := args.Get(0).(context.Context)
-		downloadedCh := args.Get(2).(chan EVMBlock)
+		ctx, ok := args.Get(0).(context.Context)
+		if !ok {
+			log.Error("failed to assert type for context")
+			return
+		}
+
+		downloadedCh, ok := args.Get(2).(chan EVMBlock)
+		if !ok {
+			log.Error("failed to assert type for downloadedCh")
+			return
+		}
+
 		log.Info("entering mock loop")
 		for {
 			select {
@@ -168,7 +178,6 @@ func TestHandleNewBlock(t *testing.T) {
 	pm.On("ProcessBlock", ctx, Block{Num: b3.Num, Events: b3.Events}).
 		Return(nil).Once()
 	driver.handleNewBlock(ctx, b3)
-
 }
 
 func TestHandleReorg(t *testing.T) {

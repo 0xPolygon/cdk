@@ -13,7 +13,7 @@ const appName = "cdk"
 
 const (
 	// SEQUENCE_SENDER name to identify the sequence-sender component
-	SEQUENCE_SENDER = "sequence-sender"
+	SEQUENCE_SENDER = "sequence-sender" //nolint:stylecheck
 	// AGGREGATOR name to identify the aggregator component
 	AGGREGATOR = "aggregator"
 	// AGGORACLE name to identify the aggoracle component
@@ -23,8 +23,8 @@ const (
 )
 
 const (
-	// NETWORK_CONFIGFILE name to identify the netowk_custom (genesis) config-file
-	NETWORK_CONFIGFILE = "custom_network"
+	// NetworkConfigFile name to identify the network_custom (genesis) config-file
+	NetworkConfigFile = "custom_network"
 )
 
 var (

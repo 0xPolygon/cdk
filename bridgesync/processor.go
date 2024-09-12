@@ -20,6 +20,7 @@ import (
 )
 
 var (
+	// ErrBlockNotProcessed indicates that the given block(s) have not been processed yet.
 	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
 	ErrNotFound          = errors.New("not found")
 )
@@ -54,6 +55,7 @@ func (b *Bridge) Hash() common.Hash {
 	if b.Amount == nil {
 		b.Amount = big.NewInt(0)
 	}
+
 	return common.BytesToHash(keccak256.Hash(
 		[]byte{b.LeafType},
 		origNet,
@@ -122,6 +124,7 @@ func (p *processor) GetBridges(
 	if err != nil {
 		return nil, err
 	}
+
 	defer tx.Rollback()
 
 	if err = p.isBlockProcessed(tx, toBlock); err != nil {
@@ -216,6 +219,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -260,7 +264,9 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+
 	p.log.Debugf("processed %d events until block %d", len(block.Events), block.Num)
+
 	return nil
 }
 
@@ -279,5 +285,6 @@ func GenerateGlobalIndex(mainnetFlag bool, rollupIndex uint32, localExitRootInde
 	}
 	leri := big.NewInt(0).SetUint64(uint64(localExitRootIndex)).FillBytes(buf[:])
 	globalIndexBytes = append(globalIndexBytes, leri...)
+
 	return big.NewInt(0).SetBytes(globalIndexBytes)
 }

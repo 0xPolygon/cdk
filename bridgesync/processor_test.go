@@ -471,6 +471,8 @@ func (a *getLastProcessedBlockAction) desc() string {
 }
 
 func (a *getLastProcessedBlockAction) execute(t *testing.T) {
+	t.Helper()
+
 	actualLastProcessedBlock, actualErr := a.p.GetLastProcessedBlock(a.ctx)
 	require.Equal(t, a.expectedLastProcessedBlock, actualLastProcessedBlock)
 	require.Equal(t, a.expectedErr, actualErr)
@@ -494,6 +496,8 @@ func (a *reorgAction) desc() string {
 }
 
 func (a *reorgAction) execute(t *testing.T) {
+	t.Helper()
+
 	actualErr := a.p.Reorg(context.Background(), a.firstReorgedBlock)
 	require.Equal(t, a.expectedErr, actualErr)
 }
@@ -516,6 +520,8 @@ func (a *processBlockAction) desc() string {
 }
 
 func (a *processBlockAction) execute(t *testing.T) {
+	t.Helper()
+
 	actualErr := a.p.ProcessBlock(context.Background(), a.block)
 	require.Equal(t, a.expectedErr, actualErr)
 }

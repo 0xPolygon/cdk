@@ -34,14 +34,14 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 	err error,
 ) {
 	ctx := context.Background()
-	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10) //nolint:gomnd
+	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10)
 	address := auth.From
 	genesisAlloc := map[common.Address]types.Account{
 		address: {
 			Balance: balance,
 		},
 	}
-	blockGasLimit := uint64(999999999999999999) //nolint:gomnd
+	blockGasLimit := uint64(999999999999999999)
 	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
 
 	nonce, err := client.Client().PendingNonceAt(ctx, auth.From)
@@ -64,6 +64,7 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 	if precalculatedAddr != gerAddr {
 		err = errors.New("error calculating addr")
 	}
+
 	return
 }
 
@@ -140,7 +141,7 @@ func TestFinalised(t *testing.T) {
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
 	require.NoError(t, err)
-	client, _, _, _, _, err := newSimulatedClient(auth)
+	client, _, _, _, _, err := newSimulatedClient(auth) //nolint:dogsled
 	require.NoError(t, err)
 	for i := 0; i < 100; i++ {
 		client.Commit()
@@ -216,7 +217,8 @@ func TestStressAndReorgs(t *testing.T) {
 			if targetReorgBlockNum < currentBlockNum { // we are dealing with uints...
 				reorgBlock, err := client.Client().BlockByNumber(ctx, big.NewInt(int64(targetReorgBlockNum)))
 				require.NoError(t, err)
-				client.Fork(reorgBlock.Hash())
+				err = client.Fork(reorgBlock.Hash())
+				require.NoError(t, err)
 			}
 		}
 	}
@@ -230,6 +232,7 @@ func TestStressAndReorgs(t *testing.T) {
 		require.NoError(t, err)
 		if lpb == lb {
 			syncerUpToDate = true
+
 			break
 		}
 		time.Sleep(time.Millisecond * 100)

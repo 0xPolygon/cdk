@@ -60,14 +60,14 @@ func (t *Tree) getSiblings(tx db.DBer, index uint32, root common.Hash) (
 		var currentNode *types.TreeNode
 		currentNode, err = t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
-			if err == ErrNotFound {
+			if errors.Is(err, ErrNotFound) {
 				hasUsedZeroHashes = true
 				siblings[h] = t.zeroHashes[h]
 				err = nil
 				continue
 			} else {
 				err = fmt.Errorf(
-					"height: %d, currentNode: %s, error: %v",
+					"height: %d, currentNode: %s, error: %w",
 					h, currentNodeHash.Hex(), err,
 				)
 				return
@@ -138,8 +138,9 @@ func generateZeroHashes(height uint8) []common.Hash {
 	var zeroHashes = []common.Hash{
 		{},
 	}
-	// This generates a leaf = HashZero in position 0. In the rest of the positions that are equivalent to the ascending levels,
-	// we set the hashes of the nodes. So all nodes from level i=5 will have the same value and same children nodes.
+	// This generates a leaf = HashZero in position 0. In the rest of the positions that are
+	// equivalent to the ascending levels, we set the hashes of the nodes.
+	// So all nodes from level i=5 will have the same value and same children nodes.
 	for i := 1; i <= int(height); i++ {
 		hasher := sha3.NewLegacyKeccak256()
 		hasher.Write(zeroHashes[i-1][:])
