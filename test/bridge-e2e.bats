@@ -48,7 +48,7 @@ setup() {
     echo "Running LxLy claim"
 
     # The script timeout (in seconds).
-    timeout="60"
+    timeout="120"
     start_time=$(date +%s)
     end_time=$((start_time + timeout))
 
@@ -58,9 +58,13 @@ setup() {
             echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Exiting... Timeout reached!"
             exit 1
         fi
+        
         run claim
+        if [ $status -eq 0 ]; then
+            break
+        fi
         sleep 10
     done
-
+    
     assert_success
 }

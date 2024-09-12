@@ -35,12 +35,9 @@ function claim() {
 
     if [[ $claimable_count == 0 ]]; then
         echo "We have no claimable deposits at this time" >&3
-        exit
+        exit 1
     fi
-    # if [[ $rpc_network_id != $destination_net ]]; then
-    #     echo "The bridge on the current rpc has network id $rpc_network_id but you are claming a transaction on network $destination_net - are you sure you're using the right RPC??" >&3
-    #     exit 1
-    # fi
+    
     echo "We have $claimable_count claimable deposits on network $destination_net. Let's get this party started." >&3
     readonly current_deposit=$(mktemp)
     readonly current_proof=$(mktemp)
