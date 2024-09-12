@@ -3,6 +3,7 @@ package tree
 import (
 	"database/sql"
 
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -21,7 +22,7 @@ func NewUpdatableTree(db *sql.DB, dbPrefix string) *UpdatableTree {
 	return ut
 }
 
-func (t *UpdatableTree) UpsertLeaf(tx *sql.Tx, blockNum, blockPosition uint64, leaf types.Leaf) error {
+func (t *UpdatableTree) UpsertLeaf(tx *db.Tx, blockNum, blockPosition uint64, leaf types.Leaf) error {
 	var rootHash common.Hash
 	root, err := t.getLastRootWithTx(tx)
 	if err != nil {

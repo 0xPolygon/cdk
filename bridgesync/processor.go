@@ -193,7 +193,7 @@ func (p *processor) getLastProcessedBlockWithTx(tx db.DBer) (uint64, error) {
 // Reorg triggers a purge and reset process on the processor to leaf it on a state
 // as if the last block processed was firstReorgedBlock-1
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
-	tx, err := p.db.BeginTx(ctx, nil)
+	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
 	}
@@ -222,7 +222,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 // ProcessBlock process the events of the block to build the exit tree
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
-	tx, err := p.db.BeginTx(ctx, nil)
+	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
 	}

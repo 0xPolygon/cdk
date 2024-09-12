@@ -151,7 +151,7 @@ func generateZeroHashes(height uint8) []common.Hash {
 	return zeroHashes
 }
 
-func (t *Tree) storeNodes(tx db.DBer, nodes []types.TreeNode) error {
+func (t *Tree) storeNodes(tx *db.Tx, nodes []types.TreeNode) error {
 	for _, node := range nodes {
 		if err := meddler.Insert(tx, t.rhtTable, &node); err != nil {
 			if sqliteErr, ok := db.SQLiteErr(err); ok {
@@ -167,7 +167,7 @@ func (t *Tree) storeNodes(tx db.DBer, nodes []types.TreeNode) error {
 	return nil
 }
 
-func (t *Tree) storeRoot(tx db.DBer, root types.Root) error {
+func (t *Tree) storeRoot(tx *db.Tx, root types.Root) error {
 	return meddler.Insert(tx, t.rootTable, &root)
 }
 
@@ -241,7 +241,7 @@ func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (com
 }
 
 // Reorg deletes all the data relevant from firstReorgedBlock (includded) and onwards
-func (t *Tree) Reorg(tx db.DBer, firstReorgedBlock uint64) error {
+func (t *Tree) Reorg(tx *db.Tx, firstReorgedBlock uint64) error {
 	_, err := tx.Exec(
 		fmt.Sprintf(`DELETE FROM %s WHERE block_num >= $1`, t.rootTable),
 		firstReorgedBlock,

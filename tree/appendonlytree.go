@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -26,7 +27,7 @@ func NewAppendOnlyTree(db *sql.DB, dbPrefix string) *AppendOnlyTree {
 	}
 }
 
-func (t *AppendOnlyTree) AddLeaf(tx *sql.Tx, blockNum, blockPosition uint64, leaf types.Leaf) error {
+func (t *AppendOnlyTree) AddLeaf(tx *db.Tx, blockNum, blockPosition uint64, leaf types.Leaf) error {
 	if int64(leaf.Index) != t.lastIndex+1 {
 		// rebuild cache
 		if err := t.initCache(tx); err != nil {
@@ -72,10 +73,11 @@ func (t *AppendOnlyTree) AddLeaf(tx *sql.Tx, blockNum, blockPosition uint64, lea
 		return err
 	}
 	t.lastIndex++
+	tx.AddRollbackCallback(func() { t.lastIndex-- })
 	return nil
 }
 
-func (t *AppendOnlyTree) initCache(tx *sql.Tx) error {
+func (t *AppendOnlyTree) initCache(tx *db.Tx) error {
 	siblings := [types.DefaultHeight]common.Hash{}
 	lastRoot, err := t.getLastRootWithTx(tx)
 	if err != nil {
