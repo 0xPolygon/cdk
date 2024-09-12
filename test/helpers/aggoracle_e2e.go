@@ -113,9 +113,7 @@ func CommonSetup(t *testing.T) (
 	require.NoError(t, err)
 	// Syncer
 	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	maxRetries := 3
-	syncBlockChunkSize := uint64(10)
-	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, common.Address{}, syncBlockChunkSize, etherman.LatestBlock, reorg, l1Client.Client(), time.Millisecond, 0, 100*time.Millisecond, maxRetries)
+	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, common.Address{}, 10, etherman.LatestBlock, reorg, l1Client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
