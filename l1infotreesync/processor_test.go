@@ -11,7 +11,7 @@ import (
 )
 
 func TestGetVerifiedBatches(t *testing.T) {
-	dbPath := "file::memory:?cache=shared"
+	dbPath := "file:TestGetVerifiedBatches?mode=memory&cache=shared"
 	p, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	ctx := context.Background()
@@ -77,7 +77,7 @@ func TestGetVerifiedBatches(t *testing.T) {
 }
 
 func TestGetInfo(t *testing.T) {
-	dbPath := "file::memory:?cache=shared"
+	dbPath := "file:TestGetInfo?mode=memory&cache=shared"
 	p, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	ctx := context.Background()
