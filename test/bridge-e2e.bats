@@ -13,7 +13,7 @@ setup() {
     readonly bridge_default_address=$(jq -r ".genesis[] | select(.contractName == \"PolygonZkEVMBridge proxy\") | .address" ./tmp/cdk/genesis/genesis.json)
 
     readonly skey=${RAW_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
-    readonly destination_net=${DESTINATION_NET:-"0"}
+    readonly destination_net=${DESTINATION_NET:-"1"}
     readonly destination_addr=${DESTINATION_ADDRESS:-"0x0bb7AA0b4FdC2D2862c088424260e99ed6299148"}
     readonly ether_value=${ETHER_VALUE:-"0.0200000054"}
     readonly token_addr=${TOKEN_ADDRESS:-"0x0000000000000000000000000000000000000000"}
@@ -21,7 +21,8 @@ setup() {
     readonly bridge_addr=${BRIDGE_ADDRESS:-$bridge_default_address}
     readonly meta_bytes=${META_BYTES:-"0x"}
 
-    readonly rpc_url=${ETH_RPC_URL:-"$(kurtosis port print cdk-v1 cdk-erigon-node-001 http-rpc)"}
+    readonly l1_rpc_url=${ETH_RPC_URL:-"$(kurtosis port print cdk-v1 el-1-geth-lighthouse rpc)"}
+    readonly l2_rpc_url=${ETH_RPC_URL:-"$(kurtosis port print cdk-v1 cdk-erigon-node-001 http-rpc)"}
     readonly bridge_api_url=${BRIDGE_API_URL:-"$(kurtosis port print cdk-v1 zkevm-bridge-service-001 rpc)"}
 
     readonly dry_run=${DRY_RUN:-"false"}
@@ -30,7 +31,8 @@ setup() {
 
     readonly amount=$(cast to-wei $ether_value ether)
     readonly current_addr="$(cast wallet address --private-key $skey)"
-    readonly rpc_network_id=$(cast call --rpc-url $rpc_url $bridge_addr 'networkID()(uint32)')
+    readonly l1_rpc_network_id=$(cast call --rpc-url $l1_rpc_url $bridge_addr 'networkID()(uint32)')
+    readonly l2_rpc_network_id=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'networkID()(uint32)')
 }
 
 @test "Run deposit" {
@@ -44,6 +46,23 @@ setup() {
 @test "Run claim" {
     load 'helpers/lxly-bridge-test'
     echo "Running LxLy claim"
+
+    # The script timeout (in seconds).
+    timeout="10"
+    start_time=$(date +%s)
+    end_time=$((start_time + timeout))
+
     run claim
+
+    # while true; do
+    #     current_time=$(date +%s)
+    #     if ((current_time > end_time)); then
+    #         echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Exiting... Timeout reached!"
+    #         exit 1
+    #     fi
+    #     run claim
+    #     sleep 10
+    # done
+
     assert_success
 }
