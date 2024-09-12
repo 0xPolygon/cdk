@@ -22,7 +22,6 @@ jobs:
       matrix:
         language:
           - go
-          - bash
 
     steps:
       - name: Checkout repository
