@@ -129,11 +129,11 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 
 func (d *downloader) getGERsFromIndex(ctx context.Context, fromL1InfoTreeIndex uint32) ([]Event, error) {
 	lastRoot, err := d.l1InfoTreesync.GetLastL1InfoTreeRoot(ctx)
-	if err == tree.ErrNotFound {
+	if errors.Is(err, tree.ErrNotFound) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error calling GetLastL1InfoTreeRoot: %v", err)
+		return nil, fmt.Errorf("error calling GetLastL1InfoTreeRoot: %w", err)
 	}
 
 	gers := []Event{}

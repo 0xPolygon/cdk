@@ -130,7 +130,11 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Warnf("error rolling back tx: %v", err)
+		}
+	}()
 
 	lpb, err := p.getLastProcessedBlockWithTx(tx)
 	if err != nil {

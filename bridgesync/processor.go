@@ -124,8 +124,11 @@ func (p *processor) GetBridges(
 	if err != nil {
 		return nil, err
 	}
-
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Warnf("error rolling back tx: %v", err)
+		}
+	}()
 
 	if err = p.isBlockProcessed(tx, toBlock); err != nil {
 		return nil, err
@@ -149,7 +152,11 @@ func (p *processor) GetClaims(
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Warnf("error rolling back tx: %v", err)
+		}
+	}()
 
 	if err = p.isBlockProcessed(tx, toBlock); err != nil {
 		return nil, err

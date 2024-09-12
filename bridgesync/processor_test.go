@@ -397,7 +397,7 @@ var (
 type processAction interface {
 	method() string
 	desc() string
-	execute(t *testing.T)
+	execute(t *testing.T) //nolint:thelper
 }
 
 // GetClaims
@@ -420,7 +420,7 @@ func (a *getClaims) desc() string {
 	return a.description
 }
 
-func (a *getClaims) execute(t *testing.T) {
+func (a *getClaims) execute(t *testing.T) { //nolint:thelper
 	actualEvents, actualErr := a.p.GetClaims(a.ctx, a.fromBlock, a.toBlock)
 	require.Equal(t, a.expectedClaims, actualEvents)
 	require.Equal(t, a.expectedErr, actualErr)
@@ -446,7 +446,7 @@ func (a *getBridges) desc() string {
 	return a.description
 }
 
-func (a *getBridges) execute(t *testing.T) {
+func (a *getBridges) execute(t *testing.T) { //nolint:thelper
 	actualEvents, actualErr := a.p.GetBridges(a.ctx, a.fromBlock, a.toBlock)
 	require.Equal(t, a.expectedBridges, actualEvents)
 	require.Equal(t, a.expectedErr, actualErr)
@@ -470,7 +470,7 @@ func (a *getLastProcessedBlockAction) desc() string {
 	return a.description
 }
 
-func (a *getLastProcessedBlockAction) execute(t *testing.T) {
+func (a *getLastProcessedBlockAction) execute(t *testing.T) { //nolint:thelper
 	t.Helper()
 
 	actualLastProcessedBlock, actualErr := a.p.GetLastProcessedBlock(a.ctx)
@@ -495,7 +495,7 @@ func (a *reorgAction) desc() string {
 	return a.description
 }
 
-func (a *reorgAction) execute(t *testing.T) {
+func (a *reorgAction) execute(t *testing.T) { //nolint:thelper
 	t.Helper()
 
 	actualErr := a.p.Reorg(context.Background(), a.firstReorgedBlock)
@@ -519,7 +519,7 @@ func (a *processBlockAction) desc() string {
 	return a.description
 }
 
-func (a *processBlockAction) execute(t *testing.T) {
+func (a *processBlockAction) execute(t *testing.T) { //nolint:thelper
 	t.Helper()
 
 	actualErr := a.p.ProcessBlock(context.Background(), a.block)

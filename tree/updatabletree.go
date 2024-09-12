@@ -2,6 +2,7 @@ package tree
 
 import (
 	"database/sql"
+	"errors"
 
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/tree/types"
@@ -26,7 +27,7 @@ func (t *UpdatableTree) UpsertLeaf(tx *db.Tx, blockNum, blockPosition uint64, le
 	var rootHash common.Hash
 	root, err := t.getLastRootWithTx(tx)
 	if err != nil {
-		if err == ErrNotFound {
+		if errors.Is(err, ErrNotFound) {
 			rootHash = t.zeroHashes[types.DefaultHeight]
 		} else {
 			return err

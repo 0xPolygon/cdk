@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/mattn/go-sqlite3"
 	"github.com/russross/meddler"
 	"golang.org/x/crypto/sha3"
 )
@@ -153,10 +154,11 @@ func generateZeroHashes(height uint8) []common.Hash {
 }
 
 func (t *Tree) storeNodes(tx *db.Tx, nodes []types.TreeNode) error {
-	for _, node := range nodes {
-		if err := meddler.Insert(tx, t.rhtTable, &node); err != nil {
+	for i := 0; i < len(nodes); i++ {
+		if err := meddler.Insert(tx, t.rhtTable, &nodes[i]); err != nil {
 			if sqliteErr, ok := db.SQLiteErr(err); ok {
-				if sqliteErr.ExtendedCode == 1555 { // 1555 is the error code for primary key violation
+				uniqueConstraint := sqlite3.ErrNoExtended(1555) // 1555 is the error code for primary key violation
+				if sqliteErr.ExtendedCode == uniqueConstraint {
 					// ignore repeated entries. This is likely to happen due to not
 					// cleaning RHT when reorg
 					continue
