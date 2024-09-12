@@ -59,7 +59,7 @@ setup() {
             exit 1
         fi
         run claim
-        sleep 10
+        sleep 40
     done
 
     assert_success
