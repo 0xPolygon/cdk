@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/0xPolygon/cdk/bridgesync/migrations"
@@ -120,11 +121,24 @@ func newProcessor(dbPath, loggerPrefix string) (*processor, error) {
 func (p *processor) GetBridges(
 	ctx context.Context, fromBlock, toBlock uint64,
 ) ([]Bridge, error) {
-	bridgePtrs := []*Bridge{}
-	bridgesIface, err := p.getTypeFromBlockToBlock(ctx, fromBlock, toBlock, "bridge", bridgePtrs)
+	tx, err := p.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Warnf("error rolling back tx: %v", err)
+		}
+	}()
+	rows, err := p.queryBlockRange(tx, fromBlock, toBlock, "bridge")
+	if err != nil {
+		return nil, err
+	}
+	bridgePtrs := []*Bridge{}
+	if err = meddler.ScanAll(rows, &bridgePtrs); err != nil {
+		return nil, err
+	}
+	bridgesIface := db.SlicePtrsToSlice(bridgePtrs)
 	bridges, ok := bridgesIface.([]Bridge)
 	if !ok {
 		return nil, errors.New("failed to convert from []*Bridge to []Bridge")
@@ -135,21 +149,6 @@ func (p *processor) GetBridges(
 func (p *processor) GetClaims(
 	ctx context.Context, fromBlock, toBlock uint64,
 ) ([]Claim, error) {
-	claimPtrs := []*Claim{}
-	claimsIface, err := p.getTypeFromBlockToBlock(ctx, fromBlock, toBlock, "claim", claimPtrs)
-	if err != nil {
-		return nil, err
-	}
-	claims, ok := claimsIface.([]Claim)
-	if !ok {
-		return nil, errors.New("failed to convert from []*Claim to []Claim")
-	}
-	return claims, nil
-}
-
-func (p *processor) getTypeFromBlockToBlock(
-	ctx context.Context, fromBlock, toBlock uint64, table string, typeToQuery interface{},
-) (interface{}, error) {
 	tx, err := p.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
@@ -159,23 +158,37 @@ func (p *processor) getTypeFromBlockToBlock(
 			log.Warnf("error rolling back tx: %v", err)
 		}
 	}()
-
-	if err = p.isBlockProcessed(tx, toBlock); err != nil {
+	rows, err := p.queryBlockRange(tx, fromBlock, toBlock, "claim")
+	if err != nil {
 		return nil, err
 	}
+	claimPtrs := []*Claim{}
+	if err = meddler.ScanAll(rows, &claimPtrs); err != nil {
+		return nil, err
+	}
+	claimsIface := db.SlicePtrsToSlice(claimPtrs)
+	claims, ok := claimsIface.([]Claim)
+	if !ok {
+		return nil, errors.New("failed to convert from []*Claim to []Claim")
+	}
+	return claims, nil
+}
 
-	err = meddler.QueryAll(tx, typeToQuery, `
-		SELECT * FROM `+table+`
+func (p *processor) queryBlockRange(tx db.DBer, fromBlock, toBlock uint64, table string) (*sql.Rows, error) {
+	if err := p.isBlockProcessed(tx, toBlock); err != nil {
+		return nil, err
+	}
+	rows, err := tx.Query(fmt.Sprintf(`
+		SELECT * FROM %s
 		WHERE block_num >= $1 AND block_num <= $2;
-	 `, fromBlock, toBlock)
+	`, table), fromBlock, toBlock)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
-
-	return db.SlicePtrsToSlice(typeToQuery), nil
+	return rows, nil
 }
 
 func (p *processor) isBlockProcessed(tx db.DBer, blockNum uint64) error {

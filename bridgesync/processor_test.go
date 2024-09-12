@@ -420,10 +420,11 @@ func (a *getClaims) desc() string {
 	return a.description
 }
 
-func (a *getClaims) execute(t *testing.T) { //nolint:thelper
+func (a *getClaims) execute(t *testing.T) {
+	t.Helper()
 	actualEvents, actualErr := a.p.GetClaims(a.ctx, a.fromBlock, a.toBlock)
-	require.Equal(t, a.expectedClaims, actualEvents)
 	require.Equal(t, a.expectedErr, actualErr)
+	require.Equal(t, a.expectedClaims, actualEvents)
 }
 
 // GetBridges
@@ -446,7 +447,8 @@ func (a *getBridges) desc() string {
 	return a.description
 }
 
-func (a *getBridges) execute(t *testing.T) { //nolint:thelper
+func (a *getBridges) execute(t *testing.T) {
+	t.Helper()
 	actualEvents, actualErr := a.p.GetBridges(a.ctx, a.fromBlock, a.toBlock)
 	require.Equal(t, a.expectedBridges, actualEvents)
 	require.Equal(t, a.expectedErr, actualErr)
