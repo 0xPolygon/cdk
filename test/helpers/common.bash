@@ -134,7 +134,7 @@ function sendTx() {
     fi
 
     # Extract the transaction hash from the output
-    local tx_hash=$(echo "$cast_output" | grep -m 1 'transactionHash' | awk '{print $2}')
+    local tx_hash=$(echo "$cast_output" | grep 'transactionHash' | awk '{print $2}' | tail -n 1)
     echo "Tx hash: $tx_hash"
 
     if [[ -z "$tx_hash" ]]; then
