@@ -257,7 +257,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err = tx.Commit(); err != nil {
 		return err
 	}
 	p.log.Debugf("processed %d events until block %d", len(block.Events), block.Num)

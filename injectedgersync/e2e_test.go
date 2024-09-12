@@ -1,4 +1,4 @@
-package lastgersync_test
+package injectedgersync_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk/etherman"
-	"github.com/0xPolygon/cdk/lastgersync"
+	"github.com/0xPolygon/cdk/injectedgersync"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,7 +19,7 @@ func TestE2E(t *testing.T) {
 	ctx := context.Background()
 	env := helpers.SetupAggoracleWithEVMChain(t)
 	dbPathSyncer := t.TempDir()
-	syncer, err := lastgersync.New(
+	syncer, err := injectedgersync.New(
 		ctx,
 		dbPathSyncer,
 		env.ReorgDetector,
@@ -64,8 +64,8 @@ func TestE2E(t *testing.T) {
 		}
 		require.True(t, syncerUpToDate, errMsg)
 
-		_, actualGER, err := syncer.GetFirstGERAfterL1InfoTreeIndex(ctx, uint32(i))
+		injected, err := syncer.GetFirstGERAfterL1InfoTreeIndex(ctx, uint32(i))
 		require.NoError(t, err)
-		require.Equal(t, common.Hash(expectedGER), actualGER)
+		require.Equal(t, common.Hash(expectedGER), injected.GlobalExitRoot)
 	}
 }

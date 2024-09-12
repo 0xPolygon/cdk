@@ -13,9 +13,9 @@ import (
 	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/common"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
+	"github.com/0xPolygon/cdk/injectedgersync"
 	"github.com/0xPolygon/cdk/l1bridge2infoindexsync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
-	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/sequencesender"
@@ -106,7 +106,7 @@ type Config struct {
 
 	// LastGERSync is the config for the synchronizer in charge of syncing the last GER injected on L2.
 	// Needed for the bridge service (RPC)
-	LastGERSync lastgersync.Config
+	LastGERSync injectedgersync.Config
 }
 
 // Default parses the default configuration values.

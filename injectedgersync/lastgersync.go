@@ -1,4 +1,4 @@
-package lastgersync
+package injectedgersync
 
 import (
 	"context"
@@ -75,7 +75,7 @@ func (s *LastGERSync) Start(ctx context.Context) {
 	s.driver.Sync(ctx)
 }
 
-func (s *LastGERSync) GetFirstGERAfterL1InfoTreeIndex(ctx context.Context, atOrAfterL1InfoTreeIndex uint32) (injectedL1InfoTreeIndex uint32, ger common.Hash, err error) {
+func (s *LastGERSync) GetFirstGERAfterL1InfoTreeIndex(ctx context.Context, atOrAfterL1InfoTreeIndex uint32) (*InjectedGER, error) {
 	return s.processor.GetFirstGERAfterL1InfoTreeIndex(ctx, atOrAfterL1InfoTreeIndex)
 }
 

@@ -24,9 +24,9 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/etherman/contracts"
+	"github.com/0xPolygon/cdk/injectedgersync"
 	"github.com/0xPolygon/cdk/l1bridge2infoindexsync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
-	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/rpc"
@@ -568,15 +568,15 @@ func runL1Bridge2InfoIndexSyncIfNeeded(
 func runLastGERSyncIfNeeded(
 	ctx context.Context,
 	components []string,
-	cfg lastgersync.Config,
+	cfg injectedgersync.Config,
 	reorgDetectorL2 *reorgdetector.ReorgDetector,
 	l2Client *ethclient.Client,
 	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
-) *lastgersync.LastGERSync {
+) *injectedgersync.LastGERSync {
 	if !isNeeded([]string{RPC}, components) {
 		return nil
 	}
-	lastGERSync, err := lastgersync.New(
+	lastGERSync, err := injectedgersync.New(
 		ctx,
 		cfg.DBPath,
 		reorgDetectorL2,
@@ -663,7 +663,7 @@ func createRPC(
 	sponsor *claimsponsor.ClaimSponsor,
 	l1InfoTree *l1infotreesync.L1InfoTreeSync,
 	l1Bridge2Index *l1bridge2infoindexsync.L1Bridge2InfoIndexSync,
-	injectedGERs *lastgersync.LastGERSync,
+	injectedGERs *injectedgersync.LastGERSync,
 	bridgeL1 *bridgesync.BridgeSync,
 	bridgeL2 *bridgesync.BridgeSync,
 ) *jRPC.Server {

@@ -1,4 +1,4 @@
-package lastgersync
+package injectedgersync
 
 import (
 	"context"
@@ -64,7 +64,7 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 		err       error
 	)
 	for {
-		lastIndex, err = d.processor.getLastIndex(ctx)
+		lastIndex, err = d.processor.getLastIndex()
 		if err == ErrNotFound {
 			lastIndex = 0
 		} else if err != nil {
@@ -86,7 +86,7 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 		lastBlock := d.WaitForNewBlocks(ctx, fromBlock)
 
 		attempts = 0
-		var gers []Event
+		var gers []InjectedGER
 		for {
 			gers, err = d.getGERsFromIndex(ctx, lastIndex)
 			if err != nil {
@@ -112,12 +112,12 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 
 		downloadedCh <- *block
 		if block.Events != nil {
-			lastIndex = block.Events[0].(Event).L1InfoTreeIndex
+			lastIndex = block.Events[0].(InjectedGER).L1InfoTreeIndex
 		}
 	}
 }
 
-func (d *downloader) getGERsFromIndex(ctx context.Context, fromL1InfoTreeIndex uint32) ([]Event, error) {
+func (d *downloader) getGERsFromIndex(ctx context.Context, fromL1InfoTreeIndex uint32) ([]InjectedGER, error) {
 	lastRoot, err := d.l1InfoTreesync.GetLastL1InfoTreeRoot(ctx)
 	if err == tree.ErrNotFound {
 		return nil, nil
@@ -126,13 +126,13 @@ func (d *downloader) getGERsFromIndex(ctx context.Context, fromL1InfoTreeIndex u
 		return nil, fmt.Errorf("error calling GetLastL1InfoTreeRoot: %v", err)
 	}
 
-	gers := []Event{}
+	gers := []InjectedGER{}
 	for i := fromL1InfoTreeIndex; i <= lastRoot.Index; i++ {
 		info, err := d.l1InfoTreesync.GetInfoByIndex(ctx, i)
 		if err != nil {
 			return nil, fmt.Errorf("error calling GetInfoByIndex: %v", err)
 		}
-		gers = append(gers, Event{
+		gers = append(gers, InjectedGER{
 			L1InfoTreeIndex: i,
 			GlobalExitRoot:  info.GlobalExitRoot,
 		})
@@ -141,7 +141,7 @@ func (d *downloader) getGERsFromIndex(ctx context.Context, fromL1InfoTreeIndex u
 	return gers, nil
 }
 
-func (d *downloader) setGreatestGERInjectedFromList(b *sync.EVMBlock, list []Event) {
+func (d *downloader) setGreatestGERInjectedFromList(b *sync.EVMBlock, list []InjectedGER) {
 	for _, event := range list {
 		var attempts int
 		for {

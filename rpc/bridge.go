@@ -9,9 +9,9 @@ import (
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/claimsponsor"
+	"github.com/0xPolygon/cdk/injectedgersync"
 	"github.com/0xPolygon/cdk/l1bridge2infoindexsync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
-	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/common"
 	"go.opentelemetry.io/otel"
@@ -33,7 +33,7 @@ type BridgeEndpoints struct {
 	sponsor        *claimsponsor.ClaimSponsor
 	l1InfoTree     *l1infotreesync.L1InfoTreeSync
 	l1Bridge2Index *l1bridge2infoindexsync.L1Bridge2InfoIndexSync
-	injectedGERs   *lastgersync.LastGERSync
+	injectedGERs   *injectedgersync.LastGERSync
 	bridgeL1       *bridgesync.BridgeSync
 	bridgeL2       *bridgesync.BridgeSync
 }
@@ -46,7 +46,7 @@ func NewBridgeEndpoints(
 	sponsor *claimsponsor.ClaimSponsor,
 	l1InfoTree *l1infotreesync.L1InfoTreeSync,
 	l1Bridge2Index *l1bridge2infoindexsync.L1Bridge2InfoIndexSync,
-	injectedGERs *lastgersync.LastGERSync,
+	injectedGERs *injectedgersync.LastGERSync,
 	bridgeL1 *bridgesync.BridgeSync,
 	bridgeL2 *bridgesync.BridgeSync,
 ) *BridgeEndpoints {
@@ -116,11 +116,11 @@ func (b *BridgeEndpoints) InjectedInfoAfterIndex(networkID uint32, l1InfoTreeInd
 		return info, nil
 	}
 	if networkID == b.networkID {
-		injectedL1InfoTreeIndex, _, err := b.injectedGERs.GetFirstGERAfterL1InfoTreeIndex(ctx, l1InfoTreeIndex)
+		injected, err := b.injectedGERs.GetFirstGERAfterL1InfoTreeIndex(ctx, l1InfoTreeIndex)
 		if err != nil {
 			return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get global exit root, error: %s", err))
 		}
-		info, err := b.l1InfoTree.GetInfoByIndex(ctx, injectedL1InfoTreeIndex)
+		info, err := b.l1InfoTree.GetInfoByIndex(ctx, injected.L1InfoTreeIndex)
 		if err != nil {
 			return "0x0", rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get global exit root, error: %s", err))
 		}

@@ -1,4 +1,4 @@
-package lastgersync
+package injectedgersync
 
 import (
 	"github.com/0xPolygon/cdk/config/types"
