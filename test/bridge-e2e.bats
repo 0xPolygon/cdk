@@ -52,17 +52,15 @@ setup() {
     start_time=$(date +%s)
     end_time=$((start_time + timeout))
 
-    run claim
-
-    # while true; do
-    #     current_time=$(date +%s)
-    #     if ((current_time > end_time)); then
-    #         echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Exiting... Timeout reached!"
-    #         exit 1
-    #     fi
-    #     run claim
-    #     sleep 10
-    # done
+    while true; do
+        current_time=$(date +%s)
+        if ((current_time > end_time)); then
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Exiting... Timeout reached!"
+            exit 1
+        fi
+        run claim
+        sleep 10
+    done
 
     assert_success
 }
