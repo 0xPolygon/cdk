@@ -112,7 +112,7 @@ function sendTx() {
             return 1
         fi
 
-        echo "Sending smart contract transaction (RPC URL: $rpc_url, sender: $senderAddr) to $receiver with function signature: $value_or_function_sig and params: ${params[*]}"
+        echo "Sending smart contract transaction (RPC URL: $rpc_url, sender: $senderAddr) to $receiver with function signature: '$value_or_function_sig' and params: ${params[*]}"
 
         # Send the smart contract interaction using cast
         cast_output=$(cast send --rpc-url "$rpc_url" \
@@ -134,8 +134,7 @@ function sendTx() {
     fi
 
     # Extract the transaction hash from the output
-    local tx_hash
-    tx_hash=$(echo "$cast_output" | grep 'transactionHash' | sed 's/transactionHash\s\+//')
+    local tx_hash=$(echo "$cast_output" | grep -m 1 'transactionHash' | awk '{print $2}')
     echo "Tx hash: $tx_hash"
 
     if [[ -z "$tx_hash" ]]; then
