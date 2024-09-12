@@ -6,6 +6,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const (
+	UniqueConstrain = 1555
+)
+
 // NewSQLiteDB creates a new SQLite DB
 func NewSQLiteDB(dbPath string) (*sql.DB, error) {
 	initMeddler()

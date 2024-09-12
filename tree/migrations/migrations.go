@@ -36,8 +36,8 @@ func MigrationsWithPrefix(prefix string) []*migrate.Migration {
 	return []*migrate.Migration{
 		{
 			Id:   prefix + "tree001",
-			Up:   []string{strings.Replace(mig001splitted[1], dbPrefixReplacer, prefix, -1)},
-			Down: []string{strings.Replace(mig001splitted[0], dbPrefixReplacer, prefix, -1)},
+			Up:   []string{strings.ReplaceAll(mig001splitted[1], dbPrefixReplacer, prefix)},
+			Down: []string{strings.ReplaceAll(mig001splitted[0], dbPrefixReplacer, prefix)},
 		},
 	}
 }

@@ -397,7 +397,7 @@ var (
 type processAction interface {
 	method() string
 	desc() string
-	execute(t *testing.T) //nolint:thelper
+	execute(t *testing.T)
 }
 
 // GetClaims
@@ -470,7 +470,7 @@ func (a *getLastProcessedBlockAction) desc() string {
 	return a.description
 }
 
-func (a *getLastProcessedBlockAction) execute(t *testing.T) { //nolint:thelper
+func (a *getLastProcessedBlockAction) execute(t *testing.T) {
 	t.Helper()
 
 	actualLastProcessedBlock, actualErr := a.p.GetLastProcessedBlock(a.ctx)
@@ -495,7 +495,7 @@ func (a *reorgAction) desc() string {
 	return a.description
 }
 
-func (a *reorgAction) execute(t *testing.T) { //nolint:thelper
+func (a *reorgAction) execute(t *testing.T) {
 	t.Helper()
 
 	actualErr := a.p.Reorg(context.Background(), a.firstReorgedBlock)
@@ -519,7 +519,7 @@ func (a *processBlockAction) desc() string {
 	return a.description
 }
 
-func (a *processBlockAction) execute(t *testing.T) { //nolint:thelper
+func (a *processBlockAction) execute(t *testing.T) {
 	t.Helper()
 
 	actualErr := a.p.ProcessBlock(context.Background(), a.block)
@@ -529,7 +529,10 @@ func (a *processBlockAction) execute(t *testing.T) { //nolint:thelper
 func eventsToBridges(events []interface{}) []Bridge {
 	bridges := []Bridge{}
 	for _, event := range events {
-		e := event.(Event)
+		e, ok := event.(Event)
+		if !ok {
+			panic("should be ok")
+		}
 		if e.Bridge != nil {
 			bridges = append(bridges, *e.Bridge)
 		}
@@ -540,7 +543,10 @@ func eventsToBridges(events []interface{}) []Bridge {
 func eventsToClaims(events []interface{}) []Claim {
 	claims := []Claim{}
 	for _, event := range events {
-		e := event.(Event)
+		e, ok := event.(Event)
+		if !ok {
+			panic("should be ok")
+		}
 		if e.Claim != nil {
 			claims = append(claims, *e.Claim)
 		}
