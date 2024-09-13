@@ -2,10 +2,10 @@ package datacommittee
 
 import (
 	"crypto/ecdsa"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"math/big"
-	"math/rand"
 	"sort"
 	"strings"
 
@@ -91,7 +91,11 @@ func (d *Backend) Init() error {
 	if committee != nil {
 		d.committeeMembers = committee.Members
 		if len(committee.Members) > 0 {
-			selectedCommitteeMember = rand.Intn(len(committee.Members))
+			nBig, err := rand.Int(rand.Reader, big.NewInt(int64(len(committee.Members))))
+			if err != nil {
+				return err
+			}
+			selectedCommitteeMember = int(nBig.Int64())
 		}
 	}
 	d.selectedCommitteeMember = selectedCommitteeMember
