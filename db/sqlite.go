@@ -7,6 +7,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const (
+	UniqueConstrain = 1555
+)
+
 var (
 	ErrNotFound = errors.New("not found")
 )

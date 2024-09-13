@@ -45,7 +45,8 @@ func TestGetFirstL1InfoTreeIndexForL1Bridge(t *testing.T) {
 		infoAfterBlock := &l1infotreesync.L1InfoTreeLeaf{}
 		b.l1InfoTree.On("GetFirstInfoAfterBlock", mock.Anything).
 			Run(func(args mock.Arguments) {
-				blockNum := args.Get(0).(uint64)
+				blockNum, ok := args.Get(0).(uint64)
+				require.True(t, ok)
 				infoAfterBlock.L1InfoTreeIndex = uint32(blockNum)
 				infoAfterBlock.BlockNumber = blockNum
 				infoAfterBlock.MainnetExitRoot = common.BytesToHash(cdkCommon.Uint32ToBytes(uint32(blockNum)))
@@ -54,7 +55,8 @@ func TestGetFirstL1InfoTreeIndexForL1Bridge(t *testing.T) {
 		rootByLER := &tree.Root{}
 		b.bridgeL1.On("GetRootByLER", ctx, mock.Anything).
 			Run(func(args mock.Arguments) {
-				ler := args.Get(1).(common.Hash)
+				ler, ok := args.Get(1).(common.Hash)
+				require.True(t, ok)
 				index := cdkCommon.BytesToUint32(ler.Bytes()[28:]) // hash is 32 bytes, uint32 is just 4
 				if ler == common.HexToHash("alfa") {
 					index = uint32(lastL1Info.BlockNumber)
@@ -239,7 +241,8 @@ func TestGetFirstL1InfoTreeIndexForL2Bridge(t *testing.T) {
 		verifiedAfterBlock := &l1infotreesync.VerifyBatches{}
 		b.l1InfoTree.On("GetFirstVerifiedBatchesAfterBlock", uint32(1), mock.Anything).
 			Run(func(args mock.Arguments) {
-				blockNum := args.Get(1).(uint64)
+				blockNum, ok := args.Get(1).(uint64)
+				require.True(t, ok)
 				verifiedAfterBlock.BlockNumber = blockNum
 				verifiedAfterBlock.ExitRoot = common.BytesToHash(cdkCommon.Uint32ToBytes(uint32(blockNum)))
 				verifiedAfterBlock.RollupExitRoot = common.BytesToHash(cdkCommon.Uint32ToBytes(uint32(blockNum)))
@@ -248,7 +251,8 @@ func TestGetFirstL1InfoTreeIndexForL2Bridge(t *testing.T) {
 		rootByLER := &tree.Root{}
 		b.bridgeL2.On("GetRootByLER", ctx, mock.Anything).
 			Run(func(args mock.Arguments) {
-				ler := args.Get(1).(common.Hash)
+				ler, ok := args.Get(1).(common.Hash)
+				require.True(t, ok)
 				index := cdkCommon.BytesToUint32(ler.Bytes()[28:]) // hash is 32 bytes, uint32 is just 4
 				if ler == common.HexToHash("alfa") {
 					index = uint32(lastVerified.BlockNumber)
@@ -259,7 +263,8 @@ func TestGetFirstL1InfoTreeIndexForL2Bridge(t *testing.T) {
 		info := &l1infotreesync.L1InfoTreeLeaf{}
 		b.l1InfoTree.On("GetFirstL1InfoWithRollupExitRoot", mock.Anything).
 			Run(func(args mock.Arguments) {
-				exitRoot := args.Get(0).(common.Hash)
+				exitRoot, ok := args.Get(0).(common.Hash)
+				require.True(t, ok)
 				index := cdkCommon.BytesToUint32(exitRoot.Bytes()[28:]) // hash is 32 bytes, uint32 is just 4
 				info.L1InfoTreeIndex = index
 			}).
@@ -422,6 +427,7 @@ type bridgeWithMocks struct {
 }
 
 func newBridgeWithMocks(t *testing.T) bridgeWithMocks {
+	t.Helper()
 	b := bridgeWithMocks{
 		sponsor:      mocks.NewClaimSponsorer(t),
 		l1InfoTree:   mocks.NewL1InfoTreer(t),

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	dbCommon "github.com/0xPolygon/cdk/common"
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum/common"
@@ -31,7 +32,6 @@ const (
 
 var (
 	ErrInvalidClaim = errors.New("invalid claim")
-	ErrNotFound     = errors.New("not found")
 )
 
 // Claim representation of a claim event
@@ -129,7 +129,7 @@ func (c *ClaimSponsor) Start(ctx context.Context) {
 		if err2 != nil {
 			err = err2
 			tx.Rollback()
-			if errors.Is(err, ErrNotFound) {
+			if errors.Is(err, db.ErrNotFound) {
 				log.Debugf("queue is empty")
 				err = nil
 				time.Sleep(c.waitOnEmptyQueue)
@@ -250,7 +250,7 @@ func (c *ClaimSponsor) AddClaimToQueue(ctx context.Context, claim *Claim) error 
 	}
 
 	_, err = getClaim(tx, claim.GlobalIndex)
-	if !errors.Is(err, ErrNotFound) {
+	if !errors.Is(err, db.ErrNotFound) {
 		if err != nil {
 			tx.Rollback()
 
@@ -271,7 +271,7 @@ func (c *ClaimSponsor) AddClaimToQueue(ctx context.Context, claim *Claim) error 
 
 	var queuePosition uint64
 	lastQueuePosition, _, err := getLastQueueIndex(tx)
-	if errors.Is(err, ErrNotFound) {
+	if errors.Is(err, db.ErrNotFound) {
 		queuePosition = 0
 	} else if err != nil {
 		tx.Rollback()
@@ -311,7 +311,7 @@ func (c *ClaimSponsor) getClaimByQueueIndex(ctx context.Context, queueIndex uint
 		return nil, err
 	}
 	if globalIndexBytes == nil {
-		return nil, ErrNotFound
+		return nil, db.ErrNotFound
 	}
 
 	return getClaim(tx, new(big.Int).SetBytes(globalIndexBytes))
@@ -349,7 +349,7 @@ func getIndex(iter iter.KV) (uint64, *big.Int, error) {
 		return 0, nil, err
 	}
 	if k == nil {
-		return 0, nil, ErrNotFound
+		return 0, nil, db.ErrNotFound
 	}
 	globalIndex := new(big.Int).SetBytes(v)
 
@@ -372,7 +372,7 @@ func getClaim(tx kv.Tx, globalIndex *big.Int) (*Claim, error) {
 		return nil, err
 	}
 	if claimBytes == nil {
-		return nil, ErrNotFound
+		return nil, db.ErrNotFound
 	}
 	claim := &Claim{}
 	err = json.Unmarshal(claimBytes, claim)

@@ -27,7 +27,7 @@ func (t *UpdatableTree) UpsertLeaf(tx db.Txer, blockNum, blockPosition uint64, l
 	var rootHash common.Hash
 	root, err := t.getLastRootWithTx(tx)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			rootHash = t.zeroHashes[types.DefaultHeight]
 		} else {
 			return common.Hash{}, err
@@ -37,13 +37,7 @@ func (t *UpdatableTree) UpsertLeaf(tx db.Txer, blockNum, blockPosition uint64, l
 	}
 	siblings, _, err := t.getSiblings(tx, leaf.Index, rootHash)
 	if err != nil {
-		if err == ErrNotFound {
-			rootHash = t.zeroHashes[types.DefaultHeight]
-		} else {
-			return common.Hash{}, err
-		}
-	} else {
-		rootHash = root.Hash
+		return common.Hash{}, err
 	}
 	currentChildHash := leaf.Hash
 	newNodes := []types.TreeNode{}

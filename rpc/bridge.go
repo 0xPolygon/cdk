@@ -21,7 +21,8 @@ const (
 	BRIDGE    = "bridge"
 	meterName = "github.com/0xPolygon/cdk/rpc"
 
-	zeroHex = "0x0"
+	zeroHex              = "0x0"
+	binnarySearchDivider = 2
 )
 
 var (
@@ -276,7 +277,7 @@ func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL1Bridge(ctx context.Context
 	lowerLimit := firstInfo.BlockNumber
 	upperLimit := lastInfo.BlockNumber
 	for lowerLimit <= upperLimit {
-		targetBlock := (lowerLimit + upperLimit) / 2
+		targetBlock := (lowerLimit + upperLimit) / binnarySearchDivider
 		targetInfo, err := b.l1InfoTree.GetFirstInfoAfterBlock(targetBlock)
 		if err != nil {
 			return 0, err
@@ -329,7 +330,7 @@ func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL2Bridge(ctx context.Context
 	lowerLimit := firstVerified.BlockNumber
 	upperLimit := lastVerified.BlockNumber
 	for lowerLimit <= upperLimit {
-		targetBlock := (lowerLimit + upperLimit) / 2
+		targetBlock := (lowerLimit + upperLimit) / binnarySearchDivider
 		targetVerified, err := b.l1InfoTree.GetFirstVerifiedBatchesAfterBlock(b.networkID-1, targetBlock)
 		if err != nil {
 			return 0, err

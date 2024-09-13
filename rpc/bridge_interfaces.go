@@ -16,7 +16,9 @@ type Bridger interface {
 }
 
 type LastGERer interface {
-	GetFirstGERAfterL1InfoTreeIndex(ctx context.Context, atOrAfterL1InfoTreeIndex uint32) (injectedL1InfoTreeIndex uint32, ger common.Hash, err error)
+	GetFirstGERAfterL1InfoTreeIndex(
+		ctx context.Context, atOrAfterL1InfoTreeIndex uint32,
+	) (injectedL1InfoTreeIndex uint32, ger common.Hash, err error)
 }
 
 type L1InfoTreer interface {

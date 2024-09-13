@@ -22,7 +22,7 @@ func initMeddler() {
 	meddler.Register("address", AddressMeddler{})
 }
 
-func SQLiteErr(err error) (sqlite.Error, bool) {
+func SQLiteErr(err error) (*sqlite.Error, bool) {
 	sqliteErr := &sqlite.Error{}
 	if ok := errors.As(err, sqliteErr); ok {
 		return sqliteErr, true
@@ -189,7 +189,10 @@ func (b AddressMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, 
 
 // PostRead is called after a Scan operation for fields that have the ProofMeddler
 func (b AddressMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
-	ptr := scanTarget.(*string)
+	ptr, ok := scanTarget.(*string)
+	if !ok {
+		return errors.New("scanTarget is not *string")
+	}
 	if ptr == nil {
 		return errors.New("AddressMeddler.PostRead: nil pointer")
 	}

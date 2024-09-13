@@ -247,7 +247,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	var initialL1InfoIndex uint32
 	var l1InfoLeavesAdded uint32
 	lastIndex, err := p.getLastIndex(tx)
-	if errors.Is(err, ErrNotFound) {
+	if errors.Is(err, db.ErrNotFound) {
 		initialL1InfoIndex = 0
 		err = nil
 	} else if err != nil {
