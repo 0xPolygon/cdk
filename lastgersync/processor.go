@@ -141,13 +141,15 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	var lastIndex int64
 	if lenEvents > 0 {
 		li, err := p.getLastIndexWithTx(tx)
-		if errors.Is(err, ErrNotFound) {
+		switch {
+		case errors.Is(err, ErrNotFound):
 			lastIndex = -1
-		} else if err != nil {
-			tx.Rollback()
 
+		case err != nil:
+			tx.Rollback()
 			return err
-		} else {
+
+		default:
 			lastIndex = int64(li)
 		}
 	}

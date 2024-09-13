@@ -375,6 +375,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		}
 
 		marshalledBookMark, err = proto.Marshal(bookMark)
+		//nolint:gocritic
 		if err != nil {
 			log.Error("failed to marshal bookmark: %v", err)
 		} else {
@@ -1151,6 +1152,7 @@ func (a *Aggregator) validateEligibleFinalProof(
 	batchNumberToVerify := lastVerifiedBatchNum + 1
 
 	if proof.BatchNumber != batchNumberToVerify {
+		//nolint:gocritic
 		if proof.BatchNumber < batchNumberToVerify && proof.BatchNumberFinal >= batchNumberToVerify {
 			// We have a proof that contains some batches below the last batch verified, anyway can be eligible as final proof
 			log.Warnf(
@@ -1764,6 +1766,7 @@ func (a *Aggregator) buildInputProver(
 	l1InfoTreeData := map[uint32]*prover.L1Data{}
 	forcedBlockhashL1 := common.Hash{}
 	l1InfoRoot := batchToVerify.L1InfoRoot.Bytes()
+	//nolint:gocritic
 	if !isForcedBatch {
 		tree, err := l1infotree.NewL1InfoTree(32, [][32]byte{}) //nolint:mnd
 		if err != nil {

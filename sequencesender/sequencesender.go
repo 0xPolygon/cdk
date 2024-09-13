@@ -425,7 +425,8 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 	}
 
 	txResult, err := s.ethTxManager.Result(ctx, txHash)
-	if errors.Is(err, ethtxmanager.ErrNotFound) {
+	switch {
+	case errors.Is(err, ethtxmanager.ErrNotFound):
 		log.Infof("transaction %v does not exist in ethtxmanager. Marking it", txHash)
 		txData.OnMonitor = false
 		// Resend tx
@@ -433,10 +434,12 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 		if errSend == nil {
 			txData.OnMonitor = false
 		}
-	} else if err != nil {
+
+	case err != nil:
 		log.Errorf("error getting result for tx %v: %v", txHash, err)
 		return err
-	} else {
+
+	default:
 		s.updateEthTxResult(txData, txResult)
 	}
 
@@ -879,16 +882,19 @@ func (s *SequenceSender) handleReceivedDataStream(
 			}
 		}
 
-		// Already virtualized
-		if l2Block.BatchNumber <= s.fromStreamBatch {
+		switch {
+		case l2Block.BatchNumber <= s.fromStreamBatch:
+			// Already virtualized
 			if l2Block.BatchNumber != s.latestStreamBatch {
 				log.Infof("skipped! batch already virtualized, number %d", l2Block.BatchNumber)
 			}
-		} else if !s.validStream && l2Block.BatchNumber == s.fromStreamBatch+1 {
+
+		case !s.validStream && l2Block.BatchNumber == s.fromStreamBatch+1:
 			// Initial case after startup
 			s.addNewSequenceBatch(l2Block)
 			s.validStream = true
-		} else if l2Block.BatchNumber > s.wipBatch {
+
+		case l2Block.BatchNumber > s.wipBatch:
 			// Handle whether it's only a new block or also a new batch
 			// Create new sequential batch
 			s.addNewSequenceBatch(l2Block)
@@ -1021,28 +1027,27 @@ func (s *SequenceSender) closeSequenceBatch() error {
 
 		data.batch.SetL2Data(batchL2Data)
 	} else {
-		log.Fatalf("wipBatch %d not found in sequenceData slice", s.wipBatch)
+		return fmt.Errorf("pending batch %d not found in sequence data", s.wipBatch)
 	}
 
 	// Sanity Check
 	if s.cfg.SanityCheckRPCURL != "" {
 		rpcNumberOfBlocks, batchL2Data, err := s.getBatchFromRPC(s.wipBatch)
 		if err != nil {
-			log.Fatalf("error getting batch number from RPC while trying to perform sanity check: %v", err)
+			return fmt.Errorf("error getting batch number from RPC while trying to perform sanity check: %w", err)
 		} else {
 			dsNumberOfBlocks := len(s.sequenceData[s.wipBatch].batchRaw.Blocks)
 			if rpcNumberOfBlocks != dsNumberOfBlocks {
-				log.Fatalf(
-					"number of blocks in batch %d (%d) does not match the number of blocks in the batch from the RPC (%d)",
-					s.wipBatch, dsNumberOfBlocks, rpcNumberOfBlocks,
-				)
+				return fmt.Errorf("number of blocks in batch %d (%d) does not match "+
+					"the number of blocks in the batch from the RPC (%d)",
+					s.wipBatch, dsNumberOfBlocks, rpcNumberOfBlocks)
 			}
 
 			if data.batchType == datastream.BatchType_BATCH_TYPE_REGULAR &&
 				common.Bytes2Hex(data.batch.L2Data()) != batchL2Data {
 				log.Infof("datastream batchL2Data: %s", common.Bytes2Hex(data.batch.L2Data()))
 				log.Infof("RPC batchL2Data: %s", batchL2Data)
-				log.Fatalf("batchL2Data in batch %d does not match batchL2Data from the RPC (%d)", s.wipBatch)
+				return fmt.Errorf("batchL2Data in batch %d does not match batchL2Data from the RPC ", s.wipBatch)
 			}
 
 			log.Infof("sanity check of batch %d against RPC successful", s.wipBatch)
