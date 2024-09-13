@@ -166,7 +166,7 @@ func TestFinalised(t *testing.T) {
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
 	require.NoError(t, err)
-	client, _, _, _, _, err := newSimulatedClient(auth)
+	client, _, _, _, _, err := newSimulatedClient(auth) //nolint:dogsled
 	require.NoError(t, err)
 	for i := 0; i < 100; i++ {
 		client.Commit()
