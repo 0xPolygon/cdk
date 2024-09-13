@@ -333,7 +333,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	}
 	var rollbackL1InfoTree func()
 	if firstReorgedL1InfoTreeIndex != -1 {
-		rollbackL1InfoTree, err = p.l1InfoTree.Reorg(tx, uint32(firstReorgedL1InfoTreeIndex)) //nolint:gosec
+		rollbackL1InfoTree, err = p.l1InfoTree.Reorg(tx, uint32(firstReorgedL1InfoTreeIndex))
 		if err != nil {
 			tx.Rollback()
 			rollbackL1InfoTree()

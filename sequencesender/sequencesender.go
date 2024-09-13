@@ -530,7 +530,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Sanity check: Wait also until current time is L1BlockTimestampMargin seconds above the
 	// timestamp of the last L2 block in the sequence
 	for {
-		currentTime := uint64(time.Now().Unix()) //nolint:gosec
+		currentTime := uint64(time.Now().Unix())
 
 		elapsed, waitTime := s.marginTimeElapsed(lastL2BlockTimestamp, currentTime, timeMargin)
 
@@ -834,11 +834,11 @@ func (s *SequenceSender) entryTypeToString(entryType datastream.EntryType) strin
 func (s *SequenceSender) handleReceivedDataStream(
 	entry *datastreamer.FileEntry, client *datastreamer.StreamClient, server *datastreamer.StreamServer,
 ) error {
-	dsType := datastream.EntryType(entry.Type) //nolint:gosec
+	dsType := datastream.EntryType(entry.Type)
 
 	var prevEntryType datastream.EntryType
 	if s.prevStreamEntry != nil {
-		prevEntryType = datastream.EntryType(s.prevStreamEntry.Type) //nolint:gosec
+		prevEntryType = datastream.EntryType(s.prevStreamEntry.Type)
 	}
 
 	switch dsType {
@@ -1218,7 +1218,7 @@ func (s *SequenceSender) addNewBlockTx(l2Tx *datastream.Transaction) {
 	}
 
 	l2TxRaw := state.L2TxRaw{
-		EfficiencyPercentage: uint8(l2Tx.EffectiveGasPricePercentage), //nolint:gosec
+		EfficiencyPercentage: uint8(l2Tx.EffectiveGasPricePercentage),
 		TxAlreadyEncoded:     false,
 		Tx:                   tx,
 	}
@@ -1272,9 +1272,9 @@ func (s *SequenceSender) marginTimeElapsed(
 	var timeDiff int64
 	if l2BlockTimestamp >= currentTime {
 		// L2 block timestamp is above currentTime, negative timeDiff. We do in this way to avoid uint64 overflow
-		timeDiff = int64(-(l2BlockTimestamp - currentTime)) //nolint:gosec
+		timeDiff = int64(-(l2BlockTimestamp - currentTime))
 	} else {
-		timeDiff = int64(currentTime - l2BlockTimestamp) //nolint:gosec
+		timeDiff = int64(currentTime - l2BlockTimestamp)
 	}
 
 	// Check if the time difference is less than timeMargin (L1BlockTimestampMargin)

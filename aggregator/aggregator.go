@@ -553,7 +553,7 @@ func (a *Aggregator) handleReceivedDataStream(
 						oldDBBatch.Batch.AccInputHash,
 						a.currentStreamBatch.BatchL2Data,
 						a.currentStreamBatch.L1InfoRoot,
-						uint64(a.currentStreamBatch.Timestamp.Unix()), //nolint:gosec
+						uint64(a.currentStreamBatch.Timestamp.Unix()),
 						a.currentStreamBatch.Coinbase,
 						forcedBlockhashL1,
 					)
@@ -639,7 +639,7 @@ func (a *Aggregator) handleReceivedDataStream(
 				}
 
 				l2TxRaw := state.L2TxRaw{
-					EfficiencyPercentage: uint8(l2Tx.EffectiveGasPricePercentage), //nolint:gosec
+					EfficiencyPercentage: uint8(l2Tx.EffectiveGasPricePercentage),
 					TxAlreadyEncoded:     false,
 					Tx:                   tx,
 				}
@@ -1783,7 +1783,7 @@ func (a *Aggregator) buildInputProver(
 			aLeaves[i] = l1infotree.HashLeafData(
 				leaf.GlobalExitRoot,
 				leaf.PreviousBlockHash,
-				uint64(leaf.Timestamp.Unix())) //nolint:gosec
+				uint64(leaf.Timestamp.Unix()))
 		}
 
 		for _, l2blockRaw := range batchRawData.Blocks {
@@ -1824,7 +1824,7 @@ func (a *Aggregator) buildInputProver(
 				l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = &prover.L1Data{
 					GlobalExitRoot: l1InfoTreeLeaf.GlobalExitRoot.Bytes(),
 					BlockhashL1:    l1InfoTreeLeaf.PreviousBlockHash.Bytes(),
-					MinTimestamp:   uint32(l1InfoTreeLeaf.Timestamp.Unix()), //nolint:gosec
+					MinTimestamp:   uint32(l1InfoTreeLeaf.Timestamp.Unix()),
 					SmtProof:       protoProof,
 				}
 			}
@@ -1870,7 +1870,7 @@ func (a *Aggregator) buildInputProver(
 			ForkId:            batchToVerify.ForkID,
 			BatchL2Data:       batchToVerify.BatchL2Data,
 			L1InfoRoot:        l1InfoRoot,
-			TimestampLimit:    uint64(batchToVerify.Timestamp.Unix()), //nolint:gosec
+			TimestampLimit:    uint64(batchToVerify.Timestamp.Unix()),
 			SequencerAddr:     batchToVerify.Coinbase.String(),
 			AggregatorAddr:    a.cfg.SenderAddress,
 			L1InfoTreeData:    l1InfoTreeData,

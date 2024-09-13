@@ -57,6 +57,9 @@ linters-settings:
   goconst:
     min-len: 3
     min-occurrences: 3
+  gosec:
+     excludes:
+      - G115  # Potential integer overflow when converting between integer types
 
 issues:
   whole-files: true

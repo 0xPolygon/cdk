@@ -275,7 +275,7 @@ func (t *Tree) getLastIndexAndRootWithTx(tx kv.Tx) (int64, common.Hash, error) {
 	if lastIndexBytes == nil {
 		return -1, common.Hash{}, nil
 	}
-	return int64(dbCommon.BytesToUint64(lastIndexBytes)), common.Hash(rootBytes), nil //nolint:gosec
+	return int64(dbCommon.BytesToUint64(lastIndexBytes)), common.Hash(rootBytes), nil
 }
 
 func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (common.Hash, error) {

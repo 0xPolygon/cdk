@@ -305,13 +305,13 @@ func DecodeTxRLP(txsData []byte, offset int) (int, *L2TxRaw, error) {
 	if err != nil {
 		return 0, nil, fmt.Errorf("can't get RLP length (offset=%d): %w", offset, err)
 	}
-	endPos := uint64(offset) + length + rLength + sLength + vLength + EfficiencyPercentageByteLength //nolint:gosec
+	endPos := uint64(offset) + length + rLength + sLength + vLength + EfficiencyPercentageByteLength
 	if endPos > uint64(len(txsData)) {
 		return 0, nil, fmt.Errorf("can't get tx because not enough data (endPos=%d lenData=%d): %w",
 			endPos, len(txsData), ErrInvalidBatchV2)
 	}
 	fullDataTx := txsData[offset:endPos]
-	dataStart := uint64(offset) + length //nolint:gosec
+	dataStart := uint64(offset) + length
 	txInfo := txsData[offset:dataStart]
 	rData := txsData[dataStart : dataStart+rLength]
 	sData := txsData[dataStart+rLength : dataStart+rLength+sLength]
@@ -344,7 +344,7 @@ func DecodeTxRLP(txsData []byte, offset int) (int, *L2TxRaw, error) {
 		EfficiencyPercentage: efficiencyPercentage,
 	}
 
-	return int(endPos), l2Tx, err //nolint:gosec
+	return int(endPos), l2Tx, err
 }
 
 // It returns the length of data from the param offset
@@ -360,7 +360,7 @@ func decodeRLPListLengthFromOffset(txsData []byte, offset int) (uint64, error) {
 	length := num - c0
 	if length > shortRlp { // If rlp is bigger than length 55
 		// n is the length of the rlp data without the header (1 byte) for example "0xf7"
-		pos64 := uint64(offset) //nolint:gosec
+		pos64 := uint64(offset)
 		lengthInByteOfSize := num - f7
 		if (pos64 + headerByteLength + lengthInByteOfSize) > txDataLength {
 			log.Debug("error not enough data: ")

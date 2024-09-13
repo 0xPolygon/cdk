@@ -21,7 +21,7 @@ func NewL1InfoTree(height uint8, initialLeaves [][32]byte) (*L1InfoTree, error) 
 	mt := &L1InfoTree{
 		zeroHashes: generateZeroHashes(height),
 		height:     height,
-		count:      uint32(len(initialLeaves)), //nolint:gosec
+		count:      uint32(len(initialLeaves)),
 	}
 	var err error
 	mt.siblings, mt.currentRoot, err = mt.initSiblings(initialLeaves)
@@ -42,7 +42,7 @@ func (mt *L1InfoTree) ResetL1InfoTree(initialLeaves [][32]byte) (*L1InfoTree, er
 	newMT := &L1InfoTree{
 		zeroHashes: generateZeroHashes(defaultTreeHeight),
 		height:     defaultTreeHeight,
-		count:      uint32(len(initialLeaves)), //nolint:gosec
+		count:      uint32(len(initialLeaves)),
 	}
 	var err error
 	newMT.siblings, newMT.currentRoot, err = newMT.initSiblings(initialLeaves)
@@ -108,7 +108,7 @@ func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint32, leaves [][32]byte) ([]
 		if len(leaves)%2 == 1 {
 			leaves = append(leaves, mt.zeroHashes[h])
 		}
-		if index >= uint32(len(leaves)) { //nolint:gosec
+		if index >= uint32(len(leaves)) {
 			siblings = append(siblings, mt.zeroHashes[h])
 		} else {
 			if index%2 == 1 { // If it is odd
@@ -177,7 +177,7 @@ func (mt *L1InfoTree) AddLeaf(index uint32, leaf [32]byte) (common.Hash, error) 
 // initSiblings returns the siblings of the node at the given index.
 // it is used to initialize the siblings array in the beginning.
 func (mt *L1InfoTree) initSiblings(initialLeaves [][32]byte) ([][32]byte, common.Hash, error) {
-	if mt.count != uint32(len(initialLeaves)) { //nolint:gosec
+	if mt.count != uint32(len(initialLeaves)) {
 		return nil, [32]byte{}, fmt.Errorf("error: mt.count and initialLeaves length mismatch")
 	}
 	if mt.count == 0 {

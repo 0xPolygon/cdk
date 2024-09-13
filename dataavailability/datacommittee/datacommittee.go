@@ -91,7 +91,7 @@ func (d *Backend) Init() error {
 	if committee != nil {
 		d.committeeMembers = committee.Members
 		if len(committee.Members) > 0 {
-			selectedCommitteeMember = rand.Intn(len(committee.Members)) //nolint:gosec
+			selectedCommitteeMember = rand.Intn(len(committee.Members))
 		}
 	}
 	d.selectedCommitteeMember = selectedCommitteeMember
@@ -270,7 +270,7 @@ func collectSignatures(
 		if msg.err != nil {
 			log.Errorf("error when trying to get signature from %s: %s", msg.addr, msg.err)
 			failedToCollect++
-			if len(committee.Members)-int(failedToCollect) < int(committee.RequiredSignatures) { //nolint:gosec
+			if len(committee.Members)-int(failedToCollect) < int(committee.RequiredSignatures) {
 				cancelSignatureCollection()
 
 				return nil, errors.New("too many members failed to send their signature")

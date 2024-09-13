@@ -114,7 +114,7 @@ func (t *AppendOnlyTree) GetIndexByRoot(ctx context.Context, root common.Hash) (
 	defer tx.Rollback()
 
 	index, err := t.getIndexByRoot(tx, root)
-	return uint32(index), err //nolint:gosec
+	return uint32(index), err
 }
 
 // GetLastIndexAndRoot returns the last index and root added to the tree
@@ -131,7 +131,7 @@ func (t *AppendOnlyTree) GetLastIndexAndRoot(ctx context.Context) (uint32, commo
 	if i == -1 {
 		return 0, common.Hash{}, ErrNotFound
 	}
-	return uint32(i), root, nil //nolint:gosec
+	return uint32(i), root, nil
 }
 
 func (t *AppendOnlyTree) initLastLeftCacheAndLastDepositCount(ctx context.Context) error {
@@ -203,7 +203,7 @@ func (t *AppendOnlyTree) Reorg(tx kv.RwTx, firstReorgedIndex uint32) (func(), er
 		return func() {}, nil
 	}
 	// Clean root table
-	for i := firstReorgedIndex; i <= uint32(t.lastIndex); i++ { //nolint:gosec
+	for i := firstReorgedIndex; i <= uint32(t.lastIndex); i++ {
 		if err := tx.Delete(t.rootTable, dbCommon.Uint64ToBytes(uint64(i))); err != nil {
 			return func() {}, err
 		}
