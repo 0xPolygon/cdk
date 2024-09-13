@@ -39,7 +39,7 @@ setup() {
 
     # Assert that balance is correct
     local balanceOfFnSig="function balanceOf(address) (uint256)"
-    run queryContract $contract_addr $balanceOfFnSig $receiver
+    run queryContract "$contract_addr" "$balanceOfFnSig" "$receiver"
     assert_success
     receiverBalance=$(echo "$output" | tail -n 1)
 

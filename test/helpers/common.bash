@@ -21,6 +21,7 @@ function deployContract() {
         echo "Error: Failed to retrieve sender address."
         return 1
     fi
+    
     echo "Attempting to deploy contract artifact $contract_artifact to $rpc_url (sender: $senderAddr)"
 
     # Get bytecode from the contract artifact
@@ -152,6 +153,8 @@ function queryContract() {
     local funcSignature="$2" # Function signature
     shift 2                  # Shift past the first two arguments
     local params=("$@")      # Collect remaining arguments as parameters array
+
+    echo "Querying state of $addr account (RPC URL: $rpc_url) with function signature: '$funcSignature' and params: ${params[*]}"
 
     # Check if rpc_url is available
     if [[ -z "$rpc_url" ]]; then
