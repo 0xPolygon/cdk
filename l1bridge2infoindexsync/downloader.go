@@ -6,6 +6,7 @@ import (
 
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -64,6 +65,6 @@ func (d *downloader) getMainnetExitRootAtL1InfoTreeIndex(ctx context.Context, in
 	return leaf.MainnetExitRoot, nil
 }
 
-func (d *downloader) getBridgeIndex(ctx context.Context, mainnetExitRoot common.Hash) (uint32, error) {
-	return d.l1Bridge.GetBridgeIndexByRoot(ctx, mainnetExitRoot)
+func (d *downloader) getBridgeIndex(ctx context.Context, mainnetExitRoot common.Hash) (types.Root, error) {
+	return d.l1Bridge.GetBridgeRootByHash(ctx, mainnetExitRoot)
 }

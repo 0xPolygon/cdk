@@ -28,6 +28,7 @@ type testCase struct {
 func TestClaimCalldata(t *testing.T) {
 	testCases := []testCase{}
 	// Setup Docker L1
+	log.Debug("starting docker")
 	ctx := context.Background()
 	msg, err := exec.Command("bash", "-l", "-c", "docker compose up -d").CombinedOutput()
 	require.NoError(t, err, string(msg))
@@ -36,6 +37,7 @@ func TestClaimCalldata(t *testing.T) {
 		msg, err = exec.Command("bash", "-l", "-c", "docker compose down").CombinedOutput()
 		require.NoError(t, err, string(msg))
 	}()
+	log.Debug("docker started")
 	client, err := ethclient.Dial("http://localhost:8545")
 	require.NoError(t, err)
 	privateKey, err := crypto.HexToECDSA("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
