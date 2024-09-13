@@ -174,7 +174,7 @@ func (p *processor) GetClaims(
 	return claims, nil
 }
 
-func (p *processor) queryBlockRange(tx db.DBer, fromBlock, toBlock uint64, table string) (*sql.Rows, error) {
+func (p *processor) queryBlockRange(tx db.Querier, fromBlock, toBlock uint64, table string) (*sql.Rows, error) {
 	if err := p.isBlockProcessed(tx, toBlock); err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func (p *processor) queryBlockRange(tx db.DBer, fromBlock, toBlock uint64, table
 	return rows, nil
 }
 
-func (p *processor) isBlockProcessed(tx db.DBer, blockNum uint64) error {
+func (p *processor) isBlockProcessed(tx db.Querier, blockNum uint64) error {
 	lpb, err := p.getLastProcessedBlockWithTx(tx)
 	if err != nil {
 		return err
@@ -208,7 +208,7 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	return p.getLastProcessedBlockWithTx(p.db)
 }
 
-func (p *processor) getLastProcessedBlockWithTx(tx db.DBer) (uint64, error) {
+func (p *processor) getLastProcessedBlockWithTx(tx db.Querier) (uint64, error) {
 	var lastProcessedBlock uint64
 	row := tx.QueryRow("SELECT num FROM BLOCK ORDER BY num DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedBlock)

@@ -23,7 +23,7 @@ func NewUpdatableTree(db *sql.DB, dbPrefix string) *UpdatableTree {
 	return ut
 }
 
-func (t *UpdatableTree) UpsertLeaf(tx *db.Tx, blockNum, blockPosition uint64, leaf types.Leaf) error {
+func (t *UpdatableTree) UpsertLeaf(tx db.Txer, blockNum, blockPosition uint64, leaf types.Leaf) error {
 	var rootHash common.Hash
 	root, err := t.getLastRootWithTx(tx)
 	if err != nil {

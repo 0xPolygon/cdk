@@ -49,7 +49,7 @@ func newTree(db *sql.DB, tablePrefix string) *Tree {
 	return t
 }
 
-func (t *Tree) getSiblings(tx db.DBer, index uint32, root common.Hash) (
+func (t *Tree) getSiblings(tx db.Querier, index uint32, root common.Hash) (
 	siblings [32]common.Hash,
 	hasUsedZeroHashes bool,
 	err error,
@@ -118,7 +118,7 @@ func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) (ty
 	return siblings, nil
 }
 
-func (t *Tree) getRHTNode(tx db.DBer, nodeHash common.Hash) (*types.TreeNode, error) {
+func (t *Tree) getRHTNode(tx db.Querier, nodeHash common.Hash) (*types.TreeNode, error) {
 	node := &types.TreeNode{}
 	err := meddler.QueryRow(
 		tx, node,
@@ -152,7 +152,7 @@ func generateZeroHashes(height uint8) []common.Hash {
 	return zeroHashes
 }
 
-func (t *Tree) storeNodes(tx *db.Tx, nodes []types.TreeNode) error {
+func (t *Tree) storeNodes(tx db.Txer, nodes []types.TreeNode) error {
 	for i := 0; i < len(nodes); i++ {
 		if err := meddler.Insert(tx, t.rhtTable, &nodes[i]); err != nil {
 			if sqliteErr, ok := db.SQLiteErr(err); ok {
@@ -168,7 +168,7 @@ func (t *Tree) storeNodes(tx *db.Tx, nodes []types.TreeNode) error {
 	return nil
 }
 
-func (t *Tree) storeRoot(tx *db.Tx, root types.Root) error {
+func (t *Tree) storeRoot(tx db.Txer, root types.Root) error {
 	return meddler.Insert(tx, t.rootTable, &root)
 }
 
@@ -177,7 +177,7 @@ func (t *Tree) GetLastRoot(ctx context.Context) (types.Root, error) {
 	return t.getLastRootWithTx(t.db)
 }
 
-func (t *Tree) getLastRootWithTx(tx db.DBer) (types.Root, error) {
+func (t *Tree) getLastRootWithTx(tx db.Querier) (types.Root, error) {
 	var root types.Root
 	err := meddler.QueryRow(
 		tx, &root,
@@ -242,7 +242,7 @@ func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (com
 }
 
 // Reorg deletes all the data relevant from firstReorgedBlock (includded) and onwards
-func (t *Tree) Reorg(tx *db.Tx, firstReorgedBlock uint64) error {
+func (t *Tree) Reorg(tx db.Txer, firstReorgedBlock uint64) error {
 	_, err := tx.Exec(
 		fmt.Sprintf(`DELETE FROM %s WHERE block_num >= $1`, t.rootTable),
 		firstReorgedBlock,

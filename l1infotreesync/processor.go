@@ -178,7 +178,7 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	return p.getLastProcessedBlockWithTx(p.db)
 }
 
-func (p *processor) getLastProcessedBlockWithTx(tx db.DBer) (uint64, error) {
+func (p *processor) getLastProcessedBlockWithTx(tx db.Querier) (uint64, error) {
 	var lastProcessedBlock uint64
 	row := tx.QueryRow("SELECT num FROM BLOCK ORDER BY num DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedBlock)
@@ -309,7 +309,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	return nil
 }
 
-func (p *processor) getLastIndex(tx db.DBer) (uint32, error) {
+func (p *processor) getLastIndex(tx db.Querier) (uint32, error) {
 	var lastProcessedIndex uint32
 	row := tx.QueryRow("SELECT position FROM l1info_leaf ORDER BY block_num DESC, block_pos DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedIndex)

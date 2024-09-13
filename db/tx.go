@@ -2,22 +2,33 @@ package db
 
 import (
 	"context"
-	"database/sql"
 )
 
+type SQLTxer interface {
+	Querier
+	Commit() error
+	Rollback() error
+}
+
+type Txer interface {
+	SQLTxer
+	AddRollbackCallback(cb func())
+	AddCommitCallback(cb func())
+}
+
 type Tx struct {
-	*sql.Tx
+	SQLTxer
 	rollbackCallbacks []func()
 	commitCallbacks   []func()
 }
 
-func NewTx(ctx context.Context, db *sql.DB) (*Tx, error) {
+func NewTx(ctx context.Context, db DBer) (Txer, error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	return &Tx{
-		Tx: tx,
+		SQLTxer: tx,
 	}, nil
 }
 
@@ -29,7 +40,7 @@ func (s *Tx) AddCommitCallback(cb func()) {
 }
 
 func (s *Tx) Commit() error {
-	if err := s.Tx.Commit(); err != nil {
+	if err := s.SQLTxer.Commit(); err != nil {
 		return err
 	}
 	for _, cb := range s.commitCallbacks {
@@ -39,7 +50,7 @@ func (s *Tx) Commit() error {
 }
 
 func (s *Tx) Rollback() error {
-	if err := s.Tx.Rollback(); err != nil {
+	if err := s.SQLTxer.Rollback(); err != nil {
 		return err
 	}
 	for _, cb := range s.rollbackCallbacks {

@@ -2,40 +2,38 @@ package migrations
 
 import (
 	_ "embed"
-	"strings"
 
 	"github.com/0xPolygon/cdk/db"
-	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/cdk/db/types"
 	treeMigrations "github.com/0xPolygon/cdk/tree/migrations"
-	migrate "github.com/rubenv/sql-migrate"
 )
 
 const (
-	upDownSeparator      = "-- +migrate Up"
 	RollupExitTreePrefix = "rollup_exit_"
 	L1InfoTreePrefix     = "l1_info_"
 )
 
 //go:embed l1infotreesync0001.sql
 var mig001 string
-var mig001splitted = strings.Split(mig001, upDownSeparator)
-
-var Migrations = &migrate.MemoryMigrationSource{
-	Migrations: []*migrate.Migration{
-		{
-			Id:   "l1infotreesync0001",
-			Up:   []string{mig001splitted[1]},
-			Down: []string{mig001splitted[0]},
-		},
-	},
-}
 
 func RunMigrations(dbPath string) error {
-	migs := treeMigrations.MigrationsWithPrefix(RollupExitTreePrefix)
-	migs = append(migs, treeMigrations.MigrationsWithPrefix(L1InfoTreePrefix)...)
-	migs = append(migs, Migrations.Migrations...)
-	for _, m := range migs {
-		log.Debugf("%+v", m.Id)
+	migrations := []types.Migration{
+		{
+			ID:  "l1infotreesync0001",
+			SQL: mig001,
+		},
 	}
-	return db.RunMigrations(dbPath, &migrate.MemoryMigrationSource{Migrations: migs})
+	for _, tm := range treeMigrations.Migrations {
+		migrations = append(migrations, types.Migration{
+			ID:     tm.ID,
+			SQL:    tm.SQL,
+			Prefix: RollupExitTreePrefix,
+		})
+		migrations = append(migrations, types.Migration{
+			ID:     tm.ID,
+			SQL:    tm.SQL,
+			Prefix: L1InfoTreePrefix,
+		})
+	}
+	return db.RunMigrations(dbPath, migrations)
 }
