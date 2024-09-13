@@ -1,13 +1,15 @@
 
 <div id="top"></div>
-<!-- PROJECT LOGO -->
-<br />
-<div align="center">
+  <!-- PROJECT LOGO -->
+  <br />
+  <div align="center">
 
-  <img src="./.github/assets/cdk-logo-name.png#gh-light-mode-only" alt="Logo" width="300">
-  <img src="./.github/assets/cdk-logo-name.png#gh-dark-mode-only" alt="Logo" width="300">
+    <img src="./.github/assets/cdk-logo-name.png#gh-light-mode-only" alt="Logo" width="300">
+    <img src="./.github/assets/cdk-logo-name.png#gh-dark-mode-only" alt="Logo" width="300">
 
-<br />
+    <br />
+  </div>
+</div>
 
 <!-- PROJECT SHIELDS -->
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=0xPolygon_cdk&metric=alert_status&token=aa6d76993fc213c4153bf65e0d62e4d08207ea7e)](https://sonarcloud.io/summary/new_code?id=0xPolygon_cdk)
