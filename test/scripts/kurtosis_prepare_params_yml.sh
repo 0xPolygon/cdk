@@ -6,6 +6,12 @@ if [ -z $DEST_KURTOSIS_PARAMS_YML ]; then
     exit 1
 fi
 
+# Check if the destination params file exists and don't do nothing
+if [ -f $DEST_KURTOSIS_PARAMS_YML ]; then
+    echo "Destination params file already exists"
+    exit 0
+fi
+
 KURTOSIS_FOLDER=$1
 if [ -z $KURTOSIS_FOLDER ]; then
     echo "Missing param Kurtosis Folder"
