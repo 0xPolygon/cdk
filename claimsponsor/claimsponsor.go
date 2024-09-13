@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
+	tree "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
 	"github.com/ledgerwatch/erigon-lib/kv/iter"
@@ -37,8 +38,8 @@ var (
 // Claim representation of a claim event
 type Claim struct {
 	LeafType            uint8
-	ProofLocalExitRoot  [32]common.Hash
-	ProofRollupExitRoot [32]common.Hash
+	ProofLocalExitRoot  tree.Proof
+	ProofRollupExitRoot tree.Proof
 	GlobalIndex         *big.Int
 	MainnetExitRoot     common.Hash
 	RollupExitRoot      common.Hash

@@ -49,7 +49,7 @@ func newTree(db *sql.DB, tablePrefix string) *Tree {
 }
 
 func (t *Tree) getSiblings(tx db.Querier, index uint32, root common.Hash) (
-	siblings [32]common.Hash,
+	siblings types.Proof,
 	hasUsedZeroHashes bool,
 	err error,
 ) {
@@ -209,7 +209,7 @@ func (t *Tree) GetRootByIndex(ctx context.Context, index uint32) (types.Root, er
 
 // GetRootByHash returns the root associated to the hash
 func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (*types.Root, error) {
-	root := &types.Root{}
+	var root *types.Root
 	if err := meddler.QueryRow(
 		t.db, root,
 		fmt.Sprintf(`SELECT * FROM %s WHERE hash = $1;`, t.rootTable),

@@ -212,12 +212,6 @@ GasOffset = 0
 				L1ChainID = 1337
 				HTTPHeaders = []
 
-[L1Bridge2InfoIndexSync]
-DBPath = "/tmp/l1bridge2infoindexsync"
-RetryAfterErrorPeriod = "1s"
-MaxRetryAttemptsAfterError = -1
-WaitForSyncersPeriod = "3s"
-
 [BridgeL1Sync]
 DBPath = "/tmp/bridgel1sync"
 BlockFinality = "LatestBlock"

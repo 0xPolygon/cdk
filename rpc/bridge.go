@@ -11,7 +11,7 @@ import (
 	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/rpc/types"
-	"github.com/ethereum/go-ethereum/common"
+	tree "github.com/0xPolygon/cdk/tree/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -168,7 +168,7 @@ func (b *BridgeEndpoints) ClaimProof(
 	if err != nil {
 		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get rollup exit proof, error: %s", err))
 	}
-	var proofLocalExitRoot [32]common.Hash
+	var proofLocalExitRoot tree.Proof
 	if networkID == 0 {
 		proofLocalExitRoot, err = b.bridgeL1.GetProof(ctx, depositCount, info.MainnetExitRoot)
 		if err != nil {

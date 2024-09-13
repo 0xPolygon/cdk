@@ -79,7 +79,7 @@ type L1InfoTreeLeaf struct {
 
 // Hash as expected by the tree
 func (l *L1InfoTreeLeaf) hash() ethCommon.Hash {
-	var res [32]byte
+	var res [treeTypes.DefaultHeight]byte
 	t := make([]byte, 8) //nolint:gomnd
 	binary.BigEndian.PutUint64(t, l.Timestamp)
 	copy(res[:], keccak256.Hash(l.globalExitRoot().Bytes(), l.PreviousBlockHash.Bytes(), t))
@@ -88,7 +88,7 @@ func (l *L1InfoTreeLeaf) hash() ethCommon.Hash {
 
 // GlobalExitRoot returns the GER
 func (l *L1InfoTreeLeaf) globalExitRoot() ethCommon.Hash {
-	var gerBytes [32]byte
+	var gerBytes [treeTypes.DefaultHeight]byte
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(l.MainnetExitRoot[:])
 	hasher.Write(l.RollupExitRoot[:])
