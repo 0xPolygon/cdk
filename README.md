@@ -7,18 +7,19 @@
 <img src="./.github/assets/cdk-logo-name.png#gh-light-mode-only" alt="Logo" width="300">
 <img src="./.github/assets/cdk-logo-name.png#gh-dark-mode-only" alt="Logo" width="300">
 
-<br />
-</div>
-</div>
-
-<!-- PROJECT SHIELDS -->
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=0xPolygon_cdk&metric=alert_status&token=aa6d76993fc213c4153bf65e0d62e4d08207ea7e)](https://sonarcloud.io/summary/new_code?id=0xPolygon_cdk)
-
 ## Polygon CDK
 
 **Polygon CDK** (Chain Development Kit) is a modular framework that developers can use to build and deploy Zero Knowledge Proofs enabled Rollups and Validiums.
 
 The CDK allow to build Rollups that are ZK powered, verifying the execution using the zkEVM prover from Polygon, they can be completelly personalizable because its modullar architecture.
+
+<!-- PROJECT SHIELDS -->
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=0xPolygon_cdk&metric=alert_status&token=aa6d76993fc213c4153bf65e0d62e4d08207ea7e)](https://sonarcloud.io/summary/new_code?id=0xPolygon_cdk)
+
+</div>
+</div>
+
+<br />
 
 ## Getting Started
 
