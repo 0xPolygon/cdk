@@ -192,7 +192,7 @@ func TestFinalised(t *testing.T) {
 
 func TestWithReorgs(t *testing.T) {
 	ctx := context.Background()
-	dbPathSyncer := t.TempDir()
+	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	dbPathReorg := t.TempDir()
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -243,20 +243,20 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 	actualRollupExitRoot, err := syncer.GetLastRollupExitRoot(ctx)
 	require.NoError(t, err)
-	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot)
-	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot)
+	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
+	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 
 	// Assert L1 Info tree root
 	expectedL1InfoRoot, err := gerSc.GetRoot(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	expectedGER, err := gerSc.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
-	index, actualL1InfoRoot, err := syncer.GetLastL1InfoTreeRootAndIndex(ctx)
+	actualL1InfoRoot, err := syncer.GetLastL1InfoTreeRoot(ctx)
 	require.NoError(t, err)
-	info, err := syncer.GetInfoByIndex(ctx, index)
-	require.NoError(t, err, fmt.Sprintf("index: %d", index))
+	info, err := syncer.GetInfoByIndex(ctx, actualL1InfoRoot.Index)
+	require.NoError(t, err)
 
-	require.Equal(t, common.Hash(expectedL1InfoRoot), actualL1InfoRoot)
+	require.Equal(t, common.Hash(expectedL1InfoRoot), actualL1InfoRoot.Hash)
 	require.Equal(t, common.Hash(expectedGER), info.GlobalExitRoot, fmt.Sprintf("%+v", info))
 
 	// Forking from block 3
@@ -264,7 +264,7 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 
 	// Block 4, 5, 6 after the fork
-	commitBlocks(t, client, 3, time.Millisecond*100)
+	commitBlocks(t, client, 3, time.Millisecond*500)
 
 	// Make sure syncer is up to date
 	waitForSyncerToCatchUp(ctx, t, syncer, client)
@@ -272,15 +272,15 @@ func TestWithReorgs(t *testing.T) {
 	// Assert rollup exit root after the fork - should be zero since there are no events in the block after the fork
 	expectedRollupExitRoot, err = verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
-	actualRollupExitRoot, err = syncer.GetLastRollupExitRoot(ctx) // TODO: <- Fails
-	require.NoError(t, err)
-	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot) // TODO: <- Fails
-	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot)
+	actualRollupExitRoot, err = syncer.GetLastRollupExitRoot(ctx)
+	require.ErrorContains(t, err, "not found") // rollup exit tree reorged, it does not have any exits in it
+	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
+	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 
 	// Forking from block 3 again
 	err = client.Fork(reorgFrom)
 	require.NoError(t, err)
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 500)
 
 	// create some events and update the trees
 	updateL1InfoTreeAndRollupExitTree(2, 1)
@@ -296,8 +296,8 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 	actualRollupExitRoot, err = syncer.GetLastRollupExitRoot(ctx)
 	require.NoError(t, err)
-	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot)
-	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot)
+	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
+	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 }
 
 func TestStressAndReorgs(t *testing.T) {
