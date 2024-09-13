@@ -4,8 +4,8 @@
 <br />
 <div align="center">
 
-<img src="./.github/assets/cdk-logo-name.png#gh-light-mode-only" alt="Logo" width="300">
-<img src="./.github/assets/cdk-logo-name.png#gh-dark-mode-only" alt="Logo" width="300">
+<img src="./.github/assets/cdk-logo.svg#gh-light-mode-only" alt="Logo" width="300">
+<img src="./.github/assets/cdk-logo.svg#gh-dark-mode-only" alt="Logo" width="300">
 
 ## Polygon CDK
 
