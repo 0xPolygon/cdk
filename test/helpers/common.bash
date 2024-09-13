@@ -11,7 +11,7 @@ function deployContract() {
     fi
 
     if [[ ! -f "$contract_artifact" ]]; then
-        echo "Error: Contract artifact $contract_artifact does not exist."
+        echo "Error: Contract artifact '$contract_artifact' does not exist."
         return 1
     fi
 
@@ -21,8 +21,8 @@ function deployContract() {
         echo "Error: Failed to retrieve sender address."
         return 1
     fi
-    
-    echo "Attempting to deploy contract artifact $contract_artifact to $rpc_url (sender: $senderAddr)"
+
+    echo "Attempting to deploy contract artifact '$contract_artifact' to $rpc_url (sender: $senderAddr)" >&3
 
     # Get bytecode from the contract artifact
     local bytecode=$(jq -r .bytecode "$contract_artifact")
@@ -45,10 +45,12 @@ function deployContract() {
         return 1
     fi
 
-    echo "$cast_output"
+    echo "Deploy contract output:" >&3
+    echo "$cast_output" >&3
 
     # Extract the contract address from the output
     local deployed_contract_address=$(echo "$cast_output" | grep 'contractAddress' | sed 's/contractAddress\s\+//')
+    echo "Deployed contract address: $deployed_contract_address" >&3
 
     if [[ -z "$deployed_contract_address" ]]; then
         echo "Error: Failed to extract deployed contract address"
@@ -74,16 +76,16 @@ function sendTx() {
     fi
 
     local private_key="$1"           # Sender private key
-    local receiver="$2"              # Receiver address
+    local account_addr="$2"          # Receiver address
     local value_or_function_sig="$3" # Value or function signature
 
     # Error handling: Ensure the receiver is a valid Ethereum address
-    if [[ ! "$receiver" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
-        echo "Error: Invalid receiver address '$receiver'."
+    if [[ ! "$account_addr" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
+        echo "Error: Invalid receiver address '$account_addr'."
         return 1
     fi
 
-    shift 3 # Shift the first 3 arguments (private_key, receiver, value_or_function_sig)
+    shift 3 # Shift the first 3 arguments (private_key, account_addr, value_or_function_sig)
 
     local senderAddr
     senderAddr=$(cast wallet address "$private_key")
@@ -95,17 +97,19 @@ function sendTx() {
     # Check if the first remaining argument is a numeric value (Ether to be transferred)
     if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
         # Case: EOA transaction (Ether transfer)
-        echo "Sending EOA transaction (RPC URL: $rpc_url, sender: $senderAddr) to: $receiver with value: $value_or_function_sig"
+        echo "Sending EOA transaction (RPC URL: $rpc_url, sender: $senderAddr) to: $account_addr " \
+            "with value: $value_or_function_sig" >&3
+
         cast_output=$(cast send --rpc-url "$rpc_url" \
             --private-key "$private_key" \
-            "$receiver" --value "$value_or_function_sig" \
+            "$account_addr" --value "$value_or_function_sig" \
             --legacy \
             2>&1)
     else
         # Case: Smart contract transaction (contract interaction with function signature and parameters)
         local params=("$@") # Collect all remaining arguments as function parameters
 
-        echo "$value_or_function_sig"
+        echo "Function signature: '$value_or_function_sig'" >&3
 
         # Verify if the function signature starts with "function"
         if [[ ! "$value_or_function_sig" =~ ^function\ .+\(.+\)$ ]]; then
@@ -113,23 +117,20 @@ function sendTx() {
             return 1
         fi
 
-        echo "Sending smart contract transaction (RPC URL: $rpc_url, sender: $senderAddr) to $receiver with function signature: '$value_or_function_sig' and params: ${params[*]}"
+        echo "Sending smart contract transaction (RPC URL: $rpc_url, sender: $senderAddr) to $account_addr" \
+            "with function signature: '$value_or_function_sig' and params: ${params[*]}" >&3
 
         # Send the smart contract interaction using cast
         cast_output=$(cast send --rpc-url "$rpc_url" \
             --private-key "$private_key" \
-            "$receiver" "$value_or_function_sig" "${params[@]}" \
+            "$account_addr" "$value_or_function_sig" "${params[@]}" \
             --legacy \
             2>&1)
     fi
 
-    # Print the cast output
-    echo "cast send output:"
-    echo "$cast_output"
-
     # Check if the transaction was successful
     if [[ $? -ne 0 ]]; then
-        echo "Error: Failed to send transaction. Output:"
+        echo "Error: Failed to send transaction. The cast send output:"
         echo "$cast_output"
         return 1
     fi
@@ -154,7 +155,7 @@ function queryContract() {
     shift 2                  # Shift past the first two arguments
     local params=("$@")      # Collect remaining arguments as parameters array
 
-    echo "Querying state of $addr account (RPC URL: $rpc_url) with function signature: '$funcSignature' and params: ${params[*]}"
+    echo "Querying state of $addr account (RPC URL: $rpc_url) with function signature: '$funcSignature' and params: ${params[*]}" >&3
 
     # Check if rpc_url is available
     if [[ -z "$rpc_url" ]]; then
@@ -181,5 +182,6 @@ function queryContract() {
 
     # Return the result (contract query response)
     echo "$result"
+
     return 0
 }
