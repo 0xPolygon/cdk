@@ -34,14 +34,14 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 	err error,
 ) {
 	ctx := context.Background()
-	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10) //nolint:gomnd
+	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10)
 	address := auth.From
 	genesisAlloc := map[common.Address]types.Account{
 		address: {
 			Balance: balance,
 		},
 	}
-	blockGasLimit := uint64(999999999999999999) //nolint:gomnd
+	blockGasLimit := uint64(999999999999999999)
 	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
 
 	nonce, err := client.Client().PendingNonceAt(ctx, auth.From)
@@ -64,12 +64,13 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 	if precalculatedAddr != gerAddr {
 		err = errors.New("error calculating addr")
 	}
+
 	return
 }
 
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
-	dbPath := "file::memory:?cache=shared"
+	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
@@ -159,36 +160,6 @@ func TestE2E(t *testing.T) {
 	}
 }
 
-func TestFinalised(t *testing.T) {
-	ctx := context.Background()
-	privateKey, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
-	require.NoError(t, err)
-	client, _, _, _, _, err := newSimulatedClient(auth)
-	require.NoError(t, err)
-	for i := 0; i < 100; i++ {
-		client.Commit()
-	}
-
-	n4, err := client.Client().HeaderByNumber(ctx, big.NewInt(-4))
-	require.NoError(t, err)
-	fmt.Println("-4", n4.Number)
-	n3, err := client.Client().HeaderByNumber(ctx, big.NewInt(-3))
-	require.NoError(t, err)
-	fmt.Println("-3", n3.Number)
-	n2, err := client.Client().HeaderByNumber(ctx, big.NewInt(-2))
-	require.NoError(t, err)
-	fmt.Println("-2", n2.Number)
-	n1, err := client.Client().HeaderByNumber(ctx, big.NewInt(-1))
-	require.NoError(t, err)
-	fmt.Println("-1", n1.Number)
-	n0, err := client.Client().HeaderByNumber(ctx, nil)
-	require.NoError(t, err)
-	fmt.Println("0", n0.Number)
-	fmt.Printf("amount of blocks latest - finalised: %d", n0.Number.Uint64()-n3.Number.Uint64())
-}
-
 func TestStressAndReorgs(t *testing.T) {
 	const (
 		totalIterations       = 200   // Have tested with much larger number (+10k)
@@ -241,7 +212,8 @@ func TestStressAndReorgs(t *testing.T) {
 			if targetReorgBlockNum < currentBlockNum { // we are dealing with uints...
 				reorgBlock, err := client.Client().BlockByNumber(ctx, big.NewInt(int64(targetReorgBlockNum)))
 				require.NoError(t, err)
-				client.Fork(reorgBlock.Hash())
+				err = client.Fork(reorgBlock.Hash())
+				require.NoError(t, err)
 			}
 		}
 	}
@@ -255,6 +227,7 @@ func TestStressAndReorgs(t *testing.T) {
 		require.NoError(t, err)
 		if lpb == lb {
 			syncerUpToDate = true
+
 			break
 		}
 		time.Sleep(time.Millisecond * 100)

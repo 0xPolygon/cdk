@@ -21,7 +21,8 @@ const (
 	LeafTypeAsset uint8 = 0
 	// LeafTypeMessage represents a bridge message
 	LeafTypeMessage       uint8 = 1
-	gasTooHighErrTemplate       = "Claim tx estimated to consume more gas than the maximum allowed by the service. Estimated %d, maximum allowed: %d"
+	gasTooHighErrTemplate       = "Claim tx estimated to consume more gas than the maximum allowed by the service. " +
+		"Estimated %d, maximum allowed: %d"
 )
 
 type EthClienter interface {
@@ -31,9 +32,11 @@ type EthClienter interface {
 
 type EthTxManager interface {
 	Remove(ctx context.Context, id common.Hash) error
-	ResultsByStatus(ctx context.Context, statuses []ethtxmanager.MonitoredTxStatus) ([]ethtxmanager.MonitoredTxResult, error)
+	ResultsByStatus(ctx context.Context, statuses []ethtxmanager.MonitoredTxStatus,
+	) ([]ethtxmanager.MonitoredTxResult, error)
 	Result(ctx context.Context, id common.Hash) (ethtxmanager.MonitoredTxResult, error)
-	Add(ctx context.Context, to *common.Address, forcedNonce *uint64, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar) (common.Hash, error)
+	Add(ctx context.Context, to *common.Address, forcedNonce *uint64, value *big.Int, data []byte,
+		gasOffset uint64, sidecar *types.BlobTxSidecar) (common.Hash, error)
 }
 
 type EVMClaimSponsor struct {
@@ -117,6 +120,7 @@ func NewEVMClaimSponsor(
 		return nil, err
 	}
 	evmSponsor.ClaimSponsor = baseSponsor
+
 	return baseSponsor, nil
 }
 
@@ -136,6 +140,7 @@ func (c *EVMClaimSponsor) checkClaim(ctx context.Context, claim *Claim) error {
 	if gas > c.maxGas {
 		return fmt.Errorf(gasTooHighErrTemplate, gas, c.maxGas)
 	}
+
 	return nil
 }
 
@@ -148,6 +153,7 @@ func (c *EVMClaimSponsor) sendClaim(ctx context.Context, claim *Claim) (string, 
 	if err != nil {
 		return "", err
 	}
+
 	return id.Hex(), nil
 }
 

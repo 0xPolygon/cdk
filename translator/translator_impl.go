@@ -21,7 +21,9 @@ func (t *TranslatorFullMatchRule) Translate(contextName string, data string) str
 	return t.NewString
 }
 
-func NewTranslatorFullMatchRule(contextName *string, fullMatchString string, newString string) *TranslatorFullMatchRule {
+func NewTranslatorFullMatchRule(
+	contextName *string, fullMatchString string, newString string,
+) *TranslatorFullMatchRule {
 	return &TranslatorFullMatchRule{
 		ContextName:     contextName,
 		FullMatchString: fullMatchString,
@@ -58,7 +60,8 @@ func (t *TranslatorImpl) AddConfigRules(cfg Config) {
 	for _, v := range cfg.FullMatchRules {
 		var contextName *string
 		if v.ContextName != "" {
-			contextName = &v.ContextName
+			name := v.ContextName
+			contextName = &name
 		}
 		rule := NewTranslatorFullMatchRule(contextName, v.Old, v.New)
 		t.AddRule(*rule)

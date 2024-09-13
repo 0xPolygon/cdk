@@ -23,15 +23,14 @@ func initMeddler() {
 }
 
 func SQLiteErr(err error) (sqlite.Error, bool) {
-	if sqliteErr, ok := err.(sqlite.Error); ok {
+	sqliteErr := &sqlite.Error{}
+	if ok := errors.As(err, sqliteErr); ok {
 		return sqliteErr, true
 	}
 	if driverErr, ok := meddler.DriverErr(err); ok {
-		if sqliteErr, ok := driverErr.(sqlite.Error); ok {
-			return sqliteErr, true
-		}
+		return sqliteErr, errors.As(driverErr, sqliteErr)
 	}
-	return sqlite.Error{}, false
+	return sqliteErr, false
 }
 
 // SliceToSlicePtrs converts any []Foo to []*Foo
@@ -69,15 +68,19 @@ func (b BigIntMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, e
 
 // PostRead is called after a Scan operation for fields that have the BigIntMeddler
 func (b BigIntMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
-	ptr := scanTarget.(*string)
+	ptr, ok := scanTarget.(*string)
+	if !ok {
+		return errors.New("scanTarget is not *string")
+	}
 	if ptr == nil {
-		return errors.New("BigIntMeddler.PostRead: nil pointer")
+		return fmt.Errorf("BigIntMeddler.PostRead: nil pointer")
 	}
 	field, ok := fieldPtr.(**big.Int)
 	if !ok {
 		return errors.New("fieldPtr is not *big.Int")
 	}
-	*field, ok = new(big.Int).SetString(*ptr, 10)
+	decimal := 10
+	*field, ok = new(big.Int).SetString(*ptr, decimal)
 	if !ok {
 		return fmt.Errorf("big.Int.SetString failed on \"%v\"", *ptr)
 	}
@@ -105,7 +108,10 @@ func (b MerkleProofMeddler) PreRead(fieldAddr interface{}) (scanTarget interface
 
 // PostRead is called after a Scan operation for fields that have the ProofMeddler
 func (b MerkleProofMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
-	ptr := scanTarget.(*string)
+	ptr, ok := scanTarget.(*string)
+	if !ok {
+		return errors.New("scanTarget is not *string")
+	}
 	if ptr == nil {
 		return errors.New("ProofMeddler.PostRead: nil pointer")
 	}
@@ -148,9 +154,12 @@ func (b HashMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err
 
 // PostRead is called after a Scan operation for fields that have the ProofMeddler
 func (b HashMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
-	ptr := scanTarget.(*string)
+	ptr, ok := scanTarget.(*string)
+	if !ok {
+		return errors.New("scanTarget is not *string")
+	}
 	if ptr == nil {
-		return errors.New("HashMeddler.PostRead: nil pointer")
+		return fmt.Errorf("HashMeddler.PostRead: nil pointer")
 	}
 	field, ok := fieldPtr.(*common.Hash)
 	if !ok {

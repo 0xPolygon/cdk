@@ -99,7 +99,11 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]*types.Transaction, []byte, []u
 				log.Debug("error parsing length: ", err)
 				return []*types.Transaction{}, txsData, []uint8{}, err
 			}
-			n, err := strconv.ParseUint(hex.EncodeToString(txsData[pos+1:pos+1+num-f7]), hex.Base, hex.BitSize64) // +1 is the header. For example 0xf7
+			n, err := strconv.ParseUint(
+				hex.EncodeToString(txsData[pos+1:pos+1+num-f7]), // +1 is the header. For example 0xf7
+				hex.Base,
+				hex.BitSize64,
+			)
 			if err != nil {
 				log.Debug("error parsing length: ", err)
 				return []*types.Transaction{}, txsData, []uint8{}, err
@@ -153,13 +157,23 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]*types.Transaction, []byte, []u
 		var rlpFields [][]byte
 		err = rlp.DecodeBytes(txInfo, &rlpFields)
 		if err != nil {
-			log.Error("error decoding tx Bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
+			log.Error(
+				"error decoding tx Bytes: ", err,
+				". fullDataTx: ", hex.EncodeToString(fullDataTx),
+				"\n tx: ", hex.EncodeToString(txInfo),
+				"\n Txs received: ", hex.EncodeToString(txsData),
+			)
 			return []*types.Transaction{}, txsData, []uint8{}, ErrInvalidData
 		}
 
 		legacyTx, err := RlpFieldsToLegacyTx(rlpFields, vData, rData, sData)
 		if err != nil {
-			log.Debug("error creating tx from rlp fields: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
+			log.Debug(
+				"error creating tx from rlp fields: ", err, ". fullDataTx: ",
+				hex.EncodeToString(fullDataTx),
+				"\n tx: ", hex.EncodeToString(txInfo),
+				"\n Txs received: ", hex.EncodeToString(txsData),
+			)
 			return []*types.Transaction{}, txsData, []uint8{}, err
 		}
 

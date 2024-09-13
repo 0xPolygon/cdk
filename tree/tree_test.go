@@ -33,14 +33,14 @@ func TestMTAddLeaf(t *testing.T) {
 			log.Debug("DB created at: ", dbPath)
 			err := migrations.RunMigrations(dbPath)
 			require.NoError(t, err)
-			db, err := db.NewSQLiteDB(dbPath)
+			treeDB, err := db.NewSQLiteDB(dbPath)
 			require.NoError(t, err)
-			_, err = db.Exec(`select * from root`)
+			_, err = treeDB.Exec(`select * from root`)
 			require.NoError(t, err)
-			merkletree := tree.NewAppendOnlyTree(db, "")
+			merkletree := tree.NewAppendOnlyTree(treeDB, "")
 
 			// Add exisiting leaves
-			tx, err := db.BeginTx(ctx, nil)
+			tx, err := db.NewTx(ctx, treeDB)
 			require.NoError(t, err)
 			for i, leaf := range testVector.ExistingLeaves {
 				err = merkletree.AddLeaf(tx, uint64(i), 0, types.Leaf{
@@ -57,7 +57,7 @@ func TestMTAddLeaf(t *testing.T) {
 			}
 
 			// Add new bridge
-			tx, err = db.BeginTx(ctx, nil)
+			tx, err = db.NewTx(ctx, treeDB)
 			require.NoError(t, err)
 			err = merkletree.AddLeaf(tx, uint64(len(testVector.ExistingLeaves)), 0, types.Leaf{
 				Index: uint32(len(testVector.ExistingLeaves)),
@@ -87,11 +87,11 @@ func TestMTGetProof(t *testing.T) {
 			dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
 			err := migrations.RunMigrations(dbPath)
 			require.NoError(t, err)
-			db, err := db.NewSQLiteDB(dbPath)
+			treeDB, err := db.NewSQLiteDB(dbPath)
 			require.NoError(t, err)
-			tre := tree.NewAppendOnlyTree(db, "")
+			tre := tree.NewAppendOnlyTree(treeDB, "")
 
-			tx, err := db.BeginTx(ctx, nil)
+			tx, err := db.NewTx(ctx, treeDB)
 			require.NoError(t, err)
 			for li, leaf := range testVector.Deposits {
 				err = tre.AddLeaf(tx, uint64(li), 0, types.Leaf{

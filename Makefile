@@ -80,9 +80,9 @@ build-docker-nc: ## Builds a docker image with the cdk binary - but without buil
 stop: ## Stops all services
 	docker-compose down
 
-.PHONY: test
-test:
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -covermode=atomic -coverprofile=../coverage.out  -coverpkg ./... -timeout 200s ./...
+.PHONY: test-unit
+test-unit:
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -covermode=atomic -coverprofile=coverage.out  -coverpkg ./... -timeout 200s ./...
 
 .PHONY: test-seq_sender
 test-seq_sender:
@@ -95,7 +95,7 @@ install-linter: ## Installs the linter
 
 .PHONY: lint
 lint: ## Runs the linter
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run --timeout 5m
 
 $(VENV_PYTHON):
 	rm -rf $(VENV)

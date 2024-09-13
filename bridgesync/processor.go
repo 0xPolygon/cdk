@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/0xPolygon/cdk/bridgesync/migrations"
@@ -20,6 +21,7 @@ import (
 )
 
 var (
+	// ErrBlockNotProcessed indicates that the given block(s) have not been processed yet.
 	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
 	ErrNotFound          = errors.New("not found")
 )
@@ -54,6 +56,7 @@ func (b *Bridge) Hash() common.Hash {
 	if b.Amount == nil {
 		b.Amount = big.NewInt(0)
 	}
+
 	return common.BytesToHash(keccak256.Hash(
 		[]byte{b.LeafType},
 		origNet,
@@ -122,21 +125,25 @@ func (p *processor) GetBridges(
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
-
-	if err = p.isBlockProcessed(tx, toBlock); err != nil {
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Warnf("error rolling back tx: %v", err)
+		}
+	}()
+	rows, err := p.queryBlockRange(tx, fromBlock, toBlock, "bridge")
+	if err != nil {
 		return nil, err
 	}
-
-	bridges := []*Bridge{}
-	err = meddler.QueryAll(tx, &bridges, `
-		SELECT * FROM bridge
-		WHERE block_num >= $1 AND block_num <= $2;
-	 `, fromBlock, toBlock)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+	bridgePtrs := []*Bridge{}
+	if err = meddler.ScanAll(rows, &bridgePtrs); err != nil {
+		return nil, err
 	}
-	return db.SlicePtrsToSlice(bridges).([]Bridge), err
+	bridgesIface := db.SlicePtrsToSlice(bridgePtrs)
+	bridges, ok := bridgesIface.([]Bridge)
+	if !ok {
+		return nil, errors.New("failed to convert from []*Bridge to []Bridge")
+	}
+	return bridges, nil
 }
 
 func (p *processor) GetClaims(
@@ -146,24 +153,45 @@ func (p *processor) GetClaims(
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
-
-	if err = p.isBlockProcessed(tx, toBlock); err != nil {
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Warnf("error rolling back tx: %v", err)
+		}
+	}()
+	rows, err := p.queryBlockRange(tx, fromBlock, toBlock, "claim")
+	if err != nil {
 		return nil, err
 	}
-
-	claims := []*Claim{}
-	err = meddler.QueryAll(tx, &claims, `
-		SELECT * FROM claim
-		WHERE block_num >= $1 AND block_num <= $2;
-	 `, fromBlock, toBlock)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+	claimPtrs := []*Claim{}
+	if err = meddler.ScanAll(rows, &claimPtrs); err != nil {
+		return nil, err
 	}
-	return db.SlicePtrsToSlice(claims).([]Claim), err
+	claimsIface := db.SlicePtrsToSlice(claimPtrs)
+	claims, ok := claimsIface.([]Claim)
+	if !ok {
+		return nil, errors.New("failed to convert from []*Claim to []Claim")
+	}
+	return claims, nil
 }
 
-func (p *processor) isBlockProcessed(tx db.DBer, blockNum uint64) error {
+func (p *processor) queryBlockRange(tx db.Querier, fromBlock, toBlock uint64, table string) (*sql.Rows, error) {
+	if err := p.isBlockProcessed(tx, toBlock); err != nil {
+		return nil, err
+	}
+	rows, err := tx.Query(fmt.Sprintf(`
+		SELECT * FROM %s
+		WHERE block_num >= $1 AND block_num <= $2;
+	`, table), fromBlock, toBlock)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (p *processor) isBlockProcessed(tx db.Querier, blockNum uint64) error {
 	lpb, err := p.getLastProcessedBlockWithTx(tx)
 	if err != nil {
 		return err
@@ -180,7 +208,7 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	return p.getLastProcessedBlockWithTx(p.db)
 }
 
-func (p *processor) getLastProcessedBlockWithTx(tx db.DBer) (uint64, error) {
+func (p *processor) getLastProcessedBlockWithTx(tx db.Querier) (uint64, error) {
 	var lastProcessedBlock uint64
 	row := tx.QueryRow("SELECT num FROM BLOCK ORDER BY num DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedBlock)
@@ -193,7 +221,7 @@ func (p *processor) getLastProcessedBlockWithTx(tx db.DBer) (uint64, error) {
 // Reorg triggers a purge and reset process on the processor to leaf it on a state
 // as if the last block processed was firstReorgedBlock-1
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
-	tx, err := p.db.BeginTx(ctx, nil)
+	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
 	}
@@ -216,13 +244,14 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+
 	return nil
 }
 
 // ProcessBlock process the events of the block to build the exit tree
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
-	tx, err := p.db.BeginTx(ctx, nil)
+	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
 	}
@@ -238,7 +267,10 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		return err
 	}
 	for _, e := range block.Events {
-		event := e.(Event)
+		event, ok := e.(Event)
+		if !ok {
+			return errors.New("failed to convert sync.Block.Event to Event")
+		}
 		if event.Bridge != nil {
 			if err = p.exitTree.AddLeaf(tx, block.Num, event.Pos, types.Leaf{
 				Index: event.Bridge.DepositCount,
@@ -260,7 +292,9 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+
 	p.log.Debugf("processed %d events until block %d", len(block.Events), block.Num)
+
 	return nil
 }
 
@@ -279,5 +313,6 @@ func GenerateGlobalIndex(mainnetFlag bool, rollupIndex uint32, localExitRootInde
 	}
 	leri := big.NewInt(0).SetUint64(uint64(localExitRootIndex)).FillBytes(buf[:])
 	globalIndexBytes = append(globalIndexBytes, leri...)
+
 	return big.NewInt(0).SetBytes(globalIndexBytes)
 }

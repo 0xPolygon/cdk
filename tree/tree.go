@@ -49,7 +49,7 @@ func newTree(db *sql.DB, tablePrefix string) *Tree {
 	return t
 }
 
-func (t *Tree) getSiblings(tx db.DBer, index uint32, root common.Hash) (
+func (t *Tree) getSiblings(tx db.Querier, index uint32, root common.Hash) (
 	siblings [32]common.Hash,
 	hasUsedZeroHashes bool,
 	err error,
@@ -60,14 +60,14 @@ func (t *Tree) getSiblings(tx db.DBer, index uint32, root common.Hash) (
 		var currentNode *types.TreeNode
 		currentNode, err = t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
-			if err == ErrNotFound {
+			if errors.Is(err, ErrNotFound) {
 				hasUsedZeroHashes = true
 				siblings[h] = t.zeroHashes[h]
 				err = nil
 				continue
 			} else {
 				err = fmt.Errorf(
-					"height: %d, currentNode: %s, error: %v",
+					"height: %d, currentNode: %s, error: %w",
 					h, currentNodeHash.Hex(), err,
 				)
 				return
@@ -118,7 +118,7 @@ func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) (ty
 	return siblings, nil
 }
 
-func (t *Tree) getRHTNode(tx db.DBer, nodeHash common.Hash) (*types.TreeNode, error) {
+func (t *Tree) getRHTNode(tx db.Querier, nodeHash common.Hash) (*types.TreeNode, error) {
 	node := &types.TreeNode{}
 	err := meddler.QueryRow(
 		tx, node,
@@ -138,8 +138,9 @@ func generateZeroHashes(height uint8) []common.Hash {
 	var zeroHashes = []common.Hash{
 		{},
 	}
-	// This generates a leaf = HashZero in position 0. In the rest of the positions that are equivalent to the ascending levels,
-	// we set the hashes of the nodes. So all nodes from level i=5 will have the same value and same children nodes.
+	// This generates a leaf = HashZero in position 0. In the rest of the positions that are
+	// equivalent to the ascending levels, we set the hashes of the nodes.
+	// So all nodes from level i=5 will have the same value and same children nodes.
 	for i := 1; i <= int(height); i++ {
 		hasher := sha3.NewLegacyKeccak256()
 		hasher.Write(zeroHashes[i-1][:])
@@ -151,11 +152,11 @@ func generateZeroHashes(height uint8) []common.Hash {
 	return zeroHashes
 }
 
-func (t *Tree) storeNodes(tx db.DBer, nodes []types.TreeNode) error {
-	for _, node := range nodes {
-		if err := meddler.Insert(tx, t.rhtTable, &node); err != nil {
+func (t *Tree) storeNodes(tx db.Txer, nodes []types.TreeNode) error {
+	for i := 0; i < len(nodes); i++ {
+		if err := meddler.Insert(tx, t.rhtTable, &nodes[i]); err != nil {
 			if sqliteErr, ok := db.SQLiteErr(err); ok {
-				if sqliteErr.ExtendedCode == 1555 { // 1555 is the error code for primary key violation
+				if sqliteErr.ExtendedCode == db.UniqueConstrain {
 					// ignore repeated entries. This is likely to happen due to not
 					// cleaning RHT when reorg
 					continue
@@ -167,7 +168,7 @@ func (t *Tree) storeNodes(tx db.DBer, nodes []types.TreeNode) error {
 	return nil
 }
 
-func (t *Tree) storeRoot(tx db.DBer, root types.Root) error {
+func (t *Tree) storeRoot(tx db.Txer, root types.Root) error {
 	return meddler.Insert(tx, t.rootTable, &root)
 }
 
@@ -176,7 +177,7 @@ func (t *Tree) GetLastRoot(ctx context.Context) (types.Root, error) {
 	return t.getLastRootWithTx(t.db)
 }
 
-func (t *Tree) getLastRootWithTx(tx db.DBer) (types.Root, error) {
+func (t *Tree) getLastRootWithTx(tx db.Querier) (types.Root, error) {
 	var root types.Root
 	err := meddler.QueryRow(
 		tx, &root,
@@ -208,17 +209,17 @@ func (t *Tree) GetRootByIndex(ctx context.Context, index uint32) (types.Root, er
 }
 
 // GetRootByHash returns the root associated to the hash
-func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (*types.Root, error) {
-	root := &types.Root{}
+func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (types.Root, error) {
+	var root types.Root
 	if err := meddler.QueryRow(
-		t.db, root,
+		t.db, &root,
 		fmt.Sprintf(`SELECT * FROM %s WHERE hash = $1;`, t.rootTable),
 		hash.Hex(),
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return root, ErrNotFound
 		}
-		return nil, err
+		return root, err
 	}
 	return root, nil
 }
@@ -241,7 +242,7 @@ func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (com
 }
 
 // Reorg deletes all the data relevant from firstReorgedBlock (includded) and onwards
-func (t *Tree) Reorg(tx db.DBer, firstReorgedBlock uint64) error {
+func (t *Tree) Reorg(tx db.Txer, firstReorgedBlock uint64) error {
 	_, err := tx.Exec(
 		fmt.Sprintf(`DELETE FROM %s WHERE block_num >= $1`, t.rootTable),
 		firstReorgedBlock,

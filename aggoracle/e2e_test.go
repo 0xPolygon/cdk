@@ -27,6 +27,8 @@ func runTest(
 	l1Client *simulated.Backend,
 	authL1 *bind.TransactOpts,
 ) {
+	t.Helper()
+
 	for i := 0; i < 10; i++ {
 		_, err := gerL1Contract.UpdateExitRoot(authL1, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)

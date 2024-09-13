@@ -16,6 +16,7 @@ const (
 	downloadBufferSize = 1000
 )
 
+// BridgeSync manages the state of the exit tree for the bridge contract by processing Ethereum blockchain events.
 type BridgeSync struct {
 	processor *processor
 	driver    *sync.EVMDriver
@@ -102,10 +103,12 @@ func newBridgeSync(
 	if err != nil {
 		return nil, err
 	}
+
 	lastProcessedBlock, err := processor.GetLastProcessedBlock(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	if lastProcessedBlock < initialBlock {
 		err = processor.ProcessBlock(ctx, sync.Block{
 			Num: initialBlock,
@@ -141,6 +144,7 @@ func newBridgeSync(
 	if err != nil {
 		return nil, err
 	}
+
 	return &BridgeSync{
 		processor: processor,
 		driver:    driver,
@@ -172,8 +176,8 @@ func (s *BridgeSync) GetProof(ctx context.Context, depositCount uint32, localExi
 	return s.processor.exitTree.GetProof(ctx, depositCount, localExitRoot)
 }
 
-func (s *BridgeSync) GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error) {
-	root, err := s.processor.exitTree.GetRootByHash(ctx, ler)
+func (p *processor) GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error) {
+	root, err := p.exitTree.GetRootByHash(ctx, ler)
 	if err != nil {
 		return 0, err
 	}

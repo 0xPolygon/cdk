@@ -421,9 +421,10 @@ func (a *getClaims) desc() string {
 }
 
 func (a *getClaims) execute(t *testing.T) {
+	t.Helper()
 	actualEvents, actualErr := a.p.GetClaims(a.ctx, a.fromBlock, a.toBlock)
-	require.Equal(t, a.expectedClaims, actualEvents)
 	require.Equal(t, a.expectedErr, actualErr)
+	require.Equal(t, a.expectedClaims, actualEvents)
 }
 
 // GetBridges
@@ -447,6 +448,7 @@ func (a *getBridges) desc() string {
 }
 
 func (a *getBridges) execute(t *testing.T) {
+	t.Helper()
 	actualEvents, actualErr := a.p.GetBridges(a.ctx, a.fromBlock, a.toBlock)
 	require.Equal(t, a.expectedBridges, actualEvents)
 	require.Equal(t, a.expectedErr, actualErr)
@@ -471,6 +473,8 @@ func (a *getLastProcessedBlockAction) desc() string {
 }
 
 func (a *getLastProcessedBlockAction) execute(t *testing.T) {
+	t.Helper()
+
 	actualLastProcessedBlock, actualErr := a.p.GetLastProcessedBlock(a.ctx)
 	require.Equal(t, a.expectedLastProcessedBlock, actualLastProcessedBlock)
 	require.Equal(t, a.expectedErr, actualErr)
@@ -494,6 +498,8 @@ func (a *reorgAction) desc() string {
 }
 
 func (a *reorgAction) execute(t *testing.T) {
+	t.Helper()
+
 	actualErr := a.p.Reorg(context.Background(), a.firstReorgedBlock)
 	require.Equal(t, a.expectedErr, actualErr)
 }
@@ -516,6 +522,8 @@ func (a *processBlockAction) desc() string {
 }
 
 func (a *processBlockAction) execute(t *testing.T) {
+	t.Helper()
+
 	actualErr := a.p.ProcessBlock(context.Background(), a.block)
 	require.Equal(t, a.expectedErr, actualErr)
 }
@@ -523,7 +531,10 @@ func (a *processBlockAction) execute(t *testing.T) {
 func eventsToBridges(events []interface{}) []Bridge {
 	bridges := []Bridge{}
 	for _, event := range events {
-		e := event.(Event)
+		e, ok := event.(Event)
+		if !ok {
+			panic("should be ok")
+		}
 		if e.Bridge != nil {
 			bridges = append(bridges, *e.Bridge)
 		}
@@ -534,7 +545,10 @@ func eventsToBridges(events []interface{}) []Bridge {
 func eventsToClaims(events []interface{}) []Claim {
 	claims := []Claim{}
 	for _, event := range events {
-		e := event.(Event)
+		e, ok := event.(Event)
+		if !ok {
+			panic("should be ok")
+		}
 		if e.Claim != nil {
 			claims = append(claims, *e.Claim)
 		}

@@ -2,10 +2,10 @@ package aggoracle
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"time"
 
-	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
@@ -42,6 +42,7 @@ func New(
 	if err != nil {
 		return nil, err
 	}
+
 	return &AggOracle{
 		ticker:        ticker,
 		l1Client:      l1Client,
@@ -62,26 +63,30 @@ func (a *AggOracle) Start(ctx context.Context) {
 		case <-a.ticker.C:
 			blockNumToFetch, gerToInject, err = a.getLastFinalisedGER(ctx, blockNumToFetch)
 			if err != nil {
-				if err == l1infotreesync.ErrBlockNotProcessed {
+				if errors.Is(err, l1infotreesync.ErrBlockNotProcessed) {
 					log.Debugf("syncer is not ready for the block %d", blockNumToFetch)
-				} else if err == db.ErrNotFound {
+				} else if errors.Is(err, l1infotreesync.ErrNotFound) {
 					blockNumToFetch = 0
 					log.Debugf("syncer has not found any GER until block %d", blockNumToFetch)
 				} else {
 					log.Error("error calling getLastFinalisedGER: ", err)
 				}
+
 				continue
 			}
 			if alreadyInjected, err := a.chainSender.IsGERAlreadyInjected(gerToInject); err != nil {
 				log.Error("error calling isGERAlreadyInjected: ", err)
+
 				continue
 			} else if alreadyInjected {
 				log.Debugf("GER %s already injected", gerToInject.Hex())
+
 				continue
 			}
 			log.Infof("injecting new GER: %s", gerToInject.Hex())
 			if err := a.chainSender.UpdateGERWaitUntilMined(ctx, gerToInject); err != nil {
 				log.Errorf("error calling updateGERWaitUntilMined, when trying to inject GER %s: %v", gerToInject.Hex(), err)
+
 				continue
 			}
 			log.Infof("GER %s injected", gerToInject.Hex())
@@ -107,5 +112,6 @@ func (a *AggOracle) getLastFinalisedGER(ctx context.Context, blockNumToFetch uin
 	if err != nil {
 		return blockNumToFetch, common.Hash{}, err
 	}
+
 	return 0, info.GlobalExitRoot, nil
 }

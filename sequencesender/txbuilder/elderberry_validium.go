@@ -26,7 +26,14 @@ type TxBuilderElderberryValidium struct {
 }
 
 type rollupElderberryValidiumContractor interface {
-	SequenceBatchesValidium(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData, maxSequenceTimestamp uint64, initSequencedBatch uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error)
+	SequenceBatchesValidium(
+		opts *bind.TransactOpts,
+		batches []polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData,
+		maxSequenceTimestamp uint64,
+		initSequencedBatch uint64,
+		l2Coinbase common.Address,
+		dataAvailabilityMessage []byte,
+	) (*types.Transaction, error)
 }
 
 func NewTxBuilderElderberryValidium(zkevm contracts.RollupElderberryType,
@@ -39,7 +46,9 @@ func NewTxBuilderElderberryValidium(zkevm contracts.RollupElderberryType,
 		rollupContract:          zkevm,
 	}
 }
-func (t *TxBuilderElderberryValidium) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
+func (t *TxBuilderElderberryValidium) NewSequenceIfWorthToSend(
+	ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64,
+) (seqsendertypes.Sequence, error) {
 	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, l2Coinbase)
 }
 
@@ -50,7 +59,9 @@ func (t *TxBuilderElderberryValidium) SetCondNewSeq(cond CondNewSequence) CondNe
 	return previous
 }
 
-func (t *TxBuilderElderberryValidium) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
+func (t *TxBuilderElderberryValidium) BuildSequenceBatchesTx(
+	ctx context.Context, sequences seqsendertypes.Sequence,
+) (*types.Transaction, error) {
 	if sequences == nil || sequences.Len() == 0 {
 		return nil, fmt.Errorf("can't sequence an empty sequence")
 	}
@@ -87,13 +98,16 @@ func (t *TxBuilderElderberryValidium) buildSequenceBatchesTxValidium(opts *bind.
 		batches[i] = polygonvalidiumetrog.PolygonValidiumEtrogValidiumBatchData{
 			TransactionsHash:     crypto.Keccak256Hash(seq.L2Data()),
 			ForcedGlobalExitRoot: ger,
-			ForcedTimestamp:      uint64(seq.ForcedBatchTimestamp()),
+			ForcedTimestamp:      seq.ForcedBatchTimestamp(),
 			ForcedBlockHashL1:    seq.ForcedBlockHashL1(),
 		}
 	}
 	lastSequencedBatchNumber := getLastSequencedBatchNumber(sequences)
-	log.Infof("SequenceBatchesValidium(from=%s, len(batches)=%d, MaxSequenceTimestamp=%d, lastSequencedBatchNumber=%d, L2Coinbase=%s, dataAvailabilityMessage=%s)",
-		t.opts.From.String(), len(batches), sequences.MaxSequenceTimestamp(), lastSequencedBatchNumber, sequences.L2Coinbase().String(), hex.EncodeToString(dataAvailabilityMessage))
+	log.Infof("SequenceBatchesValidium(from=%s, len(batches)=%d, MaxSequenceTimestamp=%d, "+
+		"lastSequencedBatchNumber=%d, L2Coinbase=%s, dataAvailabilityMessage=%s)",
+		t.opts.From.String(), len(batches), sequences.MaxSequenceTimestamp(), lastSequencedBatchNumber,
+		sequences.L2Coinbase().String(), hex.EncodeToString(dataAvailabilityMessage),
+	)
 	tx, err := t.rollupContract.SequenceBatchesValidium(opts, batches, sequences.MaxSequenceTimestamp(),
 		lastSequencedBatchNumber, sequences.L2Coinbase(), dataAvailabilityMessage)
 	if err != nil {

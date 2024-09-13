@@ -93,6 +93,7 @@ func (l *L1InfoTreeLeaf) globalExitRoot() ethCommon.Hash {
 	hasher.Write(l.MainnetExitRoot[:])
 	hasher.Write(l.RollupExitRoot[:])
 	copy(gerBytes[:], hasher.Sum(nil))
+
 	return gerBytes
 }
 
@@ -113,7 +114,9 @@ func newProcessor(dbPath string) (*processor, error) {
 }
 
 // GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
-func (p *processor) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) (treeTypes.Proof, treeTypes.Root, error) {
+func (p *processor) GetL1InfoTreeMerkleProof(
+	ctx context.Context, index uint32,
+) (treeTypes.Proof, treeTypes.Root, error) {
 	root, err := p.l1InfoTree.GetRootByIndex(ctx, index)
 	if err != nil {
 		return treeTypes.Proof{}, treeTypes.Root{}, err
@@ -132,7 +135,11 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Warnf("error rolling back tx: %v", err)
+		}
+	}()
 
 	lpb, err := p.getLastProcessedBlockWithTx(tx)
 	if err != nil {
@@ -174,7 +181,7 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	return p.getLastProcessedBlockWithTx(p.db)
 }
 
-func (p *processor) getLastProcessedBlockWithTx(tx db.DBer) (uint64, error) {
+func (p *processor) getLastProcessedBlockWithTx(tx db.Querier) (uint64, error) {
 	var lastProcessedBlock uint64
 	row := tx.QueryRow("SELECT num FROM BLOCK ORDER BY num DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedBlock)
@@ -187,7 +194,7 @@ func (p *processor) getLastProcessedBlockWithTx(tx db.DBer) (uint64, error) {
 // Reorg triggers a purge and reset process on the processor to leaf it on a state
 // as if the last block processed was firstReorgedBlock-1
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
-	tx, err := p.db.BeginTx(ctx, nil)
+	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
 	}
@@ -221,7 +228,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 // ProcessBlock process the events of the block to build the rollup exit tree and the l1 info tree
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
-	tx, err := p.db.BeginTx(ctx, nil)
+	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
 	}
@@ -240,7 +247,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	var initialL1InfoIndex uint32
 	var l1InfoLeavesAdded uint32
 	lastIndex, err := p.getLastIndex(tx)
-	if err == db.ErrNotFound {
+	if errors.Is(err, ErrNotFound) {
 		initialL1InfoIndex = 0
 		err = nil
 	} else if err != nil {
@@ -249,7 +256,10 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		initialL1InfoIndex = lastIndex + 1
 	}
 	for _, e := range b.Events {
-		event := e.(Event)
+		event, ok := e.(Event)
+		if !ok {
+			return errors.New("failed to convert from sync.Block.Event into Event")
+		}
 		if event.UpdateL1InfoTree != nil {
 			index := initialL1InfoIndex + l1InfoLeavesAdded
 			info := &L1InfoTreeLeaf{
@@ -306,7 +316,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	return nil
 }
 
-func (p *processor) getLastIndex(tx db.DBer) (uint32, error) {
+func (p *processor) getLastIndex(tx db.Querier) (uint32, error) {
 	var lastProcessedIndex uint32
 	row := tx.QueryRow("SELECT position FROM l1info_leaf ORDER BY block_num DESC, block_pos DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedIndex)

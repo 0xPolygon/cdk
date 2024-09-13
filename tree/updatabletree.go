@@ -2,7 +2,9 @@ package tree
 
 import (
 	"database/sql"
+	"errors"
 
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -21,11 +23,11 @@ func NewUpdatableTree(db *sql.DB, dbPrefix string) *UpdatableTree {
 	return ut
 }
 
-func (t *UpdatableTree) UpsertLeaf(tx *sql.Tx, blockNum, blockPosition uint64, leaf types.Leaf) (common.Hash, error) {
+func (t *UpdatableTree) UpsertLeaf(tx db.Txer, blockNum, blockPosition uint64, leaf types.Leaf) (common.Hash, error) {
 	var rootHash common.Hash
 	root, err := t.getLastRootWithTx(tx)
 	if err != nil {
-		if err == ErrNotFound {
+		if errors.Is(err, ErrNotFound) {
 			rootHash = t.zeroHashes[types.DefaultHeight]
 		} else {
 			return common.Hash{}, err
@@ -35,7 +37,13 @@ func (t *UpdatableTree) UpsertLeaf(tx *sql.Tx, blockNum, blockPosition uint64, l
 	}
 	siblings, _, err := t.getSiblings(tx, leaf.Index, rootHash)
 	if err != nil {
-		return common.Hash{}, err
+		if err == ErrNotFound {
+			rootHash = t.zeroHashes[types.DefaultHeight]
+		} else {
+			return common.Hash{}, err
+		}
+	} else {
+		rootHash = root.Hash
 	}
 	currentChildHash := leaf.Hash
 	newNodes := []types.TreeNode{}
