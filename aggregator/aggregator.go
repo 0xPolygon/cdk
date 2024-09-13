@@ -739,7 +739,7 @@ func (a *Aggregator) Start() error {
 
 		err = a.streamClient.Start()
 		if err != nil {
-			log.Fatalf("failed to start stream client, error: %v", err)
+			return fmt.Errorf("failed to start stream client, error: %w", err)
 		}
 
 		bookMark := &datastream.BookMark{
@@ -749,12 +749,12 @@ func (a *Aggregator) Start() error {
 
 		marshalledBookMark, err := proto.Marshal(bookMark)
 		if err != nil {
-			log.Fatalf("failed to marshal bookmark: %v", err)
+			return fmt.Errorf("failed to marshal bookmark: %w", err)
 		}
 
 		err = a.streamClient.ExecCommandStartBookmark(marshalledBookMark)
 		if err != nil {
-			log.Fatalf("failed to connect to data stream: %v", err)
+			return fmt.Errorf("failed to connect to data stream: %w", err)
 		}
 
 		// A this point everything is ready, so start serving
