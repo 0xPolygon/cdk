@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Error code reference https://hackmd.io/WwahVBZERJKdfK3BbKxzQQ
 function deposit () {
+    readonly deposit_sig='bridgeAsset(uint32,address,uint256,address,bool,bytes)'
+
     if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
         echo "Checking the current ETH balance: " >&3
         cast balance -e --rpc-url $l1_rpc_url $current_addr >&3
@@ -12,17 +14,18 @@ function deposit () {
     echo "Attempting to deposit $amount wei to net $destination_net for token $token_addr" >&3
 
     if [[ $dry_run == "true" ]]; then
-        cast calldata $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
+        cast calldata $deposit_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
     else
         if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
-            cast send --legacy --private-key $skey --value $amount --rpc-url $l1_rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
+            cast send --legacy --private-key $skey --value $amount --rpc-url $l1_rpc_url $bridge_addr $deposit_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         else
-            cast send --legacy --private-key $skey --rpc-url $l1_rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
+            cast send --legacy --private-key $skey --rpc-url $l1_rpc_url $bridge_addr $deposit_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         fi
     fi
 }
 
 function claim() {
+    readonly claim_sig="claimAsset(bytes32[32],bytes32[32],uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)"
     readonly bridge_deposit_file=$(mktemp)
     readonly claimable_deposit_file=$(mktemp)
     echo "Getting full list of deposits" >&3
