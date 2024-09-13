@@ -57,6 +57,7 @@ func TestE2E(t *testing.T) {
 			require.NoError(t, err)
 			if lpb == lb {
 				syncerUpToDate = true
+
 				break
 			}
 			time.Sleep(time.Millisecond * 100)

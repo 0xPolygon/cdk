@@ -47,11 +47,16 @@ func (s *L1Bridge2InfoIndexSync) Start(ctx context.Context) {
 	s.driver.sync(ctx)
 }
 
+// GetLastProcessedBlock retrieves the last processed block number by the processor.
 func (s *L1Bridge2InfoIndexSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 	lpb, _, err := s.processor.GetLastProcessedBlockAndL1InfoTreeIndex(ctx)
+
 	return lpb, err
 }
 
-func (s *L1Bridge2InfoIndexSync) GetL1InfoTreeIndexByDepositCount(ctx context.Context, depositCount uint32) (uint32, error) {
+// GetL1InfoTreeIndexByDepositCount retrieves the L1 Info Tree index for a given deposit count.
+func (s *L1Bridge2InfoIndexSync) GetL1InfoTreeIndexByDepositCount(
+	ctx context.Context, depositCount uint32,
+) (uint32, error) {
 	return s.processor.getL1InfoTreeIndexByBridgeIndex(ctx, depositCount)
 }

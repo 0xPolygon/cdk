@@ -25,7 +25,9 @@ func (t *TxBuilderElderberryBase) SetAuth(auth *bind.TransactOpts) {
 	t.opts = *auth
 }
 
-func (t *TxBuilderElderberryBase) NewSequence(ctx context.Context, batches []seqsendertypes.Batch, coinbase common.Address) (seqsendertypes.Sequence, error) {
+func (t *TxBuilderElderberryBase) NewSequence(
+	ctx context.Context, batches []seqsendertypes.Batch, coinbase common.Address,
+) (seqsendertypes.Sequence, error) {
 	seq := ElderberrySequence{
 		l2Coinbase: coinbase,
 		batches:    batches,

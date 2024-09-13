@@ -7,6 +7,7 @@ import (
 	"math"
 
 	"github.com/0xPolygon/cdk/common"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ledgerwatch/erigon-lib/kv"
@@ -41,11 +42,13 @@ func (b *blockWithGERs) MarshalBinary() ([]byte, error) {
 }
 
 func (b *blockWithGERs) UnmarshalBinary(data []byte) error {
-	if len(data) != 8 {
-		return fmt.Errorf("expected len %d, actual len %d", 8, len(data))
+	const expectedDataLength = 8
+	if len(data) != expectedDataLength {
+		return fmt.Errorf("expected len %d, actual len %d", expectedDataLength, len(data))
 	}
 	b.FirstIndex = common.BytesToUint32(data[:4])
 	b.LastIndex = common.BytesToUint32(data[4:])
+
 	return nil
 }
 
@@ -60,6 +63,7 @@ func newProcessor(dbPath string) (*processor, error) {
 			gerTable:           {},
 			blockTable:         {},
 		}
+
 		return cfg
 	}
 	db, err := mdbx.NewMDBX(nil).
@@ -69,6 +73,7 @@ func newProcessor(dbPath string) (*processor, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &processor{
 		db: db,
 	}, nil
@@ -82,6 +87,7 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	defer tx.Rollback()
+
 	return p.getLastProcessedBlockWithTx(tx)
 }
 
@@ -107,6 +113,7 @@ func (p *processor) getLastIndexWithTx(tx kv.Tx) (uint32, error) {
 	if k == nil {
 		return 0, ErrNotFound
 	}
+
 	return common.BytesToUint32(k), nil
 }
 
@@ -134,10 +141,11 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	var lastIndex int64
 	if lenEvents > 0 {
 		li, err := p.getLastIndexWithTx(tx)
-		if err == ErrNotFound {
+		if errors.Is(err, ErrNotFound) {
 			lastIndex = -1
 		} else if err != nil {
 			tx.Rollback()
+
 			return err
 		} else {
 			lastIndex = int64(li)
@@ -145,7 +153,10 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	}
 
 	for _, e := range block.Events {
-		event := e.(Event)
+		event, ok := e.(Event)
+		if !ok {
+			log.Errorf("unexpected type %T in events", e)
+		}
 		if int64(event.L1InfoTreeIndex) < lastIndex {
 			continue
 		}
@@ -156,28 +167,49 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			event.GlobalExitRoot[:],
 		); err != nil {
 			tx.Rollback()
+
 			return err
 		}
 	}
 
 	if lenEvents > 0 {
-		bwg := blockWithGERs{
-			FirstIndex: block.Events[0].(Event).L1InfoTreeIndex,
-			LastIndex:  block.Events[lenEvents-1].(Event).L1InfoTreeIndex + 1,
+		firstEvent, ok := block.Events[0].(Event)
+		if !ok {
+			log.Errorf("unexpected type %T in events", block.Events[0])
+			tx.Rollback()
+
+			return fmt.Errorf("unexpected type %T in events", block.Events[0])
 		}
+
+		lastEvent, ok := block.Events[lenEvents-1].(Event)
+		if !ok {
+			log.Errorf("unexpected type %T in events", block.Events[lenEvents-1])
+			tx.Rollback()
+
+			return fmt.Errorf("unexpected type %T in events", block.Events[lenEvents-1])
+		}
+
+		bwg := blockWithGERs{
+			FirstIndex: firstEvent.L1InfoTreeIndex,
+			LastIndex:  lastEvent.L1InfoTreeIndex + 1,
+		}
+
 		data, err := bwg.MarshalBinary()
 		if err != nil {
 			tx.Rollback()
+
 			return err
 		}
 		if err = tx.Put(blockTable, common.Uint64ToBytes(block.Num), data); err != nil {
 			tx.Rollback()
+
 			return err
 		}
 	}
 
 	if err := p.updateLastProcessedBlockWithTx(tx, block.Num); err != nil {
 		tx.Rollback()
+
 		return err
 	}
 
@@ -193,26 +225,31 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	iter, err := tx.Range(blockTable, common.Uint64ToBytes(firstReorgedBlock), nil)
 	if err != nil {
 		tx.Rollback()
+
 		return err
 	}
 	for bNumBytes, bWithGERBytes, err := iter.Next(); bNumBytes != nil; bNumBytes, bWithGERBytes, err = iter.Next() {
 		if err != nil {
 			tx.Rollback()
+
 			return err
 		}
 		if err := tx.Delete(blockTable, bNumBytes); err != nil {
 			tx.Rollback()
+
 			return err
 		}
 
 		bWithGER := &blockWithGERs{}
 		if err := bWithGER.UnmarshalBinary(bWithGERBytes); err != nil {
 			tx.Rollback()
+
 			return err
 		}
 		for i := bWithGER.FirstIndex; i < bWithGER.LastIndex; i++ {
 			if err := tx.Delete(gerTable, common.Uint32ToBytes(i)); err != nil {
 				tx.Rollback()
+
 				return err
 			}
 		}
@@ -220,6 +257,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 
 	if err := p.updateLastProcessedBlockWithTx(tx, firstReorgedBlock-1); err != nil {
 		tx.Rollback()
+
 		return err
 	}
 
@@ -228,7 +266,9 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 
 // GetFirstGERAfterL1InfoTreeIndex returns the first GER injected on the chain that is related to l1InfoTreeIndex
 // or greater
-func (p *processor) GetFirstGERAfterL1InfoTreeIndex(ctx context.Context, l1InfoTreeIndex uint32) (uint32, ethCommon.Hash, error) {
+func (p *processor) GetFirstGERAfterL1InfoTreeIndex(
+	ctx context.Context, l1InfoTreeIndex uint32,
+) (uint32, ethCommon.Hash, error) {
 	tx, err := p.db.BeginRo(ctx)
 	if err != nil {
 		return 0, ethCommon.Hash{}, err
@@ -246,5 +286,6 @@ func (p *processor) GetFirstGERAfterL1InfoTreeIndex(ctx context.Context, l1InfoT
 	if l1InfoIndexBytes == nil {
 		return 0, ethCommon.Hash{}, ErrNotFound
 	}
+
 	return common.BytesToUint32(l1InfoIndexBytes), ethCommon.BytesToHash(ger), nil
 }

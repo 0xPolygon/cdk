@@ -39,11 +39,13 @@ func (lp *lastProcessed) MarshalBinary() ([]byte, error) {
 }
 
 func (lp *lastProcessed) UnmarshalBinary(data []byte) error {
-	if len(data) != 12 {
-		return fmt.Errorf("expected len %d, actual len %d", 12, len(data))
+	const expectedDataLength = 12
+	if len(data) != expectedDataLength {
+		return fmt.Errorf("expected len %d, actual len %d", expectedDataLength, len(data))
 	}
 	lp.block = common.BytesToUint64(data[:8])
 	lp.index = common.BytesToUint32(data[8:])
+
 	return nil
 }
 
@@ -61,6 +63,7 @@ func newProcessor(dbPath string) (*processor, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &processor{
 		db: db,
 	}, nil
@@ -74,6 +77,7 @@ func (p *processor) GetLastProcessedBlockAndL1InfoTreeIndex(ctx context.Context)
 		return 0, 0, err
 	}
 	defer tx.Rollback()
+
 	return p.getLastProcessedBlockAndL1InfoTreeIndexWithTx(tx)
 }
 
@@ -87,19 +91,24 @@ func (p *processor) getLastProcessedBlockAndL1InfoTreeIndexWithTx(tx kv.Tx) (uin
 		if err := lp.UnmarshalBinary(lastProcessedBytes); err != nil {
 			return 0, 0, err
 		}
+
 		return lp.block, lp.index, nil
 	}
 }
 
-func (p *processor) updateLastProcessedBlockAndL1InfoTreeIndex(ctx context.Context, blockNum uint64, index uint32) error {
+func (p *processor) updateLastProcessedBlockAndL1InfoTreeIndex(
+	ctx context.Context, blockNum uint64, index uint32,
+) error {
 	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
 		return err
 	}
 	if err := p.updateLastProcessedBlockAndL1InfoTreeIndexWithTx(tx, blockNum, index); err != nil {
 		tx.Rollback()
+
 		return err
 	}
+
 	return tx.Commit()
 }
 
@@ -112,10 +121,13 @@ func (p *processor) updateLastProcessedBlockAndL1InfoTreeIndexWithTx(tx kv.RwTx,
 	if err != nil {
 		return err
 	}
+
 	return tx.Put(lastProcessedTable, lastProcessedKey, value)
 }
 
-func (p *processor) processUntilBlock(ctx context.Context, lastProcessedBlock uint64, relations []bridge2L1InfoRelation) error {
+func (p *processor) processUntilBlock(
+	ctx context.Context, lastProcessedBlock uint64, relations []bridge2L1InfoRelation,
+) error {
 	tx, err := p.db.BeginRw(ctx)
 	if err != nil {
 		return err
@@ -125,6 +137,7 @@ func (p *processor) processUntilBlock(ctx context.Context, lastProcessedBlock ui
 		_, lastIndex, err := p.getLastProcessedBlockAndL1InfoTreeIndexWithTx(tx)
 		if err != nil {
 			tx.Rollback()
+
 			return err
 		}
 		if err := p.updateLastProcessedBlockAndL1InfoTreeIndexWithTx(
@@ -133,13 +146,15 @@ func (p *processor) processUntilBlock(ctx context.Context, lastProcessedBlock ui
 			lastIndex,
 		); err != nil {
 			tx.Rollback()
+
 			return err
 		}
+
 		return tx.Commit()
 	}
 
 	for _, relation := range relations {
-		if _, err := p.getL1InfoTreeIndexByBridgeIndexWithTx(tx, relation.bridgeIndex); err != ErrNotFound {
+		if _, err := p.getL1InfoTreeIndexByBridgeIndexWithTx(tx, relation.bridgeIndex); !errors.Is(err, ErrNotFound) {
 			// Note that indexes could be repeated as the L1 Info tree update can be produced by a rollup and not mainnet.
 			// Hence if the index already exist, do not update as it's better to have the lowest index possible for the relation
 			continue
@@ -150,6 +165,7 @@ func (p *processor) processUntilBlock(ctx context.Context, lastProcessedBlock ui
 			common.Uint32ToBytes(relation.l1InfoTreeIndex),
 		); err != nil {
 			tx.Rollback()
+
 			return err
 		}
 	}
@@ -160,6 +176,7 @@ func (p *processor) processUntilBlock(ctx context.Context, lastProcessedBlock ui
 		relations[len(relations)-1].l1InfoTreeIndex,
 	); err != nil {
 		tx.Rollback()
+
 		return err
 	}
 
@@ -184,5 +201,6 @@ func (p *processor) getL1InfoTreeIndexByBridgeIndexWithTx(tx kv.Tx, depositCount
 	if indexBytes == nil {
 		return 0, ErrNotFound
 	}
+
 	return common.BytesToUint32(indexBytes), nil
 }

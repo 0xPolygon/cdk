@@ -27,7 +27,7 @@ func (d *DepositVectorRaw) Hash() common.Hash {
 	binary.BigEndian.PutUint32(destNet, d.DestinationNetwork)
 
 	metaHash := keccak256.Hash(common.FromHex(d.Metadata))
-	var buf [32]byte //nolint:gomnd
+	var buf [32]byte
 	amount, _ := big.NewInt(0).SetString(d.Amount, 0)
 	origAddrBytes := common.HexToAddress(d.TokenAddress)
 	destAddrBytes := common.HexToAddress(d.DestinationAddress)

@@ -21,12 +21,14 @@ type SequenceSender interface {
 	SequenceSenderBanana
 }
 
+// SequenceSenderElderberry defines methods for sending sequence data to the data availability backend.
 type SequenceSenderElderberry interface {
 	// PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
 	// as expected by the contract
 	PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error)
 }
 
+// SequenceSenderBanana defines methods for sending sequence data to the data availability backend.
 type SequenceSenderBanana interface {
 	// PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
 	// as expected by the contract
