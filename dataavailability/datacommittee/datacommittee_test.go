@@ -2,7 +2,6 @@ package datacommittee
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -164,7 +163,7 @@ func deployDACProxy(auth *bind.TransactOpts, client bind.ContractBackend, dacImp
 	if err != nil {
 		return common.Address{}, err
 	}
-	fmt.Println("DAC proxy deployed at", proxyAddr)
+	log.Debugf("DAC proxy deployed at", proxyAddr)
 
 	return proxyAddr, nil
 }

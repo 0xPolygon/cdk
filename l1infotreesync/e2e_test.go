@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"path"
 	"strconv"
 	"testing"
 	"time"
@@ -69,7 +70,7 @@ func newSimulatedClient(auth *bind.TransactOpts) (
 
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
-	dbPath := t.TempDir()
+	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
@@ -108,7 +109,7 @@ func TestE2E(t *testing.T) {
 		require.Equal(t, g, expectedRoot)
 		actualRoot, err := syncer.GetL1InfoTreeRootByIndex(ctx, uint32(i))
 		require.NoError(t, err)
-		require.Equal(t, common.Hash(expectedRoot), actualRoot)
+		require.Equal(t, common.Hash(expectedRoot), actualRoot.Hash)
 	}
 
 	// Update 3 rollups (verify batches event) 3 times
@@ -129,39 +130,9 @@ func TestE2E(t *testing.T) {
 			require.NoError(t, err)
 			actualRollupExitRoot, err := syncer.GetLastRollupExitRoot(ctx)
 			require.NoError(t, err)
-			require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot, fmt.Sprintf("rollupID: %d, i: %d", rollupID, i))
+			require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash, fmt.Sprintf("rollupID: %d, i: %d", rollupID, i))
 		}
 	}
-}
-
-func TestFinalised(t *testing.T) {
-	ctx := context.Background()
-	privateKey, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
-	require.NoError(t, err)
-	client, _, _, _, _, err := newSimulatedClient(auth) //nolint:dogsled
-	require.NoError(t, err)
-	for i := 0; i < 100; i++ {
-		client.Commit()
-	}
-
-	n4, err := client.Client().HeaderByNumber(ctx, big.NewInt(-4))
-	require.NoError(t, err)
-	fmt.Println("-4", n4.Number)
-	n3, err := client.Client().HeaderByNumber(ctx, big.NewInt(-3))
-	require.NoError(t, err)
-	fmt.Println("-3", n3.Number)
-	n2, err := client.Client().HeaderByNumber(ctx, big.NewInt(-2))
-	require.NoError(t, err)
-	fmt.Println("-2", n2.Number)
-	n1, err := client.Client().HeaderByNumber(ctx, big.NewInt(-1))
-	require.NoError(t, err)
-	fmt.Println("-1", n1.Number)
-	n0, err := client.Client().HeaderByNumber(ctx, nil)
-	require.NoError(t, err)
-	fmt.Println("0", n0.Number)
-	fmt.Printf("amount of blocks latest - finalised: %d", n0.Number.Uint64()-n3.Number.Uint64())
 }
 
 func TestStressAndReorgs(t *testing.T) {
@@ -175,7 +146,7 @@ func TestStressAndReorgs(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	dbPathSyncer := t.TempDir()
+	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	dbPathReorg := t.TempDir()
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -224,10 +195,10 @@ func TestStressAndReorgs(t *testing.T) {
 
 	syncerUpToDate := false
 	var errMsg string
+	lb, err := client.Client().BlockNumber(ctx)
+	require.NoError(t, err)
 	for i := 0; i < 50; i++ {
 		lpb, err := syncer.GetLastProcessedBlock(ctx)
-		require.NoError(t, err)
-		lb, err := client.Client().BlockNumber(ctx)
 		require.NoError(t, err)
 		if lpb == lb {
 			syncerUpToDate = true
@@ -244,18 +215,18 @@ func TestStressAndReorgs(t *testing.T) {
 	require.NoError(t, err)
 	actualRollupExitRoot, err := syncer.GetLastRollupExitRoot(ctx)
 	require.NoError(t, err)
-	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot)
+	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 
 	// Assert L1 Info tree root
 	expectedL1InfoRoot, err := gerSc.GetRoot(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	expectedGER, err := gerSc.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
-	index, actualL1InfoRoot, err := syncer.GetLastL1InfoTreeRootAndIndex(ctx)
+	lastRoot, err := syncer.GetLastL1InfoTreeRoot(ctx)
 	require.NoError(t, err)
-	info, err := syncer.GetInfoByIndex(ctx, index)
-	require.NoError(t, err, fmt.Sprintf("index: %d", index))
+	info, err := syncer.GetInfoByIndex(ctx, lastRoot.Index)
+	require.NoError(t, err, fmt.Sprintf("index: %d", lastRoot.Index))
 
-	require.Equal(t, common.Hash(expectedL1InfoRoot), actualL1InfoRoot)
+	require.Equal(t, common.Hash(expectedL1InfoRoot), lastRoot.Hash)
 	require.Equal(t, common.Hash(expectedGER), info.GlobalExitRoot, fmt.Sprintf("%+v", info))
 }

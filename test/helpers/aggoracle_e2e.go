@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"path"
 	"testing"
 	"time"
 
@@ -26,10 +27,13 @@ import (
 )
 
 const (
-	NetworkIDL2    = uint32(1)
-	chainID        = 1337
-	initialBalance = "10000000000000000000000000"
-	blockGasLimit  = uint64(999999999999999999)
+	NetworkIDL2        = uint32(1)
+	chainID            = 1337
+	initialBalance     = "10000000000000000000000000"
+	blockGasLimit      = uint64(999999999999999999)
+	syncBlockChunkSize = 10
+	retries            = 3
+	periodRetry        = time.Millisecond * 100
 )
 
 type AggoracleWithEVMChainEnv struct {
@@ -111,8 +115,8 @@ func CommonSetup(t *testing.T) (
 	reorg, err := reorgdetector.New(l1Client.Client(), reorgdetector.Config{DBPath: dbPathReorgDetector})
 	require.NoError(t, err)
 	// Syncer
-	dbPathSyncer := t.TempDir()
-	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, common.Address{}, 10, etherman.LatestBlock, reorg, l1Client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3) //nolint:gomnd
+	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, common.Address{}, syncBlockChunkSize, etherman.LatestBlock, reorg, l1Client.Client(), time.Millisecond, 0, periodRetry, retries)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 

@@ -95,7 +95,7 @@ install-linter: ## Installs the linter
 
 .PHONY: lint
 lint: ## Runs the linter
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run --timeout 5m
 
 $(VENV_PYTHON):
 	rm -rf $(VENV)

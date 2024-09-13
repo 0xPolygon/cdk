@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"path"
 	"testing"
 	"time"
 
@@ -47,7 +48,7 @@ func newSimulatedClient(t *testing.T, auth *bind.TransactOpts) (
 
 func TestBridgeEventE2E(t *testing.T) {
 	ctx := context.Background()
-	dbPathSyncer := t.TempDir()
+	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	dbPathReorg := t.TempDir()
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -70,6 +71,7 @@ func TestBridgeEventE2E(t *testing.T) {
 
 	for i := 0; i < 100; i++ {
 		bridge := bridgesync.Bridge{
+			BlockNum:           uint64(2 + i),
 			Amount:             big.NewInt(0),
 			DepositCount:       uint32(i),
 			DestinationNetwork: 3,
@@ -116,15 +118,8 @@ func TestBridgeEventE2E(t *testing.T) {
 	// Get bridges
 	lastBlock, err := client.Client().BlockNumber(ctx)
 	require.NoError(t, err)
-	events, err := syncer.GetClaimsAndBridges(ctx, 0, lastBlock)
+	actualBridges, err := syncer.GetBridges(ctx, 0, lastBlock)
 	require.NoError(t, err)
-	actualBridges := []bridgesync.Bridge{}
-
-	for _, event := range events {
-		if event.Bridge != nil {
-			actualBridges = append(actualBridges, *event.Bridge)
-		}
-	}
 
 	// Assert bridges
 	require.Equal(t, expectedBridges, actualBridges)

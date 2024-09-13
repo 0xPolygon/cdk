@@ -10,7 +10,7 @@ import (
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
 	rpcTypes "github.com/0xPolygon/cdk-rpc/types"
 	"github.com/0xPolygon/cdk/sync"
-	"github.com/0xPolygon/cdk/tree"
+	tree "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -60,6 +60,8 @@ func buildAppender(client EthClienter, bridge common.Address, syncFullClaims boo
 			)
 		}
 		b.Events = append(b.Events, Event{Bridge: &Bridge{
+			BlockNum:           b.Num,
+			BlockPos:           uint64(l.Index),
 			LeafType:           bridge.LeafType,
 			OriginNetwork:      bridge.OriginNetwork,
 			OriginAddress:      bridge.OriginAddress,
@@ -82,6 +84,8 @@ func buildAppender(client EthClienter, bridge common.Address, syncFullClaims boo
 			)
 		}
 		claim := &Claim{
+			BlockNum:           b.Num,
+			BlockPos:           uint64(l.Index),
 			GlobalIndex:        claimEvent.GlobalIndex,
 			OriginNetwork:      claimEvent.OriginNetwork,
 			OriginAddress:      claimEvent.OriginAddress,
@@ -106,6 +110,8 @@ func buildAppender(client EthClienter, bridge common.Address, syncFullClaims boo
 			)
 		}
 		claim := &Claim{
+			BlockNum:           b.Num,
+			BlockPos:           uint64(l.Index),
 			GlobalIndex:        big.NewInt(int64(claimEvent.Index)),
 			OriginNetwork:      claimEvent.OriginNetwork,
 			OriginAddress:      claimEvent.OriginAddress,

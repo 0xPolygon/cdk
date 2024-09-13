@@ -2,43 +2,42 @@ package bridgesync
 
 import (
 	"context"
+	"database/sql"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 
-	dbCommon "github.com/0xPolygon/cdk/common"
+	"github.com/0xPolygon/cdk/bridgesync/migrations"
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree"
+	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/keccak256"
-	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
-)
-
-const (
-	eventsTableSufix    = "-events"
-	lastBlockTableSufix = "-lastBlock"
+	"github.com/russross/meddler"
+	_ "modernc.org/sqlite"
 )
 
 var (
 	// ErrBlockNotProcessed indicates that the given block(s) have not been processed yet.
 	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
 	ErrNotFound          = errors.New("not found")
-	lastBlockKey         = []byte("lb")
 )
 
 // Bridge is the representation of a bridge event
 type Bridge struct {
-	LeafType           uint8
-	OriginNetwork      uint32
-	OriginAddress      common.Address
-	DestinationNetwork uint32
-	DestinationAddress common.Address
-	Amount             *big.Int
-	Metadata           []byte
-	DepositCount       uint32
+	BlockNum           uint64         `meddler:"block_num"`
+	BlockPos           uint64         `meddler:"block_pos"`
+	LeafType           uint8          `meddler:"leaf_type"`
+	OriginNetwork      uint32         `meddler:"origin_network"`
+	OriginAddress      common.Address `meddler:"origin_address"`
+	DestinationNetwork uint32         `meddler:"destination_network"`
+	DestinationAddress common.Address `meddler:"destination_address"`
+	Amount             *big.Int       `meddler:"amount,bigint"`
+	Metadata           []byte         `meddler:"metadata"`
+	DepositCount       uint32         `meddler:"deposit_count"`
 }
 
 // Hash returns the hash of the bridge event as expected by the exit tree
@@ -71,200 +70,178 @@ func (b *Bridge) Hash() common.Hash {
 
 // Claim representation of a claim event
 type Claim struct {
-	// From claim event
-	GlobalIndex        *big.Int
-	OriginNetwork      uint32
-	OriginAddress      common.Address
-	DestinationAddress common.Address
-	Amount             *big.Int
-	// From call data
-	ProofLocalExitRoot  [tree.DefaultHeight]common.Hash
-	ProofRollupExitRoot [tree.DefaultHeight]common.Hash
-	MainnetExitRoot     common.Hash
-	RollupExitRoot      common.Hash
-	DestinationNetwork  uint32
-	Metadata            []byte
-	// Meta
-	IsMessage bool
+	BlockNum            uint64         `meddler:"block_num"`
+	BlockPos            uint64         `meddler:"block_pos"`
+	GlobalIndex         *big.Int       `meddler:"global_index,bigint"`
+	OriginNetwork       uint32         `meddler:"origin_network"`
+	OriginAddress       common.Address `meddler:"origin_address"`
+	DestinationAddress  common.Address `meddler:"destination_address"`
+	Amount              *big.Int       `meddler:"amount,bigint"`
+	ProofLocalExitRoot  types.Proof    `meddler:"proof_local_exit_root,merkleproof"`
+	ProofRollupExitRoot types.Proof    `meddler:"proof_rollup_exit_root,merkleproof"`
+	MainnetExitRoot     common.Hash    `meddler:"mainnet_exit_root,hash"`
+	RollupExitRoot      common.Hash    `meddler:"rollup_exit_root,hash"`
+	GlobalExitRoot      common.Hash    `meddler:"global_exit_root,hash"`
+	DestinationNetwork  uint32         `meddler:"destination_network"`
+	Metadata            []byte         `meddler:"metadata"`
+	IsMessage           bool           `meddler:"is_message"`
 }
 
 // Event combination of bridge and claim events
 type Event struct {
+	Pos    uint64
 	Bridge *Bridge
 	Claim  *Claim
 }
 
 type processor struct {
-	db             kv.RwDB
-	eventsTable    string
-	lastBlockTable string
-	exitTree       *tree.AppendOnlyTree
-	log            *log.Logger
+	db       *sql.DB
+	exitTree *tree.AppendOnlyTree
+	log      *log.Logger
 }
 
-func newProcessor(ctx context.Context, dbPath, dbPrefix string) (*processor, error) {
-	eventsTable := dbPrefix + eventsTableSufix
-	lastBlockTable := dbPrefix + lastBlockTableSufix
-	logger := log.WithFields("bridge-syncer", dbPrefix)
-	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
-		cfg := kv.TableCfg{
-			eventsTable:    {},
-			lastBlockTable: {},
-		}
-		tree.AddTables(cfg, dbPrefix)
-
-		return cfg
-	}
-	db, err := mdbx.NewMDBX(nil).
-		Path(dbPath).
-		WithTableCfg(tableCfgFunc).
-		Open()
+func newProcessor(dbPath, loggerPrefix string) (*processor, error) {
+	err := migrations.RunMigrations(dbPath)
 	if err != nil {
 		return nil, err
 	}
-	exitTree, err := tree.NewAppendOnlyTree(ctx, db, dbPrefix)
+	db, err := db.NewSQLiteDB(dbPath)
 	if err != nil {
 		return nil, err
 	}
-
+	logger := log.WithFields("bridge-syncer", loggerPrefix)
+	exitTree := tree.NewAppendOnlyTree(db, "")
 	return &processor{
-		db:             db,
-		eventsTable:    eventsTable,
-		lastBlockTable: lastBlockTable,
-		exitTree:       exitTree,
-		log:            logger,
+		db:       db,
+		exitTree: exitTree,
+		log:      logger,
 	}, nil
 }
 
-// GetClaimsAndBridges returns the claims and bridges occurred between fromBlock, toBlock both included.
-// If toBlock has not been porcessed yet, ErrBlockNotProcessed will be returned
-func (p *processor) GetClaimsAndBridges(
+func (p *processor) GetBridges(
 	ctx context.Context, fromBlock, toBlock uint64,
-) ([]Event, error) {
-	events := []Event{}
-
-	tx, err := p.db.BeginRo(ctx)
+) ([]Bridge, error) {
+	tx, err := p.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Warnf("error rolling back tx: %v", err)
+		}
+	}()
+	rows, err := p.queryBlockRange(tx, fromBlock, toBlock, "bridge")
+	if err != nil {
+		return nil, err
+	}
+	bridgePtrs := []*Bridge{}
+	if err = meddler.ScanAll(rows, &bridgePtrs); err != nil {
+		return nil, err
+	}
+	bridgesIface := db.SlicePtrsToSlice(bridgePtrs)
+	bridges, ok := bridgesIface.([]Bridge)
+	if !ok {
+		return nil, errors.New("failed to convert from []*Bridge to []Bridge")
+	}
+	return bridges, nil
+}
 
-	defer tx.Rollback()
+func (p *processor) GetClaims(
+	ctx context.Context, fromBlock, toBlock uint64,
+) ([]Claim, error) {
+	tx, err := p.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Warnf("error rolling back tx: %v", err)
+		}
+	}()
+	rows, err := p.queryBlockRange(tx, fromBlock, toBlock, "claim")
+	if err != nil {
+		return nil, err
+	}
+	claimPtrs := []*Claim{}
+	if err = meddler.ScanAll(rows, &claimPtrs); err != nil {
+		return nil, err
+	}
+	claimsIface := db.SlicePtrsToSlice(claimPtrs)
+	claims, ok := claimsIface.([]Claim)
+	if !ok {
+		return nil, errors.New("failed to convert from []*Claim to []Claim")
+	}
+	return claims, nil
+}
+
+func (p *processor) queryBlockRange(tx db.Querier, fromBlock, toBlock uint64, table string) (*sql.Rows, error) {
+	if err := p.isBlockProcessed(tx, toBlock); err != nil {
+		return nil, err
+	}
+	rows, err := tx.Query(fmt.Sprintf(`
+		SELECT * FROM %s
+		WHERE block_num >= $1 AND block_num <= $2;
+	`, table), fromBlock, toBlock)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (p *processor) isBlockProcessed(tx db.Querier, blockNum uint64) error {
 	lpb, err := p.getLastProcessedBlockWithTx(tx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	if lpb < toBlock {
-		return nil, ErrBlockNotProcessed
+	if lpb < blockNum {
+		return ErrBlockNotProcessed
 	}
-	c, err := tx.Cursor(p.eventsTable)
-	if err != nil {
-		return nil, err
-	}
-	defer c.Close()
-
-	for k, v, err := c.Seek(dbCommon.Uint64ToBytes(fromBlock)); k != nil; k, v, err = c.Next() {
-		if err != nil {
-			return nil, err
-		}
-
-		if dbCommon.BytesToUint64(k) > toBlock {
-			break
-		}
-		blockEvents := []Event{}
-		err := json.Unmarshal(v, &blockEvents)
-		if err != nil {
-			return nil, err
-		}
-		events = append(events, blockEvents...)
-	}
-
-	return events, nil
+	return nil
 }
 
 // GetLastProcessedBlock returns the last processed block by the processor, including blocks
 // that don't have events
 func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
-	tx, err := p.db.BeginRo(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	defer tx.Rollback()
-
-	return p.getLastProcessedBlockWithTx(tx)
+	return p.getLastProcessedBlockWithTx(p.db)
 }
 
-func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
-	if blockNumBytes, err := tx.GetOne(p.lastBlockTable, lastBlockKey); err != nil {
-		return 0, err
-	} else if blockNumBytes == nil {
+func (p *processor) getLastProcessedBlockWithTx(tx db.Querier) (uint64, error) {
+	var lastProcessedBlock uint64
+	row := tx.QueryRow("SELECT num FROM BLOCK ORDER BY num DESC LIMIT 1;")
+	err := row.Scan(&lastProcessedBlock)
+	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
-	} else {
-		return dbCommon.BytesToUint64(blockNumBytes), nil
 	}
+	return lastProcessedBlock, err
 }
 
 // Reorg triggers a purge and reset process on the processor to leaf it on a state
 // as if the last block processed was firstReorgedBlock-1
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
-	tx, err := p.db.BeginRw(ctx)
+	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
-	c, err := tx.Cursor(p.eventsTable)
-	if err != nil {
-		return err
-	}
-	defer c.Close()
-	firstKey := dbCommon.Uint64ToBytes(firstReorgedBlock)
-	firstDepositCountReorged := int64(-1)
-	for k, v, err := c.Seek(firstKey); k != nil; k, _, err = c.Next() {
+	defer func() {
 		if err != nil {
-			tx.Rollback()
-
-			return err
-		}
-		if err := tx.Delete(p.eventsTable, k); err != nil {
-			tx.Rollback()
-
-			return err
-		}
-		if firstDepositCountReorged == -1 {
-			events := []Event{}
-			if err := json.Unmarshal(v, &events); err != nil {
-				tx.Rollback()
-
-				return err
-			}
-
-			for _, event := range events {
-				if event.Bridge != nil {
-					firstDepositCountReorged = int64(event.Bridge.DepositCount)
-
-					break
-				}
+			if errRllbck := tx.Rollback(); errRllbck != nil {
+				log.Errorf("error while rolling back tx %v", errRllbck)
 			}
 		}
-	}
-	if err := p.updateLastProcessedBlock(tx, firstReorgedBlock-1); err != nil {
-		tx.Rollback()
+	}()
 
+	_, err = tx.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
+	if err != nil {
 		return err
 	}
-	exitTreeRollback := func() {}
-	if firstDepositCountReorged != -1 {
-		if exitTreeRollback, err = p.exitTree.Reorg(tx, uint32(firstDepositCountReorged)); err != nil {
-			tx.Rollback()
-			exitTreeRollback()
 
-			return err
-		}
+	if err = p.exitTree.Reorg(tx, firstReorgedBlock); err != nil {
+		return err
 	}
 	if err := tx.Commit(); err != nil {
-		exitTreeRollback()
-
 		return err
 	}
 
@@ -274,56 +251,45 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 // ProcessBlock process the events of the block to build the exit tree
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
-	tx, err := p.db.BeginRw(ctx)
+	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
 	}
-	leaves := []tree.Leaf{}
-	if len(block.Events) > 0 {
-		events := []Event{}
-
-		for _, e := range block.Events {
-			if event, ok := e.(Event); ok {
-				events = append(events, event)
-				if event.Bridge != nil {
-					leaves = append(leaves, tree.Leaf{
-						Index: event.Bridge.DepositCount,
-						Hash:  event.Bridge.Hash(),
-					})
-				}
-			} else {
-				p.log.Errorf("unexpected type %T; expected Event", e)
+	defer func() {
+		if err != nil {
+			if errRllbck := tx.Rollback(); errRllbck != nil {
+				log.Errorf("error while rolling back tx %v", errRllbck)
 			}
 		}
-		value, err := json.Marshal(events)
-		if err != nil {
-			tx.Rollback()
+	}()
 
-			return err
-		}
-		if err := tx.Put(p.eventsTable, dbCommon.Uint64ToBytes(block.Num), value); err != nil {
-			tx.Rollback()
-
-			return err
-		}
-	}
-
-	if err := p.updateLastProcessedBlock(tx, block.Num); err != nil {
-		tx.Rollback()
-
+	if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, block.Num); err != nil {
 		return err
 	}
-
-	exitTreeRollback, err := p.exitTree.AddLeaves(tx, leaves)
-	if err != nil {
-		tx.Rollback()
-		exitTreeRollback()
-
-		return err
+	for _, e := range block.Events {
+		event, ok := e.(Event)
+		if !ok {
+			return errors.New("failed to convert sync.Block.Event to Event")
+		}
+		if event.Bridge != nil {
+			if err = p.exitTree.AddLeaf(tx, block.Num, event.Pos, types.Leaf{
+				Index: event.Bridge.DepositCount,
+				Hash:  event.Bridge.Hash(),
+			}); err != nil {
+				return err
+			}
+			if err = meddler.Insert(tx, "bridge", event.Bridge); err != nil {
+				return err
+			}
+		}
+		if event.Claim != nil {
+			if err = meddler.Insert(tx, "claim", event.Claim); err != nil {
+				return err
+			}
+		}
 	}
+
 	if err := tx.Commit(); err != nil {
-		exitTreeRollback()
-
 		return err
 	}
 
@@ -332,13 +298,6 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	return nil
 }
 
-func (p *processor) updateLastProcessedBlock(tx kv.RwTx, blockNum uint64) error {
-	blockNumBytes := dbCommon.Uint64ToBytes(blockNum)
-
-	return tx.Put(p.lastBlockTable, lastBlockKey, blockNumBytes)
-}
-
-// GenerateGlobalIndex creates a global index based on network type, rollup index, and local exit root index.
 func GenerateGlobalIndex(mainnetFlag bool, rollupIndex uint32, localExitRootIndex uint32) *big.Int {
 	var (
 		globalIndexBytes []byte
