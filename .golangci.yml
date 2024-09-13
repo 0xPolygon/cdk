@@ -3,15 +3,10 @@
 run:
   timeout: 3m
   tests: true
-  # default is true. Enables skipping of directories:
-  #   vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
   skip-dirs-use-default: true
-  skip-dirs:
-    - tests
-    - aggregator/db/migrations
 
 service:
-  golangci-lint-version: 1.59.1
+  golangci-lint-version: 1.61.0
     
 linters:
   disable-all: true
@@ -44,7 +39,7 @@ linters:
   - errcheck # Errcheck is a go lint rule for checking for unchecked errors in go programs. These unchecked errors can be critical bugs in some cases
   # - godox # Godox is a linter for TODOs and FIXMEs left in the code
   - gci # Gci is a linter for checking the consistency of the code with the go code style guide
-  - gomnd # Gomnd is a linter for magic numbers
+  - mnd # mnd is a linter for magic numbers
   # - revive 
   - unparam # Unparam is a linter for unused function parameters
 
@@ -78,6 +73,9 @@ issues:
     - path: 'etherman/contracts/contracts_(banana|elderberry)\.go'
       linters:
         - dupl
+  exclude-dirs:
+    - tests
+    - aggregator/db/migrations
   include:
     - EXC0012 # Exported (.+) should have comment( \(or a comment on this block\))? or be unexported
     - EXC0013 # Package comment should be of the form "(.+)...
