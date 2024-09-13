@@ -9,7 +9,7 @@ setup() {
 }
 
 @test "Send EOA transaction" {
-    local private_key="12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"
+    local private_key=${RAW_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
     local receiver="0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"
     local value="10ether"
 
@@ -19,7 +19,7 @@ setup() {
 }
 
 @test "Deploy ERC20Mock contract" {
-    local private_key="12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"
+    local private_key=${RAW_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
     local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
 
     # Deploy ERC20Mock
