@@ -530,7 +530,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Sanity check: Wait also until current time is L1BlockTimestampMargin seconds above the
 	// timestamp of the last L2 block in the sequence
 	for {
-		currentTime := uint64(time.Now().Unix())
+		currentTime := uint64(time.Now().Unix()) //nolint:gosec
 
 		elapsed, waitTime := s.marginTimeElapsed(lastL2BlockTimestamp, currentTime, timeMargin)
 

@@ -553,7 +553,7 @@ func (a *Aggregator) handleReceivedDataStream(
 						oldDBBatch.Batch.AccInputHash,
 						a.currentStreamBatch.BatchL2Data,
 						a.currentStreamBatch.L1InfoRoot,
-						uint64(a.currentStreamBatch.Timestamp.Unix()),
+						uint64(a.currentStreamBatch.Timestamp.Unix()), //nolint:gosec
 						a.currentStreamBatch.Coinbase,
 						forcedBlockhashL1,
 					)
@@ -1780,7 +1780,10 @@ func (a *Aggregator) buildInputProver(
 
 		aLeaves := make([][32]byte, len(leaves))
 		for i, leaf := range leaves {
-			aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
+			aLeaves[i] = l1infotree.HashLeafData(
+				leaf.GlobalExitRoot,
+				leaf.PreviousBlockHash,
+				uint64(leaf.Timestamp.Unix())) //nolint:gosec
 		}
 
 		for _, l2blockRaw := range batchRawData.Blocks {
@@ -1867,7 +1870,7 @@ func (a *Aggregator) buildInputProver(
 			ForkId:            batchToVerify.ForkID,
 			BatchL2Data:       batchToVerify.BatchL2Data,
 			L1InfoRoot:        l1InfoRoot,
-			TimestampLimit:    uint64(batchToVerify.Timestamp.Unix()),
+			TimestampLimit:    uint64(batchToVerify.Timestamp.Unix()), //nolint:gosec
 			SequencerAddr:     batchToVerify.Coinbase.String(),
 			AggregatorAddr:    a.cfg.SenderAddress,
 			L1InfoTreeData:    l1InfoTreeData,

@@ -39,7 +39,7 @@ func h4ToScalar(h4 []uint64) *big.Int {
 
 	for i := 1; i < 4; i++ {
 		b2 := new(big.Int).SetUint64(h4[i])
-		b2.Lsh(b2, uint(wordLength*i))
+		b2.Lsh(b2, uint(wordLength*i)) //nolint:gosec
 		result = result.Add(result, b2)
 	}
 

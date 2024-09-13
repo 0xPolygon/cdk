@@ -424,7 +424,7 @@ func GetStateRootFromProof(proof string) (common.Hash, error) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		v[j] = uint64(u64)
+		v[j] = uint64(u64) //nolint:gosec
 		j++
 	}
 	bigSR := fea2scalar(v[:])

@@ -263,15 +263,14 @@ func collectSignatures(
 	var (
 		msgs                = make(signatureMsgs, 0, len(committee.Members))
 		collectedSignatures uint64
-		failedToCollect     int
+		failedToCollect     uint64
 	)
 	for collectedSignatures < committee.RequiredSignatures {
 		msg := <-ch
 		if msg.err != nil {
 			log.Errorf("error when trying to get signature from %s: %s", msg.addr, msg.err)
 			failedToCollect++
-			if len(committee.Members) < failedToCollect ||
-				uint64(len(committee.Members)-failedToCollect) < committee.RequiredSignatures {
+			if len(committee.Members)-int(failedToCollect) < int(committee.RequiredSignatures) { //nolint:gosec
 				cancelSignatureCollection()
 
 				return nil, errors.New("too many members failed to send their signature")
