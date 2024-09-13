@@ -277,7 +277,7 @@ func (a *Aggregator) handleReorg(reorgData synchronizer.ReorgExecutionResult) {
 			"Halting the aggregator due to a L1 reorg. " +
 				"Reorged data has been deleted, so it is safe to manually restart the aggregator.",
 		)
-		time.Sleep(10 * time.Second) //nolint:gomnd
+		time.Sleep(10 * time.Second) //nolint:mnd
 	}
 }
 
@@ -403,7 +403,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		a.halted.Store(true)
 		for {
 			log.Errorf("Halting the aggregator due to an error handling rollback batches event: %v", err)
-			time.Sleep(10 * time.Second) //nolint:gomnd
+			time.Sleep(10 * time.Second) //nolint:mnd
 		}
 	}
 }
@@ -638,7 +638,7 @@ func (a *Aggregator) handleReceivedDataStream(
 				}
 
 				l2TxRaw := state.L2TxRaw{
-					EfficiencyPercentage: uint8(l2Tx.EffectiveGasPricePercentage),
+					EfficiencyPercentage: uint8(l2Tx.EffectiveGasPricePercentage), //nolint:gosec
 					TxAlreadyEncoded:     false,
 					Tx:                   tx,
 				}
@@ -1765,7 +1765,7 @@ func (a *Aggregator) buildInputProver(
 	forcedBlockhashL1 := common.Hash{}
 	l1InfoRoot := batchToVerify.L1InfoRoot.Bytes()
 	if !isForcedBatch {
-		tree, err := l1infotree.NewL1InfoTree(32, [][32]byte{}) //nolint:gomnd
+		tree, err := l1infotree.NewL1InfoTree(32, [][32]byte{}) //nolint:mnd
 		if err != nil {
 			return nil, err
 		}
@@ -1818,7 +1818,7 @@ func (a *Aggregator) buildInputProver(
 				l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = &prover.L1Data{
 					GlobalExitRoot: l1InfoTreeLeaf.GlobalExitRoot.Bytes(),
 					BlockhashL1:    l1InfoTreeLeaf.PreviousBlockHash.Bytes(),
-					MinTimestamp:   uint32(l1InfoTreeLeaf.Timestamp.Unix()),
+					MinTimestamp:   uint32(l1InfoTreeLeaf.Timestamp.Unix()), //nolint:gosec
 					SmtProof:       protoProof,
 				}
 			}
@@ -1877,10 +1877,12 @@ func (a *Aggregator) buildInputProver(
 	return inputProver, nil
 }
 
-func getWitness(batchNumber uint64, URL string, fullWitness bool) ([]byte, error) {
-	var witness string
-	var response rpc.Response
-	var err error
+func getWitness(batchNumber uint64, url string, fullWitness bool) ([]byte, error) {
+	var (
+		witness  string
+		response rpc.Response
+		err      error
+	)
 
 	witnessType := "trimmed"
 	if fullWitness {
@@ -1889,7 +1891,7 @@ func getWitness(batchNumber uint64, URL string, fullWitness bool) ([]byte, error
 
 	log.Infof("Requesting witness for batch %d of type %s", batchNumber, witnessType)
 
-	response, err = rpc.JSONRPCCall(URL, "zkevm_getBatchWitness", batchNumber, witnessType)
+	response, err = rpc.JSONRPCCall(url, "zkevm_getBatchWitness", batchNumber, witnessType)
 	if err != nil {
 		return nil, err
 	}

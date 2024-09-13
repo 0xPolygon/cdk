@@ -344,7 +344,7 @@ func DecodeTxRLP(txsData []byte, offset int) (int, *L2TxRaw, error) {
 		EfficiencyPercentage: efficiencyPercentage,
 	}
 
-	return int(endPos), l2Tx, err
+	return int(endPos), l2Tx, err //nolint:gosec
 }
 
 // It returns the length of data from the param offset

@@ -831,11 +831,11 @@ func (s *SequenceSender) entryTypeToString(entryType datastream.EntryType) strin
 func (s *SequenceSender) handleReceivedDataStream(
 	entry *datastreamer.FileEntry, client *datastreamer.StreamClient, server *datastreamer.StreamServer,
 ) error {
-	dsType := datastream.EntryType(entry.Type)
+	dsType := datastream.EntryType(entry.Type) //nolint:gosec
 
 	var prevEntryType datastream.EntryType
 	if s.prevStreamEntry != nil {
-		prevEntryType = datastream.EntryType(s.prevStreamEntry.Type)
+		prevEntryType = datastream.EntryType(s.prevStreamEntry.Type) //nolint:gosec
 	}
 
 	switch dsType {
@@ -888,12 +888,10 @@ func (s *SequenceSender) handleReceivedDataStream(
 			// Initial case after startup
 			s.addNewSequenceBatch(l2Block)
 			s.validStream = true
-		} else {
+		} else if l2Block.BatchNumber > s.wipBatch {
 			// Handle whether it's only a new block or also a new batch
-			if l2Block.BatchNumber > s.wipBatch {
-				// Create new sequential batch
-				s.addNewSequenceBatch(l2Block)
-			}
+			// Create new sequential batch
+			s.addNewSequenceBatch(l2Block)
 		}
 
 		// Latest stream batch
@@ -1215,7 +1213,7 @@ func (s *SequenceSender) addNewBlockTx(l2Tx *datastream.Transaction) {
 	}
 
 	l2TxRaw := state.L2TxRaw{
-		EfficiencyPercentage: uint8(l2Tx.EffectiveGasPricePercentage),
+		EfficiencyPercentage: uint8(l2Tx.EffectiveGasPricePercentage), //nolint:gosec
 		TxAlreadyEncoded:     false,
 		Tx:                   tx,
 	}
@@ -1268,16 +1266,16 @@ func (s *SequenceSender) marginTimeElapsed(
 	// Check the time difference between L2 block and currentTime
 	var timeDiff int64
 	if l2BlockTimestamp >= currentTime {
-		//L2 block timestamp is above currentTime, negative timeDiff. We do in this way to avoid uint64 overflow
-		timeDiff = int64(-(l2BlockTimestamp - currentTime))
+		// L2 block timestamp is above currentTime, negative timeDiff. We do in this way to avoid uint64 overflow
+		timeDiff = int64(-(l2BlockTimestamp - currentTime)) //nolint:gosec
 	} else {
-		timeDiff = int64(currentTime - l2BlockTimestamp)
+		timeDiff = int64(currentTime - l2BlockTimestamp) //nolint:gosec
 	}
 
 	// Check if the time difference is less than timeMargin (L1BlockTimestampMargin)
 	if timeDiff < timeMargin {
 		var waitTime int64
-		if timeDiff < 0 { //L2 block timestamp is above currentTime
+		if timeDiff < 0 { // L2 block timestamp is above currentTime
 			waitTime = timeMargin + (-timeDiff)
 		} else {
 			waitTime = timeMargin - timeDiff

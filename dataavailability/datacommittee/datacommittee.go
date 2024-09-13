@@ -263,14 +263,15 @@ func collectSignatures(
 	var (
 		msgs                = make(signatureMsgs, 0, len(committee.Members))
 		collectedSignatures uint64
-		failedToCollect     uint64
+		failedToCollect     int
 	)
 	for collectedSignatures < committee.RequiredSignatures {
 		msg := <-ch
 		if msg.err != nil {
 			log.Errorf("error when trying to get signature from %s: %s", msg.addr, msg.err)
 			failedToCollect++
-			if len(committee.Members)-int(failedToCollect) < int(committee.RequiredSignatures) {
+			if len(committee.Members) < failedToCollect ||
+				uint64(len(committee.Members)-failedToCollect) < committee.RequiredSignatures {
 				cancelSignatureCollection()
 
 				return nil, errors.New("too many members failed to send their signature")
@@ -304,7 +305,7 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 	// request
 	c := client.New(member.URL)
 	log.Infof("sending request to sign the sequence to %s at %s", member.Addr.Hex(), member.URL)
-	//funcSign must call something like that  c.SignSequenceBanana(ctx, signedSequence)
+	// funcSign must call something like that  c.SignSequenceBanana(ctx, signedSequence)
 	signature, err := funcSign(c)
 
 	if err != nil {

@@ -61,7 +61,6 @@ func (c *ConditionalNewSequenceMaxSize) NewSequenceIfWorthToSend(
 		sequenceBatches, err = handleEstimateGasSendSequenceErr(sequence.Batches(), err)
 		if sequenceBatches != nil {
 			// Handling the error gracefully, re-processing the sequence as a sanity check
-			//sequence, err = s.newSequenceBanana(sequenceBatches, s.cfg.L2Coinbase)
 			sequence, err = txBuilder.NewSequence(ctx, sequenceBatches, l2Coinbase)
 			if err != nil {
 				return nil, err

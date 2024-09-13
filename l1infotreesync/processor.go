@@ -100,7 +100,7 @@ type storeLeaf struct {
 // Hash as expected by the tree
 func (l *storeLeaf) Hash() ethCommon.Hash {
 	var res [32]byte
-	t := make([]byte, 8) //nolint:gomnd
+	t := make([]byte, 8) //nolint:mnd
 	binary.BigEndian.PutUint64(t, l.Timestamp)
 	copy(res[:], keccak256.Hash(l.GlobalExitRoot().Bytes(), l.ParentHash.Bytes(), t))
 
@@ -333,7 +333,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	}
 	var rollbackL1InfoTree func()
 	if firstReorgedL1InfoTreeIndex != -1 {
-		rollbackL1InfoTree, err = p.l1InfoTree.Reorg(tx, uint32(firstReorgedL1InfoTreeIndex))
+		rollbackL1InfoTree, err = p.l1InfoTree.Reorg(tx, uint32(firstReorgedL1InfoTreeIndex)) //nolint:gosec
 		if err != nil {
 			tx.Rollback()
 			rollbackL1InfoTree()
@@ -376,16 +376,18 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	l1InfoTreeLeavesToAdd := []tree.Leaf{}
 	rollupExitTreeLeavesToAdd := []tree.Leaf{}
 	if len(b.Events) > 0 {
-		var initialL1InfoIndex uint32
-		var l1InfoLeavesAdded uint32
+		var (
+			initialL1InfoIndex uint32
+			l1InfoLeavesAdded  uint32
+		)
 		lastIndex, err := p.getLastIndex(tx)
-		if errors.Is(err, ErrNotFound) {
+		switch {
+		case errors.Is(err, ErrNotFound):
 			initialL1InfoIndex = 0
-		} else if err != nil {
+		case err != nil:
 			rollback()
-
 			return err
-		} else {
+		default:
 			initialL1InfoIndex = lastIndex + 1
 		}
 		for _, e := range b.Events {

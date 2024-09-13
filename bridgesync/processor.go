@@ -255,7 +255,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	}
 	exitTreeRollback := func() {}
 	if firstDepositCountReorged != -1 {
-		if exitTreeRollback, err = p.exitTree.Reorg(tx, uint32(firstDepositCountReorged)); err != nil {
+		if exitTreeRollback, err = p.exitTree.Reorg(tx, uint32(firstDepositCountReorged)); err != nil { //nolint:gosec
 			tx.Rollback()
 			exitTreeRollback()
 
