@@ -160,36 +160,6 @@ func TestE2E(t *testing.T) {
 	}
 }
 
-func TestFinalised(t *testing.T) {
-	ctx := context.Background()
-	privateKey, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
-	require.NoError(t, err)
-	client, _, _, _, _, err := newSimulatedClient(auth) //nolint:dogsled
-	require.NoError(t, err)
-	for i := 0; i < 100; i++ {
-		client.Commit()
-	}
-
-	n4, err := client.Client().HeaderByNumber(ctx, big.NewInt(-4))
-	require.NoError(t, err)
-	fmt.Println("-4", n4.Number)
-	n3, err := client.Client().HeaderByNumber(ctx, big.NewInt(-3))
-	require.NoError(t, err)
-	fmt.Println("-3", n3.Number)
-	n2, err := client.Client().HeaderByNumber(ctx, big.NewInt(-2))
-	require.NoError(t, err)
-	fmt.Println("-2", n2.Number)
-	n1, err := client.Client().HeaderByNumber(ctx, big.NewInt(-1))
-	require.NoError(t, err)
-	fmt.Println("-1", n1.Number)
-	n0, err := client.Client().HeaderByNumber(ctx, nil)
-	require.NoError(t, err)
-	fmt.Println("0", n0.Number)
-	fmt.Printf("amount of blocks latest - finalised: %d", n0.Number.Uint64()-n3.Number.Uint64())
-}
-
 func TestWithReorgs(t *testing.T) {
 	ctx := context.Background()
 	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
