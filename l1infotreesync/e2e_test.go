@@ -337,24 +337,7 @@ func TestStressAndReorgs(t *testing.T) {
 	}
 
 	commitBlocks(t, client, extraBlocksToMine, time.Millisecond*100)
-
-	syncerUpToDate := false
-	var errMsg string
-	lb, err := client.Client().BlockNumber(ctx)
-	require.NoError(t, err)
-	for i := 0; i < 50; i++ {
-		lpb, err := syncer.GetLastProcessedBlock(ctx)
-		require.NoError(t, err)
-		if lpb == lb {
-			syncerUpToDate = true
-
-			break
-		}
-		time.Sleep(time.Second / 2)
-		errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb, lpb)
-	}
-
-	require.True(t, syncerUpToDate, errMsg)
+	waitForSyncerToCatchUp(ctx, t, syncer, client)
 
 	// Assert rollup exit root
 	expectedRollupExitRoot, err := verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
