@@ -245,14 +245,17 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	var initialL1InfoIndex uint32
 	var l1InfoLeavesAdded uint32
 	lastIndex, err := p.getLastIndex(tx)
-	if errors.Is(err, ErrNotFound) {
+
+	switch {
+	case errors.Is(err, ErrNotFound):
 		initialL1InfoIndex = 0
 		err = nil
-	} else if err != nil {
+	case err != nil:
 		return fmt.Errorf("err: %w", err)
-	} else {
+	default:
 		initialL1InfoIndex = lastIndex + 1
 	}
+
 	for _, e := range b.Events {
 		event, ok := e.(Event)
 		if !ok {
