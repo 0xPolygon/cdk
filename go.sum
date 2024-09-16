@@ -2,8 +2,8 @@ github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240819092536-5a65d4761b2f h1
 github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240819092536-5a65d4761b2f/go.mod h1:mFlcEjsm2YBBsu8atHJ3zyVnwM+Z/fMXpVmIJge+WVU=
 github.com/0xPolygon/cdk-data-availability v0.0.9 h1:KkP+hJH9nY5fljpSNtW2pfP5YQCJOsSRzfnl0yT78rI=
 github.com/0xPolygon/cdk-data-availability v0.0.9/go.mod h1:5A+CU4FGeyG8zTDJc0khMzRxPzFzmpRydeEWmLztgh4=
-github.com/0xPolygon/cdk-rpc v0.0.0-20240419104226-c0a62ba0f49d h1:sxh6hZ2jF/sxxj2jd5o1vuNNCZjYmn4aRG9SRlVaEFs=
-github.com/0xPolygon/cdk-rpc v0.0.0-20240419104226-c0a62ba0f49d/go.mod h1:2scWqMMufrQXu7TikDgQ3BsyaKoX8qP26D6E262vSOg=
+github.com/0xPolygon/cdk-rpc v0.0.0-20240905074455-431d3c271fe8 h1:Jri+ydl8PudddGacnVLatrCuAG9e1Ut8W4J0GoawssU=
+github.com/0xPolygon/cdk-rpc v0.0.0-20240905074455-431d3c271fe8/go.mod h1:2scWqMMufrQXu7TikDgQ3BsyaKoX8qP26D6E262vSOg=
 github.com/0xPolygonHermez/zkevm-data-streamer v0.2.6 h1:BSO1uu6dmLQ5kKb3uyDvsUxbnIoyumKvlwr0OtpTYMo=
 github.com/0xPolygonHermez/zkevm-data-streamer v0.2.6/go.mod h1:RC6ouyNsUtJrv5aGPcM6Dm5xhXN209tRSzcsJsaOtZI=
 github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.10-0.20240716105056-c051c96d0234 h1:QElCysO7f2xaknY/RDjxcs7IVmcgORfsCX2g+YD0Ko4=
