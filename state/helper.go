@@ -63,7 +63,7 @@ func prepareRLPTxData(tx *types.Transaction) ([]byte, error) {
 		return nil, err
 	}
 
-	newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
+	newV := new(big.Int).Add(big.NewInt(ether155V), new(big.Int).SetUint64(sign))
 	newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
 	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
 	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))

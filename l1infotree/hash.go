@@ -37,7 +37,7 @@ func generateZeroHashes(height uint8) [][32]byte {
 // HashLeafData calculates the keccak hash of the leaf values.
 func HashLeafData(ger, prevBlockHash common.Hash, minTimestamp uint64) [32]byte {
 	var res [32]byte
-	t := make([]byte, 8) //nolint:gomnd
+	t := make([]byte, 8) //nolint:mnd
 	binary.BigEndian.PutUint64(t, minTimestamp)
 	copy(res[:], keccak256.Hash(ger.Bytes(), prevBlockHash.Bytes(), t))
 

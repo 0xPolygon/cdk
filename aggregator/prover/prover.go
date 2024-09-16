@@ -442,13 +442,13 @@ func fea2scalar(v []uint64) *big.Int {
 		return big.NewInt(0)
 	}
 	res := new(big.Int).SetUint64(v[0])
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[1]), 32))  //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[2]), 64))  //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[3]), 96))  //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[4]), 128)) //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[5]), 160)) //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[6]), 192)) //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[7]), 224)) //nolint:gomnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[1]), 32))  //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[2]), 64))  //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[3]), 96))  //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[4]), 128)) //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[5]), 160)) //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[6]), 192)) //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[7]), 224)) //nolint:mnd
 
 	return res
 }

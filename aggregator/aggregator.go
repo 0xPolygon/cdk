@@ -277,7 +277,7 @@ func (a *Aggregator) handleReorg(reorgData synchronizer.ReorgExecutionResult) {
 			"Halting the aggregator due to a L1 reorg. " +
 				"Reorged data has been deleted, so it is safe to manually restart the aggregator.",
 		)
-		time.Sleep(10 * time.Second) //nolint:gomnd
+		time.Sleep(10 * time.Second) //nolint:mnd
 	}
 }
 
@@ -375,6 +375,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		}
 
 		marshalledBookMark, err = proto.Marshal(bookMark)
+		//nolint:gocritic
 		if err != nil {
 			log.Error("failed to marshal bookmark: %v", err)
 		} else {
@@ -403,7 +404,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		a.halted.Store(true)
 		for {
 			log.Errorf("Halting the aggregator due to an error handling rollback batches event: %v", err)
-			time.Sleep(10 * time.Second) //nolint:gomnd
+			time.Sleep(10 * time.Second) //nolint:mnd
 		}
 	}
 }
@@ -738,7 +739,7 @@ func (a *Aggregator) Start() error {
 
 		err = a.streamClient.Start()
 		if err != nil {
-			log.Fatalf("failed to start stream client, error: %v", err)
+			return fmt.Errorf("failed to start stream client, error: %w", err)
 		}
 
 		bookMark := &datastream.BookMark{
@@ -748,12 +749,12 @@ func (a *Aggregator) Start() error {
 
 		marshalledBookMark, err := proto.Marshal(bookMark)
 		if err != nil {
-			log.Fatalf("failed to marshal bookmark: %v", err)
+			return fmt.Errorf("failed to marshal bookmark: %w", err)
 		}
 
 		err = a.streamClient.ExecCommandStartBookmark(marshalledBookMark)
 		if err != nil {
-			log.Fatalf("failed to connect to data stream: %v", err)
+			return fmt.Errorf("failed to connect to data stream: %w", err)
 		}
 
 		// A this point everything is ready, so start serving
@@ -1151,6 +1152,7 @@ func (a *Aggregator) validateEligibleFinalProof(
 	batchNumberToVerify := lastVerifiedBatchNum + 1
 
 	if proof.BatchNumber != batchNumberToVerify {
+		//nolint:gocritic
 		if proof.BatchNumber < batchNumberToVerify && proof.BatchNumberFinal >= batchNumberToVerify {
 			// We have a proof that contains some batches below the last batch verified, anyway can be eligible as final proof
 			log.Warnf(
@@ -1764,8 +1766,9 @@ func (a *Aggregator) buildInputProver(
 	l1InfoTreeData := map[uint32]*prover.L1Data{}
 	forcedBlockhashL1 := common.Hash{}
 	l1InfoRoot := batchToVerify.L1InfoRoot.Bytes()
+	//nolint:gocritic
 	if !isForcedBatch {
-		tree, err := l1infotree.NewL1InfoTree(32, [][32]byte{}) //nolint:gomnd
+		tree, err := l1infotree.NewL1InfoTree(32, [][32]byte{}) //nolint:mnd
 		if err != nil {
 			return nil, err
 		}
@@ -1777,7 +1780,10 @@ func (a *Aggregator) buildInputProver(
 
 		aLeaves := make([][32]byte, len(leaves))
 		for i, leaf := range leaves {
-			aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
+			aLeaves[i] = l1infotree.HashLeafData(
+				leaf.GlobalExitRoot,
+				leaf.PreviousBlockHash,
+				uint64(leaf.Timestamp.Unix()))
 		}
 
 		for _, l2blockRaw := range batchRawData.Blocks {
@@ -1877,10 +1883,12 @@ func (a *Aggregator) buildInputProver(
 	return inputProver, nil
 }
 
-func getWitness(batchNumber uint64, URL string, fullWitness bool) ([]byte, error) {
-	var witness string
-	var response rpc.Response
-	var err error
+func getWitness(batchNumber uint64, url string, fullWitness bool) ([]byte, error) {
+	var (
+		witness  string
+		response rpc.Response
+		err      error
+	)
 
 	witnessType := "trimmed"
 	if fullWitness {
@@ -1889,7 +1897,7 @@ func getWitness(batchNumber uint64, URL string, fullWitness bool) ([]byte, error
 
 	log.Infof("Requesting witness for batch %d of type %s", batchNumber, witnessType)
 
-	response, err = rpc.JSONRPCCall(URL, "zkevm_getBatchWitness", batchNumber, witnessType)
+	response, err = rpc.JSONRPCCall(url, "zkevm_getBatchWitness", batchNumber, witnessType)
 	if err != nil {
 		return nil, err
 	}
