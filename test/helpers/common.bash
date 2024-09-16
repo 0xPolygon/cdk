@@ -94,6 +94,11 @@ function sendTx() {
         return 1
     fi
 
+    # Check initial ether balance of sender and receiver
+    local sender_initial_balance=$(queryBalance "$senderAddr")
+    local receiver_initial_balance=$(queryBalance "$account_addr")
+
+
     # Check if the first remaining argument is a numeric value (Ether to be transferred)
     if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
         # Case: EOA transaction (Ether transfer)
@@ -144,6 +149,12 @@ function sendTx() {
         return 1
     fi
 
+    checkTransactionSuccess "$senderAddr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Balance not updated correctly."
+        return 1
+    fi
+
     echo "Transaction successful (transaction hash: $tx_hash)"
 
     return 0
@@ -184,4 +195,86 @@ function queryContract() {
     echo "$result"
 
     return 0
+}
+
+function queryBalance() {
+    local addr="$1"  # Address to check balance
+
+    # Check if rpc_url is available
+    if [[ -z "$rpc_url" ]]; then
+        echo "Error: rpc_url environment variable is not set."
+        return 1
+    fi
+
+    # Check if the address is valid
+    if [[ ! "$addr" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
+        echo "Error: Invalid Ethereum address '$addr'."
+        return 1
+    fi
+
+    # Use cast to query the balance in wei
+    local balance
+    balance=$(cast balance "$addr" --rpc-url "$rpc_url" 2>&1)
+
+    # Check if the cast command was successful
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to query balance."
+        echo "$balance"
+        return 1
+    fi
+
+    # Return the balance to the caller
+    echo "$balance"
+    return 0
+}
+
+function checkTransactionSuccess() {
+    local senderAddr="$1"
+    local receiver="$2"
+    local value_or_function_sig="$3"
+    local tx_hash="$4"
+    local sender_initial_balance="$5"
+    local receiver_initial_balance="$6"
+
+    local sender_final_balance=$(queryBalance "$senderAddr") || return 1
+    local gas_used=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gas ' | awk '{print $2}')
+    local gas_price=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gasPrice' | awk '{print $2}')
+    local gas_fee=$(echo "$gas_used * $gas_price" | bc)
+    local sender_balance_change=$(echo "$sender_initial_balance - $sender_final_balance" | bc)
+
+    echo "Sender's balance changed by: $sender_balance_change wei"
+    echo "Gas fee paid: $gas_fee wei"
+
+    if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
+        local receiver_final_balance=$(queryBalance "$receiver") || return 1
+        local receiver_balance_change=$(echo "$receiver_final_balance - $receiver_initial_balance" | bc)
+        echo "Receiver's balance changed by: $receiver_balance_change wei"
+
+        # Remove the 'ether' suffix if present
+        if [[ "$value_or_function_sig" =~ ether$ ]]; then
+            value_in_ether=$(echo "$value_or_function_sig" | sed 's/ether$//')
+        else
+            value_in_ether="$value_or_function_sig"
+        fi
+        # Convert Ether to Wei using bc
+        value_in_wei=$(echo "$value_in_ether * 10^18" | bc)
+        echo "Value in Wei: $value_in_wei"
+
+        echo "value transferred $value_or_function_sig"
+
+        if [[ $(echo "$receiver_balance_change == $value_in_wei" | bc) -eq 1 ]]; then
+            echo "Transaction successful (transaction hash: $tx_hash). Balances are updated correctly."
+        else
+            echo "Error: Balance not updated correctly."
+            return 1
+        fi
+    fi
+
+    # Here we need to make gas in ether
+    if [[ $(echo "$sender_balance_change == $value_in_wei + $gas_fee" | bc) -eq 1 ]]; then
+        echo "Transaction successful (transaction hash: $tx_hash). Balances are updated correctly."
+    else
+        echo "Error: Balance not updated correctly."
+        return 1
+    fi
 }
