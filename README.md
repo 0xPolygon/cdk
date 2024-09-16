@@ -41,6 +41,19 @@ Feel free to [open an issue](https://github.com/0xPolygon/cdk/issues/new) if you
 
 
 ## License
+
+Polygon Chain Development Kit
 Copyright (c) 2024 PT Services DMCC
 
-Licensed under GNU AFFERO GENERAL PUBLIC LICENSE, Version 3.0, See LICENSE file
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
