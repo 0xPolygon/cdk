@@ -2,12 +2,15 @@ setup() {
     load 'helpers/common-setup'
     _common_setup
 
-    $PROJECT_ROOT/test/scripts/kurtosis_prepare_params_yml.sh ../kurtosis-cdk cdk-validium
+    readonly data_availability_mode=${DATA_AVAILABILITY_MODE:-"cdk-validium"}
+    $PROJECT_ROOT/test/scripts/kurtosis_prepare_params_yml.sh ../kurtosis-cdk $data_availability_mode
+    [ $? -ne 0 ] && echo "Error preparing params.yml" && exit 1
 
     # Check if the genesis file is already downloaded
     if [ ! -f "./tmp/cdk/genesis/genesis.json" ]; then
         mkdir -p ./tmp/cdk
         kurtosis files download cdk-v1 genesis ./tmp/cdk/genesis
+        [ $? -ne 0 ] && echo "Error downloading genesis file" && exit 1
     fi
     # Download the genesis file
     readonly bridge_default_address=$(jq -r ".genesis[] | select(.contractName == \"PolygonZkEVMBridge proxy\") | .address" ./tmp/cdk/genesis/genesis.json)

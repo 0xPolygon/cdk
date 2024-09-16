@@ -18,7 +18,7 @@ else
     echo "docker cdk:latest already exists"
 fi
 
-$BASE_FOLDER/scripts/kurtosis_prepare_params_yml.sh "$KURTOSIS_FOLDER" "cdk-validium"
+$BASE_FOLDER/scripts/kurtosis_prepare_params_yml.sh "$KURTOSIS_FOLDER" $DATA_AVAILABILITY_MODE
 [ $? -ne 0 ] && echo "Error preparing params.yml" && exit 1
 
 kurtosis clean --all
