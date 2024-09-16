@@ -63,12 +63,15 @@ func (a *AggOracle) Start(ctx context.Context) {
 		case <-a.ticker.C:
 			blockNumToFetch, gerToInject, err = a.getLastFinalisedGER(ctx, blockNumToFetch)
 			if err != nil {
-				if errors.Is(err, l1infotreesync.ErrBlockNotProcessed) {
+				switch {
+				case errors.Is(err, l1infotreesync.ErrBlockNotProcessed):
 					log.Debugf("syncer is not ready for the block %d", blockNumToFetch)
-				} else if errors.Is(err, l1infotreesync.ErrNotFound) {
+
+				case errors.Is(err, l1infotreesync.ErrNotFound):
 					blockNumToFetch = 0
 					log.Debugf("syncer has not found any GER until block %d", blockNumToFetch)
-				} else {
+
+				default:
 					log.Error("error calling getLastFinalisedGER: ", err)
 				}
 

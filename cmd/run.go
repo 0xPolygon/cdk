@@ -101,6 +101,7 @@ func start(cliCtx *cli.Context) error {
 			// start aggregator in a goroutine, checking for errors
 			go func() {
 				if err := aggregator.Start(); err != nil {
+					aggregator.Stop()
 					log.Fatal(err)
 				}
 			}()

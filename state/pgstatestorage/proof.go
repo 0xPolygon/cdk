@@ -257,9 +257,9 @@ func toPostgresInterval(duration string) (string, error) {
 		return "", state.ErrUnsupportedDuration
 	}
 
-	isMoreThanOne := duration[0] != '1' || len(duration) > 2 //nolint:gomnd
+	isMoreThanOne := duration[0] != '1' || len(duration) > 2 //nolint:mnd
 	if isMoreThanOne {
-		pgUnit = pgUnit + "s"
+		pgUnit += "s"
 	}
 
 	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil

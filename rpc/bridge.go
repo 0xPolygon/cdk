@@ -170,12 +170,14 @@ func (b *BridgeEndpoints) ClaimProof(
 		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get rollup exit proof, error: %s", err))
 	}
 	var proofLocalExitRoot [32]common.Hash
-	if networkID == 0 {
+	switch {
+	case networkID == 0:
 		proofLocalExitRoot, err = b.bridgeL1.GetProof(ctx, depositCount, info.MainnetExitRoot)
 		if err != nil {
 			return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get local exit proof, error: %s", err))
 		}
-	} else if networkID == b.networkID {
+
+	case networkID == b.networkID:
 		localExitRoot, err := b.l1InfoTree.GetLocalExitRoot(ctx, networkID, info.RollupExitRoot)
 		if err != nil {
 			return zeroHex, rpc.NewRPCError(
@@ -190,12 +192,14 @@ func (b *BridgeEndpoints) ClaimProof(
 				fmt.Sprintf("failed to get local exit proof, error: %s", err),
 			)
 		}
-	} else {
+
+	default:
 		return zeroHex, rpc.NewRPCError(
 			rpc.DefaultErrorCode,
 			fmt.Sprintf("this client does not support network %d", networkID),
 		)
 	}
+
 	return ClaimProof{
 		ProofLocalExitRoot:  proofLocalExitRoot,
 		ProofRollupExitRoot: proofRollupExitRoot,
