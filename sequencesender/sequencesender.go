@@ -83,7 +83,8 @@ type ethTxAdditionalData struct {
 }
 
 // New inits sequence sender
-func New(cfg Config, logger *log.Logger, etherman *etherman.Client, txBuilder txbuilder.TxBuilder) (*SequenceSender, error) {
+func New(cfg Config, logger *log.Logger,
+	etherman *etherman.Client, txBuilder txbuilder.TxBuilder) (*SequenceSender, error) {
 	// Create sequencesender
 	s := SequenceSender{
 		cfg:               cfg,

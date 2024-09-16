@@ -1729,7 +1729,7 @@ func (a *Aggregator) buildInputProver(
 	forcedBlockhashL1 := common.Hash{}
 	l1InfoRoot := batchToVerify.L1InfoRoot.Bytes()
 	if !isForcedBatch {
-		tree, err := l1infotree.NewL1InfoTree(a.logger, 32, [][32]byte{}) // nolint:gomnd
+		tree, err := l1infotree.NewL1InfoTree(a.logger, 32, [][32]byte{}) //nolint:gomnd
 		if err != nil {
 			return nil, err
 		}

@@ -541,7 +541,10 @@ func runReorgDetectorL1IfNeeded(
 	l1Client *ethclient.Client,
 	cfg *reorgdetector.Config,
 ) (*reorgdetector.ReorgDetector, chan error) {
-	if !isNeeded([]string{cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR, cdkcommon.AGGORACLE, cdkcommon.RPC}, components) {
+	if !isNeeded([]string{
+		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
+		cdkcommon.AGGORACLE, cdkcommon.RPC},
+		components) {
 		return nil, nil
 	}
 	rd := newReorgDetector(cfg, l1Client)
