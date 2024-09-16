@@ -263,15 +263,19 @@ func (c *ClaimSponsor) AddClaimToQueue(ctx context.Context, claim *Claim) error 
 
 	var queuePosition uint64
 	lastQueuePosition, _, err := getLastQueueIndex(tx)
-	if errors.Is(err, ErrNotFound) {
+	switch {
+	case errors.Is(err, ErrNotFound):
 		queuePosition = 0
-	} else if err != nil {
+
+	case err != nil:
 		tx.Rollback()
 
 		return err
-	} else {
+
+	default:
 		queuePosition = lastQueuePosition + 1
 	}
+
 	err = tx.Put(queueTable, dbCommon.Uint64ToBytes(queuePosition), claim.Key())
 	if err != nil {
 		tx.Rollback()

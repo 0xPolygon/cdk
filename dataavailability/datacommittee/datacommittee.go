@@ -2,10 +2,10 @@ package datacommittee
 
 import (
 	"crypto/ecdsa"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"math/big"
-	"math/rand"
 	"sort"
 	"strings"
 
@@ -93,7 +93,11 @@ func (d *Backend) Init() error {
 	if committee != nil {
 		d.committeeMembers = committee.Members
 		if len(committee.Members) > 0 {
-			selectedCommitteeMember = rand.Intn(len(committee.Members)) //nolint:gosec
+			nBig, err := rand.Int(rand.Reader, big.NewInt(int64(len(committee.Members))))
+			if err != nil {
+				return err
+			}
+			selectedCommitteeMember = int(nBig.Int64())
 		}
 	}
 	d.selectedCommitteeMember = selectedCommitteeMember
@@ -304,7 +308,7 @@ func (d *Backend) requestSignatureFromMember(ctx context.Context, signedSequence
 	// request
 	c := client.New(member.URL)
 	d.logger.Infof("sending request to sign the sequence to %s at %s", member.Addr.Hex(), member.URL)
-	//funcSign must call something like that  c.SignSequenceBanana(ctx, signedSequence)
+	// funcSign must call something like that  c.SignSequenceBanana(ctx, signedSequence)
 	signature, err := funcSign(c)
 
 	if err != nil {

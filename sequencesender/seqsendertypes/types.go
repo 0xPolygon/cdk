@@ -5,7 +5,7 @@ import (
 )
 
 type Batch interface {
-	//underlyingType *ethmantypes.Batch
+	// underlyingType *ethmantypes.Batch
 	DeepCopy() Batch
 	LastCoinbase() common.Address
 	ForcedBatchTimestamp() uint64
@@ -40,7 +40,4 @@ type Sequence interface {
 	String() string
 	// WRITE
 	SetLastVirtualBatchNumber(batchNumber uint64)
-	//SetL1InfoRoot(hash common.Hash)
-	//SetOldAccInputHash(hash common.Hash)
-	//SetAccInputHash(hash common.Hash)
 }
