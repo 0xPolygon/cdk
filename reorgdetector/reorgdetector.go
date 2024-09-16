@@ -134,7 +134,7 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 				headersCacheLock.Lock()
 				currentHeader, ok := headersCache[hdr.Num]
 				if !ok || currentHeader == nil {
-					if currentHeader, err = rd.client.HeaderByNumber(ctx, big.NewInt(int64(hdr.Num))); err != nil {
+					if currentHeader, err = rd.client.HeaderByNumber(ctx, new(big.Int).SetUint64(hdr.Num)); err != nil {
 						headersCacheLock.Unlock()
 						return fmt.Errorf("failed to get the header: %w", err)
 					}

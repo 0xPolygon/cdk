@@ -30,8 +30,7 @@ func NewL1InfoTree(height uint8, initialLeaves [][32]byte) (*L1InfoTree, error) 
 
 		return nil, err
 	}
-	log.Debug("Initial count: ", mt.count)
-	log.Debug("Initial root: ", mt.currentRoot)
+	log.Debugf("Initial count: %d, Initial root %s", mt.count, mt.currentRoot)
 
 	return mt, nil
 }
@@ -112,7 +111,7 @@ func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint32, leaves [][32]byte) ([]
 		if index >= uint32(len(leaves)) {
 			siblings = append(siblings, mt.zeroHashes[h])
 		} else {
-			if index%2 == 1 { //If it is odd
+			if index%2 == 1 { // If it is odd
 				siblings = append(siblings, leaves[index-1])
 			} else { // It is even
 				siblings = append(siblings, leaves[index+1])
@@ -130,7 +129,7 @@ func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint32, leaves [][32]byte) ([]
 		}
 		// Find the index of the leaf in the next level of the tree.
 		// Divide the index by 2 to find the position in the upper level
-		index = uint32(float64(index) / 2) //nolint:gomnd
+		index = uint32(float64(index) / 2) //nolint:mnd
 		ns = nsi
 		leaves = hashes
 	}

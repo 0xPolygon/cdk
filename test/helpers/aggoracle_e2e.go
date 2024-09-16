@@ -59,7 +59,7 @@ func SetupAggoracleWithEVMChain(t *testing.T) *AggoracleWithEVMChainEnv {
 	ctx := context.Background()
 	l1Client, syncer, gerL1Contract, gerL1Addr, bridgeL1Contract, bridgeL1Addr, authL1, rd := CommonSetup(t)
 	sender, l2Client, gerL2Contract, gerL2Addr, bridgeL2Contract, bridgeL2Addr, authL2, ethTxManMockL2 := EVMSetup(t)
-	oracle, err := aggoracle.New(sender, l1Client.Client(), syncer, etherman.LatestBlock, time.Millisecond*20) //nolint:gomnd
+	oracle, err := aggoracle.New(sender, l1Client.Client(), syncer, etherman.LatestBlock, time.Millisecond*20) //nolint:mnd
 	require.NoError(t, err)
 	go oracle.Start(ctx)
 
@@ -112,7 +112,7 @@ func CommonSetup(t *testing.T) (
 	require.NoError(t, err)
 	// Syncer
 	dbPathSyncer := t.TempDir()
-	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, common.Address{}, 10, etherman.LatestBlock, reorg, l1Client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3) //nolint:gomnd
+	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, common.Address{}, 10, etherman.LatestBlock, reorg, l1Client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3) //nolint:mnd
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
@@ -138,7 +138,7 @@ func EVMSetup(t *testing.T) (
 	l2Client, gerL2Addr, gerL2Sc, bridgeL2Addr, bridgeL2Sc, err := newSimulatedEVMAggSovereignChain(authL2)
 	require.NoError(t, err)
 	ethTxManMock := NewEthTxManMock(t, l2Client, authL2)
-	sender, err := chaingersender.NewEVMChainGERSender(gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50) //nolint:gomnd
+	sender, err := chaingersender.NewEVMChainGERSender(gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50) //nolint:mnd
 	require.NoError(t, err)
 
 	return sender, l2Client, gerL2Sc, gerL2Addr, bridgeL2Sc, bridgeL2Addr, authL2, ethTxManMock
@@ -164,7 +164,7 @@ func newSimulatedL1(auth *bind.TransactOpts) (
 		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	balance, _ := new(big.Int).SetString(initialBalance, 10) //nolint:gomnd
+	balance, _ := new(big.Int).SetString(initialBalance, 10) //nolint:mnd
 	address := auth.From
 	genesisAlloc := map[common.Address]types.Account{
 		address: {
@@ -273,7 +273,7 @@ func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
 		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	balance, _ := new(big.Int).SetString(initialBalance, 10) //nolint:gomnd
+	balance, _ := new(big.Int).SetString(initialBalance, 10) //nolint:mnd
 	address := auth.From
 	precalculatedBridgeAddr := crypto.CreateAddress(authDeployer.From, 1)
 

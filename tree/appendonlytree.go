@@ -112,6 +112,7 @@ func (t *AppendOnlyTree) GetIndexByRoot(ctx context.Context, root common.Hash) (
 		return 0, err
 	}
 	defer tx.Rollback()
+
 	index, err := t.getIndexByRoot(tx, root)
 	return uint32(index), err
 }
