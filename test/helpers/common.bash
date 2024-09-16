@@ -258,9 +258,6 @@ function checkTransactionSuccess() {
         fi
         # Convert Ether to Wei using bc
         value_in_wei=$(echo "$value_in_ether * 10^18" | bc)
-        echo "Value in Wei: $value_in_wei"
-
-        echo "value transferred $value_or_function_sig"
 
         if [[ $(echo "$receiver_balance_change == $value_in_wei" | bc) -eq 1 ]]; then
             echo "Transaction successful (transaction hash: $tx_hash). Balances are updated correctly."
