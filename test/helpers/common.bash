@@ -95,8 +95,8 @@ function sendTx() {
     fi
 
     # Check initial ether balance of sender and receiver
-    local sender_initial_balance=$(rpcQuery "eth_getBalance" "$senderAddr" "latest") || return 1
-    local receiver_initial_balance=$(rpcQuery "eth_getBalance" "$account_addr" "latest") || return 1
+    local sender_initial_balance=$(rpcQuery "balance" "$senderAddr" "latest") || return 1
+    local receiver_initial_balance=$(rpcQuery "balance" "$account_addr" "latest") || return 1
 
 
     # Check if the first remaining argument is a numeric value (Ether to be transferred)
@@ -210,7 +210,7 @@ function rpcQuery() {
 
     # Use cast to perform a generic RPC call
     local response
-    response=$(cast rpc "$rpc_url" "$method" "${params[@]}" 2>&1)
+    response=$(cast --rpc-url "$rpc_url" "$method" "${params[@]}" 2>&1)
 
     # Check if the cast rpc command was successful
     if [[ $? -ne 0 ]]; then
@@ -231,7 +231,7 @@ function checkTransactionSuccess() {
     local sender_initial_balance="$5"
     local receiver_initial_balance="$6"
 
-    local sender_final_balance=$(rpcQuery "eth_getBalance" "$senderAddr" "latest") || return 1
+    local sender_final_balance=$(rpcQuery "balance" "$senderAddr" "latest") || return 1
     local gas_used=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gas ' | awk '{print $2}')
     local gas_price=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gasPrice' | awk '{print $2}')
     local gas_fee=$(echo "$gas_used * $gas_price" | bc)
@@ -241,7 +241,7 @@ function checkTransactionSuccess() {
     echo "Gas fee paid: $gas_fee wei"
 
     if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
-        local receiver_final_balance=$(rpcQuery "eth_getBalance" "$receiver" "latest") || return 1
+        local receiver_final_balance=$(rpcQuery "balance" "$receiver" "latest") || return 1
         local receiver_balance_change=$(echo "$receiver_final_balance - $receiver_initial_balance" | bc)
         echo "Receiver's balance changed by: $receiver_balance_change wei"
 
