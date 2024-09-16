@@ -34,6 +34,7 @@ type l1Client interface {
 }
 
 type TxBuilderBananaBase struct {
+	logger                 *log.Logger
 	rollupContract         rollupBananaBaseContractor
 	globalExitRootContract globalExitRootBananaContractor
 	l1InfoTree             l1InfoSyncer
@@ -43,6 +44,7 @@ type TxBuilderBananaBase struct {
 }
 
 func NewTxBuilderBananaBase(
+	logger *log.Logger,
 	rollupContract rollupBananaBaseContractor,
 	gerContract globalExitRootBananaContractor,
 	l1InfoTree l1InfoSyncer,
@@ -51,6 +53,7 @@ func NewTxBuilderBananaBase(
 	opts bind.TransactOpts,
 ) *TxBuilderBananaBase {
 	return &TxBuilderBananaBase{
+		logger:                 logger,
 		rollupContract:         rollupContract,
 		globalExitRootContract: gerContract,
 		l1InfoTree:             l1InfoTree,
@@ -125,7 +128,7 @@ func (t *TxBuilderBananaBase) NewSequence(
 		}
 
 		accInputHash = cdkcommon.CalculateAccInputHash(
-			accInputHash, batch.L2Data, infoRootHash, timestamp, batch.LastCoinbase, blockHash,
+			t.logger, accInputHash, batch.L2Data, infoRootHash, timestamp, batch.LastCoinbase, blockHash,
 		)
 	}
 

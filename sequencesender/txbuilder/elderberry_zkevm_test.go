@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk/etherman/contracts"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state/datastream"
@@ -20,7 +21,7 @@ import (
 func TestElderberryZkevmName(t *testing.T) {
 	zkevmContract := contracts.RollupElderberryType{}
 	opts := bind.TransactOpts{}
-	sut := txbuilder.NewTxBuilderElderberryZKEVM(zkevmContract, opts, 100)
+	sut := txbuilder.NewTxBuilderElderberryZKEVM(log.GetDefaultLogger(), zkevmContract, opts, 100)
 	require.NotNil(t, sut)
 	require.True(t, strings.Contains(sut.String(), "Elderberry"))
 	require.True(t, strings.Contains(sut.String(), "ZKEVM"))
@@ -29,7 +30,7 @@ func TestElderberryZkevmName(t *testing.T) {
 func TestElderberryZkevmNewSequence(t *testing.T) {
 	zkevmContract := contracts.RollupElderberryType{}
 	opts := bind.TransactOpts{}
-	sut := txbuilder.NewTxBuilderElderberryZKEVM(zkevmContract, opts, 100)
+	sut := txbuilder.NewTxBuilderElderberryZKEVM(log.GetDefaultLogger(), zkevmContract, opts, 100)
 	require.NotNil(t, sut)
 	seq, err := sut.NewSequence(context.TODO(), nil, common.Address{})
 	require.NoError(t, err)
@@ -106,7 +107,7 @@ func newElderberryZkevmSUT(t *testing.T) *txbuilder.TxBuilderElderberryZKEVM {
 	require.NoError(t, err)
 	opts, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
 	require.NoError(t, err)
-	sut := txbuilder.NewTxBuilderElderberryZKEVM(*zkevmContract, *opts, 100)
+	sut := txbuilder.NewTxBuilderElderberryZKEVM(log.GetDefaultLogger(), *zkevmContract, *opts, 100)
 	require.NotNil(t, sut)
 	return sut
 }

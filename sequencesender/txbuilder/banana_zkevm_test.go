@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder/mocks_txbuilder"
@@ -90,6 +91,7 @@ func newBananaZKEVMTestData(t *testing.T, maxTxSizeForL1 uint64) *testDataBanana
 	l1Client := mocks_txbuilder.NewL1Client(t)
 	l1InfoSyncer := mocks_txbuilder.NewL1InfoSyncer(t)
 	sut := txbuilder.NewTxBuilderBananaZKEVM(
+		log.GetDefaultLogger(),
 		zkevmContractMock,
 		gerContractMock,
 		opts,
