@@ -1,16 +1,20 @@
-package tree
+package tree_test
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"testing"
 
+	"github.com/0xPolygon/cdk/db"
+	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/cdk/tree"
+	"github.com/0xPolygon/cdk/tree/migrations"
 	"github.com/0xPolygon/cdk/tree/testvectors"
+	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,59 +29,46 @@ func TestMTAddLeaf(t *testing.T) {
 
 	for ti, testVector := range mtTestVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
-			path := t.TempDir()
-			dbPrefix := "foo"
-			tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
-				cfg := kv.TableCfg{}
-				AddTables(cfg, dbPrefix)
-				return cfg
-			}
-			db, err := mdbx.NewMDBX(nil).
-				Path(path).
-				WithTableCfg(tableCfgFunc).
-				Open()
+			dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+			log.Debug("DB created at: ", dbPath)
+			err := migrations.RunMigrations(dbPath)
 			require.NoError(t, err)
-			tree, err := NewAppendOnlyTree(context.Background(), db, dbPrefix)
+			treeDB, err := db.NewSQLiteDB(dbPath)
 			require.NoError(t, err)
+			_, err = treeDB.Exec(`select * from root`)
+			require.NoError(t, err)
+			merkletree := tree.NewAppendOnlyTree(treeDB, "")
 
 			// Add exisiting leaves
-			leaves := []Leaf{}
+			tx, err := db.NewTx(ctx, treeDB)
+			require.NoError(t, err)
 			for i, leaf := range testVector.ExistingLeaves {
-				leaves = append(leaves, Leaf{
+				err = merkletree.AddLeaf(tx, uint64(i), 0, types.Leaf{
 					Index: uint32(i),
 					Hash:  common.HexToHash(leaf),
 				})
+				require.NoError(t, err)
 			}
-			tx, err := db.BeginRw(ctx)
-			require.NoError(t, err)
-			_, err = tree.AddLeaves(tx, leaves)
-			require.NoError(t, err)
 			require.NoError(t, tx.Commit())
 			if len(testVector.ExistingLeaves) > 0 {
-				txRo, err := tree.db.BeginRo(ctx)
+				root, err := merkletree.GetLastRoot(ctx)
 				require.NoError(t, err)
-				_, actualRoot, err := tree.getLastIndexAndRootWithTx(txRo)
-				txRo.Rollback()
-				require.NoError(t, err)
-				require.Equal(t, common.HexToHash(testVector.CurrentRoot), actualRoot)
+				require.Equal(t, common.HexToHash(testVector.CurrentRoot), root.Hash)
 			}
 
 			// Add new bridge
-			tx, err = db.BeginRw(ctx)
+			tx, err = db.NewTx(ctx, treeDB)
 			require.NoError(t, err)
-			_, err = tree.AddLeaves(tx, []Leaf{{
+			err = merkletree.AddLeaf(tx, uint64(len(testVector.ExistingLeaves)), 0, types.Leaf{
 				Index: uint32(len(testVector.ExistingLeaves)),
 				Hash:  common.HexToHash(testVector.NewLeaf.CurrentHash),
-			}})
+			})
 			require.NoError(t, err)
 			require.NoError(t, tx.Commit())
 
-			txRo, err := tree.db.BeginRo(ctx)
+			root, err := merkletree.GetLastRoot(ctx)
 			require.NoError(t, err)
-			_, actualRoot, err := tree.getLastIndexAndRootWithTx(txRo)
-			txRo.Rollback()
-			require.NoError(t, err)
-			require.Equal(t, common.HexToHash(testVector.NewRoot), actualRoot)
+			require.Equal(t, common.HexToHash(testVector.NewRoot), root.Hash)
 		})
 	}
 }
@@ -93,43 +84,30 @@ func TestMTGetProof(t *testing.T) {
 
 	for ti, testVector := range mtTestVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
-			path := t.TempDir()
-			dbPrefix := "foo"
-			tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
-				cfg := kv.TableCfg{}
-				AddTables(cfg, dbPrefix)
-				return cfg
-			}
-			db, err := mdbx.NewMDBX(nil).
-				Path(path).
-				WithTableCfg(tableCfgFunc).
-				Open()
+			dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+			err := migrations.RunMigrations(dbPath)
 			require.NoError(t, err)
-			tree, err := NewAppendOnlyTree(context.Background(), db, dbPrefix)
+			treeDB, err := db.NewSQLiteDB(dbPath)
 			require.NoError(t, err)
+			tre := tree.NewAppendOnlyTree(treeDB, "")
 
-			leaves := []Leaf{}
+			tx, err := db.NewTx(ctx, treeDB)
+			require.NoError(t, err)
 			for li, leaf := range testVector.Deposits {
-				leaves = append(leaves, Leaf{
+				err = tre.AddLeaf(tx, uint64(li), 0, types.Leaf{
 					Index: uint32(li),
 					Hash:  leaf.Hash(),
 				})
+				require.NoError(t, err)
 			}
-			tx, err := db.BeginRw(ctx)
-			require.NoError(t, err)
-			_, err = tree.AddLeaves(tx, leaves)
-			require.NoError(t, err)
 			require.NoError(t, tx.Commit())
 
-			txRo, err := tree.db.BeginRo(ctx)
+			root, err := tre.GetLastRoot(ctx)
 			require.NoError(t, err)
-			_, actualRoot, err := tree.getLastIndexAndRootWithTx(txRo)
-			require.NoError(t, err)
-			txRo.Rollback()
 			expectedRoot := common.HexToHash(testVector.ExpectedRoot)
-			require.Equal(t, expectedRoot, actualRoot)
+			require.Equal(t, expectedRoot, root.Hash)
 
-			proof, err := tree.GetProof(ctx, testVector.Index, expectedRoot)
+			proof, err := tre.GetProof(ctx, testVector.Index, expectedRoot)
 			require.NoError(t, err)
 			for i, sibling := range testVector.MerkleProof {
 				require.Equal(t, common.HexToHash(sibling), proof[i])

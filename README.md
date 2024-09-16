@@ -1,70 +1,59 @@
+
+<div id="top"></div>
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+
+<img src="./.github/assets/cdk-logo.svg#gh-light-mode-only" alt="Logo" width="100">
+<img src="./.github/assets/cdk-logo.svg#gh-dark-mode-only" alt="Logo" width="100">
+
+## Polygon CDK
+
+**Polygon CDK** (Chain Development Kit) is a modular framework that developers can use to build and deploy Zero Knowledge Proofs enabled Rollups and Validiums.
+
+The CDK allow to build Rollups that are ZK powered, verifying the execution using the zkEVM prover from Polygon, they can be completelly personalizable because its modullar architecture.
+
 <!-- PROJECT SHIELDS -->
-![Build][Build-badge]
-[![Coverage][Coverage-badge]][Sonar-url]
-[![Vulnerabilities][Vulnerability-badge]][Sonar-url]
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=0xPolygon_cdk&metric=alert_status&token=aa6d76993fc213c4153bf65e0d62e4d08207ea7e)](https://sonarcloud.io/summary/new_code?id=0xPolygon_cdk)
 
-# 0xPolygon GitHub Template
-This repo serves as a template for new repositories in the 0xPolygon organization.
+</div>
+</div>
 
-# Action Items
-The following actions are required once you create a new repository from this repo:
-- Update this README. Complete the sections to reflect your project
-- Update `CODEOWNERS` file
-- Update `sonar-project.properties` by adding your Sonar project key provided by the Security Team
-- Update badges to reflect your project (badges are located at the bottom of this README)
-- Ensure you are using Issue and PR Templates
-
-## About The Project
-
-
-### Built With
-
-[![Node.js 18][Language-badge]][Language-url]
-
+<br />
 
 ## Getting Started
 
-### Local Development
+## Pre-requisites
+
+Setup Kurtosis following this instructions https://github.com/0xPolygon/kurtosis-cdk?tab=readme-ov-file#getting-started
+
+### Local Testing
 
 - You can run locally against kurtosis-cdk environment using: [docs/local_debug.md](docs/local_debug.md)
 
-### Database
-
-### Installation
-
-## Usage
-
-Use this space to show useful examples of how a project can be used. Additional screenshots, code examples, and demos work well in this space. This is incredibly useful for support personnel when responding to issues related to your application.
-
 ## Contributing
 
-This is the place to document your delivery workflow. For example:
+Contributions are very welcomed, the guidelines are currently not available (WIP)
 
-1. Clone the project
-2. Create a feature branch beginning with the ticket number (`git checkout -b INC-7689/update-readme`)
-3. Commit your changes (`git commit -m 'Update README.me with default template`)
-4. Push to the branch (`git push origin INC-7689/update-readme`)
-5. Open a Pull Request
-6. After review and approval, changes are deployed immediately
+## Support
 
-## Contact
-
-![Email][Email-badge]
-![Slack][Slack-badge]
-[![Production URL][Production-badge]][Production-url]
-[![Staging URL][Staging-badge]][Staging-url]
+Feel free to [open an issue](https://github.com/0xPolygon/cdk/issues/new) if you have any feature request or bug report.<br />
 
 
-<!-- MARKDOWN LINKS AND IMAGES (update/replace as needed for your application) -->
-[Build-badge]: https://github.com/0xPolygon/learn-api/actions/workflows/main.yml/badge.svg
-[Coverage-badge]: https://sonarqube.polygon.technology/api/project_badges/measure?project=TODO
-[Vulnerability-badge]: https://sonarqube.polygon.technology/api/project_badges/measure?project=TODO
-[Sonar-url]: https://sonarqube.polygon.technology/dashboard?id=TODO
-[Language-badge]: https://img.shields.io/badge/Nodejs-18.0-informational
-[Language-url]: https://nodejs.org/en
-[Email-badge]: https://img.shields.io/badge/Email-team_email_address-informational?logo=gmail
-[Slack-badge]: https://img.shields.io/badge/Slack-team_ChannelName-informational?logo=slack
-[Production-badge]: https://img.shields.io/badge/Production_URL-polygon.technology-informational
-[Production-url]: https://link.to/prod
-[Staging-badge]: https://img.shields.io/badge/Staging_URL-staging.polygon.technology-informational
-[Staging-url]: https://link.to/staging
+## License
+
+Polygon Chain Development Kit
+Copyright (c) 2024 PT Services DMCC
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.

@@ -81,7 +81,7 @@ test-seq_sender:
 
 .PHONY: lint
 lint: ## Runs the linter
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run --timeout 5m
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files
