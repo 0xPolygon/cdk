@@ -169,13 +169,13 @@ func (s *L1InfoTreeSync) GetFirstL1InfoWithRollupExitRoot(rollupExitRoot common.
 }
 
 func (s *L1InfoTreeSync) GetLastInfo() (*L1InfoTreeLeaf, error) {
-	return nil, nil
+	return s.processor.GetLastInfo()
 }
 
 func (s *L1InfoTreeSync) GetFirstInfo() (*L1InfoTreeLeaf, error) {
-	return nil, nil
+	return s.processor.GetFirstInfo()
 }
 
 func (s *L1InfoTreeSync) GetFirstInfoAfterBlock(blockNum uint64) (*L1InfoTreeLeaf, error) {
-	return nil, nil
+	return s.processor.GetFirstInfoAfterBlock(blockNum)
 }
