@@ -11,11 +11,25 @@ setup() {
 }
 
 @test "Send EOA transaction" {
+    local initial_nonce=$(rpcQuery "nonce" "$senderAddr") || return 1
     local value="10ether"
 
+    # case 1: Transaction successfull sernder has suffecient balance
     run sendTx "$private_key" "$receiver" "$value"
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
+
+    # case 2: Transaction rejected sender attempts to transfer more than they have in their wallet
+    # Trx will fail pre validation check on the node and will be dropped subsequently from the pool
+    # without recording it on the chain and hence nonce will not change
+    local sender_balance=$(rpcQuery "balance" --ether "$senderAddr") || return 1
+    local excessive_value=$(echo "$sender_balance + 1" | bc)ether
+    run sendTx "$private_key" "$receiver" "$excessive_value"
+    assert_failure "Transaction should fail when attempting to transfer more than the sender's balance"
+
+    # check wheather nonce of sender was updated correctly or not
+    local final_nonce=$(rpcQuery "nonce" "$senderAddr") || return 1
+    assert_equal "$final_nonce" "$(echo "$initial_nonce + 1" | bc)" "Error: nonce not updated correctly"
 }
 
 @test "Deploy ERC20Mock contract" {
