@@ -1842,7 +1842,7 @@ func (a *Aggregator) buildInputProver(
 	return inputProver, nil
 }
 
-func (a *Aggregator) getWitness(batchNumber uint64, URL string, fullWitness bool) ([]byte, error) {
+func (a *Aggregator) getWitness(batchNumber uint64, url string, fullWitness bool) ([]byte, error) {
 	var (
 		witness  string
 		response rpc.Response
