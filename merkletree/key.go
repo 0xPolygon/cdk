@@ -127,14 +127,14 @@ func HashContractBytecode(code []byte) ([]uint64, error) {
 	)
 
 	// add 0x01
-	code = append(code, 0x01) //nolint:gomnd
+	code = append(code, 0x01) //nolint:mnd
 
 	// add padding
 	for len(code)%(56) != 0 {
-		code = append(code, 0x00) //nolint:gomnd
+		code = append(code, 0x00) //nolint:mnd
 	}
 
-	code[len(code)-1] = code[len(code)-1] | 0x80 //nolint:gomnd
+	code[len(code)-1] = code[len(code)-1] | 0x80 //nolint:mnd
 
 	numHashes := int(math.Ceil(float64(len(code)) / float64(maxBytesToAdd)))
 

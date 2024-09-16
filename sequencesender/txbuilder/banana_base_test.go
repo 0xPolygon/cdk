@@ -32,7 +32,7 @@ func TestBananaBaseNewSequenceEmpty(t *testing.T) {
 	require.NotNil(t, seq)
 	require.NoError(t, err)
 	// TODO check values
-	//require.Equal(t, lastAcc, seq.LastAccInputHash())
+	// require.Equal(t, lastAcc, seq.LastAccInputHash())
 }
 
 func TestBananaBaseNewBatchFromL2Block(t *testing.T) {

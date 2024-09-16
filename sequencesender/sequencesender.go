@@ -429,7 +429,8 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 	}
 
 	txResult, err := s.ethTxManager.Result(ctx, txHash)
-	if errors.Is(err, ethtxmanager.ErrNotFound) {
+	switch {
+	case errors.Is(err, ethtxmanager.ErrNotFound):
 		s.logger.Infof("transaction %v does not exist in ethtxmanager. Marking it", txHash)
 		txData.OnMonitor = false
 		// Resend tx
@@ -437,10 +438,12 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 		if errSend == nil {
 			txData.OnMonitor = false
 		}
-	} else if err != nil {
+
+	case err != nil:
 		s.logger.Errorf("error getting result for tx %v: %v", txHash, err)
 		return err
-	} else {
+
+	default:
 		s.updateEthTxResult(txData, txResult)
 	}
 
@@ -882,21 +885,22 @@ func (s *SequenceSender) handleReceivedDataStream(
 			}
 		}
 
-		// Already virtualized
-		if l2Block.BatchNumber <= s.fromStreamBatch {
+		switch {
+		case l2Block.BatchNumber <= s.fromStreamBatch:
+			// Already virtualized
 			if l2Block.BatchNumber != s.latestStreamBatch {
 				s.logger.Infof("skipped! batch already virtualized, number %d", l2Block.BatchNumber)
 			}
-		} else if !s.validStream && l2Block.BatchNumber == s.fromStreamBatch+1 {
+
+		case !s.validStream && l2Block.BatchNumber == s.fromStreamBatch+1:
 			// Initial case after startup
 			s.addNewSequenceBatch(l2Block)
 			s.validStream = true
-		} else {
+
+		case l2Block.BatchNumber > s.wipBatch:
 			// Handle whether it's only a new block or also a new batch
-			if l2Block.BatchNumber > s.wipBatch {
-				// Create new sequential batch
-				s.addNewSequenceBatch(l2Block)
-			}
+			// Create new sequential batch
+			s.addNewSequenceBatch(l2Block)
 		}
 
 		// Latest stream batch
@@ -1271,7 +1275,7 @@ func (s *SequenceSender) marginTimeElapsed(
 	// Check the time difference between L2 block and currentTime
 	var timeDiff int64
 	if l2BlockTimestamp >= currentTime {
-		//L2 block timestamp is above currentTime, negative timeDiff. We do in this way to avoid uint64 overflow
+		// L2 block timestamp is above currentTime, negative timeDiff. We do in this way to avoid uint64 overflow
 		timeDiff = int64(-(l2BlockTimestamp - currentTime))
 	} else {
 		timeDiff = int64(currentTime - l2BlockTimestamp)
@@ -1280,7 +1284,7 @@ func (s *SequenceSender) marginTimeElapsed(
 	// Check if the time difference is less than timeMargin (L1BlockTimestampMargin)
 	if timeDiff < timeMargin {
 		var waitTime int64
-		if timeDiff < 0 { //L2 block timestamp is above currentTime
+		if timeDiff < 0 { // L2 block timestamp is above currentTime
 			waitTime = timeMargin + (-timeDiff)
 		} else {
 			waitTime = timeMargin - timeDiff

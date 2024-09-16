@@ -20,7 +20,7 @@ func TestLog(t *testing.T) {
 	cfg := Config{
 		Environment: EnvironmentDevelopment,
 		Level:       "debug",
-		Outputs:     []string{"stderr"}, //[]string{"stdout", "test.log"}
+		Outputs:     []string{"stderr"}, // []string{"stdout", "test.log"}
 	}
 
 	Init(cfg)

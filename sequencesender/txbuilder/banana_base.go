@@ -114,7 +114,7 @@ func (t *TxBuilderBananaBase) NewSequence(
 		return nil, err
 	}
 
-	oldAccInputHash := common.BytesToHash(accInputHash[:]) //copy it
+	oldAccInputHash := common.BytesToHash(accInputHash[:]) // copy it
 
 	for _, batch := range sequence.Batches {
 		infoRootHash := sequence.L1InfoRoot
