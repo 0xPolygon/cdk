@@ -7,6 +7,8 @@ setup() {
     readonly sequencer=${KURTOSIS_NODE:-cdk-erigon-sequencer-001}
     readonly node=${KURTOSIS_NODE:-cdk-erigon-node-001}
     readonly rpc_url=${RPC_URL:-$(kurtosis port print "$enclave" "$node" http-rpc)}
+    readonly private_key=${SENDER_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
+    readonly receiver=${RECEIVER:-"0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"}
 }
 
 teardown() {
@@ -14,8 +16,6 @@ teardown() {
 }
 
 @test "Test Block List - Sending regular transaction when address not in block list" {
-    local private_key=${RAW_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
-    local receiver="0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"
     local value="10ether"
 
     run kurtosis service exec $enclave $sequencer "acl mode --datadir /home/erigon/data/dynamic-kurtosis-sequencer/txpool/acls --mode blocklist"
@@ -26,7 +26,6 @@ teardown() {
 }
 
 @test "Test Block List - Sending contracts deploy transaction when address not in block list" {
-    local private_key="12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"
     local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
 
     run kurtosis service exec $enclave $sequencer "acl mode --datadir /home/erigon/data/dynamic-kurtosis-sequencer/txpool/acls --mode blocklist"
@@ -36,9 +35,7 @@ teardown() {
 }
 
 @test "Test Block List - Sending regular transaction when address is in block list" {
-    local private_key="12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"
     local sender=$(cast wallet address "$private_key")
-    local receiver="0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"
     local value="10ether"
 
     run kurtosis service exec $enclave $sequencer "acl mode --datadir /home/erigon/data/dynamic-kurtosis-sequencer/txpool/acls --mode blocklist"
@@ -50,7 +47,6 @@ teardown() {
 }
 
 @test "Test Block List - Sending contracts deploy transaction when address is in block list" {
-    local private_key="12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"
     local sender=$(cast wallet address "$private_key")
     local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
 
@@ -64,8 +60,6 @@ teardown() {
 }
 
 @test "Test Allow List - Sending regular transaction when address not in allow list" {
-    local private_key="12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"
-    local receiver="0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"
     local value="10ether"
 
     run kurtosis service exec $enclave $sequencer "acl mode --datadir /home/erigon/data/dynamic-kurtosis-sequencer/txpool/acls --mode allowlist"
@@ -76,7 +70,6 @@ teardown() {
 }
 
 @test "Test Allow List - Sending contracts deploy transaction when address not in allow list" {
-    local private_key="12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"
     local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
 
     run kurtosis service exec $enclave $sequencer "acl mode --datadir /home/erigon/data/dynamic-kurtosis-sequencer/txpool/acls --mode allowlist"
@@ -87,9 +80,7 @@ teardown() {
 }
 
 @test "Test Allow List - Sending regular transaction when address is in allow list" {
-    local private_key="12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"
     local sender=$(cast wallet address "$private_key")
-    local receiver="0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"
     local value="10ether"
 
     run kurtosis service exec $enclave $sequencer "acl mode --datadir /home/erigon/data/dynamic-kurtosis-sequencer/txpool/acls --mode allowlist"
@@ -101,7 +92,6 @@ teardown() {
 }
 
 @test "Test Allow List - Sending contracts deploy transaction when address is in allow list" {
-    local private_key="12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"
     local sender=$(cast wallet address "$private_key")
     local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
 
