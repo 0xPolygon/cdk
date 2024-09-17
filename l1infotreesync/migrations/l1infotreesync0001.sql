@@ -16,7 +16,7 @@ CREATE TABLE l1info_leaf (
     timestamp           INTEGER NOT NULL,
     mainnet_exit_root   VARCHAR NOT NULL,
     rollup_exit_root    VARCHAR NOT NULL,
-    global_exit_root    VARCHAR NOT NULL,
+    global_exit_root    VARCHAR NOT NULL UNIQUE,
     hash                VARCHAR NOT NULL,
     PRIMARY KEY (block_num, block_pos)
 );
