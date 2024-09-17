@@ -242,7 +242,7 @@ function checkTransactionSuccess() {
 
     local sender_balance_change=$(echo "$sender_initial_balance - $sender_final_balance" | bc)
     echo "Sender balance changed by: '$sender_balance_change' wei"
-    echo "Gas fee paid: '$gas_fee' wei"
+    echo "Gas fee paid: '$gas_fee_in_ether' ether"
 
     local receiver_final_balance=$(cast balance "$receiver" --ether --rpc-url "$rpc_url") || return 1
     local receiver_balance_change=$(echo "$receiver_final_balance - $receiver_initial_balance" | bc)
@@ -250,7 +250,7 @@ function checkTransactionSuccess() {
 
     # Trim 'ether' suffix from value_or_function_sig to get the numeric part
     local value_in_ether=$(echo "$value_or_function_sig" | sed 's/ether$//')
-    assert_equal "$receiver_balance_chang" "$value_in_ether" "Error receiver balance updated incorrectly"
+    assert_equal "$receiver_balance_change" "$value_in_ether" "Error receiver balance updated incorrectly"
     # Asserts sender's balance change is equal to the value transferred plus the gas fee
-    assert_equal "$sender_balance_change" "$(echo "$value_in_ether + $gas_fee" | bc)" "Error sender balance updated incorrectly"
+    assert_equal "$sender_balance_change" "$(echo "$value_in_ether + $gas_fee_in_ether" | bc)" "Error sender balance updated incorrectly"
 }
