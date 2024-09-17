@@ -39,12 +39,14 @@ type ethTxAdditionalData struct {
 func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *common.Hash, to *common.Address,
 	fromBatch uint64, toBatch uint64, data []byte, gas uint64) error {
 	// Params if new tx to send or resend a previous tx
-	var paramTo *common.Address
-	var paramNonce *uint64
-	var paramData []byte
-	var valueFromBatch uint64
-	var valueToBatch uint64
-	var valueToAddress common.Address
+	var (
+		paramTo        *common.Address
+		paramNonce     *uint64
+		paramData      []byte
+		valueFromBatch uint64
+		valueToBatch   uint64
+		valueToAddress common.Address
+	)
 
 	if !resend {
 		s.nonceMutex.Lock()
@@ -167,8 +169,10 @@ func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 // syncEthTxResults syncs results from L1 for transactions in the memory structure
 func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) { //nolint:unparam
 	s.mutexEthTx.Lock()
-	var txPending uint64
-	var txSync uint64
+	var (
+		txPending uint64
+		txSync    uint64
+	)
 	for hash, data := range s.ethTransactions {
 		if data.Status == ethtxmanager.MonitoredTxStatusFinalized.String() {
 			continue
