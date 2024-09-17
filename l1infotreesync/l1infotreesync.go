@@ -185,6 +185,8 @@ func (s *L1InfoTreeSync) GetInfoByGlobalExitRoot(ger common.Hash) (*L1InfoTreeLe
 }
 
 // GetL1InfoTreeMerkleProofFromIndexToRoot creates a merkle proof for the L1 Info tree
-func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProofFromIndexToRoot(ctx context.Context, index uint32, root common.Hash) (types.Proof, error) {
+func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProofFromIndexToRoot(
+	ctx context.Context, index uint32, root common.Hash,
+) (types.Proof, error) {
 	return s.processor.l1InfoTree.GetProof(ctx, index, root)
 }
