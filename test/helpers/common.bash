@@ -95,8 +95,8 @@ function sendTx() {
     fi
 
     # Check initial ether balance of sender and receiver
-    local sender_initial_balance=$(rpcQuery "balance" "$senderAddr" "latest") || return 1
-    local receiver_initial_balance=$(rpcQuery "balance" "$account_addr" "latest") || return 1
+    local sender_initial_balance=$(rpcQuery "balance" "$senderAddr" "--block latest") || return 1
+    local receiver_initial_balance=$(rpcQuery "balance" "$account_addr" "--block latest") || return 1
 
 
     # Check if the first remaining argument is a numeric value (Ether to be transferred)
@@ -155,7 +155,7 @@ function sendTx() {
         return 1
     fi
 
-    echo "Transaction successful (transaction hash: $tx_hash)"
+    echo "Transaction successful (transaction hash: '$tx_hash')"
 
     return 0
 }
@@ -231,19 +231,19 @@ function checkTransactionSuccess() {
     local sender_initial_balance="$5"
     local receiver_initial_balance="$6"
 
-    local sender_final_balance=$(rpcQuery "balance" "$senderAddr" "latest") || return 1
+    local sender_final_balance=$(rpcQuery "balance" "$senderAddr" "--block latest") || return 1
     local gas_used=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gas ' | awk '{print $2}')
     local gas_price=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gasPrice' | awk '{print $2}')
     local gas_fee=$(echo "$gas_used * $gas_price" | bc)
     local sender_balance_change=$(echo "$sender_initial_balance - $sender_final_balance" | bc)
 
-    echo "Sender's balance changed by: $sender_balance_change wei"
-    echo "Gas fee paid: $gas_fee wei"
+    echo "Sender balance changed by: '$sender_balance_change' wei"
+    echo "Gas fee paid: '$gas_fee' wei"
 
     if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
-        local receiver_final_balance=$(rpcQuery "balance" "$receiver" "latest") || return 1
+        local receiver_final_balance=$(rpcQuery "balance" "$receiver" "--block latest") || return 1
         local receiver_balance_change=$(echo "$receiver_final_balance - $receiver_initial_balance" | bc)
-        echo "Receiver's balance changed by: $receiver_balance_change wei"
+        echo "Receiver balance changed by: `$receiver_balance_change` wei"
 
         value_in_wei=$(cast --to-unit wei "$value_or_function_sig")
         assert_equal "$receiver_balance_chang" "$value_in_wei" "Error: receiver balance updated incorrectly."
