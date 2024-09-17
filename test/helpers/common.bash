@@ -54,6 +54,7 @@ function deployContract() {
 
     if [[ -z "$deployed_contract_address" ]]; then
         echo "Error: Failed to extract deployed contract address"
+        echo "$cast_output"
         return 1
     fi
 
