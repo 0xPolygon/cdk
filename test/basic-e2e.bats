@@ -69,23 +69,36 @@ setup() {
 }
 
 @test "Custom native token transfer" {
-    local gas_token_addr
-    set -x
+    echo Enclave: "$enclave", container: "$contracts_container" >&3
+    readonly rollup_params_file=/opt/zkevm/create_rollup_parameters.json
+
     # Retrieve the gas token address
-    gas_token_addr=run $contracts_service_wrapper "cat /opt/zkevm/create_rollup_parameters.json" | \
-        tail -n +2 | \
-        jq -r '.gasTokenAddress'
+    run bash -c "$contracts_service_wrapper 'cat $rollup_params_file' | tail -n +2 | jq -r '.gasTokenAddress'"
     assert_success
     assert_output --regexp "0x[a-fA-F0-9]{40}"
+    local gas_token_addr=$output
+
+    echo "Gas token addr $gas_token_addr, L1 RPC: $l1_rpc_url" >&3
+
+    # Query for initial receiver balance
+    run queryContract "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$receiver"
+    assert_success
+    local initial_receiver_balance=$(echo "$output" | tail -n 1)
+    echo "Initial receiver balance $initial_receiver_balance"
 
     # Mint gas token on L1
-    local mint_fn_sig="function mint(address receiver, uint256 amount)"
-    local amount="10ether"
-    run sendTx "$private_key" "$gas_token_addr" "$mint_fn_sig" "$receiver" "$amount"
+    local amount="1ether"
+    run sendTx "$l1_rpc_url" "$sender_private_key" "$gas_token_addr" "$mint_fn_sig" "$receiver" "$amount"
+    local wei_amount=$(cast --to-unit $amount wei)
 
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
-    # 1. Mint gas_token_addr
-    # 2.
+    # Assert that balance of gas token (on the L1) is correct
+    run queryContract "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$receiver"
+    assert_success
+    local receiver_balance=$(echo "$output" | tail -n 1)
+    local expected_balance=$(echo "$initial_receiver_balance + $wei_amount" | bc)
+
+    assert_equal "$receiver_balance" "$expected_balance"
 }
