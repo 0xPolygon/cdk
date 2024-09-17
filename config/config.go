@@ -152,9 +152,9 @@ func Load(ctx *cli.Context) (*Config, error) {
 	if err != nil {
 		var configNotFoundError viper.ConfigFileNotFoundError
 		if errors.As(err, &configNotFoundError) {
-			log.Infof("config file not found")
+			log.Error("config file not found")
 		} else {
-			log.Infof("error reading config file: ", err)
+			log.Errorf("error reading config file: ", err)
 
 			return nil, err
 		}

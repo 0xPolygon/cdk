@@ -31,6 +31,7 @@ var (
 
 // BridgeEndpoints contains implementations for the "bridge" RPC endpoints
 type BridgeEndpoints struct {
+	logger       *log.Logger
 	meter        metric.Meter
 	readTimeout  time.Duration
 	writeTimeout time.Duration
@@ -44,6 +45,7 @@ type BridgeEndpoints struct {
 
 // NewBridgeEndpoints returns InteropEndpoints
 func NewBridgeEndpoints(
+	logger *log.Logger,
 	writeTimeout time.Duration,
 	readTimeout time.Duration,
 	networkID uint32,
@@ -55,6 +57,7 @@ func NewBridgeEndpoints(
 ) *BridgeEndpoints {
 	meter := otel.Meter(meterName)
 	return &BridgeEndpoints{
+		logger:       logger,
 		meter:        meter,
 		readTimeout:  readTimeout,
 		writeTimeout: writeTimeout,
@@ -76,7 +79,7 @@ func (b *BridgeEndpoints) L1InfoTreeIndexForBridge(networkID uint32, depositCoun
 
 	c, merr := b.meter.Int64Counter("l1_info_tree_index_for_bridge")
 	if merr != nil {
-		log.Warnf("failed to create l1_info_tree_index_for_bridge counter: %s", merr)
+		b.logger.Warnf("failed to create l1_info_tree_index_for_bridge counter: %s", merr)
 	}
 	c.Add(ctx, 1)
 
@@ -117,7 +120,7 @@ func (b *BridgeEndpoints) InjectedInfoAfterIndex(networkID uint32, l1InfoTreeInd
 
 	c, merr := b.meter.Int64Counter("injected_info_after_index")
 	if merr != nil {
-		log.Warnf("failed to create injected_info_after_index counter: %s", merr)
+		b.logger.Warnf("failed to create injected_info_after_index counter: %s", merr)
 	}
 	c.Add(ctx, 1)
 
@@ -156,7 +159,7 @@ func (b *BridgeEndpoints) ClaimProof(
 
 	c, merr := b.meter.Int64Counter("claim_proof")
 	if merr != nil {
-		log.Warnf("failed to create claim_proof counter: %s", merr)
+		b.logger.Warnf("failed to create claim_proof counter: %s", merr)
 	}
 	c.Add(ctx, 1)
 
@@ -169,12 +172,14 @@ func (b *BridgeEndpoints) ClaimProof(
 		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get rollup exit proof, error: %s", err))
 	}
 	var proofLocalExitRoot tree.Proof
-	if networkID == 0 {
+	switch {
+	case networkID == 0:
 		proofLocalExitRoot, err = b.bridgeL1.GetProof(ctx, depositCount, info.MainnetExitRoot)
 		if err != nil {
 			return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get local exit proof, error: %s", err))
 		}
-	} else if networkID == b.networkID {
+
+	case networkID == b.networkID:
 		localExitRoot, err := b.l1InfoTree.GetLocalExitRoot(ctx, networkID, info.RollupExitRoot)
 		if err != nil {
 			return zeroHex, rpc.NewRPCError(
@@ -189,7 +194,8 @@ func (b *BridgeEndpoints) ClaimProof(
 				fmt.Sprintf("failed to get local exit proof, error: %s", err),
 			)
 		}
-	} else {
+
+	default:
 		return zeroHex, rpc.NewRPCError(
 			rpc.DefaultErrorCode,
 			fmt.Sprintf("this client does not support network %d", networkID),
@@ -210,7 +216,7 @@ func (b *BridgeEndpoints) SponsorClaim(claim claimsponsor.Claim) (interface{}, r
 
 	c, merr := b.meter.Int64Counter("sponsor_claim")
 	if merr != nil {
-		log.Warnf("failed to create sponsor_claim counter: %s", merr)
+		b.logger.Warnf("failed to create sponsor_claim counter: %s", merr)
 	}
 	c.Add(ctx, 1)
 
@@ -237,7 +243,7 @@ func (b *BridgeEndpoints) GetSponsoredClaimStatus(globalIndex *big.Int) (interfa
 
 	c, merr := b.meter.Int64Counter("get_sponsored_claim_status")
 	if merr != nil {
-		log.Warnf("failed to create get_sponsored_claim_status counter: %s", merr)
+		b.logger.Warnf("failed to create get_sponsored_claim_status counter: %s", merr)
 	}
 	c.Add(ctx, 1)
 

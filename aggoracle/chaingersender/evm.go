@@ -40,6 +40,7 @@ type EthTxManager interface {
 }
 
 type EVMChainGERSender struct {
+	logger              *log.Logger
 	gerContract         *pessimisticglobalexitroot.Pessimisticglobalexitroot
 	gerAddr             common.Address
 	sender              common.Address
@@ -60,6 +61,7 @@ type EVMConfig struct {
 }
 
 func NewEVMChainGERSender(
+	logger *log.Logger,
 	l2GlobalExitRoot, sender common.Address,
 	l2Client EthClienter,
 	ethTxMan EthTxManager,
@@ -72,6 +74,7 @@ func NewEVMChainGERSender(
 	}
 
 	return &EVMChainGERSender{
+		logger:              logger,
 		gerContract:         gerContract,
 		gerAddr:             l2GlobalExitRoot,
 		sender:              sender,
@@ -106,10 +109,10 @@ func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger com
 	}
 	for {
 		time.Sleep(c.waitPeriodMonitorTx)
-		log.Debugf("waiting for tx %s to be mined", id.Hex())
+		c.logger.Debugf("waiting for tx %s to be mined", id.Hex())
 		res, err := c.ethTxMan.Result(ctx, id)
 		if err != nil {
-			log.Error("error calling ethTxMan.Result: ", err)
+			c.logger.Error("error calling ethTxMan.Result: ", err)
 		}
 		switch res.Status {
 		case ethtxmanager.MonitoredTxStatusCreated,
@@ -122,7 +125,7 @@ func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger com
 			ethtxmanager.MonitoredTxStatusFinalized:
 			return nil
 		default:
-			log.Error("unexpected tx status: ", res.Status)
+			c.logger.Error("unexpected tx status: ", res.Status)
 		}
 	}
 }

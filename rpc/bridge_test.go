@@ -435,8 +435,9 @@ func newBridgeWithMocks(t *testing.T) bridgeWithMocks {
 		bridgeL1:     mocks.NewBridger(t),
 		bridgeL2:     mocks.NewBridger(t),
 	}
+	logger := log.WithFields("module", "bridgerpc")
 	b.bridge = NewBridgeEndpoints(
-		0, 0, 2, b.sponsor, b.l1InfoTree, b.injectedGERs, b.bridgeL1, b.bridgeL2,
+		logger, 0, 0, 2, b.sponsor, b.l1InfoTree, b.injectedGERs, b.bridgeL1, b.bridgeL2,
 	)
 	return b
 }
