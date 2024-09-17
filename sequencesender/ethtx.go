@@ -36,7 +36,8 @@ type ethTxAdditionalData struct {
 }
 
 // sendTx adds transaction to the ethTxManager to send it to L1
-func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *common.Hash, to *common.Address, fromBatch uint64, toBatch uint64, data []byte, gas uint64) error {
+func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *common.Hash, to *common.Address,
+	fromBatch uint64, toBatch uint64, data []byte, gas uint64) error {
 	// Params if new tx to send or resend a previous tx
 	var paramTo *common.Address
 	var paramNonce *uint64
@@ -164,7 +165,7 @@ func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 }
 
 // syncEthTxResults syncs results from L1 for transactions in the memory structure
-func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) {
+func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) { //nolint:unparam
 	s.mutexEthTx.Lock()
 	var txPending uint64
 	var txSync uint64
@@ -240,7 +241,9 @@ func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) error {
 }
 
 // copyTxData copies tx data in the internal structure
-func (s *SequenceSender) copyTxData(txHash common.Hash, txData []byte, txsResults map[common.Hash]ethtxmanager.TxResult) {
+func (s *SequenceSender) copyTxData(
+	txHash common.Hash, txData []byte, txsResults map[common.Hash]ethtxmanager.TxResult,
+) {
 	s.ethTxData[txHash] = make([]byte, len(txData))
 	copy(s.ethTxData[txHash], txData)
 
@@ -264,12 +267,14 @@ func (s *SequenceSender) updateEthTxResult(txData *ethTxData, txResult ethtxmana
 	if txData.Status != txResult.Status.String() {
 		log.Infof("update transaction %v to state %s", txResult.ID, txResult.Status.String())
 		txData.StatusTimestamp = time.Now()
-		stTrans := txData.StatusTimestamp.Format("2006-01-02T15:04:05.000-07:00") + ", " + txData.Status + ", " + txResult.Status.String()
+		stTrans := txData.StatusTimestamp.Format("2006-01-02T15:04:05.000-07:00") +
+			", " + txData.Status + ", " + txResult.Status.String()
 		txData.Status = txResult.Status.String()
 		txData.StateHistory = append(txData.StateHistory, stTrans)
 
 		// Manage according to the state
-		statusConsolidated := txData.Status == ethtxmanager.MonitoredTxStatusSafe.String() || txData.Status == ethtxmanager.MonitoredTxStatusFinalized.String()
+		statusConsolidated := txData.Status == ethtxmanager.MonitoredTxStatusSafe.String() ||
+			txData.Status == ethtxmanager.MonitoredTxStatusFinalized.String()
 		if txData.Status == ethtxmanager.MonitoredTxStatusFailed.String() {
 			s.logFatalf("transaction %v result failed!")
 		} else if statusConsolidated && txData.ToBatch >= s.latestVirtualBatchNumber {
@@ -292,24 +297,26 @@ func (s *SequenceSender) updateEthTxResult(txData *ethTxData, txResult ethtxmana
 func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash common.Hash) error {
 	txData, exists := s.ethTransactions[txHash]
 	if !exists {
-		log.Infof("transaction %v not found in memory", txHash)
-		return nil
+		s.logger.Errorf("transaction %v not found in memory", txHash)
+		return errors.New("transaction not found in memory structure")
 	}
 
 	txResult, err := s.ethTxManager.Result(ctx, txHash)
-	if err == ethtxmanager.ErrNotFound {
-		log.Infof("transaction %v does not exist in ethtxmanager. Marking it", txHash)
+	switch {
+	case errors.Is(err, ethtxmanager.ErrNotFound):
+		s.logger.Infof("transaction %v does not exist in ethtxmanager. Marking it", txHash)
 		txData.OnMonitor = false
 		// Resend tx
 		errSend := s.sendTx(ctx, true, &txHash, nil, 0, 0, nil, txData.Gas)
 		if errSend == nil {
 			txData.OnMonitor = false
 		}
-		return errSend
-	} else if err != nil {
-		log.Errorf("error getting result for tx %v: %v", txHash, err)
+
+	case err != nil:
+		s.logger.Errorf("error getting result for tx %v: %v", txHash, err)
 		return err
-	} else {
+
+	default:
 		s.updateEthTxResult(txData, txResult)
 	}
 

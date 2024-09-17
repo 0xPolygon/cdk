@@ -18,7 +18,8 @@ type RPCBatch struct {
 	l1InfoTreeIndex      uint32         `json:"l1InfoTreeIndex"`
 }
 
-func New(batchNumber uint64, blockHashes []string, batchL2Data []byte, globalExitRoot common.Hash, coinbase common.Address, closed bool) (*RPCBatch, error) {
+func New(batchNumber uint64, blockHashes []string, batchL2Data []byte, globalExitRoot common.Hash,
+	coinbase common.Address, closed bool) (*RPCBatch, error) {
 	return &RPCBatch{
 		batchNumber:    batchNumber,
 		blockHashes:    blockHashes,
@@ -110,8 +111,18 @@ func (b *RPCBatch) SetL1InfoTreeIndex(index uint32) {
 
 // String
 func (b *RPCBatch) String() string {
-	return fmt.Sprintf("Batch/RPC: LastCoinbase: %s, ForcedBatchTimestamp: %d, ForcedGlobalExitRoot: %x, ForcedBlockHashL1: %x, L2Data: %x, LastL2BLockTimestamp: %d, BatchNumber: %d, GlobalExitRoot: %x, L1InfoTreeIndex: %d",
-		b.LastCoinbase().String(), b.ForcedBatchTimestamp(), b.ForcedGlobalExitRoot().String(), b.ForcedBlockHashL1().String(), b.L2Data(), b.LastL2BLockTimestamp(), b.BatchNumber(), b.GlobalExitRoot().String(), b.L1InfoTreeIndex(),
+	return fmt.Sprintf(
+		"Batch/RPC: LastCoinbase: %s, ForcedBatchTimestamp: %d, ForcedGlobalExitRoot: %x, ForcedBlockHashL1: %x"+
+			", L2Data: %x, LastL2BLockTimestamp: %d, BatchNumber: %d, GlobalExitRoot: %x, L1InfoTreeIndex: %d",
+		b.LastCoinbase().String(),
+		b.ForcedBatchTimestamp(),
+		b.ForcedGlobalExitRoot().String(),
+		b.ForcedBlockHashL1().String(),
+		b.L2Data(),
+		b.LastL2BLockTimestamp(),
+		b.BatchNumber(),
+		b.GlobalExitRoot().String(),
+		b.L1InfoTreeIndex(),
 	)
 }
 

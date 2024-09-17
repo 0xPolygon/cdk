@@ -19,6 +19,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+const ten = 10
+
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
 	cfg                      Config
@@ -148,7 +150,7 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 			// Try to retrieve batch from RPC
 			rpcBatch, err := s.getBatchFromRPC(currentBatchNumber)
 			if err != nil {
-				if err == state.ErrNotFound {
+				if errors.Is(err, ethtxmanager.ErrNotFound) {
 					s.logger.Infof("batch %d not found in RPC", currentBatchNumber)
 				} else {
 					s.logger.Errorf("error getting batch %d from RPC: %v", currentBatchNumber, err)
@@ -307,12 +309,21 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 		elapsed, waitTime := s.marginTimeElapsed(lastL2BlockTimestamp, lastL1BlockHeader.Time, timeMargin)
 
 		if !elapsed {
-			s.logger.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block %d (ts: %d) and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
-				waitTime, lastL1BlockHeader.Number, lastL1BlockHeader.Time, lastBatch.BatchNumber(), lastL2BlockTimestamp, timeMargin)
+			s.logger.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block %d (ts: %d) "+
+				"and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
+				waitTime, lastL1BlockHeader.Number, lastL1BlockHeader.Time,
+				lastBatch.BatchNumber(), lastL2BlockTimestamp, timeMargin,
+			)
 			time.Sleep(time.Duration(waitTime) * time.Second)
 		} else {
-			s.logger.Infof("continuing, time difference between last L1 block %d (ts: %d) and last L2 block %d (ts: %d) in the sequence is greater than %d seconds",
-				lastL1BlockHeader.Number, lastL1BlockHeader.Time, lastBatch.BatchNumber, lastL2BlockTimestamp, timeMargin)
+			s.logger.Infof("continuing, time difference between last L1 block %d (ts: %d) and last L2 block %d (ts: %d) "+
+				"in the sequence is greater than %d seconds",
+				lastL1BlockHeader.Number,
+				lastL1BlockHeader.Time,
+				lastBatch.BatchNumber,
+				lastL2BlockTimestamp,
+				timeMargin,
+			)
 			break
 		}
 	}
@@ -326,11 +337,13 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 
 		// Wait if the time difference is less than L1BlockTimestampMargin
 		if !elapsed {
-			s.logger.Infof("waiting at least %d seconds to send sequences, time difference between now (ts: %d) and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
+			s.logger.Infof("waiting at least %d seconds to send sequences, time difference between now (ts: %d) "+
+				"and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
 				waitTime, currentTime, lastBatch.BatchNumber, lastL2BlockTimestamp, timeMargin)
 			time.Sleep(time.Duration(waitTime) * time.Second)
 		} else {
-			s.logger.Infof("[SeqSender]sending sequences now, time difference between now (ts: %d) and last L2 block %d (ts: %d) in the sequence is also greater than %d seconds",
+			s.logger.Infof("sending sequences now, time difference between now (ts: %d) and last L2 block %d (ts: %d) "+
+				"in the sequence is also greater than %d seconds",
 				currentTime, lastBatch.BatchNumber, lastL2BlockTimestamp, timeMargin)
 			break
 		}
@@ -500,6 +513,6 @@ func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
 	for {
 		s.logger.Errorf(template, args...)
 		s.logger.Errorf("sequence sending stopped.")
-		time.Sleep(10 * time.Second)
+		time.Sleep(ten * time.Second)
 	}
 }

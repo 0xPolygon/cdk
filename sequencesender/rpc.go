@@ -38,24 +38,25 @@ func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (*rpcbatch.RPCBatch
 
 	// Check if the response is an error
 	if response.Error != nil {
-		return nil, fmt.Errorf("error in the response calling zkevm_getBatchByNumber: %v", response.Error)
+		return nil, fmt.Errorf("error in the response calling zkevm_getBatchByNumber: %w", response.Error)
 	}
 
 	// Get the batch number from the response hex string
 	err = json.Unmarshal(response.Result, &zkEVMBatchData)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling the batch from the response calling zkevm_getBatchByNumber: %v", err)
+		return nil, fmt.Errorf("error unmarshalling the batch from the response calling zkevm_getBatchByNumber: %w", err)
 	}
 
-	rpcBatch, err := rpcbatch.New(batchNumber, zkEVMBatchData.Blocks, common.Hex2Bytes(zkEVMBatchData.BatchL2Data), common.HexToHash(zkEVMBatchData.GlobalExitRoot), common.HexToAddress(zkEVMBatchData.Coinbase), zkEVMBatchData.Closed)
+	rpcBatch, err := rpcbatch.New(batchNumber, zkEVMBatchData.Blocks, common.Hex2Bytes(zkEVMBatchData.BatchL2Data),
+		common.HexToHash(zkEVMBatchData.GlobalExitRoot), common.HexToAddress(zkEVMBatchData.Coinbase), zkEVMBatchData.Closed)
 	if err != nil {
-		return nil, fmt.Errorf("error creating the rpc batch: %v", err)
+		return nil, fmt.Errorf("error creating the rpc batch: %w", err)
 	}
 
 	if len(zkEVMBatchData.Blocks) > 0 {
 		lastL2BlockTimestamp, err := s.getL2BlockTimestampFromRPC(zkEVMBatchData.Blocks[len(zkEVMBatchData.Blocks)-1])
 		if err != nil {
-			return nil, fmt.Errorf("error getting the last l2 block timestamp from the rpc: %v", err)
+			return nil, fmt.Errorf("error getting the last l2 block timestamp from the rpc: %w", err)
 		}
 		rpcBatch.SetLastL2BLockTimestamp(lastL2BlockTimestamp)
 	} else {
@@ -87,7 +88,7 @@ func (s *SequenceSender) getL2BlockTimestampFromRPC(blockHash string) (uint64, e
 	l2Block := zkeEVML2Block{}
 	err = json.Unmarshal(response.Result, &l2Block)
 	if err != nil {
-		return 0, fmt.Errorf("error unmarshalling the l2 block from the response calling eth_getBlockByHash: %v", err)
+		return 0, fmt.Errorf("error unmarshalling the l2 block from the response calling eth_getBlockByHash: %w", err)
 	}
 
 	return new(big.Int).SetBytes(common.FromHex(l2Block.Timestamp)).Uint64(), nil
