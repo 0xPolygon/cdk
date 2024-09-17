@@ -80,7 +80,7 @@ type L1InfoTreeLeaf struct {
 // Hash as expected by the tree
 func (l *L1InfoTreeLeaf) hash() ethCommon.Hash {
 	var res [treeTypes.DefaultHeight]byte
-	t := make([]byte, 8) //nolint:gomnd
+	t := make([]byte, 8) //nolint:mnd
 	binary.BigEndian.PutUint64(t, l.Timestamp)
 	copy(res[:], keccak256.Hash(l.globalExitRoot().Bytes(), l.PreviousBlockHash.Bytes(), t))
 	return res

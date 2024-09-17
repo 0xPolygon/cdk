@@ -292,6 +292,7 @@ func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL1Bridge(ctx context.Context
 		if err != nil {
 			return 0, err
 		}
+		//nolint:gocritic // switch statement doesn't make sense here, I couldn't break
 		if root.Index < depositCount {
 			lowerLimit = targetBlock + 1
 		} else if root.Index == depositCount {
@@ -345,6 +346,7 @@ func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL2Bridge(ctx context.Context
 		if err != nil {
 			return 0, err
 		}
+		//nolint:gocritic // switch statement doesn't make sense here, I couldn't break
 		if root.Index < depositCount {
 			lowerLimit = targetBlock + 1
 		} else if root.Index == depositCount {
