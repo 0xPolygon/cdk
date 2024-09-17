@@ -10,7 +10,7 @@ setup() {
     readonly key=${SENDER_key:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
     readonly receiver=${RECEIVER:-"0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"}
     readonly data_dir=${ACL_DATA_DIR:-"/home/erigon/data/dynamic-kurtosis-sequencer/txpool/acls"}
-    readonly kurtosis_sequencer_wrapper=${KURTOSIS_WRAPPER:-"kurtosis service exec $enclave $sequencer"}
+    readonly kurtosis_sequencer_wrapper=${KURTOSIS_SEQUENCER_WRAPPER:-"kurtosis service exec $enclave $sequencer"}
 }
 
 teardown() {
