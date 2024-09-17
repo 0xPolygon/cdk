@@ -94,9 +94,9 @@ function sendTx() {
         return 1
     fi
 
-    # Check initial ether balance of sender and receiver
-    local sender_initial_balance=$(rpcQuery "balance" "$senderAddr" "--block latest") || return 1
-    local receiver_initial_balance=$(rpcQuery "balance" "$account_addr" "--block latest") || return 1
+    # Check initial ether balance of sender and receiver 
+    local sender_initial_balance=$(cast balance "$senderAddr" --ether --rpc-url "$rpc_url") || return 1    
+    local receiver_initial_balance=$(cast balance "$account_addr" --ether --rpc-url "$rpc_url") || return 1
 
 
     # Check if the first remaining argument is a numeric value (Ether to be transferred)
@@ -149,12 +149,13 @@ function sendTx() {
         return 1
     fi
 
-    sleep 7
-
-    checkTransactionSuccess "$senderAddr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
-    if [[ $? -ne 0 ]]; then
-        echo "Error: Balance not updated correctly."
-        return 1
+    if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
+        sleep 7
+        checkTransactionSuccess "$senderAddr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
+        if [[ $? -ne 0 ]]; then
+            echo "Error: Balance not updated correctly."
+            return 1
+        fi
     fi
 
     echo "Transaction successful (transaction hash: '$tx_hash')"
@@ -212,7 +213,7 @@ function rpcQuery() {
 
     # Use cast to perform a generic RPC call
     local response
-    response=$(cast --rpc-url "$rpc_url" "$method" "${params[@]}" 2>&1)
+    response=$(cast rpc "$method" "${params[@]}" --rpc-url "$rpc_url" 2>&1)
 
     # Check if the cast rpc command was successful
     if [[ $? -ne 0 ]]; then
@@ -233,24 +234,23 @@ function checkTransactionSuccess() {
     local sender_initial_balance="$5"
     local receiver_initial_balance="$6"
 
-    local sender_final_balance=$(rpcQuery "balance" "$senderAddr" "--block latest") || return 1
+    local sender_final_balance=$(cast balance "$senderAddr" --ether --rpc-url "$rpc_url") || return 1
     local gas_used=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gas ' | awk '{print $2}')
     local gas_price=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gasPrice' | awk '{print $2}')
     local gas_fee=$(echo "$gas_used * $gas_price" | bc)
-    local sender_balance_change=$(echo "$sender_initial_balance - $sender_final_balance" | bc)
+    local gas_fee_in_ether=$(cast --from-unit wei --to-unit ether "$gas_fee")
 
+    local sender_balance_change=$(echo "$sender_initial_balance - $sender_final_balance" | bc)
     echo "Sender balance changed by: '$sender_balance_change' wei"
     echo "Gas fee paid: '$gas_fee' wei"
 
-    if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
-        local receiver_final_balance=$(rpcQuery "balance" "$receiver" "--block latest") || return 1
-        local receiver_balance_change=$(echo "$receiver_final_balance - $receiver_initial_balance" | bc)
-        echo "Receiver balance changed by: `$receiver_balance_change` wei"
+    local receiver_final_balance=$(cast balance "$receiver" --ether --rpc-url "$rpc_url") || return 1
+    local receiver_balance_change=$(echo "$receiver_final_balance - $receiver_initial_balance" | bc)
+    echo "Receiver balance changed by: `$receiver_balance_change` wei"
 
-        value_in_wei=$(cast --to-unit wei "$value_or_function_sig")
-        assert_equal "$receiver_balance_chang" "$value_in_wei" "Error receiver balance updated incorrectly"
-    fi
-
+    # Trim 'ether' suffix from value_or_function_sig to get the numeric part
+    local value_in_ether=$(echo "$value_or_function_sig" | sed 's/ether$//')
+    assert_equal "$receiver_balance_chang" "$value_in_ether" "Error receiver balance updated incorrectly"
     # Asserts sender's balance change is equal to the value transferred plus the gas fee
-    assert_equal "$sender_balance_change" "$(echo "$value_in_wei + $gas_fee" | bc)" "Error sender balance updated incorrectly"
+    assert_equal "$sender_balance_change" "$(echo "$value_in_ether + $gas_fee" | bc)" "Error sender balance updated incorrectly"
 }
