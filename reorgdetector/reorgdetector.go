@@ -120,12 +120,21 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 		errGroup errgroup.Group
 	)
 
-	rd.trackedBlocksLock.Lock()
-	defer rd.trackedBlocksLock.Unlock()
+	subscriberIDs := rd.getSubscriberIDs()
 
-	for id, hdrs := range rd.trackedBlocks {
+	for _, id := range subscriberIDs {
 		id := id
-		hdrs := hdrs
+
+		// This is done like this because of a possible deadlock between AddBlocksToTrack and detectReorgInTrackedList
+		// because detectReorgInTrackedList would take the trackedBlocksLock and try to notify the subscriber in case of a reorg
+		// but the subscriber would be trying to add a block to track and save it to trackedBlocks, resulting in a deadlock
+		rd.trackedBlocksLock.RLock()
+		hdrs, ok := rd.trackedBlocks[id]
+		rd.trackedBlocksLock.RUnlock()
+
+		if !ok {
+			continue
+		}
 
 		errGroup.Go(func() error {
 			headers := hdrs.getSorted()
@@ -152,6 +161,8 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 
 					continue
 				}
+
+				log.Info("[ReorgDetector] Reorg detected", "blockNum", hdr.Num)
 
 				// Notify the subscriber about the reorg
 				rd.notifySubscriber(id, hdr)

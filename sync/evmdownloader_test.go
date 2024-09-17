@@ -369,14 +369,16 @@ func TestGetBlockHeader(t *testing.T) {
 
 	// at first attempt
 	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(returnedBlock, nil).Once()
-	actualBlock := d.GetBlockHeader(ctx, blockNum)
+	actualBlock, isCanceled := d.GetBlockHeader(ctx, blockNum)
 	assert.Equal(t, expectedBlock, actualBlock)
+	assert.False(t, isCanceled)
 
 	// after error from client
 	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(nil, errors.New("foo")).Once()
 	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(returnedBlock, nil).Once()
-	actualBlock = d.GetBlockHeader(ctx, blockNum)
+	actualBlock, isCanceled = d.GetBlockHeader(ctx, blockNum)
 	assert.Equal(t, expectedBlock, actualBlock)
+	assert.False(t, isCanceled)
 }
 
 func buildAppender() LogAppenderMap {
