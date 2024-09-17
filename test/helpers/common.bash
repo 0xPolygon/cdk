@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
 function deployContract() {
-    local private_key="$1"
-    local contract_artifact="$2"
+    local rpc_url="$1"
+    local private_key="$2"
+    local contract_artifact="$3"
 
     # Check if rpc_url is available
     if [[ -z "$rpc_url" ]]; then
-        echo "Error: rpc_url environment variable is not set."
+        echo "Error: rpc_url parameter is not set."
         return 1
     fi
 
@@ -70,15 +71,16 @@ function deployContract() {
 }
 
 function sendTx() {
-    # Check if at least 3 arguments are provided
-    if [[ $# -lt 3 ]]; then
+    # Check if at least 4 arguments are provided
+    if [[ $# -lt 4 ]]; then
         echo "Usage: sendTx <private_key> <receiver> <value_or_function_signature> [<param1> <param2> ...]"
         return 1
     fi
 
-    local private_key="$1"           # Sender private key
-    local receiver_addr="$2"         # Receiver address
-    local value_or_function_sig="$3" # Value or function signature
+    local rpc_url="$1"
+    local private_key="$2"           # Sender private key
+    local account_addr="$3"          # Receiver address
+    local value_or_function_sig="$4" # Value or function signature
 
     # Error handling: Ensure the receiver is a valid Ethereum address
     if [[ ! "$receiver_addr" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
@@ -86,7 +88,7 @@ function sendTx() {
         return 1
     fi
 
-    shift 3             # Shift the first 3 arguments (private_key, receiver_addr, value_or_function_sig)
+    shift 4 # Shift the first 4 arguments (rpc_url, private_key, account_addr, value_or_function_sig)
     local params=("$@") # Collect all remaining arguments as function parameters
 
     # Get sender address from private key
@@ -185,16 +187,17 @@ function extract_tx_hash() {
 }
 
 function queryContract() {
-    local addr="$1"          # Contract address
-    local funcSignature="$2" # Function signature
-    shift 2                  # Shift past the first two arguments
+    local rpc_url="$1"       # RPC URL
+    local addr="$2"          # Contract address
+    local funcSignature="$3" # Function signature
+    shift 3                  # Shift past the first 3 arguments
     local params=("$@")      # Collect remaining arguments as parameters array
 
     echo "Querying state of $addr account (RPC URL: $rpc_url) with function signature: '$funcSignature' and params: ${params[*]}" >&3
 
-    # Check if rpc_url is available
+    # Check if url is available
     if [[ -z "$rpc_url" ]]; then
-        echo "Error: rpc_url environment variable is not set."
+        echo "Error: rpc_url parameter is not provided."
         return 1
     fi
 

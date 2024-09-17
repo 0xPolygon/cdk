@@ -6,7 +6,7 @@ setup() {
     readonly enclave=${ENCLAVE:-cdk-v1}
     readonly sequencer=${KURTOSIS_NODE:-cdk-erigon-sequencer-001}
     readonly node=${KURTOSIS_NODE:-cdk-erigon-node-001}
-    readonly rpc_url=${RPC_URL:-$(kurtosis port print "$enclave" "$node" http-rpc)}
+    readonly l2_rpc_url=${RPC_URL:-$(kurtosis port print "$enclave" "$node" http-rpc)}
     readonly key=${SENDER_key:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
     readonly receiver=${RECEIVER:-"0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"}
     readonly data_dir=${ACL_DATA_DIR:-"/home/erigon/data/dynamic-kurtosis-sequencer/txpool/acls"}
@@ -36,7 +36,7 @@ set_acl_mode() {
 @test "Test Block List - Sending regular transaction when address not in block list" {
     local value="10ether"
     run set_acl_mode "blocklist"
-    run sendTx $key $receiver $value
+    run sendTx $l2_rpc_url $key $receiver $value
 
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
@@ -45,7 +45,7 @@ set_acl_mode() {
 @test "Test Block List - Sending contracts deploy transaction when address not in block list" {
     local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
     run set_acl_mode "blocklist"
-    run deployContract $key $contract_artifact
+    run deployContract $l2_rpc_url $key $contract_artifact
 
     assert_success
 
@@ -59,7 +59,7 @@ set_acl_mode() {
     run set_acl_mode "blocklist"
     run add_to_access_list "blocklist" "sendTx"
 
-    run sendTx $key $receiver $value
+    run sendTx $l2_rpc_url $key $receiver $value
 
     assert_failure
     assert_output --partial "sender disallowed to send tx by ACL policy"
@@ -70,7 +70,7 @@ set_acl_mode() {
 
     run set_acl_mode "blocklist"
     run add_to_access_list "blocklist" "deploy"
-    run deployContract $key $contract_artifact
+    run deployContract $l2_rpc_url  $key $contract_artifact
 
     assert_failure
     assert_output --partial "sender disallowed to deploy contract by ACL policy"
@@ -80,7 +80,7 @@ set_acl_mode() {
     local value="10ether"
 
     run set_acl_mode "allowlist"
-    run sendTx $key $receiver $value
+    run sendTx $l2_rpc_url $key $receiver $value
 
     assert_failure
     assert_output --partial "sender disallowed to send tx by ACL policy"
@@ -90,7 +90,7 @@ set_acl_mode() {
     local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
 
     run set_acl_mode "allowlist"
-    run deployContract $key $contract_artifact
+    run deployContract $l2_rpc_url $key $contract_artifact
 
     assert_failure
     assert_output --partial "sender disallowed to deploy contract by ACL policy"
@@ -101,7 +101,7 @@ set_acl_mode() {
 
     run set_acl_mode "allowlist"    
     run add_to_access_list "allowlist" "sendTx"    
-    run sendTx $key $receiver $value
+    run sendTx $l2_rpc_url $key $receiver $value
     
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
@@ -112,7 +112,7 @@ set_acl_mode() {
 
     run set_acl_mode "allowlist"    
     run add_to_access_list "allowlist" "deploy" 
-    run deployContract $key $contract_artifact
+    run deployContract $l2_rpc_url $key $contract_artifact
 
     assert_success
 
