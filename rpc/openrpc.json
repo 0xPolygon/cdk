@@ -211,16 +211,11 @@
           "description": "The hex representation of the block's height",
           "$ref": "#/components/schemas/Integer"
         },
-        "FullBlockOrNull": {
-          "title": "fullBlockOrNull",
-          "oneOf": [
-            {
-              "$ref": "#/components/schemas/FullBlock"
-            },
-            {
-              "$ref": "#/components/schemas/Null"
-            }
-          ]
+        "BlockPosition": {
+          "title": "blockPosition",
+          "type": "string",
+          "description": "The hex representation of the position inside the block",
+          "$ref": "#/components/schemas/Integer"
         },
         "BatchNumber": {
           "title": "batchNumber",
@@ -255,18 +250,6 @@
           "title": "From",
           "description": "The sender of the transaction",
           "$ref": "#/components/schemas/Address"
-        },
-        "BlockNumberOrNull": {
-          "title": "blockNumberOrNull",
-          "description": "The block number or null when its the pending block",
-          "oneOf": [
-            {
-              "$ref": "#/components/schemas/BlockNumber"
-            },
-            {
-              "$ref": "#/components/schemas/Null"
-            }
-          ]
         },
         "IntegerOrNull": {
           "title": "integerOrNull",
@@ -323,6 +306,119 @@
           "description": "The index of the transaction. null when its pending",
           "$ref": "#/components/schemas/IntegerOrNull"
         },
+
+
+        "NetworkID": {
+          "title": "networkID",
+          "type": "string",
+          "description": "The hex representation of the network ID",
+          "$ref": "#/components/schemas/Integer"
+        },
+        "DepositCount": {
+          "title": "depositCount",
+          "type": "string",
+          "description": "The hex representation of the deposit count",
+          "$ref": "#/components/schemas/Integer"
+        },
+        "L1InfoTreeIndex": {
+          "title": "l1InfoTreeIndex",
+          "type": "string",
+          "description": "The hex representation of the L1 info tree index",
+          "$ref": "#/components/schemas/Integer"
+        },
+        "L1InfoTreeLeaf": {
+          "title": "l1InfoTreeLeaf",
+          "type": "object",
+          "readOnly": true,
+          "properties": {
+PreviousBlockHash ethCommon.Hash `meddler:"previous_block_hash,hash"`
+Timestamp         uint64         `meddler:"timestamp"`
+MainnetExitRoot   ethCommon.Hash `meddler:"mainnet_exit_root,hash"`
+RollupExitRoot    ethCommon.Hash `meddler:"rollup_exit_root,hash"`
+GlobalExitRoot    ethCommon.Hash `meddler:"global_exit_root,hash"`
+Hash              ethCommon.Hash `meddler:"hash,hash"`
+            "blockNumber": {
+              "$ref": "#/components/schemas/BlockNumber"
+            },
+            "blockPosition": {
+              "$ref": "#/components/schemas/BlockPosition"
+            },
+            "l1InfoTreeIndex": {
+              "$ref": "#/components/schemas/L1InfoTreeIndex"
+            },
+
+
+            "globalExitRoot": {
+              "$ref": "#/components/schemas/Keccak"
+            },
+            "mainnetExitRoot": {
+              "$ref": "#/components/schemas/Keccak"
+            },
+            "rollupExitRoot": {
+              "$ref": "#/components/schemas/Keccak"
+            },
+            "accInputHash": {
+              "$ref": "#/components/schemas/Keccak"
+            },
+            "timestamp": {
+              "$ref": "#/components/schemas/Integer"
+            },
+            "sendSequencesTxHash": {
+              "$ref": "#/components/schemas/TransactionHash"
+            },
+            "verifyBatchTxHash": {
+              "$ref": "#/components/schemas/TransactionHash"
+            },
+            "closed": {
+              "title": "closed",
+              "type": "boolean",
+              "description": "True if the batch is already closed, otherwise false"
+            },
+            "blocks": {
+              "title": "blocksOrHashes",
+              "description": "Array of block objects, or 32 Bytes block hashes depending on the last given parameter",
+              "type": "array",
+              "items": {
+                "title": "blockOrBlockHash",
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Block"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BlockHash"
+                  }
+                ]
+              }
+            },
+            "transactions": {
+              "title": "transactionsOrHashes",
+              "description": "Array of transaction objects, or 32 Bytes transaction hashes depending on the last given parameter",
+              "type": "array",
+              "items": {
+                "title": "transactionOrTransactionHash",
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Transaction"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TransactionHash"
+                  }
+                ]
+              }
+            },
+            "stateRoot": {
+              "$ref": "#/components/schemas/Keccak"
+            },
+            "coinbase": {
+              "$ref": "#/components/schemas/Address"
+            }
+          }
+        },
+
+
+
+
+
         "Batch": {
           "title": "Batch",
           "type": "object",
