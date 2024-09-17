@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
 	configTypes "github.com/0xPolygon/cdk/config/types"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -79,6 +80,7 @@ type EVMClaimSponsorConfig struct {
 }
 
 func NewEVMClaimSponsor(
+	logger *log.Logger,
 	dbPath string,
 	l2Client EthClienter,
 	bridge common.Address,
@@ -109,6 +111,7 @@ func NewEVMClaimSponsor(
 		ethTxManager:   ethTxManager,
 	}
 	baseSponsor, err := newClaimSponsor(
+		logger,
 		dbPath,
 		evmSponsor,
 		retryAfterErrorPeriod,

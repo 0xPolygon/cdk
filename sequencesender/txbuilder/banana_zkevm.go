@@ -36,6 +36,7 @@ type globalExitRootBananaZKEVMContractor interface {
 }
 
 func NewTxBuilderBananaZKEVM(
+	logger *log.Logger,
 	rollupContract rollupBananaZKEVMContractor,
 	gerContract globalExitRootBananaZKEVMContractor,
 	opts bind.TransactOpts,
@@ -44,8 +45,11 @@ func NewTxBuilderBananaZKEVM(
 	ethClient l1Client,
 	blockFinality *big.Int,
 ) *TxBuilderBananaZKEVM {
+	txBuilderBase := *NewTxBuilderBananaBase(logger, rollupContract,
+		gerContract, l1InfoTree, ethClient, blockFinality, opts)
+
 	return &TxBuilderBananaZKEVM{
-		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, l1InfoTree, ethClient, blockFinality, opts),
+		TxBuilderBananaBase: txBuilderBase,
 		condNewSeq:          NewConditionalNewSequenceMaxSize(maxTxSizeForL1),
 		rollupContract:      rollupContract,
 	}
@@ -70,7 +74,7 @@ func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(
 	var err error
 	ethseq, err := convertToSequenceBanana(sequences)
 	if err != nil {
-		log.Error("error converting sequences to etherman: ", err)
+		t.logger.Error("error converting sequences to etherman: ", err)
 		return nil, err
 	}
 	newopts := t.opts
@@ -83,7 +87,7 @@ func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(
 	// Build sequence data
 	tx, err := t.sequenceBatchesRollup(newopts, ethseq)
 	if err != nil {
-		log.Errorf("error estimating new sequenceBatches to add to ethtxmanager: ", err)
+		t.logger.Errorf("error estimating new sequenceBatches to add to ethtxmanager: ", err)
 		return nil, err
 	}
 	return tx, nil
@@ -111,9 +115,9 @@ func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(
 		&opts, batches, sequence.CounterL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase,
 	)
 	if err != nil {
-		log.Debugf("Batches to send: %+v", batches)
-		log.Debug("l2CoinBase: ", sequence.L2Coinbase)
-		log.Debug("Sequencer address: ", opts.From)
+		t.logger.Debugf("Batches to send: %+v", batches)
+		t.logger.Debug("l2CoinBase: ", sequence.L2Coinbase)
+		t.logger.Debug("Sequencer address: ", opts.From)
 	}
 
 	return tx, err

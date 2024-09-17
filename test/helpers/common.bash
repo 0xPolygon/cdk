@@ -94,11 +94,14 @@ function sendTx() {
         return 1
     fi
 
+<<<<<<< HEAD
     # Check initial ether balance of sender and receiver
     local sender_initial_balance=$(rpcQuery "balance" "$senderAddr" "latest") || return 1
     local receiver_initial_balance=$(rpcQuery "balance" "$account_addr" "latest") || return 1
 
 
+=======
+>>>>>>> develop
     # Check if the first remaining argument is a numeric value (Ether to be transferred)
     if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
         # Case: EOA transaction (Ether transfer)
@@ -149,12 +152,15 @@ function sendTx() {
         return 1
     fi
 
+<<<<<<< HEAD
     checkTransactionSuccess "$senderAddr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
     if [[ $? -ne 0 ]]; then
         echo "Error: Balance not updated correctly."
         return 1
     fi
 
+=======
+>>>>>>> develop
     echo "Transaction successful (transaction hash: $tx_hash)"
 
     return 0
@@ -196,6 +202,7 @@ function queryContract() {
 
     return 0
 }
+<<<<<<< HEAD
 
 function rpcQuery() {
     local method="$1"     # The JSON-RPC method name
@@ -252,3 +259,5 @@ function checkTransactionSuccess() {
     # Asserts sender's balance change is equal to the value transferred plus the gas fee
     assert_equal "$sender_balance_change" "$(echo "$value_in_wei + $gas_fee" | bc)" "Error: sender balance updated incorrectly."
 }
+=======
+>>>>>>> develop

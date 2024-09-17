@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/etherman"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -31,6 +32,7 @@ func TestE2EL1toEVML2(t *testing.T) {
 	// start claim sponsor
 	dbPathClaimSponsor := t.TempDir()
 	claimer, err := claimsponsor.NewEVMClaimSponsor(
+		log.GetDefaultLogger(),
 		dbPathClaimSponsor,
 		env.L2Client.Client(),
 		env.BridgeL2Addr,
