@@ -38,7 +38,7 @@ func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (*rpcbatch.RPCBatch
 
 	// Check if the response is an error
 	if response.Error != nil {
-		return nil, fmt.Errorf("error in the response calling zkevm_getBatchByNumber: %w", response.Error)
+		return nil, fmt.Errorf("error in the response calling zkevm_getBatchByNumber: %v", response.Error)
 	}
 
 	// Get the batch number from the response hex string
