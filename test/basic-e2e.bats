@@ -99,7 +99,11 @@ setup() {
     assert_success
     local receiver_balance=$(echo "$output" | tail -n 1)
     local expected_balance=$(echo "$initial_receiver_balance + $wei_amount" |
-        bc | awk '{print $1}')
+        bc | sed 's/ .*//')
 
     assert_equal "$receiver_balance" "$expected_balance"
+
+    # TODO:
+    # Deposit
+    # Check whether native token balance on L2 has increased and send a dummy transaction
 }
