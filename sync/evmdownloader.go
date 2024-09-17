@@ -143,7 +143,9 @@ func NewEVMDownloaderImplementation(
 	}
 }
 
-func (d *EVMDownloaderImplementation) WaitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64) {
+func (d *EVMDownloaderImplementation) WaitForNewBlocks(
+	ctx context.Context, lastBlockSeen uint64,
+) (newLastBlock uint64) {
 	attempts := 0
 	ticker := time.NewTicker(d.waitForNewBlocksPeriod)
 	defer ticker.Stop()
@@ -175,8 +177,10 @@ func (d *EVMDownloaderImplementation) GetEventsByBlockRange(ctx context.Context,
 			b := d.GetBlockHeader(ctx, l.BlockNumber)
 			if b.Hash != l.BlockHash {
 				d.log.Infof(
-					"there has been a block hash change between the event query and the block query for block %d: %s vs %s. Retrtying.",
-					l.BlockNumber, b.Hash, l.BlockHash)
+					"there has been a block hash change between the event query and the block query "+
+						"for block %d: %s vs %s. Retrying.",
+					l.BlockNumber, b.Hash, l.BlockHash,
+				)
 				return d.GetEventsByBlockRange(ctx, fromBlock, toBlock)
 			}
 			blocks = append(blocks, EVMBlock{
@@ -242,7 +246,7 @@ func (d *EVMDownloaderImplementation) GetLogs(ctx context.Context, fromBlock, to
 func (d *EVMDownloaderImplementation) GetBlockHeader(ctx context.Context, blockNum uint64) EVMBlockHeader {
 	attempts := 0
 	for {
-		header, err := d.ethClient.HeaderByNumber(ctx, big.NewInt(int64(blockNum)))
+		header, err := d.ethClient.HeaderByNumber(ctx, new(big.Int).SetUint64(blockNum))
 		if err != nil {
 			attempts++
 			d.log.Errorf("error getting block header for block %d, err: %v", blockNum, err)

@@ -1,6 +1,6 @@
 package translator
 
-import "github.com/0xPolygonHermez/zkevm-synchronizer-l1/log"
+import "github.com/0xPolygon/cdk/log"
 
 type TranslatorFullMatchRule struct {
 	// If null match any context
@@ -21,7 +21,9 @@ func (t *TranslatorFullMatchRule) Translate(contextName string, data string) str
 	return t.NewString
 }
 
-func NewTranslatorFullMatchRule(contextName *string, fullMatchString string, newString string) *TranslatorFullMatchRule {
+func NewTranslatorFullMatchRule(
+	contextName *string, fullMatchString string, newString string,
+) *TranslatorFullMatchRule {
 	return &TranslatorFullMatchRule{
 		ContextName:     contextName,
 		FullMatchString: fullMatchString,
@@ -30,11 +32,13 @@ func NewTranslatorFullMatchRule(contextName *string, fullMatchString string, new
 }
 
 type TranslatorImpl struct {
+	logger         *log.Logger
 	FullMatchRules []TranslatorFullMatchRule
 }
 
-func NewTranslatorImpl() *TranslatorImpl {
+func NewTranslatorImpl(logger *log.Logger) *TranslatorImpl {
 	return &TranslatorImpl{
+		logger:         logger,
 		FullMatchRules: []TranslatorFullMatchRule{},
 	}
 }
@@ -43,7 +47,7 @@ func (t *TranslatorImpl) Translate(contextName string, data string) string {
 	for _, rule := range t.FullMatchRules {
 		if rule.Match(contextName, data) {
 			translated := rule.Translate(contextName, data)
-			log.Debugf("Translated (ctxName=%s) %s to %s", contextName, data, translated)
+			t.logger.Debugf("Translated (ctxName=%s) %s to %s", contextName, data, translated)
 			return translated
 		}
 	}
@@ -58,7 +62,8 @@ func (t *TranslatorImpl) AddConfigRules(cfg Config) {
 	for _, v := range cfg.FullMatchRules {
 		var contextName *string
 		if v.ContextName != "" {
-			contextName = &v.ContextName
+			name := v.ContextName
+			contextName = &name
 		}
 		rule := NewTranslatorFullMatchRule(contextName, v.Old, v.New)
 		t.AddRule(*rule)

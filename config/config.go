@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -40,7 +41,8 @@ const (
 	FlagComponents = "components"
 	// FlagHTTPAPI is the flag for http.api.
 	FlagHTTPAPI = "http.api"
-	// FlagKeyStorePath is the path of the key store file containing the private key of the account going to sing and approve the tokens
+	// FlagKeyStorePath is the path of the key store file containing the private key
+	// of the account going to sing and approve the tokens.
 	FlagKeyStorePath = "key-store-path"
 	// FlagPassword is the password needed to decrypt the key store
 	FlagPassword = "password"
@@ -118,10 +120,12 @@ func Default() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	err = viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
 	if err != nil {
 		return nil, err
 	}
+
 	return &cfg, nil
 }
 
@@ -131,6 +135,7 @@ func Load(ctx *cli.Context) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	configFilePath := ctx.String(FlagCfg)
 	if configFilePath != "" {
 		dirName, fileName := filepath.Split(configFilePath)
@@ -142,24 +147,32 @@ func Load(ctx *cli.Context) (*Config, error) {
 		viper.SetConfigName(fileNameWithoutExtension)
 		viper.SetConfigType(fileExtension)
 	}
+
 	viper.AutomaticEnv()
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
 	viper.SetEnvPrefix("CDK")
+
 	err = viper.ReadInConfig()
 	if err != nil {
-		_, ok := err.(viper.ConfigFileNotFoundError)
-		if ok {
-			log.Infof("config file not found")
+		var configNotFoundError viper.ConfigFileNotFoundError
+		if errors.As(err, &configNotFoundError) {
+			log.Error("config file not found")
 		} else {
-			log.Infof("error reading config file: ", err)
+			log.Errorf("error reading config file: ", err)
+
 			return nil, err
 		}
 	}
 
 	decodeHooks := []viper.DecoderConfigOption{
 		// this allows arrays to be decoded from env var separated by ",", example: MY_VAR="value1,value2,value3"
-		viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(mapstructure.TextUnmarshallerHookFunc(), mapstructure.StringToSliceHookFunc(","))),
+		viper.DecodeHook(
+			mapstructure.ComposeDecodeHookFunc(
+				mapstructure.TextUnmarshallerHookFunc(),
+				mapstructure.StringToSliceHookFunc(","),
+			),
+		),
 	}
 
 	err = viper.Unmarshal(&cfg, decodeHooks...)

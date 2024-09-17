@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -13,7 +14,7 @@ import (
 
 func TestElderberryBaseNewSequence(t *testing.T) {
 	opts := bind.TransactOpts{}
-	sut := NewTxBuilderElderberryBase(opts)
+	sut := NewTxBuilderElderberryBase(log.GetDefaultLogger(), opts)
 	require.NotNil(t, sut)
 	seq, err := sut.NewSequence(context.TODO(), nil, common.Address{})
 	require.NotNil(t, seq)
@@ -36,7 +37,6 @@ func TestElderberryBaseNewBatchFromL2Block(t *testing.T) {
 	require.Equal(t, l2Block.L1InfotreeIndex, batch.L1InfoTreeIndex())
 	require.Equal(t, common.BytesToAddress(l2Block.Coinbase), batch.LastCoinbase())
 	require.Equal(t, common.BytesToHash(l2Block.GlobalExitRoot), batch.GlobalExitRoot())
-
 }
 
 func TestElderberryBasegetLastSequencedBatchNumberEmpty(t *testing.T) {
@@ -92,8 +92,10 @@ func TestElderberryBaseGetLastSequencedBatchFirstBatchIsZeroThrowAPanic(t *testi
 }
 
 func newElderberryBaseSUT(t *testing.T) *TxBuilderElderberryBase {
+	t.Helper()
+
 	opts := bind.TransactOpts{}
-	sut := NewTxBuilderElderberryBase(opts)
+	sut := NewTxBuilderElderberryBase(log.GetDefaultLogger(), opts)
 	require.NotNil(t, sut)
 	return sut
 }

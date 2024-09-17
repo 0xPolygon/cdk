@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder/mocks_txbuilder"
@@ -15,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -43,8 +43,8 @@ func TestBananaZkevmBuildSequenceBatchesTxOk(t *testing.T) {
 	seq, err := newSequenceBananaZKEVMForTest(testData)
 	require.NoError(t, err)
 
-	inner := &ethtypes.LegacyTx{}
-	tx := ethtypes.NewTx(inner)
+	inner := &types.LegacyTx{}
+	tx := types.NewTx(inner)
 
 	// It check that SequenceBatches is not going to be send
 	testData.rollupContract.EXPECT().SequenceBatches(mock.MatchedBy(func(opts *bind.TransactOpts) bool {
@@ -82,6 +82,8 @@ type testDataBananaZKEVM struct {
 }
 
 func newBananaZKEVMTestData(t *testing.T, maxTxSizeForL1 uint64) *testDataBananaZKEVM {
+	t.Helper()
+
 	zkevmContractMock := mocks_txbuilder.NewRollupBananaZKEVMContractor(t)
 	gerContractMock := mocks_txbuilder.NewGlobalExitRootBananaContractor(t)
 	condMock := mocks_txbuilder.NewCondNewSequence(t)
@@ -89,6 +91,7 @@ func newBananaZKEVMTestData(t *testing.T, maxTxSizeForL1 uint64) *testDataBanana
 	l1Client := mocks_txbuilder.NewL1Client(t)
 	l1InfoSyncer := mocks_txbuilder.NewL1InfoSyncer(t)
 	sut := txbuilder.NewTxBuilderBananaZKEVM(
+		log.GetDefaultLogger(),
 		zkevmContractMock,
 		gerContractMock,
 		opts,

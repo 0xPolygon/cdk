@@ -2,6 +2,7 @@ package lastgersync
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -45,6 +46,7 @@ func newDownloader(
 	if err != nil {
 		return nil, err
 	}
+
 	return &downloader{
 		EVMDownloaderImplementation: sync.NewEVMDownloaderImplementation(
 			"lastgersync", l2Client, blockFinality, waitForNewBlocksPeriod, nil, nil, nil, rh,
@@ -65,14 +67,16 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 	)
 	for {
 		lastIndex, err = d.processor.getLastIndex(ctx)
-		if err == ErrNotFound {
+		if errors.Is(err, ErrNotFound) {
 			lastIndex = 0
 		} else if err != nil {
 			log.Errorf("error getting last indes: %v", err)
 			attempts++
 			d.rh.Handle("getLastIndex", attempts)
+
 			continue
 		}
+
 		break
 	}
 	for {
@@ -80,6 +84,7 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 		case <-ctx.Done():
 			log.Debug("closing channel")
 			close(downloadedCh)
+
 			return
 		default:
 		}
@@ -93,12 +98,13 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 				log.Errorf("error getting GERs: %v", err)
 				attempts++
 				d.rh.Handle("getGERsFromIndex", attempts)
+
 				continue
 			}
+
 			break
 		}
 
-		attempts = 0
 		blockHeader := d.GetBlockHeader(ctx, lastBlock)
 		block := &sync.EVMBlock{
 			EVMBlockHeader: sync.EVMBlockHeader{
@@ -111,26 +117,30 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 		d.setGreatestGERInjectedFromList(block, gers)
 
 		downloadedCh <- *block
-		if block.Events != nil {
-			lastIndex = block.Events[0].(Event).L1InfoTreeIndex
+		if len(block.Events) > 0 {
+			event, ok := block.Events[0].(Event)
+			if !ok {
+				log.Errorf("unexpected type %T in events", block.Events[0])
+			}
+			lastIndex = event.L1InfoTreeIndex
 		}
 	}
 }
 
 func (d *downloader) getGERsFromIndex(ctx context.Context, fromL1InfoTreeIndex uint32) ([]Event, error) {
-	lastIndex, _, err := d.l1InfoTreesync.GetLastL1InfoTreeRootAndIndex(ctx)
-	if err == tree.ErrNotFound {
+	lastRoot, err := d.l1InfoTreesync.GetLastL1InfoTreeRoot(ctx)
+	if errors.Is(err, tree.ErrNotFound) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error calling GetLastL1InfoTreeRootAndIndex: %v", err)
+		return nil, fmt.Errorf("error calling GetLastL1InfoTreeRoot: %w", err)
 	}
 
 	gers := []Event{}
-	for i := fromL1InfoTreeIndex; i <= lastIndex; i++ {
+	for i := fromL1InfoTreeIndex; i <= lastRoot.Index; i++ {
 		info, err := d.l1InfoTreesync.GetInfoByIndex(ctx, i)
 		if err != nil {
-			return nil, fmt.Errorf("error calling GetInfoByIndex: %v", err)
+			return nil, fmt.Errorf("error calling GetInfoByIndex: %w", err)
 		}
 		gers = append(gers, Event{
 			L1InfoTreeIndex: i,
@@ -155,11 +165,13 @@ func (d *downloader) setGreatestGERInjectedFromList(b *sync.EVMBlock, list []Eve
 					event.GlobalExitRoot.Hex(), err,
 				)
 				d.rh.Handle("GlobalExitRootMap", attempts)
+
 				continue
 			}
 			if timestamp.Cmp(big.NewInt(0)) == 1 {
 				b.Events = []interface{}{event}
 			}
+
 			break
 		}
 	}

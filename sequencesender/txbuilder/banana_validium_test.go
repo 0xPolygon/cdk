@@ -9,6 +9,7 @@ import (
 
 	"github.com/0xPolygon/cdk/dataavailability/mocks_da"
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder/mocks_txbuilder"
@@ -16,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -45,7 +45,6 @@ func TestBananaValidiumBuildSequenceBatchesTxSequenceErrorsFromDA(t *testing.T) 
 	testData.da.EXPECT().PostSequenceBanana(ctx, mock.Anything).Return(nil, fmt.Errorf("test error"))
 	_, err = testData.sut.BuildSequenceBatchesTx(ctx, seq)
 	require.Error(t, err, "error posting sequences to the data availability protocol: test error")
-
 }
 
 func TestBananaValidiumBuildSequenceBatchesTxSequenceDAOk(t *testing.T) {
@@ -59,8 +58,8 @@ func TestBananaValidiumBuildSequenceBatchesTxSequenceDAOk(t *testing.T) {
 	ctx := context.TODO()
 	daMessage := []byte{1}
 	testData.da.EXPECT().PostSequenceBanana(ctx, mock.Anything).Return(daMessage, nil)
-	inner := &ethtypes.LegacyTx{}
-	seqBatchesTx := ethtypes.NewTx(inner)
+	inner := &types.LegacyTx{}
+	seqBatchesTx := types.NewTx(inner)
 	testData.rollupContract.EXPECT().SequenceBatchesValidium(mock.MatchedBy(func(opts *bind.TransactOpts) bool {
 		return opts.NoSend == true
 	}), mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, daMessage).Return(seqBatchesTx, nil).Once()
@@ -81,6 +80,8 @@ type testDataBananaValidium struct {
 }
 
 func newBananaValidiumTestData(t *testing.T, maxBatchesForL1 uint64) *testDataBananaValidium {
+	t.Helper()
+
 	zkevmContractMock := mocks_txbuilder.NewRollupBananaValidiumContractor(t)
 	gerContractMock := mocks_txbuilder.NewGlobalExitRootBananaContractor(t)
 	condMock := mocks_txbuilder.NewCondNewSequence(t)
@@ -90,6 +91,7 @@ func newBananaValidiumTestData(t *testing.T, maxBatchesForL1 uint64) *testDataBa
 
 	opts := bind.TransactOpts{}
 	sut := txbuilder.NewTxBuilderBananaValidium(
+		log.GetDefaultLogger(),
 		zkevmContractMock,
 		gerContractMock,
 		daMock,

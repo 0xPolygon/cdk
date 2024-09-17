@@ -75,7 +75,7 @@ reset:
 		lastProcessedBlock, err = d.processor.GetLastProcessedBlock(ctx)
 		if err != nil {
 			attempts++
-			d.log.Error("error geting last processed block: ", err)
+			d.log.Error("error getting last processed block: ", err)
 			d.rh.Handle("Sync", attempts)
 			continue
 		}
@@ -122,7 +122,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
 		err := d.processor.ProcessBlock(ctx, blockToProcess)
 		if err != nil {
 			attempts++
-			d.log.Errorf("error processing events for blcok %d, err: ", b.Num, err)
+			d.log.Errorf("error processing events for block %d, err: ", b.Num, err)
 			d.rh.Handle("handleNewBlock", attempts)
 			continue
 		}

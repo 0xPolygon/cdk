@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder/mocks_txbuilder"
@@ -31,7 +32,7 @@ func TestBananaBaseNewSequenceEmpty(t *testing.T) {
 	require.NotNil(t, seq)
 	require.NoError(t, err)
 	// TODO check values
-	//require.Equal(t, lastAcc, seq.LastAccInputHash())
+	// require.Equal(t, lastAcc, seq.LastAccInputHash())
 }
 
 func TestBananaBaseNewBatchFromL2Block(t *testing.T) {
@@ -88,12 +89,15 @@ type testDataBananaBase struct {
 }
 
 func newBananaBaseTestData(t *testing.T) *testDataBananaBase {
+	t.Helper()
+
 	zkevmContractMock := mocks_txbuilder.NewRollupBananaBaseContractor(t)
 	gerContractMock := mocks_txbuilder.NewGlobalExitRootBananaContractor(t)
 	opts := bind.TransactOpts{}
 	l1Client := mocks_txbuilder.NewL1Client(t)
 	l1InfoSyncer := mocks_txbuilder.NewL1InfoSyncer(t)
 	sut := txbuilder.NewTxBuilderBananaBase(
+		log.GetDefaultLogger(),
 		zkevmContractMock,
 		gerContractMock,
 		l1InfoSyncer, l1Client, big.NewInt(0), opts,

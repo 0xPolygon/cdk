@@ -4,6 +4,7 @@ import (
 	"os"
 
 	zkevm "github.com/0xPolygon/cdk"
+	"github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/config"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/urfave/cli/v2"
@@ -12,19 +13,8 @@ import (
 const appName = "cdk"
 
 const (
-	// SEQUENCE_SENDER name to identify the sequence-sender component
-	SEQUENCE_SENDER = "sequence-sender"
-	// AGGREGATOR name to identify the aggregator component
-	AGGREGATOR = "aggregator"
-	// AGGORACLE name to identify the aggoracle component
-	AGGORACLE = "aggoracle"
-	// RPC name to identify the rpc component
-	RPC = "rpc"
-)
-
-const (
-	// NETWORK_CONFIGFILE name to identify the netowk_custom (genesis) config-file
-	NETWORK_CONFIGFILE = "custom_network"
+	// NETWORK_CONFIGFILE name to identify the network_custom (genesis) config-file
+	NETWORK_CONFIGFILE = "custom_network" //nolint:stylecheck
 )
 
 var (
@@ -51,7 +41,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(SEQUENCE_SENDER, AGGREGATOR, AGGORACLE, RPC),
+		Value:    cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR, common.AGGORACLE, common.RPC),
 	}
 )
 

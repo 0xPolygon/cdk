@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"path"
 	"testing"
 	"time"
 
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/etherman"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -21,7 +23,7 @@ func TestE2EL1toEVML2(t *testing.T) {
 	// start other needed components
 	ctx := context.Background()
 	env := helpers.SetupAggoracleWithEVMChain(t)
-	dbPathBridgeSyncL1 := t.TempDir()
+	dbPathBridgeSyncL1 := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	testClient := helpers.TestClient{ClientRenamed: env.L1Client.Client()}
 	bridgeSyncL1, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, env.BridgeL1Addr, 10, etherman.LatestBlock, env.ReorgDetector, testClient, 0, time.Millisecond*10, 0, 0)
 	require.NoError(t, err)
@@ -30,6 +32,7 @@ func TestE2EL1toEVML2(t *testing.T) {
 	// start claim sponsor
 	dbPathClaimSponsor := t.TempDir()
 	claimer, err := claimsponsor.NewEVMClaimSponsor(
+		log.GetDefaultLogger(),
 		dbPathClaimSponsor,
 		env.L2Client.Client(),
 		env.BridgeL2Addr,
@@ -92,6 +95,7 @@ func TestE2EL1toEVML2(t *testing.T) {
 				require.NoError(t, errors.New("claim failed"))
 			} else if claim.Status == claimsponsor.SuccessClaimStatus {
 				succeed = true
+
 				break
 			}
 			time.Sleep(100 * time.Millisecond)

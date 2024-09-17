@@ -53,7 +53,7 @@ func DecodeHex(str string) ([]byte, error) {
 func MustDecodeHex(str string) []byte {
 	buf, err := DecodeHex(str)
 	if err != nil {
-		panic(fmt.Errorf("could not decode hex: %v", err))
+		panic(fmt.Errorf("could not decode hex: %w", err))
 	}
 
 	return buf
@@ -62,13 +62,15 @@ func MustDecodeHex(str string) []byte {
 // DecodeUint64 type-checks and converts a hex string to a uint64
 func DecodeUint64(str string) uint64 {
 	i := DecodeBig(str)
+
 	return i.Uint64()
 }
 
 // EncodeUint64 encodes a number as a hex string with 0x prefix.
 func EncodeUint64(i uint64) string {
-	enc := make([]byte, 2, 10) //nolint:gomnd
+	enc := make([]byte, 2, 10) //nolint:mnd
 	copy(enc, "0x")
+
 	return string(strconv.AppendUint(enc, i, Base))
 }
 
@@ -81,9 +83,9 @@ func DecodeNibble(in byte) uint64 {
 	case in >= '0' && in <= '9':
 		return uint64(in - '0')
 	case in >= 'A' && in <= 'F':
-		return uint64(in - 'A' + 10) //nolint:gomnd
+		return uint64(in - 'A' + 10) //nolint:mnd
 	case in >= 'a' && in <= 'f':
-		return uint64(in - 'a' + 10) //nolint:gomnd
+		return uint64(in - 'a' + 10) //nolint:mnd
 	default:
 		return BadNibble
 	}
@@ -117,5 +119,6 @@ func IsValid(s string) bool {
 			return false
 		}
 	}
+
 	return true
 }

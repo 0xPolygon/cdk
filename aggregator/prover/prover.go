@@ -23,17 +23,18 @@ const (
 )
 
 var (
-	ErrBadProverResponse    = errors.New("Prover returned wrong type for response")  //nolint:revive
-	ErrProverInternalError  = errors.New("Prover returned INTERNAL_ERROR response")  //nolint:revive
-	ErrProverCompletedError = errors.New("Prover returned COMPLETED_ERROR response") //nolint:revive
-	ErrBadRequest           = errors.New("Prover returned ERROR for a bad request")  //nolint:revive
-	ErrUnspecified          = errors.New("Prover returned an UNSPECIFIED response")  //nolint:revive
-	ErrUnknown              = errors.New("Prover returned an unknown response")      //nolint:revive
-	ErrProofCanceled        = errors.New("Proof has been canceled")                  //nolint:revive
+	ErrBadProverResponse    = errors.New("prover returned wrong type for response")  //nolint:revive
+	ErrProverInternalError  = errors.New("prover returned INTERNAL_ERROR response")  //nolint:revive
+	ErrProverCompletedError = errors.New("prover returned COMPLETED_ERROR response") //nolint:revive
+	ErrBadRequest           = errors.New("prover returned ERROR for a bad request")  //nolint:revive
+	ErrUnspecified          = errors.New("prover returned an UNSPECIFIED response")  //nolint:revive
+	ErrUnknown              = errors.New("prover returned an unknown response")      //nolint:revive
+	ErrProofCanceled        = errors.New("proof has been canceled")                  //nolint:revive
 )
 
 // Prover abstraction of the grpc prover client.
 type Prover struct {
+	logger                    *log.Logger
 	name                      string
 	id                        string
 	address                   net.Addr
@@ -42,18 +43,22 @@ type Prover struct {
 }
 
 // New returns a new Prover instance.
-func New(stream AggregatorService_ChannelServer, addr net.Addr, proofStatePollingInterval types.Duration) (*Prover, error) {
+func New(logger *log.Logger, stream AggregatorService_ChannelServer,
+	addr net.Addr, proofStatePollingInterval types.Duration) (*Prover, error) {
 	p := &Prover{
+		logger:                    logger,
 		stream:                    stream,
 		address:                   addr,
 		proofStatePollingInterval: proofStatePollingInterval,
 	}
+
 	status, err := p.Status()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve prover id %w", err)
+		return nil, fmt.Errorf("failed to retrieve prover id %w", err)
 	}
 	p.name = status.ProverName
 	p.id = status.ProverId
+
 	return p, nil
 }
 
@@ -68,6 +73,7 @@ func (p *Prover) Addr() string {
 	if p.address == nil {
 		return ""
 	}
+
 	return p.address.String()
 }
 
@@ -85,6 +91,7 @@ func (p *Prover) Status() (*GetStatusResponse, error) {
 	if msg, ok := res.Response.(*ProverMessage_GetStatusResponse); ok {
 		return msg.GetStatusResponse, nil
 	}
+
 	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &ProverMessage_GetStatusResponse{}, res.Response)
 }
 
@@ -94,6 +101,7 @@ func (p *Prover) IsIdle() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	return status.Status == GetStatusResponse_STATUS_IDLE, nil
 }
 
@@ -101,11 +109,11 @@ func (p *Prover) IsIdle() (bool, error) {
 func (p *Prover) SupportsForkID(forkID uint64) bool {
 	status, err := p.Status()
 	if err != nil {
-		log.Warnf("Error asking status for prover ID %s: %v", p.ID(), err)
+		p.logger.Warnf("Error asking status for prover ID %s: %v", p.ID(), err)
 		return false
 	}
 
-	log.Debugf("Prover %s supports fork ID %d", p.ID(), status.ForkId)
+	p.logger.Debugf("Prover %s supports fork ID %d", p.ID(), status.ForkId)
 
 	return status.ForkId == forkID
 }
@@ -126,19 +134,34 @@ func (p *Prover) BatchProof(input *StatelessInputProver) (*string, error) {
 	if msg, ok := res.Response.(*ProverMessage_GenBatchProofResponse); ok {
 		switch msg.GenBatchProofResponse.Result {
 		case Result_RESULT_UNSPECIFIED:
-			return nil, fmt.Errorf("failed to generate proof %s, %w, input %v", msg.GenBatchProofResponse.String(), ErrUnspecified, input)
+			return nil, fmt.Errorf(
+				"failed to generate proof %s, %w, input %v",
+				msg.GenBatchProofResponse.String(), ErrUnspecified, input,
+			)
 		case Result_RESULT_OK:
 			return &msg.GenBatchProofResponse.Id, nil
 		case Result_RESULT_ERROR:
-			return nil, fmt.Errorf("failed to generate proof %s, %w, input %v", msg.GenBatchProofResponse.String(), ErrBadRequest, input)
+			return nil, fmt.Errorf(
+				"failed to generate proof %s, %w, input %v",
+				msg.GenBatchProofResponse.String(), ErrBadRequest, input,
+			)
 		case Result_RESULT_INTERNAL_ERROR:
-			return nil, fmt.Errorf("failed to generate proof %s, %w, input %v", msg.GenBatchProofResponse.String(), ErrProverInternalError, input)
+			return nil, fmt.Errorf(
+				"failed to generate proof %s, %w, input %v",
+				msg.GenBatchProofResponse.String(), ErrProverInternalError, input,
+			)
 		default:
-			return nil, fmt.Errorf("failed to generate proof %s, %w,input %v", msg.GenBatchProofResponse.String(), ErrUnknown, input)
+			return nil, fmt.Errorf(
+				"failed to generate proof %s, %w,input %v",
+				msg.GenBatchProofResponse.String(), ErrUnknown, input,
+			)
 		}
 	}
 
-	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &ProverMessage_GenBatchProofResponse{}, res.Response)
+	return nil, fmt.Errorf(
+		"%w, wanted %T, got %T",
+		ErrBadProverResponse, &ProverMessage_GenBatchProofResponse{}, res.Response,
+	)
 }
 
 // AggregatedProof instructs the prover to generate an aggregated proof from
@@ -176,7 +199,10 @@ func (p *Prover) AggregatedProof(inputProof1, inputProof2 string) (*string, erro
 		}
 	}
 
-	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &ProverMessage_GenAggregatedProofResponse{}, res.Response)
+	return nil, fmt.Errorf(
+		"%w, wanted %T, got %T",
+		ErrBadProverResponse, &ProverMessage_GenAggregatedProofResponse{}, res.Response,
+	)
 }
 
 // FinalProof instructs the prover to generate a final proof for the given
@@ -213,7 +239,11 @@ func (p *Prover) FinalProof(inputProof string, aggregatorAddr string) (*string, 
 				msg.GenFinalProofResponse.String(), ErrUnknown, inputProof)
 		}
 	}
-	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &ProverMessage_GenFinalProofResponse{}, res.Response)
+
+	return nil, fmt.Errorf(
+		"%w, wanted %T, got %T",
+		ErrBadProverResponse, &ProverMessage_GenFinalProofResponse{}, res.Response,
+	)
 }
 
 // CancelProofRequest asks the prover to stop the generation of the proof
@@ -246,6 +276,7 @@ func (p *Prover) CancelProofRequest(proofID string) error {
 				proofID, ErrUnknown, msg.CancelResponse.String())
 		}
 	}
+
 	return fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &ProverMessage_CancelResponse{}, res.Response)
 }
 
@@ -257,15 +288,21 @@ func (p *Prover) WaitRecursiveProof(ctx context.Context, proofID string) (string
 		return "", common.Hash{}, err
 	}
 
-	resProof := res.Proof.(*GetProofResponse_RecursiveProof)
+	resProof, ok := res.Proof.(*GetProofResponse_RecursiveProof)
+	if !ok {
+		return "", common.Hash{}, fmt.Errorf(
+			"%w, wanted %T, got %T",
+			ErrBadProverResponse, &GetProofResponse_RecursiveProof{}, res.Proof,
+		)
+	}
 
-	sr, err := GetStateRootFromProof(resProof.RecursiveProof)
+	sr, err := GetStateRootFromProof(p.logger, resProof.RecursiveProof)
 	if err != nil && sr != (common.Hash{}) {
-		log.Errorf("Error getting state root from proof: %v", err)
+		p.logger.Errorf("Error getting state root from proof: %v", err)
 	}
 
 	if sr == (common.Hash{}) {
-		log.Info("Recursive proof does not contain state root. Possibly mock prover is in use.")
+		p.logger.Info("Recursive proof does not contain state root. Possibly mock prover is in use.")
 	}
 
 	return resProof.RecursiveProof, sr, nil
@@ -278,7 +315,11 @@ func (p *Prover) WaitFinalProof(ctx context.Context, proofID string) (*FinalProo
 	if err != nil {
 		return nil, err
 	}
-	resProof := res.Proof.(*GetProofResponse_FinalProof)
+	resProof, ok := res.Proof.(*GetProofResponse_FinalProof)
+	if !ok {
+		return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &GetProofResponse_FinalProof{}, res.Proof)
+	}
+
 	return resProof.FinalProof, nil
 }
 
@@ -307,6 +348,7 @@ func (p *Prover) waitProof(ctx context.Context, proofID string) (*GetProofRespon
 				switch msg.GetProofResponse.Result {
 				case GetProofResponse_RESULT_PENDING:
 					time.Sleep(p.proofStatePollingInterval.Duration)
+
 					continue
 				case GetProofResponse_RESULT_UNSPECIFIED:
 					return nil, fmt.Errorf("failed to get proof ID: %s, %w, prover response: %s",
@@ -330,7 +372,11 @@ func (p *Prover) waitProof(ctx context.Context, proofID string) (*GetProofRespon
 						proofID, ErrUnknown, msg.GetProofResponse.String())
 				}
 			}
-			return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &ProverMessage_GetProofResponse{}, res.Response)
+
+			return nil, fmt.Errorf(
+				"%w, wanted %T, got %T",
+				ErrBadProverResponse, &ProverMessage_GetProofResponse{}, res.Response,
+			)
 		}
 	}
 }
@@ -345,13 +391,14 @@ func (p *Prover) call(req *AggregatorMessage) (*ProverMessage, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return res, nil
 }
 
 // GetStateRootFromProof returns the state root from the proof.
-func GetStateRootFromProof(proof string) (common.Hash, error) {
+func GetStateRootFromProof(logger *log.Logger, proof string) (common.Hash, error) {
 	// Log received proof
-	log.Debugf("Received proof to get SR from: %s", proof)
+	logger.Debugf("Received proof to get SR from: %s", proof)
 
 	type Publics struct {
 		Publics []string `mapstructure:"publics"`
@@ -365,16 +412,18 @@ func GetStateRootFromProof(proof string) (common.Hash, error) {
 	var publics Publics
 	err := json.Unmarshal([]byte(proof), &publics)
 	if err != nil {
-		log.Errorf("Error unmarshalling proof: %v", err)
+		logger.Errorf("Error unmarshalling proof: %v", err)
 		return common.Hash{}, err
 	}
 
-	var v [8]uint64
-	var j = 0
+	var (
+		v [8]uint64
+		j = 0
+	)
 	for i := stateRootStartIndex; i < stateRootFinalIndex; i++ {
 		u64, err := strconv.ParseInt(publics.Publics[i], 10, 64)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
 		v[j] = uint64(u64)
 		j++
@@ -394,12 +443,13 @@ func fea2scalar(v []uint64) *big.Int {
 		return big.NewInt(0)
 	}
 	res := new(big.Int).SetUint64(v[0])
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[1]), 32))  //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[2]), 64))  //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[3]), 96))  //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[4]), 128)) //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[5]), 160)) //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[6]), 192)) //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[7]), 224)) //nolint:gomnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[1]), 32))  //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[2]), 64))  //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[3]), 96))  //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[4]), 128)) //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[5]), 160)) //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[6]), 192)) //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[7]), 224)) //nolint:mnd
+
 	return res
 }

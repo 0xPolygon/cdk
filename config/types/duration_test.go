@@ -43,7 +43,7 @@ func TestDurationUnmarshal(t *testing.T) {
 			err = json.Unmarshal(input, &d)
 
 			if testCase.expectedResult != nil {
-				require.Equal(t, (*testCase.expectedResult).Nanoseconds(), d.Nanoseconds())
+				require.Equal(t, testCase.expectedResult.Nanoseconds(), d.Nanoseconds())
 			}
 
 			if err != nil {

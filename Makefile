@@ -20,15 +20,6 @@ LDFLAGS += -X 'github.com/0xPolygon/cdk.GitRev=$(GITREV)'
 LDFLAGS += -X 'github.com/0xPolygon/cdk.GitBranch=$(GITBRANCH)'
 LDFLAGS += -X 'github.com/0xPolygon/cdk.BuildDate=$(DATE)'
 
-# Variables
-VENV           = .venv
-VENV_PYTHON    = $(VENV)/bin/python
-SYSTEM_PYTHON  = $(or $(shell which python3), $(shell which python))
-PYTHON         = $(or $(wildcard $(VENV_PYTHON)), "install_first_venv")
-GENERATE_SCHEMA_DOC = $(VENV)/bin/generate-schema-doc
-GENERATE_DOC_PATH   = "docs/config-file/"
-GENERATE_DOC_TEMPLATES_PATH = "docs/config-file/templates/"
-
 # Check dependencies
 # Check for Go
 .PHONY: check-go
@@ -80,28 +71,17 @@ build-docker-nc: ## Builds a docker image with the cdk binary - but without buil
 stop: ## Stops all services
 	docker-compose down
 
-.PHONY: test
-test:
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -covermode=atomic -coverprofile=../coverage.out  -coverpkg ./... -timeout 200s ./...
+.PHONY: test-unit
+test-unit:
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -covermode=atomic -coverprofile=coverage.out  -coverpkg ./... -timeout 200s ./...
 
 .PHONY: test-seq_sender
 test-seq_sender:
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1  -covermode=atomic -coverprofile=../coverage.out   -timeout 200s ./sequencesender/...
-	
-
-.PHONY: install-linter
-install-linter: ## Installs the linter
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.54.2
 
 .PHONY: lint
 lint: ## Runs the linter
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run
-
-$(VENV_PYTHON):
-	rm -rf $(VENV)
-	$(SYSTEM_PYTHON) -m venv $(VENV)
-
-venv: $(VENV_PYTHON)
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/golangci-lint run --timeout 5m
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files

@@ -2,7 +2,6 @@ package datacommittee
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -84,6 +83,7 @@ func newTestingEnv(t *testing.T) (
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	return dac, ethBackend, auth, da
 }
 
@@ -101,14 +101,14 @@ func newSimulatedDacman(t *testing.T, auth *bind.TransactOpts) (
 		return &Backend{}, nil, nil, nil
 	}
 	// 10000000 ETH in wei
-	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10) //nolint:gomnd
+	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10)
 	address := auth.From
 	genesisAlloc := map[common.Address]types.Account{
 		address: {
 			Balance: balance,
 		},
 	}
-	blockGasLimit := uint64(999999999999999999) //nolint:gomnd
+	blockGasLimit := uint64(999999999999999999)
 	client := simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
 
 	// DAC Setup
@@ -137,6 +137,7 @@ func newSimulatedDacman(t *testing.T, auth *bind.TransactOpts) (
 	c := &Backend{
 		dataCommitteeContract: da,
 	}
+
 	return c, client, da, nil
 }
 
@@ -162,7 +163,8 @@ func deployDACProxy(auth *bind.TransactOpts, client bind.ContractBackend, dacImp
 	if err != nil {
 		return common.Address{}, err
 	}
-	fmt.Println("DAC proxy deployed at", proxyAddr)
+	log.Debugf("DAC proxy deployed at", proxyAddr)
+
 	return proxyAddr, nil
 }
 
@@ -176,5 +178,6 @@ func deployProxy(auth *bind.TransactOpts,
 		implementationAddr,
 		initializeParams,
 	)
+
 	return addr, err
 }

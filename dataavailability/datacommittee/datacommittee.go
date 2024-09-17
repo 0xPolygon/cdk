@@ -2,10 +2,10 @@ package datacommittee
 
 import (
 	"crypto/ecdsa"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"math/big"
-	"math/rand"
 	"sort"
 	"strings"
 
@@ -42,6 +42,7 @@ type DataCommittee struct {
 
 // Backend implements the DAC integration
 type Backend struct {
+	logger                     *log.Logger
 	dataCommitteeContract      *polygondatacommittee.Polygondatacommittee
 	privKey                    *ecdsa.PrivateKey
 	dataCommitteeClientFactory client.Factory
@@ -54,6 +55,7 @@ type Backend struct {
 
 // New creates an instance of Backend
 func New(
+	logger *log.Logger,
 	l1RPCURL string,
 	dataCommitteeAddr common.Address,
 	privKey *ecdsa.PrivateKey,
@@ -62,7 +64,7 @@ func New(
 ) (*Backend, error) {
 	ethClient, err := ethclient.Dial(l1RPCURL)
 	if err != nil {
-		log.Errorf("error connecting to %s: %+v", l1RPCURL, err)
+		logger.Errorf("error connecting to %s: %+v", l1RPCURL, err)
 		return nil, err
 	}
 
@@ -72,6 +74,7 @@ func New(
 	}
 
 	return &Backend{
+		logger:                     logger,
 		dataCommitteeContract:      dataCommittee,
 		privKey:                    privKey,
 		dataCommitteeClientFactory: dataCommitteeClientFactory,
@@ -90,17 +93,22 @@ func (d *Backend) Init() error {
 	if committee != nil {
 		d.committeeMembers = committee.Members
 		if len(committee.Members) > 0 {
-			selectedCommitteeMember = rand.Intn(len(committee.Members)) //nolint:gosec
+			nBig, err := rand.Int(rand.Reader, big.NewInt(int64(len(committee.Members))))
+			if err != nil {
+				return err
+			}
+			selectedCommitteeMember = int(nBig.Int64())
 		}
 	}
 	d.selectedCommitteeMember = selectedCommitteeMember
+
 	return nil
 }
 
 // GetSequence gets backend data one hash at a time. This should be optimized on the DAC side to get them all at once.
 func (d *Backend) GetSequence(_ context.Context, hashes []common.Hash, _ []byte) ([][]byte, error) {
 	// TODO: optimize this on the DAC side by implementing a multi batch retrieve api)
-	var batchData [][]byte
+	batchData := make([][]byte, 0, len(hashes))
 	for _, h := range hashes {
 		data, err := d.GetBatchL2Data(h)
 		if err != nil {
@@ -108,6 +116,7 @@ func (d *Backend) GetSequence(_ context.Context, hashes []common.Hash, _ []byte)
 		}
 		batchData = append(batchData, data)
 	}
+
 	return batchData, nil
 }
 
@@ -117,11 +126,11 @@ func (d *Backend) GetBatchL2Data(hash common.Hash) ([]byte, error) {
 	found := false
 	for !found && intialMember != -1 {
 		member := d.committeeMembers[d.selectedCommitteeMember]
-		log.Infof("trying to get data from %s at %s", member.Addr.Hex(), member.URL)
+		d.logger.Infof("trying to get data from %s at %s", member.Addr.Hex(), member.URL)
 		c := d.dataCommitteeClientFactory.New(member.URL)
 		data, err := c.GetOffChainData(d.ctx, hash)
 		if err != nil {
-			log.Warnf(
+			d.logger.Warnf(
 				"error getting data from DAC node %s at %s: %s",
 				member.Addr.Hex(), member.URL, err,
 			)
@@ -129,6 +138,7 @@ func (d *Backend) GetBatchL2Data(hash common.Hash) ([]byte, error) {
 			if d.selectedCommitteeMember == intialMember {
 				break
 			}
+
 			continue
 		}
 		actualTransactionsHash := crypto.Keccak256Hash(data)
@@ -136,7 +146,7 @@ func (d *Backend) GetBatchL2Data(hash common.Hash) ([]byte, error) {
 			unexpectedHash := fmt.Errorf(
 				unexpectedHashTemplate, hash, actualTransactionsHash,
 			)
-			log.Warnf(
+			d.logger.Warnf(
 				"error getting data from DAC node %s at %s: %s",
 				member.Addr.Hex(), member.URL, unexpectedHash,
 			)
@@ -144,13 +154,16 @@ func (d *Backend) GetBatchL2Data(hash common.Hash) ([]byte, error) {
 			if d.selectedCommitteeMember == intialMember {
 				break
 			}
+
 			continue
 		}
+
 		return data, nil
 	}
 	if err := d.Init(); err != nil {
-		return nil, fmt.Errorf("error loading data committee: %s", err)
+		return nil, fmt.Errorf("error loading data committee: %w", err)
 	}
+
 	return nil, fmt.Errorf("couldn't get the data from any committee member")
 }
 
@@ -160,6 +173,7 @@ type signatureMsg struct {
 	err       error
 }
 
+// PostSequenceElderberry submits batches and collects signatures from committee members.
 func (d *Backend) PostSequenceElderberry(ctx context.Context, batchesData [][]byte) ([]byte, error) {
 	// Get current committee
 	committee, err := d.getCurrentDataCommittee()
@@ -185,12 +199,13 @@ func (d *Backend) PostSequenceElderberry(ctx context.Context, batchesData [][]by
 			Sequence:  sequence,
 			Signature: signedSequence,
 		}
-		go requestSignatureFromMember(signatureCtx, &signedSequenceElderberry,
+		go d.requestSignatureFromMember(signatureCtx, &signedSequenceElderberry,
 			func(c client.Client) ([]byte, error) { return c.SignSequence(ctx, signedSequenceElderberry) }, member, ch)
 	}
-	return collectSignatures(committee, ch, cancelSignatureCollection)
+	return d.collectSignatures(committee, ch, cancelSignatureCollection)
 }
 
+// PostSequenceBanana submits a sequence to the data committee and collects the signed response from them.
 func (d *Backend) PostSequenceBanana(ctx context.Context, sequence etherman.SequenceBanana) ([]byte, error) {
 	// Get current committee
 	committee, err := d.getCurrentDataCommittee()
@@ -236,16 +251,17 @@ func (d *Backend) PostSequenceBanana(ctx context.Context, sequence etherman.Sequ
 			Sequence:  sequenceBanana,
 			Signature: signature,
 		}
-		go requestSignatureFromMember(signatureCtx,
+		go d.requestSignatureFromMember(signatureCtx,
 			&signedSequenceBanana,
 			func(c client.Client) ([]byte, error) { return c.SignSequenceBanana(ctx, signedSequenceBanana) },
 			member, ch)
 	}
 
-	return collectSignatures(committee, ch, cancelSignatureCollection)
+	return d.collectSignatures(committee, ch, cancelSignatureCollection)
 }
 
-func collectSignatures(committee *DataCommittee, ch chan signatureMsg, cancelSignatureCollection context.CancelFunc) ([]byte, error) {
+func (d *Backend) collectSignatures(
+	committee *DataCommittee, ch chan signatureMsg, cancelSignatureCollection context.CancelFunc) ([]byte, error) {
 	// Collect signatures
 	// Stop requesting as soon as we have N valid signatures
 	var (
@@ -256,14 +272,15 @@ func collectSignatures(committee *DataCommittee, ch chan signatureMsg, cancelSig
 	for collectedSignatures < committee.RequiredSignatures {
 		msg := <-ch
 		if msg.err != nil {
-			log.Errorf("error when trying to get signature from %s: %s", msg.addr, msg.err)
+			d.logger.Errorf("error when trying to get signature from %s: %s", msg.addr, msg.err)
 			failedToCollect++
 			if len(committee.Members)-int(failedToCollect) < int(committee.RequiredSignatures) {
 				cancelSignatureCollection()
+
 				return nil, errors.New("too many members failed to send their signature")
 			}
 		} else {
-			log.Infof("received signature from %s", msg.addr)
+			d.logger.Infof("received signature from %s", msg.addr)
 			collectedSignatures++
 		}
 		msgs = append(msgs, msg)
@@ -271,7 +288,7 @@ func collectSignatures(committee *DataCommittee, ch chan signatureMsg, cancelSig
 
 	cancelSignatureCollection()
 
-	return buildSignaturesAndAddrs(msgs, committee.Members), nil
+	return d.buildSignaturesAndAddrs(msgs, committee.Members), nil
 }
 
 type funcSignType func(c client.Client) ([]byte, error)
@@ -279,7 +296,7 @@ type funcSignType func(c client.Client) ([]byte, error)
 // funcSetSignatureType: is not possible to define a SetSignature function because
 // the type daTypes.SequenceBanana and daTypes.Sequence belong to different packages
 // So a future refactor is define a common interface for both
-func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.SignedSequenceInterface,
+func (d *Backend) requestSignatureFromMember(ctx context.Context, signedSequence daTypes.SignedSequenceInterface,
 	funcSign funcSignType,
 	member DataCommitteeMember, ch chan signatureMsg) {
 	select {
@@ -290,8 +307,8 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 
 	// request
 	c := client.New(member.URL)
-	log.Infof("sending request to sign the sequence to %s at %s", member.Addr.Hex(), member.URL)
-	//funcSign must call something like that  c.SignSequenceBanana(ctx, signedSequence)
+	d.logger.Infof("sending request to sign the sequence to %s at %s", member.Addr.Hex(), member.URL)
+	// funcSign must call something like that  c.SignSequenceBanana(ctx, signedSequence)
 	signature, err := funcSign(c)
 
 	if err != nil {
@@ -299,6 +316,7 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 			addr: member.Addr,
 			err:  err,
 		}
+
 		return
 	}
 	// verify returned signature
@@ -309,6 +327,7 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 			addr: member.Addr,
 			err:  err,
 		}
+
 		return
 	}
 	if signer != member.Addr {
@@ -316,6 +335,7 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 			addr: member.Addr,
 			err:  fmt.Errorf("invalid signer. Expected %s, actual %s", member.Addr.Hex(), signer.Hex()),
 		}
+
 		return
 	}
 	ch <- signatureMsg{
@@ -324,21 +344,21 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 	}
 }
 
-func buildSignaturesAndAddrs(sigs signatureMsgs, members []DataCommitteeMember) []byte {
+func (d *Backend) buildSignaturesAndAddrs(sigs signatureMsgs, members []DataCommitteeMember) []byte {
 	const (
 		sigLen = 65
 	)
 	res := make([]byte, 0, len(sigs)*sigLen+len(members)*common.AddressLength)
 	sort.Sort(sigs)
 	for _, msg := range sigs {
-		log.Debugf("adding signature %s from %s", common.Bytes2Hex(msg.signature), msg.addr.Hex())
+		d.logger.Debugf("adding signature %s from %s", common.Bytes2Hex(msg.signature), msg.addr.Hex())
 		res = append(res, msg.signature...)
 	}
 	for _, member := range members {
-		log.Debugf("adding addr %s", common.Bytes2Hex(member.Addr.Bytes()))
+		d.logger.Debugf("adding addr %s", common.Bytes2Hex(member.Addr.Bytes()))
 		res = append(res, member.Addr.Bytes()...)
 	}
-	log.Debugf("full res %s", common.Bytes2Hex(res))
+	d.logger.Debugf("full res %s", common.Bytes2Hex(res))
 	return res
 }
 
@@ -394,5 +414,6 @@ func (d *Backend) getCurrentDataCommitteeMembers() ([]DataCommitteeMember, error
 			URL:  member.Url,
 		})
 	}
+
 	return members, nil
 }

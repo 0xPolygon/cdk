@@ -8,9 +8,9 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type logger struct{}
+type dbLoggerImpl struct{}
 
-func (l logger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
+func (l dbLoggerImpl) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
 	m := fmt.Sprintf("%s %v", msg, data)
 
 	switch level {
@@ -21,7 +21,7 @@ func (l logger) Log(ctx context.Context, level pgx.LogLevel, msg string, data ma
 	case pgx.LogLevelError:
 		log.Error(m)
 	default:
-		m = fmt.Sprintf("%s %s %v", level.String(), msg, data)
+		m = fmt.Sprintf("[%s] %s %v", level.String(), msg, data)
 		log.Debug(m)
 	}
 }

@@ -30,16 +30,34 @@ type ContractsElderberry struct {
 }
 
 func NewContractsElderberry(cfg config.L1Config, backend bind.ContractBackend) (*ContractsElderberry, error) {
-	ger, err := NewContractMagic[GlobalExitRootElderberryType](polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2, cfg.GlobalExitRootManagerAddr, backend, ContractNameGlobalExitRoot, VersionElderberry)
+	ger, err := NewContractMagic[GlobalExitRootElderberryType](
+		polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2,
+		cfg.GlobalExitRootManagerAddr,
+		backend,
+		ContractNameGlobalExitRoot,
+		VersionElderberry,
+	)
 	if err != nil {
 		return nil, err
 	}
-	rollup, err := NewContractMagic[RollupElderberryType](polygonvalidiumetrog.NewPolygonvalidiumetrog, cfg.ZkEVMAddr, backend, ContractNameRollup, VersionElderberry)
+	rollup, err := NewContractMagic[RollupElderberryType](
+		polygonvalidiumetrog.NewPolygonvalidiumetrog,
+		cfg.ZkEVMAddr,
+		backend,
+		ContractNameRollup,
+		VersionElderberry,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	rollupManager, err := NewContractMagic[RollupManagerElderberryType](polygonrollupmanager.NewPolygonrollupmanager, cfg.RollupManagerAddr, backend, ContractNameRollupManager, VersionElderberry)
+	rollupManager, err := NewContractMagic[RollupManagerElderberryType](
+		polygonrollupmanager.NewPolygonrollupmanager,
+		cfg.RollupManagerAddr,
+		backend,
+		ContractNameRollupManager,
+		VersionElderberry,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +70,6 @@ func NewContractsElderberry(cfg config.L1Config, backend bind.ContractBackend) (
 }
 
 func (c *ContractsElderberry) String() string {
-	return "RollupManager: " + c.RollupManager.String() + "\nGlobalExitRoot: " + c.GlobalExitRoot.String() + "\nRollup: " + c.Rollup.String()
-
+	return "RollupManager: " + c.RollupManager.String() + "\nGlobalExitRoot: " +
+		c.GlobalExitRoot.String() + "\nRollup: " + c.Rollup.String()
 }

@@ -27,7 +27,9 @@ func NewConditionalNewSequenceMaxSize(maxTxSizeForL1 uint64) *ConditionalNewSequ
 	}
 }
 
-func (c *ConditionalNewSequenceMaxSize) NewSequenceIfWorthToSend(ctx context.Context, txBuilder TxBuilder, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address) (seqsendertypes.Sequence, error) {
+func (c *ConditionalNewSequenceMaxSize) NewSequenceIfWorthToSend(
+	ctx context.Context, txBuilder TxBuilder, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address,
+) (seqsendertypes.Sequence, error) {
 	if c.maxTxSizeForL1 == MaxTxSizeForL1Disabled {
 		log.Debugf("maxTxSizeForL1 is %d, so is disabled", MaxTxSizeForL1Disabled)
 		return nil, nil
@@ -59,7 +61,6 @@ func (c *ConditionalNewSequenceMaxSize) NewSequenceIfWorthToSend(ctx context.Con
 		sequenceBatches, err = handleEstimateGasSendSequenceErr(sequence.Batches(), err)
 		if sequenceBatches != nil {
 			// Handling the error gracefully, re-processing the sequence as a sanity check
-			//sequence, err = s.newSequenceBanana(sequenceBatches, s.cfg.L2Coinbase)
 			sequence, err = txBuilder.NewSequence(ctx, sequenceBatches, l2Coinbase)
 			if err != nil {
 				return nil, err
@@ -68,19 +69,27 @@ func (c *ConditionalNewSequenceMaxSize) NewSequenceIfWorthToSend(ctx context.Con
 			txReduced, err := txBuilder.BuildSequenceBatchesTx(ctx, sequence)
 			log.Debugf("After reducing batches:  (txSize %d -> %d)", tx.Size(), txReduced.Size())
 			if err == nil && txReduced != nil && txReduced.Size() > c.maxTxSizeForL1 {
-				log.Warnf("After reducing batches:  (txSize %d -> %d) is still too big > %d", tx.Size(), txReduced.Size(), c.maxTxSizeForL1)
+				log.Warnf("After reducing batches:  (txSize %d -> %d) is still too big > %d",
+					tx.Size(), txReduced.Size(), c.maxTxSizeForL1,
+				)
 			}
 			return sequence, err
 		}
 
 		return sequence, err
 	}
-	log.Debugf("Current size:%d < max_size:%d  num_batches: %d, no sequence promoted yet", tx.Size(), c.maxTxSizeForL1, sequence.Len())
+	log.Debugf(
+		"Current size:%d < max_size:%d  num_batches: %d, no sequence promoted yet",
+		tx.Size(), c.maxTxSizeForL1, sequence.Len(),
+	)
 	return nil, nil
 }
 
-// handleEstimateGasSendSequenceErr handles an error on the estimate gas. Results: (nil,nil)=requires waiting, (nil,error)=no handled gracefully, (seq,nil) handled gracefully
-func handleEstimateGasSendSequenceErr(sequenceBatches []seqsendertypes.Batch, err error) ([]seqsendertypes.Batch, error) {
+// handleEstimateGasSendSequenceErr handles an error on the estimate gas.
+// Results: (nil,nil)=requires waiting, (nil,error)=no handled gracefully, (seq,nil) handled gracefully
+func handleEstimateGasSendSequenceErr(
+	sequenceBatches []seqsendertypes.Batch, err error,
+) ([]seqsendertypes.Batch, error) {
 	// Insufficient allowance
 	if errors.Is(err, etherman.ErrInsufficientAllowance) {
 		return nil, err
@@ -89,12 +98,15 @@ func handleEstimateGasSendSequenceErr(sequenceBatches []seqsendertypes.Batch, er
 	if isDataForEthTxTooBig(err) {
 		errMsg = fmt.Sprintf("caused the L1 tx to be too big: %v", err)
 	}
-	adjustMsg := ""
+	var adjustMsg string
 	if len(sequenceBatches) > 1 {
 		lastPrevious := sequenceBatches[len(sequenceBatches)-1].BatchNumber()
 		sequenceBatches = sequenceBatches[:len(sequenceBatches)-1]
 		lastCurrent := sequenceBatches[len(sequenceBatches)-1].BatchNumber()
-		adjustMsg = fmt.Sprintf("removing last batch: old  BatchNumber:%d ->  %d, new length: %d", lastPrevious, lastCurrent, len(sequenceBatches))
+		adjustMsg = fmt.Sprintf(
+			"removing last batch: old  BatchNumber:%d ->  %d, new length: %d",
+			lastPrevious, lastCurrent, len(sequenceBatches),
+		)
 	} else {
 		sequenceBatches = nil
 		adjustMsg = "removing all batches"

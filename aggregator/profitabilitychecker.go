@@ -24,7 +24,9 @@ type TxProfitabilityCheckerBase struct {
 }
 
 // NewTxProfitabilityCheckerBase init base tx profitability checker
-func NewTxProfitabilityCheckerBase(state stateInterface, interval time.Duration, minReward *big.Int) *TxProfitabilityCheckerBase {
+func NewTxProfitabilityCheckerBase(
+	state stateInterface, interval time.Duration, minReward *big.Int,
+) *TxProfitabilityCheckerBase {
 	return &TxProfitabilityCheckerBase{
 		State:                             state,
 		IntervalAfterWhichBatchSentAnyway: interval,
@@ -34,7 +36,7 @@ func NewTxProfitabilityCheckerBase(state stateInterface, interval time.Duration,
 
 // IsProfitable checks pol collateral with min reward
 func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx context.Context, polCollateral *big.Int) (bool, error) {
-	//if pc.IntervalAfterWhichBatchSentAnyway != 0 {
+	// if pc.IntervalAfterWhichBatchSentAnyway != 0 {
 	//	ok, err := isConsolidatedBatchAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
 	//	if err != nil {
 	//		return false, err
@@ -42,8 +44,7 @@ func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx context.Context, polColla
 	//	if ok {
 	//		return true, nil
 	//	}
-	//}
-
+	// }
 	return polCollateral.Cmp(pc.MinReward) >= 0, nil
 }
 
@@ -63,7 +64,7 @@ func NewTxProfitabilityCheckerAcceptAll(state stateInterface, interval time.Dura
 
 // IsProfitable validate batch anyway and don't check anything
 func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(ctx context.Context, polCollateral *big.Int) (bool, error) {
-	//if pc.IntervalAfterWhichBatchSentAnyway != 0 {
+	// if pc.IntervalAfterWhichBatchSentAnyway != 0 {
 	//	ok, err := isConsolidatedBatchAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
 	//	if err != nil {
 	//		return false, err
@@ -71,13 +72,13 @@ func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(ctx context.Context, pol
 	//	if ok {
 	//		return true, nil
 	//	}
-	//}
-
+	// }
 	return true, nil
 }
 
 // TODO: now it's impossible to check, when batch got consolidated, bcs it's not saved
-//func isConsolidatedBatchAppeared(ctx context.Context, state stateInterface, intervalAfterWhichBatchConsolidatedAnyway time.Duration) (bool, error) {
+// func isConsolidatedBatchAppeared(ctx context.Context, state stateInterface,
+//  intervalAfterWhichBatchConsolidatedAnyway time.Duration) (bool, error) {
 //	batch, err := state.GetLastVerifiedBatch(ctx, nil)
 //	if err != nil {
 //		return false, fmt.Errorf("failed to get last verified batch, err: %v", err)
@@ -88,4 +89,4 @@ func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(ctx context.Context, pol
 //	}
 //
 //	return false, err
-//}
+// }

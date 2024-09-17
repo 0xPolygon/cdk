@@ -21,7 +21,14 @@ type TxBuilderBananaZKEVM struct {
 
 type rollupBananaZKEVMContractor interface {
 	rollupBananaBaseContractor
-	SequenceBatches(opts *bind.TransactOpts, batches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, indexL1InfoRoot uint32, maxSequenceTimestamp uint64, expectedFinalAccInputHash [32]byte, l2Coinbase common.Address) (*types.Transaction, error)
+	SequenceBatches(
+		opts *bind.TransactOpts,
+		batches []polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData,
+		indexL1InfoRoot uint32,
+		maxSequenceTimestamp uint64,
+		expectedFinalAccInputHash [32]byte,
+		l2Coinbase common.Address,
+	) (*types.Transaction, error)
 }
 
 type globalExitRootBananaZKEVMContractor interface {
@@ -29,6 +36,7 @@ type globalExitRootBananaZKEVMContractor interface {
 }
 
 func NewTxBuilderBananaZKEVM(
+	logger *log.Logger,
 	rollupContract rollupBananaZKEVMContractor,
 	gerContract globalExitRootBananaZKEVMContractor,
 	opts bind.TransactOpts,
@@ -37,14 +45,19 @@ func NewTxBuilderBananaZKEVM(
 	ethClient l1Client,
 	blockFinality *big.Int,
 ) *TxBuilderBananaZKEVM {
+	txBuilderBase := *NewTxBuilderBananaBase(logger, rollupContract,
+		gerContract, l1InfoTree, ethClient, blockFinality, opts)
+
 	return &TxBuilderBananaZKEVM{
-		TxBuilderBananaBase: *NewTxBuilderBananaBase(rollupContract, gerContract, l1InfoTree, ethClient, blockFinality, opts),
+		TxBuilderBananaBase: txBuilderBase,
 		condNewSeq:          NewConditionalNewSequenceMaxSize(maxTxSizeForL1),
 		rollupContract:      rollupContract,
 	}
 }
 
-func (t *TxBuilderBananaZKEVM) NewSequenceIfWorthToSend(ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64) (seqsendertypes.Sequence, error) {
+func (t *TxBuilderBananaZKEVM) NewSequenceIfWorthToSend(
+	ctx context.Context, sequenceBatches []seqsendertypes.Batch, l2Coinbase common.Address, batchNumber uint64,
+) (seqsendertypes.Sequence, error) {
 	return t.condNewSeq.NewSequenceIfWorthToSend(ctx, t, sequenceBatches, l2Coinbase)
 }
 
@@ -55,11 +68,13 @@ func (t *TxBuilderBananaZKEVM) SetCondNewSeq(cond CondNewSequence) CondNewSequen
 	return previous
 }
 
-func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, sequences seqsendertypes.Sequence) (*types.Transaction, error) {
+func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(
+	ctx context.Context, sequences seqsendertypes.Sequence,
+) (*types.Transaction, error) {
 	var err error
 	ethseq, err := convertToSequenceBanana(sequences)
 	if err != nil {
-		log.Error("error converting sequences to etherman: ", err)
+		t.logger.Error("error converting sequences to etherman: ", err)
 		return nil, err
 	}
 	newopts := t.opts
@@ -72,13 +87,15 @@ func (t *TxBuilderBananaZKEVM) BuildSequenceBatchesTx(ctx context.Context, seque
 	// Build sequence data
 	tx, err := t.sequenceBatchesRollup(newopts, ethseq)
 	if err != nil {
-		log.Errorf("error estimating new sequenceBatches to add to ethtxmanager: ", err)
+		t.logger.Errorf("error estimating new sequenceBatches to add to ethtxmanager: ", err)
 		return nil, err
 	}
 	return tx, nil
 }
 
-func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, sequence etherman.SequenceBanana) (*types.Transaction, error) {
+func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(
+	opts bind.TransactOpts, sequence etherman.SequenceBanana,
+) (*types.Transaction, error) {
 	batches := make([]polygonvalidiumetrog.PolygonRollupBaseEtrogBatchData, len(sequence.Batches))
 	for i, batch := range sequence.Batches {
 		var ger common.Hash
@@ -94,11 +111,13 @@ func (t *TxBuilderBananaZKEVM) sequenceBatchesRollup(opts bind.TransactOpts, seq
 		}
 	}
 
-	tx, err := t.rollupContract.SequenceBatches(&opts, batches, sequence.CounterL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase)
+	tx, err := t.rollupContract.SequenceBatches(
+		&opts, batches, sequence.CounterL1InfoRoot, sequence.MaxSequenceTimestamp, sequence.AccInputHash, sequence.L2Coinbase,
+	)
 	if err != nil {
-		log.Debugf("Batches to send: %+v", batches)
-		log.Debug("l2CoinBase: ", sequence.L2Coinbase)
-		log.Debug("Sequencer address: ", opts.From)
+		t.logger.Debugf("Batches to send: %+v", batches)
+		t.logger.Debug("l2CoinBase: ", sequence.L2Coinbase)
+		t.logger.Debug("Sequencer address: ", opts.From)
 	}
 
 	return tx, err

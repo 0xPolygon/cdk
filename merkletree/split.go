@@ -17,16 +17,16 @@ const wordLength = 64
 
 // scalar2fea splits a *big.Int into array of 32bit uint64 values.
 func scalar2fea(value *big.Int) []uint64 {
-	val := make([]uint64, 8)                          //nolint:gomnd
-	mask, _ := new(big.Int).SetString("FFFFFFFF", 16) //nolint:gomnd
+	val := make([]uint64, 8)                          //nolint:mnd
+	mask, _ := new(big.Int).SetString("FFFFFFFF", 16) //nolint:mnd
 	val[0] = new(big.Int).And(value, mask).Uint64()
-	val[1] = new(big.Int).And(new(big.Int).Rsh(value, 32), mask).Uint64()  //nolint:gomnd
-	val[2] = new(big.Int).And(new(big.Int).Rsh(value, 64), mask).Uint64()  //nolint:gomnd
-	val[3] = new(big.Int).And(new(big.Int).Rsh(value, 96), mask).Uint64()  //nolint:gomnd
-	val[4] = new(big.Int).And(new(big.Int).Rsh(value, 128), mask).Uint64() //nolint:gomnd
-	val[5] = new(big.Int).And(new(big.Int).Rsh(value, 160), mask).Uint64() //nolint:gomnd
-	val[6] = new(big.Int).And(new(big.Int).Rsh(value, 192), mask).Uint64() //nolint:gomnd
-	val[7] = new(big.Int).And(new(big.Int).Rsh(value, 224), mask).Uint64() //nolint:gomnd
+	val[1] = new(big.Int).And(new(big.Int).Rsh(value, 32), mask).Uint64()  //nolint:mnd
+	val[2] = new(big.Int).And(new(big.Int).Rsh(value, 64), mask).Uint64()  //nolint:mnd
+	val[3] = new(big.Int).And(new(big.Int).Rsh(value, 96), mask).Uint64()  //nolint:mnd
+	val[4] = new(big.Int).And(new(big.Int).Rsh(value, 128), mask).Uint64() //nolint:mnd
+	val[5] = new(big.Int).And(new(big.Int).Rsh(value, 160), mask).Uint64() //nolint:mnd
+	val[6] = new(big.Int).And(new(big.Int).Rsh(value, 192), mask).Uint64() //nolint:mnd
+	val[7] = new(big.Int).And(new(big.Int).Rsh(value, 224), mask).Uint64() //nolint:mnd
 	return val
 }
 
@@ -55,13 +55,11 @@ func H4ToString(h4 []uint64) string {
 
 // StringToh4 converts an hex string into array of 4 Scalars of 64 bits.
 func StringToh4(str string) ([]uint64, error) {
-	if strings.HasPrefix(str, "0x") { // nolint
-		str = str[2:]
-	}
+	str = strings.TrimPrefix(str, "0x")
 
 	bi, ok := new(big.Int).SetString(str, hex.Base)
 	if !ok {
-		return nil, fmt.Errorf("Could not convert %q into big int", str)
+		return nil, fmt.Errorf("could not convert %q into big int", str)
 	}
 
 	return scalarToh4(bi), nil
@@ -71,7 +69,7 @@ func StringToh4(str string) ([]uint64, error) {
 func scalarToh4(s *big.Int) []uint64 {
 	b := ScalarToFilledByteSlice(s)
 
-	r := make([]uint64, 4) //nolint:gomnd
+	r := make([]uint64, 4) //nolint:mnd
 
 	f, _ := hex.DecodeHex("0xFFFFFFFFFFFFFFFF")
 	fbe := binary.BigEndian.Uint64(f)

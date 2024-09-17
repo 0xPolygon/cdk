@@ -97,7 +97,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: logs_${{ github.run_id }}
           path: ./kurtosis-cdk/ci_logs

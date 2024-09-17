@@ -25,12 +25,22 @@ type EthClienter interface {
 
 type EthTxManager interface {
 	Remove(ctx context.Context, id common.Hash) error
-	ResultsByStatus(ctx context.Context, statuses []ethtxmanager.MonitoredTxStatus) ([]ethtxmanager.MonitoredTxResult, error)
+	ResultsByStatus(ctx context.Context,
+		statuses []ethtxmanager.MonitoredTxStatus,
+	) ([]ethtxmanager.MonitoredTxResult, error)
 	Result(ctx context.Context, id common.Hash) (ethtxmanager.MonitoredTxResult, error)
-	Add(ctx context.Context, to *common.Address, forcedNonce *uint64, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar) (common.Hash, error)
+	Add(ctx context.Context,
+		to *common.Address,
+		forcedNonce *uint64,
+		value *big.Int,
+		data []byte,
+		gasOffset uint64,
+		sidecar *types.BlobTxSidecar,
+	) (common.Hash, error)
 }
 
 type EVMChainGERSender struct {
+	logger              *log.Logger
 	gerContract         *pessimisticglobalexitroot.Pessimisticglobalexitroot
 	gerAddr             common.Address
 	sender              common.Address
@@ -51,6 +61,7 @@ type EVMConfig struct {
 }
 
 func NewEVMChainGERSender(
+	logger *log.Logger,
 	l2GlobalExitRoot, sender common.Address,
 	l2Client EthClienter,
 	ethTxMan EthTxManager,
@@ -61,7 +72,9 @@ func NewEVMChainGERSender(
 	if err != nil {
 		return nil, err
 	}
+
 	return &EVMChainGERSender{
+		logger:              logger,
 		gerContract:         gerContract,
 		gerAddr:             l2GlobalExitRoot,
 		sender:              sender,
@@ -77,6 +90,7 @@ func (c *EVMChainGERSender) IsGERAlreadyInjected(ger common.Hash) (bool, error) 
 	if err != nil {
 		return false, fmt.Errorf("error calling gerContract.GlobalExitRootMap: %w", err)
 	}
+
 	return timestamp.Cmp(big.NewInt(0)) != 0, nil
 }
 
@@ -95,10 +109,10 @@ func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger com
 	}
 	for {
 		time.Sleep(c.waitPeriodMonitorTx)
-		log.Debugf("waiting for tx %s to be mined", id.Hex())
+		c.logger.Debugf("waiting for tx %s to be mined", id.Hex())
 		res, err := c.ethTxMan.Result(ctx, id)
 		if err != nil {
-			log.Error("error calling ethTxMan.Result: ", err)
+			c.logger.Error("error calling ethTxMan.Result: ", err)
 		}
 		switch res.Status {
 		case ethtxmanager.MonitoredTxStatusCreated,
@@ -111,7 +125,7 @@ func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger com
 			ethtxmanager.MonitoredTxStatusFinalized:
 			return nil
 		default:
-			log.Error("unexpected tx status: ", res.Status)
+			c.logger.Error("unexpected tx status: ", res.Status)
 		}
 	}
 }

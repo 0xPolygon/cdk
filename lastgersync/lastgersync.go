@@ -2,11 +2,9 @@ package lastgersync
 
 import (
 	"context"
-
 	"time"
 
 	"github.com/0xPolygon/cdk/etherman"
-
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum/common"
@@ -75,7 +73,9 @@ func (s *LastGERSync) Start(ctx context.Context) {
 	s.driver.Sync(ctx)
 }
 
-func (s *LastGERSync) GetFirstGERAfterL1InfoTreeIndex(ctx context.Context, atOrAfterL1InfoTreeIndex uint32) (injectedL1InfoTreeIndex uint32, ger common.Hash, err error) {
+func (s *LastGERSync) GetFirstGERAfterL1InfoTreeIndex(
+	ctx context.Context, atOrAfterL1InfoTreeIndex uint32,
+) (injectedL1InfoTreeIndex uint32, ger common.Hash, err error) {
 	return s.processor.GetFirstGERAfterL1InfoTreeIndex(ctx, atOrAfterL1InfoTreeIndex)
 }
 

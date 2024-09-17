@@ -11,7 +11,9 @@ import (
 
 // Uint64ToBytes converts a uint64 to a byte slice
 func Uint64ToBytes(num uint64) []byte {
-	bytes := make([]byte, 8)
+	const uint64ByteSize = 8
+
+	bytes := make([]byte, uint64ByteSize)
 	binary.BigEndian.PutUint64(bytes, num)
 
 	return bytes
@@ -22,10 +24,13 @@ func BytesToUint64(bytes []byte) uint64 {
 	return binary.BigEndian.Uint64(bytes)
 }
 
-// Uint32To2Bytes converts a uint32 to a byte slice
+// Uint32ToBytes converts a uint32 to a byte slice in big-endian order
 func Uint32ToBytes(num uint32) []byte {
-	key := make([]byte, 4)
+	const uint32ByteSize = 4
+
+	key := make([]byte, uint32ByteSize)
 	binary.BigEndian.PutUint32(key, num)
+
 	return key
 }
 
@@ -34,7 +39,9 @@ func BytesToUint32(bytes []byte) uint32 {
 	return binary.BigEndian.Uint32(bytes)
 }
 
+// CalculateAccInputHash computes the hash of accumulated input data for a given batch.
 func CalculateAccInputHash(
+	logger *log.Logger,
 	oldAccInputHash common.Hash,
 	batchData []byte,
 	l1InfoRoot common.Hash,
@@ -53,27 +60,31 @@ func CalculateAccInputHash(
 	for len(v1) < 32 {
 		v1 = append([]byte{0}, v1...)
 	}
+
 	for len(v3) < 32 {
 		v3 = append([]byte{0}, v3...)
 	}
+
 	for len(v4) < 8 {
 		v4 = append([]byte{0}, v4...)
 	}
+
 	for len(v5) < 20 {
 		v5 = append([]byte{0}, v5...)
 	}
+
 	for len(v6) < 32 {
 		v6 = append([]byte{0}, v6...)
 	}
 
 	v2 = keccak256.Hash(v2)
 
-	log.Debugf("OldAccInputHash: %v", oldAccInputHash)
-	log.Debugf("BatchHashData: %v", common.Bytes2Hex(v2))
-	log.Debugf("L1InfoRoot: %v", l1InfoRoot)
-	log.Debugf("TimeStampLimit: %v", timestampLimit)
-	log.Debugf("Sequencer Address: %v", sequencerAddr)
-	log.Debugf("Forced BlockHashL1: %v", forcedBlockhashL1)
+	logger.Debugf("OldAccInputHash: %v", oldAccInputHash)
+	logger.Debugf("BatchHashData: %v", common.Bytes2Hex(v2))
+	logger.Debugf("L1InfoRoot: %v", l1InfoRoot)
+	logger.Debugf("TimeStampLimit: %v", timestampLimit)
+	logger.Debugf("Sequencer Address: %v", sequencerAddr)
+	logger.Debugf("Forced BlockHashL1: %v", forcedBlockhashL1)
 
 	return common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6))
 }

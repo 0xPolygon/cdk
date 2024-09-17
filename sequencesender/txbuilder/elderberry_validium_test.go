@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk/dataavailability/mocks_da"
 	"github.com/0xPolygon/cdk/etherman/contracts"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state/datastream"
@@ -98,6 +99,8 @@ type testDataElderberryValidium struct {
 }
 
 func newElderberryValidiumSUT(t *testing.T) *testDataElderberryValidium {
+	t.Helper()
+
 	zkevmContract, err := contracts.NewContractMagic[contracts.RollupElderberryType](polygonvalidiumetrog.NewPolygonvalidiumetrog, common.Address{}, nil, contracts.ContractNameRollup, contracts.VersionElderberry)
 	require.NoError(t, err)
 	privateKey, err := crypto.HexToECDSA("64e679029f5032046955d41713dcc4b565de77ab891748d31bcf38864b54c175")
@@ -107,7 +110,7 @@ func newElderberryValidiumSUT(t *testing.T) *testDataElderberryValidium {
 
 	da := mocks_da.NewSequenceSenderElderberry(t)
 
-	sut := txbuilder.NewTxBuilderElderberryValidium(*zkevmContract, da, *opts, uint64(100))
+	sut := txbuilder.NewTxBuilderElderberryValidium(log.GetDefaultLogger(), *zkevmContract, da, *opts, uint64(100))
 	require.NotNil(t, sut)
 	return &testDataElderberryValidium{
 		mockDA: da,

@@ -99,8 +99,11 @@ const (
 )
 
 var (
-	// ErrBatchV2DontStartWithChangeL2Block is returned when the batch start directly with a trsansaction (without a changeL2Block)
-	ErrBatchV2DontStartWithChangeL2Block = errors.New("batch v2 must start with changeL2Block before Tx (suspect a V1 Batch or a ForcedBatch?))")
+	// ErrBatchV2DontStartWithChangeL2Block is returned when the batch start directly
+	// with a trsansaction (without a preceding changeL2Block)
+	ErrBatchV2DontStartWithChangeL2Block = errors.New(
+		"batch v2 must start with changeL2Block before Tx (suspect a V1 Batch or a ForcedBatch?)",
+	)
 	// ErrInvalidBatchV2 is returned when the batch is invalid.
 	ErrInvalidBatchV2 = errors.New("invalid batch v2")
 	// ErrInvalidRLP is returned when the rlp is invalid.
@@ -206,7 +209,10 @@ func (tx L2TxRaw) Encode(batchData []byte) ([]byte, error) {
 
 // DecodeBatchV2 decodes a batch of transactions from a byte slice.
 func DecodeBatchV2(txsData []byte) (*BatchRawV2, error) {
-	// The transactions is not RLP encoded. Is the raw bytes in this form: 1 byte for the transaction type (always 0b for changeL2Block) + 4 bytes for deltaTimestamp + for bytes for indexL1InfoTree
+	// The transactions are not RLP encoded. They are in raw byte format as follows:
+	// 1 byte for the transaction type (always 0b for changeL2Block)
+	// 4 bytes for deltaTimestamp
+	// 4 bytes for indexL1InfoTree.
 	var err error
 	var blocks []L2BlockRaw
 	var currentBlock *L2BlockRaw
@@ -258,7 +264,10 @@ func DecodeForcedBatchV2(txsData []byte) (*ForcedBatchRawV2, error) {
 	}
 	// Sanity check, this should never happen
 	if len(efficiencyPercentages) != len(txs) {
-		return nil, fmt.Errorf("error decoding len(efficiencyPercentages) != len(txs). len(efficiencyPercentages)=%d, len(txs)=%d : %w", len(efficiencyPercentages), len(txs), ErrInvalidRLP)
+		return nil, fmt.Errorf(
+			"error decoding len(efficiencyPercentages) != len(txs). len(efficiencyPercentages)=%d, len(txs)=%d : %w",
+			len(efficiencyPercentages), len(txs), ErrInvalidRLP,
+		)
 	}
 	forcedBatch := ForcedBatchRawV2{}
 	for i := range txs {
@@ -311,12 +320,22 @@ func DecodeTxRLP(txsData []byte, offset int) (int, *L2TxRaw, error) {
 	var rlpFields [][]byte
 	err = rlp.DecodeBytes(txInfo, &rlpFields)
 	if err != nil {
-		log.Error("error decoding tx Bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
+		log.Error(
+			"error decoding tx Bytes: ", err,
+			". fullDataTx: ", hex.EncodeToString(fullDataTx),
+			"\n tx: ", hex.EncodeToString(txInfo),
+			"\n Txs received: ", hex.EncodeToString(txsData),
+		)
 		return 0, nil, err
 	}
 	legacyTx, err := RlpFieldsToLegacyTx(rlpFields, vData, rData, sData)
 	if err != nil {
-		log.Debug("error creating tx from rlp fields: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
+		log.Debug(
+			"error creating tx from rlp fields: ", err,
+			". fullDataTx: ", hex.EncodeToString(fullDataTx),
+			"\n tx: ", hex.EncodeToString(txInfo),
+			"\n Txs received: ", hex.EncodeToString(txsData),
+		)
 		return 0, nil, err
 	}
 
@@ -348,7 +367,11 @@ func decodeRLPListLengthFromOffset(txsData []byte, offset int) (uint64, error) {
 			return 0, fmt.Errorf("not enough data to get length: %w", ErrInvalidRLP)
 		}
 
-		n, err := strconv.ParseUint(hex.EncodeToString(txsData[pos64+1:pos64+1+lengthInByteOfSize]), hex.Base, hex.BitSize64) // +1 is the header. For example 0xf7
+		n, err := strconv.ParseUint(
+			hex.EncodeToString(txsData[pos64+1:pos64+1+lengthInByteOfSize]), // +1 is the header. For example 0xf7
+			hex.Base,
+			hex.BitSize64,
+		)
 		if err != nil {
 			log.Debug("error parsing length: ", err)
 			return 0, fmt.Errorf("error parsing length value: %w", err)

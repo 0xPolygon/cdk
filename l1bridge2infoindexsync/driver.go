@@ -2,6 +2,7 @@ package l1bridge2infoindexsync
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/0xPolygon/cdk/l1infotreesync"
@@ -43,8 +44,10 @@ func (d *driver) sync(ctx context.Context) {
 			attempts++
 			log.Errorf("error getting last processed block and index: %v", err)
 			d.rh.Handle("GetLastProcessedBlockAndL1InfoTreeIndex", attempts)
+
 			continue
 		}
+
 		break
 	}
 	for {
@@ -59,13 +62,16 @@ func (d *driver) sync(ctx context.Context) {
 				attempts++
 				log.Errorf("error getting target sync block: %v", err)
 				d.rh.Handle("getTargetSynchronizationBlock", attempts)
+
 				continue
 			}
+
 			break
 		}
 		if shouldWait {
 			log.Debugf("waiting for syncers to catch up")
 			time.Sleep(d.waitForSyncersPeriod)
+
 			continue
 		}
 
@@ -75,20 +81,24 @@ func (d *driver) sync(ctx context.Context) {
 		for {
 			lastL1InfoTreeIndex, err = d.downloader.getLastL1InfoIndexUntilBlock(ctx, syncUntilBlock)
 			if err != nil {
-				if err == l1infotreesync.ErrNotFound || err == l1infotreesync.ErrBlockNotProcessed {
+				if errors.Is(err, l1infotreesync.ErrNotFound) || errors.Is(err, l1infotreesync.ErrBlockNotProcessed) {
 					log.Debugf("l1 info tree index not ready, querying until block %d: %s", syncUntilBlock, err)
+
 					break
 				}
 				attempts++
 				log.Errorf("error getting last l1 info tree index: %v", err)
 				d.rh.Handle("getLastL1InfoIndexUntilBlock", attempts)
+
 				continue
 			}
 			found = true
+
 			break
 		}
 		if !found {
 			time.Sleep(d.waitForSyncersPeriod)
+
 			continue
 		}
 
@@ -108,9 +118,11 @@ func (d *driver) sync(ctx context.Context) {
 					attempts++
 					log.Errorf("error getting relation: %v", err)
 					d.rh.Handle("getRelation", attempts)
+
 					continue
 				}
 				relations = append(relations, relation)
+
 				break
 			}
 		}
@@ -122,8 +134,10 @@ func (d *driver) sync(ctx context.Context) {
 				attempts++
 				log.Errorf("error processing block: %v", err)
 				d.rh.Handle("processUntilBlock", attempts)
+
 				continue
 			}
+
 			break
 		}
 
@@ -135,8 +149,11 @@ func (d *driver) sync(ctx context.Context) {
 	}
 }
 
-func (d *driver) getTargetSynchronizationBlock(ctx context.Context, lpbProcessor uint64) (syncUntilBlock uint64, shouldWait bool, err error) {
-	lastFinalised, err := d.downloader.getLastFinalizedL1Block(ctx) // NOTE: if this had configurable finality, it would be needed to deal with reorgs
+func (d *driver) getTargetSynchronizationBlock(
+	ctx context.Context, lpbProcessor uint64,
+) (syncUntilBlock uint64, shouldWait bool, err error) {
+	// NOTE: if this had configurable finality, it would be needed to deal with reorgs
+	lastFinalised, err := d.downloader.getLastFinalizedL1Block(ctx)
 	if err != nil {
 		return
 	}
@@ -146,8 +163,10 @@ func (d *driver) getTargetSynchronizationBlock(ctx context.Context, lpbProcessor
 				"should wait because the last processed block (%d) is greater or equal than the %s (%d)",
 				blockToCheck, blockType, lastProcessed)
 			shouldWait = true
+
 			return true
 		}
+
 		return false
 	}
 	if checkProcessedBlockFn(lpbProcessor, lastFinalised, "last finalised") {
@@ -180,6 +199,7 @@ func (d *driver) getTargetSynchronizationBlock(ctx context.Context, lpbProcessor
 		log.Debugf("target sync block is the last processed block from bridge (%d)", lpbBridge)
 		syncUntilBlock = lpbBridge
 	}
+
 	return
 }
 
@@ -189,13 +209,13 @@ func (d *driver) getRelation(ctx context.Context, l1InfoIndex uint32) (bridge2L1
 		return bridge2L1InfoRelation{}, err
 	}
 
-	bridgeIndex, err := d.downloader.getBridgeIndex(ctx, mer)
+	bridgeRoot, err := d.downloader.getBridgeIndex(ctx, mer)
 	if err != nil {
 		return bridge2L1InfoRelation{}, err
 	}
 
 	return bridge2L1InfoRelation{
-		bridgeIndex:     bridgeIndex,
+		bridgeIndex:     bridgeRoot.Index,
 		l1InfoTreeIndex: l1InfoIndex,
 	}, nil
 }
