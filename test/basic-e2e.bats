@@ -98,7 +98,8 @@ setup() {
     run queryContract "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$receiver"
     assert_success
     local receiver_balance=$(echo "$output" | tail -n 1)
-    local expected_balance=$(echo "$initial_receiver_balance + $wei_amount" | bc)
+    local expected_balance=$(echo "$initial_receiver_balance + $wei_amount" |
+        bc | awk '{print $1}')
 
     assert_equal "$receiver_balance" "$expected_balance"
 }
