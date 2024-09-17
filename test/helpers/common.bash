@@ -149,6 +149,8 @@ function sendTx() {
         return 1
     fi
 
+    sleep 7
+
     checkTransactionSuccess "$senderAddr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
     if [[ $? -ne 0 ]]; then
         echo "Error: Balance not updated correctly."
@@ -246,9 +248,9 @@ function checkTransactionSuccess() {
         echo "Receiver balance changed by: `$receiver_balance_change` wei"
 
         value_in_wei=$(cast --to-unit wei "$value_or_function_sig")
-        assert_equal "$receiver_balance_chang" "$value_in_wei" "Error: receiver balance updated incorrectly."
+        assert_equal "$receiver_balance_chang" "$value_in_wei" "Error receiver balance updated incorrectly"
     fi
 
     # Asserts sender's balance change is equal to the value transferred plus the gas fee
-    assert_equal "$sender_balance_change" "$(echo "$value_in_wei + $gas_fee" | bc)" "Error: sender balance updated incorrectly."
+    assert_equal "$sender_balance_change" "$(echo "$value_in_wei + $gas_fee" | bc)" "Error sender balance updated incorrectly"
 }
