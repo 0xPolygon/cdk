@@ -106,14 +106,9 @@ SequencerPrivateKey = {}
 				L1ChainID = 11155111
 				HTTPHeaders = []
 	[Aggregator.Synchronizer]
-		[Aggregator.Synchronizer.DB]
-			Name = "sync_db"
-			User = "sync_user"
-			Password = "sync_password"
-			Host = "cdk-l1-sync-db"
-			Port = "5432"
-			EnableLog = false
-			MaxConns = 10
+		[Aggregator.Synchronizer.SQLDB]
+			DriverName = "sqlite3"
+			DataSourceName = "file:/tmp/aggregator_sync_db.sqlite"
 		[Aggregator.Synchronizer.Synchronizer]
 			SyncInterval = "10s"
 			SyncChunkSize = 1000
