@@ -13,7 +13,7 @@ import (
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree"
 	treeTypes "github.com/0xPolygon/cdk/tree/types"
-	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/russross/meddler"
 	"golang.org/x/crypto/sha3"
@@ -33,29 +33,29 @@ type processor struct {
 // UpdateL1InfoTree representation of the UpdateL1InfoTree event
 type UpdateL1InfoTree struct {
 	BlockPosition   uint64
-	MainnetExitRoot ethCommon.Hash
-	RollupExitRoot  ethCommon.Hash
-	ParentHash      ethCommon.Hash
+	MainnetExitRoot common.Hash
+	RollupExitRoot  common.Hash
+	ParentHash      common.Hash
 	Timestamp       uint64
 }
 
 // VerifyBatches representation of the VerifyBatches and VerifyBatchesTrustedAggregator events
 type VerifyBatches struct {
-	BlockNumber   uint64            `meddler:"block_num"`
-	BlockPosition uint64            `meddler:"block_pos"`
-	RollupID      uint32            `meddler:"rollup_id"`
-	NumBatch      uint64            `meddler:"batch_num"`
-	StateRoot     ethCommon.Hash    `meddler:"state_root,hash"`
-	ExitRoot      ethCommon.Hash    `meddler:"exit_root,hash"`
-	Aggregator    ethCommon.Address `meddler:"aggregator,address"`
+	BlockNumber   uint64         `meddler:"block_num"`
+	BlockPosition uint64         `meddler:"block_pos"`
+	RollupID      uint32         `meddler:"rollup_id"`
+	NumBatch      uint64         `meddler:"batch_num"`
+	StateRoot     common.Hash    `meddler:"state_root,hash"`
+	ExitRoot      common.Hash    `meddler:"exit_root,hash"`
+	Aggregator    common.Address `meddler:"aggregator,address"`
 
 	// Not provided by downloader
-	RollupExitRoot ethCommon.Hash `meddler:"rollup_exit_root,hash"`
+	RollupExitRoot common.Hash `meddler:"rollup_exit_root,hash"`
 }
 
 type InitL1InfoRootMap struct {
 	LeafCount         uint32
-	CurrentL1InfoRoot ethCommon.Hash
+	CurrentL1InfoRoot common.Hash
 }
 
 type Event struct {
@@ -66,19 +66,19 @@ type Event struct {
 
 // L1InfoTreeLeaf representation of a leaf of the L1 Info tree
 type L1InfoTreeLeaf struct {
-	BlockNumber       uint64         `meddler:"block_num"`
-	BlockPosition     uint64         `meddler:"block_pos"`
-	L1InfoTreeIndex   uint32         `meddler:"position"`
-	PreviousBlockHash ethCommon.Hash `meddler:"previous_block_hash,hash"`
-	Timestamp         uint64         `meddler:"timestamp"`
-	MainnetExitRoot   ethCommon.Hash `meddler:"mainnet_exit_root,hash"`
-	RollupExitRoot    ethCommon.Hash `meddler:"rollup_exit_root,hash"`
-	GlobalExitRoot    ethCommon.Hash `meddler:"global_exit_root,hash"`
-	Hash              ethCommon.Hash `meddler:"hash,hash"`
+	BlockNumber       uint64      `meddler:"block_num"`
+	BlockPosition     uint64      `meddler:"block_pos"`
+	L1InfoTreeIndex   uint32      `meddler:"position"`
+	PreviousBlockHash common.Hash `meddler:"previous_block_hash,hash"`
+	Timestamp         uint64      `meddler:"timestamp"`
+	MainnetExitRoot   common.Hash `meddler:"mainnet_exit_root,hash"`
+	RollupExitRoot    common.Hash `meddler:"rollup_exit_root,hash"`
+	GlobalExitRoot    common.Hash `meddler:"global_exit_root,hash"`
+	Hash              common.Hash `meddler:"hash,hash"`
 }
 
 // Hash as expected by the tree
-func (l *L1InfoTreeLeaf) hash() ethCommon.Hash {
+func (l *L1InfoTreeLeaf) hash() common.Hash {
 	var res [treeTypes.DefaultHeight]byte
 	t := make([]byte, 8) //nolint:mnd
 	binary.BigEndian.PutUint64(t, l.Timestamp)
@@ -87,7 +87,7 @@ func (l *L1InfoTreeLeaf) hash() ethCommon.Hash {
 }
 
 // GlobalExitRoot returns the GER
-func (l *L1InfoTreeLeaf) globalExitRoot() ethCommon.Hash {
+func (l *L1InfoTreeLeaf) globalExitRoot() common.Hash {
 	var gerBytes [treeTypes.DefaultHeight]byte
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(l.MainnetExitRoot[:])
@@ -362,7 +362,7 @@ func (p *processor) GetFirstVerifiedBatchesAfterBlock(rollupID uint32, blockNum 
 	return verified, db.ReturnErrNotFound(err)
 }
 
-func (p *processor) GetFirstL1InfoWithRollupExitRoot(rollupExitRoot ethCommon.Hash) (*L1InfoTreeLeaf, error) {
+func (p *processor) GetFirstL1InfoWithRollupExitRoot(rollupExitRoot common.Hash) (*L1InfoTreeLeaf, error) {
 	info := &L1InfoTreeLeaf{}
 	err := meddler.QueryRow(p.db, info, `
 		SELECT * FROM l1info_leaf
@@ -401,5 +401,15 @@ func (p *processor) GetFirstInfoAfterBlock(blockNum uint64) (*L1InfoTreeLeaf, er
 		ORDER BY block_num ASC, block_pos ASC
 		LIMIT 1;
 	`, blockNum)
+	return info, db.ReturnErrNotFound(err)
+}
+
+func (p *processor) GetInfoByGlobalExitRoot(ger common.Hash) (*L1InfoTreeLeaf, error) {
+	info := &L1InfoTreeLeaf{}
+	err := meddler.QueryRow(p.db, info, `
+		SELECT * FROM l1info_leaf
+		WHERE global_exit_root = $1
+		LIMIT 1;
+	`, ger.Hex())
 	return info, db.ReturnErrNotFound(err)
 }

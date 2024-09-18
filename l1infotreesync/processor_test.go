@@ -91,6 +91,8 @@ func TestGetInfo(t *testing.T) {
 	require.Equal(t, db.ErrNotFound, err)
 	_, err = p.GetFirstInfoAfterBlock(0)
 	require.Equal(t, db.ErrNotFound, err)
+	_, err = p.GetInfoByGlobalExitRoot(common.Hash{})
+	require.Equal(t, db.ErrNotFound, err)
 
 	// First insert
 	info1 := &UpdateL1InfoTree{
@@ -128,10 +130,13 @@ func TestGetInfo(t *testing.T) {
 	actual, err = p.GetFirstInfoAfterBlock(0)
 	require.NoError(t, err)
 	require.Equal(t, expected1, *actual)
+	actual, err = p.GetInfoByGlobalExitRoot(expected1.GlobalExitRoot)
+	require.NoError(t, err)
+	require.Equal(t, expected1, *actual)
 
 	// Second insert
 	info2 := &UpdateL1InfoTree{
-		MainnetExitRoot: common.HexToHash("beef"),
+		MainnetExitRoot: common.HexToHash("b055"),
 		RollupExitRoot:  common.HexToHash("5ca1e"),
 		ParentHash:      common.HexToHash("1010101"),
 		Timestamp:       420,
@@ -163,6 +168,9 @@ func TestGetInfo(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expected1, *actual)
 	actual, err = p.GetFirstInfoAfterBlock(2)
+	require.NoError(t, err)
+	require.Equal(t, expected2, *actual)
+	actual, err = p.GetInfoByGlobalExitRoot(expected2.GlobalExitRoot)
 	require.NoError(t, err)
 	require.Equal(t, expected2, *actual)
 }
