@@ -101,6 +101,7 @@ setup() {
     local expected_balance=$(echo "$initial_receiver_balance + $wei_amount" |
         bc | sed 's/ .*//')
 
+    echo "Receiver balance: $receiver_balance" >&3
     assert_equal "$receiver_balance" "$expected_balance"
 
     # TODO:
