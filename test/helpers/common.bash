@@ -76,99 +76,111 @@ function sendTx() {
     fi
 
     local private_key="$1"           # Sender private key
-    local account_addr="$2"          # Receiver address
+    local receiver_addr="$2"         # Receiver address
     local value_or_function_sig="$3" # Value or function signature
 
     # Error handling: Ensure the receiver is a valid Ethereum address
-    if [[ ! "$account_addr" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
-        echo "Error: Invalid receiver address '$account_addr'."
+    if [[ ! "$receiver_addr" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
+        echo "Error: Invalid receiver address '$receiver_addr'."
         return 1
     fi
 
-    shift 3 # Shift the first 3 arguments (private_key, account_addr, value_or_function_sig)
+    shift 3             # Shift the first 3 arguments (private_key, receiver_addr, value_or_function_sig)
+    local params=("$@") # Collect all remaining arguments as function parameters
 
+    # Get sender address from private key
     local sender_addr
-    sender_addr=$(cast wallet address "$private_key")
+    sender_addr=$(cast wallet address "$private_key") || {
+        echo "Error: Failed to extract the sender address."
+        return 1
+    }
+
+    # Get initial ether balances of sender and receiver
+    local sender_initial_balance receiver_initial_balance
+    sender_initial_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1
+    receiver_initial_balance=$(cast balance "$receiver_addr" --ether --rpc-url "$rpc_url") || return 1
+
+    # Check if the value_or_function_sig is a numeric value (Ether to be transferred)
+    if [[ "$value_or_function_sig" =~ ^[0-9]+(\.[0-9]+)?(ether)?$ ]]; then
+        # Case: Ether transfer (EOA transaction)
+        send_eoa_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "$sender_addr" "$sender_initial_balance" "$receiver_initial_balance"
+    else
+        # Case: Smart contract interaction (contract interaction with function signature and parameters)
+        send_smart_contract_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "$sender_addr" "${params[@]}"
+    fi
+}
+
+function send_eoa_transaction() {
+    local private_key="$1"
+    local receiver_addr="$2"
+    local value="$3"
+    local sender_addr="$4"
+    local sender_initial_balance="$5"
+    local receiver_initial_balance="$6"
+
+    echo "Sending EOA transaction to: $receiver_addr with value: $value" >&3
+
+    # Send transaction via cast
+    local cast_output tx_hash
+    cast_output=$(cast send --rpc-url "$rpc_url" --private-key "$private_key" "$receiver_addr" --value "$value" --legacy 2>&1)
     if [[ $? -ne 0 ]]; then
-        echo "Error: Failed to extract the sender address for $private_key"
+        echo "Error: Failed to send transaction. Output:"
+        echo "$cast_output"
         return 1
     fi
 
-    # Check initial ether balance of sender and receiver
-    local sender_initial_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1
-    local receiver_initial_balance=$(cast balance "$account_addr" --ether --rpc-url "$rpc_url") || return 1
+    tx_hash=$(extract_tx_hash "$cast_output")
+    [[ -z "$tx_hash" ]] && {
+        echo "Error: Failed to extract transaction hash."
+        return 1
+    }
 
-    # Check if the first remaining argument is a numeric value (Ether to be transferred)
-    if [[ "$value_or_function_sig" =~ ^[0-9]+(\.[0-9]+)?(ether)?$ ]]; then
-        # Case: EOA transaction (Ether transfer)
-        echo "Sending EOA transaction (RPC URL: $rpc_url, sender: $sender_addr) to: $account_addr " \
-            "with value: $value_or_function_sig" >&3
-
-        cast_output=$(cast send --rpc-url "$rpc_url" \
-            --private-key "$private_key" \
-            "$account_addr" --value "$value_or_function_sig" \
-            --legacy \
-            2>&1)
-
-        # Check if the transaction was successful
-        if [[ $? -ne 0 ]]; then
-            echo "Error: Failed to send transaction. The cast send output:"
-            echo "$cast_output"
-            return 1
-        fi
-
-        # Extract the transaction hash from the output
-        local tx_hash=$(echo "$cast_output" | grep 'transactionHash' | awk '{print $2}' | tail -n 1)
-        echo "Tx hash: $tx_hash"
-
-        if [[ -z "$tx_hash" ]]; then
-            echo "Error: Failed to extract transaction hash."
-            return 1
-        fi
-
-        checkBalances "$sender_addr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
-        if [[ $? -ne 0 ]]; then
-            echo "Error: Balance not updated correctly."
-            return 1
-        fi
-    else
-        # Case: Smart contract transaction (contract interaction with function signature and parameters)
-        local params=("$@") # Collect all remaining arguments as function parameters
-
-        # Verify if the function signature starts with "function"
-        if [[ ! "$value_or_function_sig" =~ ^function\ .+\(.+\)$ ]]; then
-            echo "Error: Invalid function signature format '$value_or_function_sig'."
-            return 1
-        fi
-
-        echo "Sending smart contract transaction (RPC URL: $rpc_url, sender: $sender_addr) to $account_addr" \
-            "with function signature: '$value_or_function_sig' and params: ${params[*]}" >&3
-
-        # Send the smart contract interaction using cast
-        cast_output=$(cast send --rpc-url "$rpc_url" \
-            --private-key "$private_key" \
-            "$account_addr" "$value_or_function_sig" "${params[@]}" \
-            --legacy \
-            2>&1)
-
-        # Check if the transaction was successful
-        if [[ $? -ne 0 ]]; then
-            echo "Error: Failed to send transaction. The cast send output:"
-            echo "$cast_output"
-            return 1
-        fi
-
-        # Extract the transaction hash from the output
-        local tx_hash=$(echo "$cast_output" | grep 'transactionHash' | awk '{print $2}' | tail -n 1)
-        if [[ -z "$tx_hash" ]]; then
-            echo "Error: Failed to extract transaction hash (transaction hash '$tx_hash')."
-            return 1
-        fi
+    checkBalances "$sender_addr" "$receiver_addr" "$value" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Balance not updated correctly."
+        return 1
     fi
 
     echo "Transaction successful (transaction hash: $tx_hash)"
+}
 
-    return 0
+function send_smart_contract_transaction() {
+    local private_key="$1"
+    local receiver_addr="$2"
+    local function_sig="$3"
+    local sender_addr="$4"
+    shift 4
+    local params=("$@")
+
+    # Verify if the function signature starts with "function"
+    if [[ ! "$function_sig" =~ ^function\ .+\(.+\)$ ]]; then
+        echo "Error: Invalid function signature format '$function_sig'."
+        return 1
+    fi
+
+    echo "Sending smart contract transaction to $receiver_addr with function signature: '$function_sig' and params: ${params[*]}" >&3
+
+    # Send the smart contract interaction using cast
+    local cast_output tx_hash
+    cast_output=$(cast send --rpc-url "$rpc_url" --private-key "$private_key" "$receiver_addr" "$function_sig" "${params[@]}" --legacy 2>&1)
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to send transaction. Output:"
+        echo "$cast_output"
+        return 1
+    fi
+
+    tx_hash=$(extract_tx_hash "$cast_output")
+    [[ -z "$tx_hash" ]] && {
+        echo "Error: Failed to extract transaction hash."
+        return 1
+    }
+
+    echo "Transaction successful (transaction hash: $tx_hash)"
+}
+
+function extract_tx_hash() {
+    local cast_output="$1"
+    echo "$cast_output" | grep 'transactionHash' | awk '{print $2}' | tail -n 1
 }
 
 function queryContract() {
@@ -229,7 +241,7 @@ function checkBalances() {
 
     # Transaction hash regex: 0x followed by 64 hexadecimal characters
     if [[ ! "$tx_hash" =~ ^0x[a-fA-F0-9]{64}$ ]]; then
-        echo "Error: Invalid transaction hash: $tx_hash"
+        echo "Error: Invalid transaction hash: $tx_hash".
         return 1
     fi
 
