@@ -3,6 +3,7 @@ package aggregator
 import (
 	"context"
 	"math/big"
+	"time"
 
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/aggregator/prover"
@@ -35,6 +36,30 @@ type etherman interface {
 	) (to *common.Address, data []byte, err error)
 	GetLatestBlockHeader(ctx context.Context) (*types.Header, error)
 	GetBatchAccInputHash(ctx context.Context, batchNumber uint64) (common.Hash, error)
+	CheckTxWasMined(ctx context.Context, txHash common.Hash) (bool, *types.Receipt, error)
+	CurrentNonce(ctx context.Context, account common.Address) (uint64, error)
+	GetHeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+	GetLatestBlockNumber(ctx context.Context) (uint64, error)
+	GetRevertMessage(ctx context.Context, tx *types.Transaction) (string, error)
+	EstimateGas(ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte) (uint64, error)
+	GetSuggestGasTipCap(ctx context.Context) (*big.Int, error)
+	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
+	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+	PendingNonce(ctx context.Context, account common.Address) (uint64, error)
+	SendTx(ctx context.Context, tx *types.Transaction) error
+	SignTx(ctx context.Context, sender common.Address, tx *types.Transaction) (*types.Transaction, error)
+	WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) (bool, error)
+	SuggestedGasPrice(ctx context.Context) (*big.Int, error)
+	EstimateGasBlobTx(
+		ctx context.Context,
+		from common.Address,
+		to *common.Address,
+		gasFeeCap *big.Int,
+		gasTipCap *big.Int,
+		value *big.Int,
+		data []byte,
+	) (uint64, error)
 }
 
 // aggregatorTxProfitabilityChecker interface for different profitability

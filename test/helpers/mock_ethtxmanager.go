@@ -9,7 +9,7 @@ import (
 
 	context "context"
 
-	ethtxmanager "github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	ethtxmanager "github.com/0xPolygon/cdk/ethtxmanager"
 
 	mock "github.com/stretchr/testify/mock"
 

@@ -7,11 +7,11 @@ require (
 	github.com/0xPolygon/cdk-data-availability v0.0.9
 	github.com/0xPolygon/cdk-rpc v0.0.0-20240905074455-431d3c271fe8
 	github.com/0xPolygonHermez/zkevm-data-streamer v0.2.6
-	github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.10-0.20240716105056-c051c96d0234
 	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v0.7.0
 	github.com/ethereum/go-ethereum v1.14.5
 	github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3
 	github.com/hermeznetwork/tracerr v0.3.2
+	github.com/holiman/uint256 v1.2.4
 	github.com/iden3/go-iden3-crypto v0.0.16
 	github.com/invopop/jsonschema v0.12.0
 	github.com/jackc/pgconn v1.14.3
@@ -87,7 +87,6 @@ require (
 	github.com/hashicorp/hcl v1.0.1-0.20180906183839-65a6292f0157 // indirect
 	github.com/holiman/billy v0.0.0-20240216141850-2abb0c79d3c4 // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
-	github.com/holiman/uint256 v1.2.4 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect

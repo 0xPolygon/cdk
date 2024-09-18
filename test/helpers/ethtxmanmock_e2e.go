@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/0xPolygon/cdk/ethtxmanager"
 	"github.com/0xPolygon/cdk/log"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"

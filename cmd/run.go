@@ -25,6 +25,8 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/etherman/contracts"
+	"github.com/0xPolygon/cdk/etherman/etherscan"
+	"github.com/0xPolygon/cdk/ethtxmanager"
 	"github.com/0xPolygon/cdk/l1bridge2infoindexsync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/lastgersync"
@@ -36,10 +38,6 @@ import (
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/pgstatestorage"
 	"github.com/0xPolygon/cdk/translator"
-	ethtxman "github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman/etherscan"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
-	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
@@ -186,16 +184,13 @@ func createSequenceSender(
 ) *sequencesender.SequenceSender {
 	logger := log.WithFields("module", cdkcommon.SEQUENCE_SENDER)
 	ethman, err := etherman.NewClient(ethermanconfig.Config{
-		EthermanConfig: ethtxman.Config{
-			URL:              cfg.SequenceSender.EthTxManager.Etherman.URL,
-			MultiGasProvider: cfg.SequenceSender.EthTxManager.Etherman.MultiGasProvider,
-			L1ChainID:        cfg.SequenceSender.EthTxManager.Etherman.L1ChainID,
-			Etherscan: etherscan.Config{
-				ApiKey: cfg.SequenceSender.EthTxManager.Etherman.Etherscan.ApiKey,
-				Url:    cfg.SequenceSender.EthTxManager.Etherman.Etherscan.Url,
-			},
-			HTTPHeaders: cfg.SequenceSender.EthTxManager.Etherman.HTTPHeaders,
+		URL:              cfg.SequenceSender.EthTxManager.Etherman.URL,
+		MultiGasProvider: cfg.SequenceSender.EthTxManager.Etherman.MultiGasProvider,
+		Etherscan: etherscan.Config{
+			ApiKey: cfg.SequenceSender.EthTxManager.Etherman.Etherscan.ApiKey,
+			Url:    cfg.SequenceSender.EthTxManager.Etherman.Etherscan.Url,
 		},
+		HTTPHeaders: cfg.SequenceSender.EthTxManager.Etherman.HTTPHeaders,
 	}, cfg.NetworkConfig.L1Config, cfg.Common)
 	if err != nil {
 		logger.Fatalf("Failed to create etherman. Err: %w, ", err)
@@ -295,12 +290,9 @@ func createAggoracle(
 	var sender aggoracle.ChainSender
 	switch cfg.AggOracle.TargetChainType {
 	case aggoracle.EVMChain:
-		cfg.AggOracle.EVMSender.EthTxManager.Log = ethtxlog.Config{
-			Environment: ethtxlog.LogEnvironment(cfg.Log.Environment),
-			Level:       cfg.Log.Level,
-			Outputs:     cfg.Log.Outputs,
-		}
-		ethTxManager, err := ethtxmanager.New(cfg.AggOracle.EVMSender.EthTxManager)
+		cfg.AggOracle.EVMSender.EthTxManager.Log = cfg.Log
+		// TODO: Review this
+		ethTxManager, err := ethtxmanager.New(cfg.AggOracle.EVMSender.EthTxManager, nil, cfg.AggOracle.EVMSender.SenderAddr)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -400,12 +392,9 @@ func runMigrations(c db.Config, name string) {
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman.NewClient(ethermanconfig.Config{
-		EthermanConfig: ethtxman.Config{
-			URL:              c.Aggregator.EthTxManager.Etherman.URL,
-			MultiGasProvider: c.Aggregator.EthTxManager.Etherman.MultiGasProvider,
-			L1ChainID:        c.Aggregator.EthTxManager.Etherman.L1ChainID,
-			HTTPHeaders:      c.Aggregator.EthTxManager.Etherman.HTTPHeaders,
-		},
+		URL:              c.Aggregator.EthTxManager.Etherman.URL,
+		MultiGasProvider: c.Aggregator.EthTxManager.Etherman.MultiGasProvider,
+		HTTPHeaders:      c.Aggregator.EthTxManager.Etherman.HTTPHeaders,
 	}, c.NetworkConfig.L1Config, c.Common)
 }
 
@@ -596,11 +585,15 @@ func runClaimSponsorIfNeeded(
 	logger := log.WithFields("module", cdkcommon.CLAIM_SPONSOR)
 	// In the future there may support different backends other than EVM, and this will require different config.
 	// But today only EVM is supported
-	ethTxManagerL2, err := ethtxmanager.New(cfg.EthTxManager)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	go ethTxManagerL2.Start()
+
+	// TODO: Review
+	/*
+		ethTxManagerL2, err := ethtxmanager.New(cfg.EthTxManager)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		go ethTxManagerL2.Start()
+	*/
 	cs, err := claimsponsor.NewEVMClaimSponsor(
 		logger,
 		cfg.DBPath,
@@ -609,7 +602,8 @@ func runClaimSponsorIfNeeded(
 		cfg.SenderAddr,
 		cfg.MaxGas,
 		cfg.GasOffset,
-		ethTxManagerL2,
+		// ethTxManagerL2,
+		nil,
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
 		cfg.WaitTxToBeMinedPeriod.Duration,

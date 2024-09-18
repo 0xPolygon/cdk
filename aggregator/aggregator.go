@@ -20,14 +20,13 @@ import (
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/config/types"
+	"github.com/0xPolygon/cdk/ethtxmanager"
 	"github.com/0xPolygon/cdk/l1infotree"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	streamlog "github.com/0xPolygonHermez/zkevm-data-streamer/log"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
-	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
 	synclog "github.com/0xPolygonHermez/zkevm-synchronizer-l1/log"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/state/entities"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer"
@@ -119,12 +118,8 @@ func New(
 	}
 
 	// Create ethtxmanager client
-	cfg.EthTxManager.Log = ethtxlog.Config{
-		Environment: ethtxlog.LogEnvironment(cfg.Log.Environment),
-		Level:       cfg.Log.Level,
-		Outputs:     cfg.Log.Outputs,
-	}
-	ethTxManager, err := ethtxmanager.New(cfg.EthTxManager)
+	cfg.EthTxManager.Log = cfg.Log
+	ethTxManager, err := ethtxmanager.New(cfg.EthTxManager, etherman, common.HexToAddress(cfg.SenderAddress))
 	if err != nil {
 		logger.Fatalf("error creating ethtxmanager client: %v", err)
 	}

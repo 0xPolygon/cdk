@@ -9,6 +9,13 @@ import (
 	"github.com/iden3/go-iden3-crypto/keccak256"
 )
 
+const (
+	// Base10 decimal base
+	Base10 = 10
+	// Gwei represents 1000000000 wei
+	Gwei = 1000000000
+)
+
 // Uint64ToBytes converts a uint64 to a byte slice
 func Uint64ToBytes(num uint64) []byte {
 	const uint64ByteSize = 8

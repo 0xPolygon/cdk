@@ -14,6 +14,8 @@ import (
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/etherman/contracts"
+	"github.com/0xPolygon/cdk/etherman/etherscan"
+	"github.com/0xPolygon/cdk/etherman/ethgasstation"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -56,6 +58,7 @@ type ethereumClient interface {
 	ethereum.LogFilterer
 	ethereum.TransactionReader
 	ethereum.TransactionSender
+	ethereum.PendingStateReader
 
 	bind.DeployBackend
 }
@@ -76,8 +79,9 @@ type L1Config struct {
 
 // Client is a simple implementation of EtherMan.
 type Client struct {
-	EthClient  ethereumClient
-	DAProtocol *idataavailabilityprotocol.Idataavailabilityprotocol
+	EthClient    ethereumClient
+	DAProtocol   *idataavailabilityprotocol.Idataavailabilityprotocol
+	GasProviders externalGasProviders
 
 	Contracts *contracts.Contracts
 	RollupID  uint32
@@ -87,18 +91,23 @@ type Client struct {
 	auth  map[common.Address]bind.TransactOpts // empty in case of read-only client
 }
 
+type externalGasProviders struct {
+	MultiGasProvider bool
+	Providers        []ethereum.GasPricer
+}
+
 // NewClient creates a new etherman.
 func NewClient(cfg config.Config, l1Config config.L1Config, commonConfig cdkcommon.Config) (*Client, error) {
 	// Connect to ethereum node
-	ethClient, err := ethclient.Dial(cfg.EthermanConfig.URL)
+	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
-		log.Errorf("error connecting to %s: %+v", cfg.EthermanConfig.URL, err)
+		log.Errorf("error connecting to %s: %+v", cfg.URL, err)
 
 		return nil, err
 	}
 	L1chainID, err := ethClient.ChainID(context.Background())
 	if err != nil {
-		log.Errorf("error getting L1chainID from %s: %+v", cfg.EthermanConfig.URL, err)
+		log.Errorf("error getting L1chainID from %s: %+v", cfg.URL, err)
 
 		return nil, err
 	}
@@ -123,9 +132,25 @@ func NewClient(cfg config.Config, l1Config config.L1Config, commonConfig cdkcomm
 	}
 	log.Infof("rollupID: %d (obtenied from SMC: %s )", rollupID, contracts.Banana.RollupManager.String())
 
+	gProviders := []ethereum.GasPricer{ethClient}
+	if cfg.MultiGasProvider {
+		if cfg.Etherscan.ApiKey == "" {
+			log.Info("No ApiKey provided for etherscan. Ignoring provider...")
+		} else {
+			log.Info("ApiKey detected for etherscan")
+			gProviders = append(gProviders, etherscan.NewEtherscanService(cfg.Etherscan.ApiKey))
+		}
+		gProviders = append(gProviders, ethgasstation.NewEthGasStationService())
+	}
+
 	client := &Client{
 		EthClient: ethClient,
 		Contracts: contracts,
+
+		GasProviders: externalGasProviders{
+			MultiGasProvider: cfg.MultiGasProvider,
+			Providers:        gProviders,
+		},
 
 		RollupID: rollupID,
 		l1Cfg:    l1Config,
@@ -308,6 +333,11 @@ func (etherMan *Client) CurrentNonce(ctx context.Context, account common.Address
 	return etherMan.EthClient.NonceAt(ctx, account, nil)
 }
 
+// PendingNonce returns the pending nonce for the provided account
+func (etherMan *Client) PendingNonce(ctx context.Context, account common.Address) (uint64, error) {
+	return etherMan.EthClient.PendingNonceAt(ctx, account)
+}
+
 // EstimateGas returns the estimated gas for the tx
 func (etherMan *Client) EstimateGas(
 	ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte,
@@ -480,4 +510,62 @@ func (etherMan *Client) GetL1InfoRoot(indexL1InfoRoot uint32) (common.Hash, erro
 	}
 
 	return lastL1InfoTreeRoot, err
+}
+
+// EstimateGasBlobTx returns the estimated gas for the blob tx
+func (etherMan *Client) EstimateGasBlobTx(
+	ctx context.Context,
+	from common.Address,
+	to *common.Address,
+	gasFeeCap *big.Int,
+	gasTipCap *big.Int,
+	value *big.Int,
+	data []byte,
+) (uint64, error) {
+	return etherMan.EthClient.EstimateGas(ctx, ethereum.CallMsg{
+		From:      from,
+		To:        to,
+		GasFeeCap: gasFeeCap,
+		GasTipCap: gasTipCap,
+		Value:     value,
+		Data:      data,
+	})
+}
+
+// GetHeaderByNumber returns a block header from the current canonical chain.
+// If number is nil the latest header is returned
+func (etherMan *Client) GetHeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+	header, err := etherMan.EthClient.HeaderByNumber(ctx, number)
+	return header, err
+}
+
+// GetSuggestGasTipCap retrieves the currently suggested gas tip cap after EIP-1559 for timely transaction execution.
+func (etherMan *Client) GetSuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+	gasTipCap, err := etherMan.EthClient.SuggestGasTipCap(ctx)
+	return gasTipCap, err
+}
+
+// SuggestedGasPrice returns the suggest nonce for the network at the moment
+func (etherMan *Client) SuggestedGasPrice(ctx context.Context) (*big.Int, error) {
+	suggestedGasPrice := etherMan.GetL1GasPrice(ctx)
+	if suggestedGasPrice.Cmp(big.NewInt(0)) == 0 {
+		return nil, errors.New("failed to get the suggested gas price")
+	}
+	return suggestedGasPrice, nil
+}
+
+// GetL1GasPrice gets the l1 gas price
+func (etherMan *Client) GetL1GasPrice(ctx context.Context) *big.Int {
+	// Get gasPrice from providers
+	gasPrice := big.NewInt(0)
+	for i, prov := range etherMan.GasProviders.Providers {
+		gp, err := prov.SuggestGasPrice(ctx)
+		if err != nil {
+			log.Warnf("error getting gas price from provider %d. Error: %s", i+1, err.Error())
+		} else if gasPrice.Cmp(gp) == -1 { // gasPrice < gp
+			gasPrice = gp
+		}
+	}
+	log.Debug("gasPrice chose: ", gasPrice)
+	return gasPrice
 }

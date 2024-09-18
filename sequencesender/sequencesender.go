@@ -14,14 +14,13 @@ import (
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/etherman"
+	"github.com/0xPolygon/cdk/ethtxmanager"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
-	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
 	"github.com/ethereum/go-ethereum/common"
 	"google.golang.org/protobuf/proto"
 )
@@ -109,13 +108,8 @@ func New(cfg Config, logger *log.Logger,
 	}
 
 	// Create ethtxmanager client
-	cfg.EthTxManager.Log = ethtxlog.Config{
-		Environment: ethtxlog.LogEnvironment(cfg.Log.Environment),
-		Level:       cfg.Log.Level,
-		Outputs:     cfg.Log.Outputs,
-	}
-
-	s.ethTxManager, err = ethtxmanager.New(cfg.EthTxManager)
+	cfg.EthTxManager.Log = cfg.Log
+	s.ethTxManager, err = ethtxmanager.New(cfg.EthTxManager, etherman, cfg.SenderAddress)
 	if err != nil {
 		s.logger.Fatalf("error creating ethtxmanager client: %v", err)
 		return nil, err
