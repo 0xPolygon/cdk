@@ -63,31 +63,7 @@ type ForbiddenField struct {
 var (
 	forbiddenFieldsOnConfig = []ForbiddenField{
 		{
-			FieldName: "aggregator.synchronizer.db.port",
-			Reason:    deprecatedFieldSyncDB,
-		},
-		{
-			FieldName: "aggregator.synchronizer.db.host",
-			Reason:    deprecatedFieldSyncDB,
-		},
-		{
-			FieldName: "aggregator.synchronizer.db.enablelog",
-			Reason:    deprecatedFieldSyncDB,
-		},
-		{
-			FieldName: "aggregator.synchronizer.db.password",
-			Reason:    deprecatedFieldSyncDB,
-		},
-		{
-			FieldName: "aggregator.synchronizer.db.user",
-			Reason:    deprecatedFieldSyncDB,
-		},
-		{
-			FieldName: "aggregator.synchronizer.db.name",
-			Reason:    deprecatedFieldSyncDB,
-		},
-		{
-			FieldName: "aggregator.synchronizer.db.maxcoons",
+			FieldName: "aggregator.synchronizer.db.",
 			Reason:    deprecatedFieldSyncDB,
 		},
 	}
@@ -237,7 +213,7 @@ func LoadFile(configFilePath string) (*Config, error) {
 
 func getForbiddenField(fieldName string) *ForbiddenField {
 	for _, forbiddenField := range forbiddenFieldsOnConfig {
-		if forbiddenField.FieldName == fieldName {
+		if forbiddenField.FieldName == fieldName || strings.HasPrefix(fieldName, forbiddenField.FieldName) {
 			return &forbiddenField
 		}
 	}
