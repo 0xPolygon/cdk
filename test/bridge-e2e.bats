@@ -15,7 +15,7 @@ setup() {
     # Download the genesis file
     readonly bridge_default_address=$(jq -r ".genesis[] | select(.contractName == \"PolygonZkEVMBridge proxy\") | .address" ./tmp/cdk/genesis/genesis.json)
 
-    readonly skey=${SENDER_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
+    readonly sender_private_key=${SENDER_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
     readonly destination_net=${DESTINATION_NET:-"1"}
     readonly destination_addr=${DESTINATION_ADDRESS:-"0x0bb7AA0b4FdC2D2862c088424260e99ed6299148"}
     readonly ether_value=${ETHER_VALUE:-"0.0200000054"}
@@ -31,7 +31,7 @@ setup() {
     readonly dry_run=${DRY_RUN:-"false"}
 
     readonly amount=$(cast to-wei $ether_value ether)
-    readonly current_addr="$(cast wallet address --private-key $skey)"
+    readonly sender_addr="$(cast wallet address --private-key $sender_private_key)"
     readonly l1_rpc_network_id=$(cast call --rpc-url $l1_rpc_url $bridge_addr 'networkID()(uint32)')
     readonly l2_rpc_network_id=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'networkID()(uint32)')
 }

@@ -5,10 +5,10 @@ function deposit () {
 
     if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
         echo "Checking the current ETH balance: " >&3
-        cast balance -e --rpc-url $l1_rpc_url $current_addr >&3
+        cast balance -e --rpc-url $l1_rpc_url $sender_addr >&3
     else
         echo "Checking the current token balance for token at $token_addr: " >&3
-        cast call --rpc-url $l1_rpc_url $token_addr 'balanceOf(address)(uint256)' $current_addr >&3
+        cast call --rpc-url $l1_rpc_url $token_addr 'balanceOf(address)(uint256)' $sender_addr >&3
     fi
 
     echo "Attempting to deposit $amount wei to net $destination_net for token $token_addr" >&3
@@ -17,9 +17,9 @@ function deposit () {
         cast calldata $deposit_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
     else
         if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
-            cast send --legacy --private-key $skey --value $amount --rpc-url $l1_rpc_url $bridge_addr $deposit_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
+            cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $l1_rpc_url $bridge_addr $deposit_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         else
-            cast send --legacy --private-key $skey --rpc-url $l1_rpc_url $bridge_addr $deposit_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
+            cast send --legacy --private-key $sender_private_key --rpc-url $l1_rpc_url $bridge_addr $deposit_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         fi
     fi
 }
@@ -69,7 +69,7 @@ function claim() {
             cast calldata $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
             cast call --rpc-url $l2_rpc_url $bridge_addr $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
         else
-            cast send --legacy --rpc-url $l2_rpc_url --private-key $skey $bridge_addr $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
+            cast send --legacy --rpc-url $l2_rpc_url --private-key $sender_private_key $bridge_addr $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
         fi
 
 
