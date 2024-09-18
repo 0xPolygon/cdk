@@ -147,7 +147,7 @@ function sendTx() {
     fi
 
     if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
-        checkTransactionSuccess "$sender_addr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
+        checkBalances "$sender_addr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
         if [[ $? -ne 0 ]]; then
             echo "Error: Balance not updated correctly."
             return 1
@@ -196,41 +196,32 @@ function queryContract() {
     return 0
 }
 
-function rpcQuery() {
-    local method="$1" # The JSON-RPC method name
-    shift
-    local params=("$@") # Remaining arguments are the parameters for the RPC method
-
-    # Check if rpc_url is available
-    if [[ -z "$rpc_url" ]]; then
-        echo "Error: rpc_url environment variable is not set."
-        return 1
-    fi
-
-    # Use cast to perform a generic RPC call
-    local response
-    response=$(cast rpc "$method" "${params[@]}" --rpc-url "$rpc_url" 2>&1)
-
-    # Check if the cast rpc command was successful
-    if [[ $? -ne 0 ]]; then
-        echo "Error: Failed to perform RPC query."
-        echo "$response"
-        return 1
-    fi
-
-    echo "$response"
-    return 0
-}
-
-function checkTransactionSuccess() {
-    local sender_addr="$1"
+function checkBalances() {
+    local sender="$1"
     local receiver="$2"
-    local value_or_function_sig="$3"
+    local amount="$3"
     local tx_hash="$4"
     local sender_initial_balance="$5"
     local receiver_initial_balance="$6"
 
-    local sender_final_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1
+    # Ethereum address regex: 0x followed by 40 hexadecimal characters
+    if [[ ! "$sender" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
+        echo "Error: Invalid sender address '$sender'."
+        return 1
+    fi
+
+    if [[ ! "$receiver" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
+        echo "Error: Invalid receiver address '$receiver'."
+        return 1
+    fi
+
+    # Transaction hash regex: 0x followed by 64 hexadecimal characters
+    if [[ ! "$tx_hash" =~ ^0x[a-fA-F0-9]{64}$ ]]; then
+        echo "Error: Invalid transaction hash: $tx_hash"
+        return 1
+    fi
+
+    local sender_final_balance=$(cast balance "$sender" --ether --rpc-url "$rpc_url") || return 1
     local gas_used=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gas ' | awk '{print $2}')
     local gas_price=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gasPrice' | awk '{print $2}')
     local gas_fee=$(echo "$gas_used * $gas_price" | bc)
@@ -244,8 +235,8 @@ function checkTransactionSuccess() {
     local receiver_balance_change=$(echo "$receiver_final_balance - $receiver_initial_balance" | bc)
     echo "Receiver balance changed by: '$receiver_balance_change' wei"
 
-    # Trim 'ether' suffix from value_or_function_sig to get the numeric part
-    local value_in_ether=$(echo "$value_or_function_sig" | sed 's/ether$//')
+    # Trim 'ether' suffix from amount to get the numeric part
+    local value_in_ether=$(echo "$amount" | sed 's/ether$//')
 
     if ! echo "$receiver_balance_change == $value_in_ether" | bc -l; then
         echo "Error: receiver balance updated incorrectly. Expected: $value_in_ether, Actual: $receiver_balance_change"
