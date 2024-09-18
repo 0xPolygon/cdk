@@ -23,7 +23,7 @@ setup() {
     # case 2: Transaction rejected as sender attempts to transfer more than it has in its wallet.
     # Transaction will fail pre-validation check on the node and will be dropped subsequently from the pool
     # without recording it on the chain and hence nonce will not change
-    local sender_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1    
+    local sender_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1
     local excessive_value=$(echo "$sender_balance + 1" | bc)"ether"
     run sendTx "$private_key" "$receiver" "$excessive_value"
     assert_failure

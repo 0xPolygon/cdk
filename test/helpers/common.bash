@@ -126,12 +126,10 @@ function sendTx() {
             return 1
         fi
 
-        if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
-            checkBalances "$sender_addr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
-            if [[ $? -ne 0 ]]; then
-                echo "Error: Balance not updated correctly."
-                return 1
-            fi
+        checkBalances "$sender_addr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
+        if [[ $? -ne 0 ]]; then
+            echo "Error: Balance not updated correctly."
+            return 1
         fi
     else
         # Case: Smart contract transaction (contract interaction with function signature and parameters)
@@ -162,10 +160,8 @@ function sendTx() {
 
         # Extract the transaction hash from the output
         local tx_hash=$(echo "$cast_output" | grep 'transactionHash' | awk '{print $2}' | tail -n 1)
-        echo "Tx hash: $tx_hash"
-
         if [[ -z "$tx_hash" ]]; then
-            echo "Error: Failed to extract transaction hash."
+            echo "Error: Failed to extract transaction hash (transaction hash '$tx_hash')."
             return 1
         fi
     fi
