@@ -11,24 +11,25 @@ setup() {
 }
 
 @test "Send EOA transaction" {
-    local initial_nonce=$(cast nonce "$senderAddr" --rpc-url "$rpc_url") || return 1
+    local sender_addr=$(cast wallet address --private-key $private_key)
+    local initial_nonce=$(cast nonce "$sender_addr" --rpc-url "$rpc_url") || return 1
     local value="10ether"
 
-    # case 1: Transaction successfull sernder has suffecient balance
+    # case 1: Transaction successfull sender has sufficient balance
     run sendTx "$private_key" "$receiver" "$value"
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
     # case 2: Transaction rejected sender attempts to transfer more than they have in their wallet
-    # Trx will fail pre validation check on the node and will be dropped subsequently from the pool
-    # without recording it on the chain and hence nonce will not change  
-    local sender_balance=$(cast balance "$senderAddr" --ether --rpc-url "$rpc_url") || return 1    
-    local excessive_value="$(echo "$sender_balance + 1" | bc)ether"
+    # Transaction will fail pre-validation check on the node and will be dropped subsequently from the pool
+    # without recording it on the chain and hence nonce will not change
+    local sender_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1    
+    local excessive_value=$(echo "$sender_balance + 1" | bc)"ether"
     run sendTx "$private_key" "$receiver" "$excessive_value"
-    assert_failure 
+    assert_failure
 
-    # check wheather nonce of sender was updated correctly or not
-    local final_nonce=$(cast nonce "$senderAddr" --rpc-url "$rpc_url") || return 1
+    # check whether nonce of sender was updated correctly
+    local final_nonce=$(cast nonce "$sender_addr" --rpc-url "$rpc_url") || return 1
     assert_equal "$final_nonce" "$(echo "$initial_nonce + 1" | bc)"
 }
 

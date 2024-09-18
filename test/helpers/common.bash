@@ -16,13 +16,13 @@ function deployContract() {
     fi
 
     # Get the sender address
-    local senderAddr=$(cast wallet address "$private_key")
+    local sender_addr=$(cast wallet address "$private_key")
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to retrieve sender address."
         return 1
     fi
 
-    echo "Attempting to deploy contract artifact '$contract_artifact' to $rpc_url (sender: $senderAddr)" >&3
+    echo "Attempting to deploy contract artifact '$contract_artifact' to $rpc_url (sender: $sender_addr)" >&3
 
     # Get bytecode from the contract artifact
     local bytecode=$(jq -r .bytecode "$contract_artifact")
@@ -87,22 +87,21 @@ function sendTx() {
 
     shift 3 # Shift the first 3 arguments (private_key, account_addr, value_or_function_sig)
 
-    local senderAddr
-    senderAddr=$(cast wallet address "$private_key")
+    local sender_addr
+    sender_addr=$(cast wallet address "$private_key")
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to extract the sender address for $private_key"
         return 1
     fi
 
-    # Check initial ether balance of sender and receiver 
-    local sender_initial_balance=$(cast balance "$senderAddr" --ether --rpc-url "$rpc_url") || return 1    
+    # Check initial ether balance of sender and receiver
+    local sender_initial_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1
     local receiver_initial_balance=$(cast balance "$account_addr" --ether --rpc-url "$rpc_url") || return 1
 
-
     # Check if the first remaining argument is a numeric value (Ether to be transferred)
-    if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
+    if [[ "$value_or_function_sig" =~ ^[0-9]+(\.[0-9]+)?(ether)?$ ]]; then
         # Case: EOA transaction (Ether transfer)
-        echo "Sending EOA transaction (RPC URL: $rpc_url, sender: $senderAddr) to: $account_addr " \
+        echo "Sending EOA transaction (RPC URL: $rpc_url, sender: $sender_addr) to: $account_addr " \
             "with value: $value_or_function_sig" >&3
 
         cast_output=$(cast send --rpc-url "$rpc_url" \
@@ -114,15 +113,13 @@ function sendTx() {
         # Case: Smart contract transaction (contract interaction with function signature and parameters)
         local params=("$@") # Collect all remaining arguments as function parameters
 
-        echo "Function signature: '$value_or_function_sig'" >&3
-
         # Verify if the function signature starts with "function"
         if [[ ! "$value_or_function_sig" =~ ^function\ .+\(.+\)$ ]]; then
             echo "Error: Invalid function signature format '$value_or_function_sig'."
             return 1
         fi
 
-        echo "Sending smart contract transaction (RPC URL: $rpc_url, sender: $senderAddr) to $account_addr" \
+        echo "Sending smart contract transaction (RPC URL: $rpc_url, sender: $sender_addr) to $account_addr" \
             "with function signature: '$value_or_function_sig' and params: ${params[*]}" >&3
 
         # Send the smart contract interaction using cast
@@ -150,15 +147,14 @@ function sendTx() {
     fi
 
     if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
-        sleep 7
-        checkTransactionSuccess "$senderAddr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
+        checkTransactionSuccess "$sender_addr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
         if [[ $? -ne 0 ]]; then
             echo "Error: Balance not updated correctly."
             return 1
         fi
     fi
 
-    echo "Transaction successful (transaction hash: '$tx_hash')"
+    echo "Transaction successful (transaction hash: $tx_hash)"
 
     return 0
 }
@@ -201,9 +197,9 @@ function queryContract() {
 }
 
 function rpcQuery() {
-    local method="$1"     # The JSON-RPC method name
-    shift                 
-    local params=("$@")   # Remaining arguments are the parameters for the RPC method
+    local method="$1" # The JSON-RPC method name
+    shift
+    local params=("$@") # Remaining arguments are the parameters for the RPC method
 
     # Check if rpc_url is available
     if [[ -z "$rpc_url" ]]; then
@@ -227,14 +223,14 @@ function rpcQuery() {
 }
 
 function checkTransactionSuccess() {
-    local senderAddr="$1"
+    local sender_addr="$1"
     local receiver="$2"
     local value_or_function_sig="$3"
     local tx_hash="$4"
     local sender_initial_balance="$5"
     local receiver_initial_balance="$6"
 
-    local sender_final_balance=$(cast balance "$senderAddr" --ether --rpc-url "$rpc_url") || return 1
+    local sender_final_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1
     local gas_used=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gas ' | awk '{print $2}')
     local gas_price=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gasPrice' | awk '{print $2}')
     local gas_fee=$(echo "$gas_used * $gas_price" | bc)
@@ -246,11 +242,11 @@ function checkTransactionSuccess() {
 
     local receiver_final_balance=$(cast balance "$receiver" --ether --rpc-url "$rpc_url") || return 1
     local receiver_balance_change=$(echo "$receiver_final_balance - $receiver_initial_balance" | bc)
-    echo "Receiver balance changed by: `$receiver_balance_change` wei"
+    echo "Receiver balance changed by: '$receiver_balance_change' wei"
 
     # Trim 'ether' suffix from value_or_function_sig to get the numeric part
     local value_in_ether=$(echo "$value_or_function_sig" | sed 's/ether$//')
-    
+
     if ! echo "$receiver_balance_change == $value_in_ether" | bc -l; then
         echo "Error: receiver balance updated incorrectly. Expected: $value_in_ether, Actual: $receiver_balance_change"
         return 1
@@ -258,7 +254,7 @@ function checkTransactionSuccess() {
 
     # Calculate expected sender balance change
     local expected_sender_change=$(echo "$value_in_ether + $gas_fee_in_ether" | bc)
-     if ! echo "$sender_balance_change == $expected_sender_change" | bc -l; then
+    if ! echo "$sender_balance_change == $expected_sender_change" | bc -l; then
         echo "Error: sender balance updated incorrectly. Expected: $expected_sender_change, Actual: $sender_balance_change"
         return 1
     fi
