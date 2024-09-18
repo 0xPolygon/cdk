@@ -283,7 +283,7 @@ func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL1Bridge(ctx context.Context
 	lowerLimit := firstInfo.BlockNumber
 	upperLimit := lastInfo.BlockNumber
 	for lowerLimit <= upperLimit {
-		targetBlock := (lowerLimit + upperLimit) / binnarySearchDivider
+		targetBlock := lowerLimit + ((upperLimit - lowerLimit) / 2)
 		targetInfo, err := b.l1InfoTree.GetFirstInfoAfterBlock(targetBlock)
 		if err != nil {
 			return 0, err
@@ -337,7 +337,7 @@ func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL2Bridge(ctx context.Context
 	lowerLimit := firstVerified.BlockNumber
 	upperLimit := lastVerified.BlockNumber
 	for lowerLimit <= upperLimit {
-		targetBlock := (lowerLimit + upperLimit) / binnarySearchDivider
+		targetBlock := lowerLimit + ((upperLimit - lowerLimit) / 2)
 		targetVerified, err := b.l1InfoTree.GetFirstVerifiedBatchesAfterBlock(b.networkID-1, targetBlock)
 		if err != nil {
 			return 0, err
