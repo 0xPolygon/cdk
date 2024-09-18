@@ -54,6 +54,20 @@ const (
 	FlagMaxAmount = "max-amount"
 )
 
+type ForbiddenField struct {
+	FieldName string
+	Reason    string
+}
+
+var (
+	forbiddenFieldsOnConfig = []ForbiddenField{
+		{
+			FieldName: "Aggregator.Synchronizer.DB",
+			Reason:    "Field deprecated use Aggregator.Synchronizer.SQLDB instead",
+		},
+	}
+)
+
 /*
 Config represents the configuration of the entire Hermez Node
 The file is [TOML format]
@@ -135,6 +149,7 @@ func Load(ctx *cli.Context) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	expectedKeys := viper.AllKeys()
 
 	configFilePath := ctx.String(FlagCfg)
 	if configFilePath != "" {
@@ -160,7 +175,6 @@ func Load(ctx *cli.Context) (*Config, error) {
 			log.Error("config file not found")
 		} else {
 			log.Errorf("error reading config file: ", err)
-
 			return nil, err
 		}
 	}
@@ -179,8 +193,47 @@ func Load(ctx *cli.Context) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	if expectedKeys != nil {
+		configKeys := viper.AllKeys()
+		unexpectedFields := getUnexpectedFields(configKeys, expectedKeys)
+		for _, field := range unexpectedFields {
+			forbbidenInfo := getForbiddenField(field)
+			if forbbidenInfo != nil {
+				log.Errorf("forbidden field %s in config file: %s", field, forbbidenInfo.Reason)
+			} else {
+				log.Warnf("unexpected field %s in config file", field)
+			}
+		}
+	}
 	fmt.Println("cfg", cfg.NetworkConfig.L1Config)
 
 	return cfg, nil
+}
+
+func getForbiddenField(fieldName string) *ForbiddenField {
+	for _, forbiddenField := range forbiddenFieldsOnConfig {
+		if forbiddenField.FieldName == fieldName {
+			return &forbiddenField
+		}
+	}
+	return nil
+}
+
+func getUnexpectedFields(keysOnFile, expectedConfigKeys []string) []string {
+	wrongFields := make([]string, 0)
+	for _, key := range keysOnFile {
+		if !contains(expectedConfigKeys, key) {
+			wrongFields = append(wrongFields, key)
+		}
+	}
+	return wrongFields
+}
+
+func contains(keys []string, key string) bool {
+	for _, k := range keys {
+		if k == key {
+			return true
+		}
+	}
+	return false
 }
