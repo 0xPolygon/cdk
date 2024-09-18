@@ -69,14 +69,18 @@ setup() {
 }
 
 @test "Custom native token transfer" {
-    echo Enclave: "$enclave", container: "$contracts_container" >&3
-    readonly rollup_params_file=/opt/zkevm/create_rollup_parameters.json
-
-    # Retrieve the gas token address
-    run bash -c "$contracts_service_wrapper 'cat $rollup_params_file' | tail -n +2 | jq -r '.gasTokenAddress'"
-    assert_success
-    assert_output --regexp "0x[a-fA-F0-9]{40}"
-    local gas_token_addr=$output
+    # Use GAS_TOKEN_ADDR if provided, otherwise retrieve from file
+    if [[ -n "$GAS_TOKEN_ADDR" ]]; then
+        echo "Using provided GAS_TOKEN_ADDR: $GAS_TOKEN_ADDR" >&3
+        local gas_token_addr="$GAS_TOKEN_ADDR"
+    else
+        echo "GAS_TOKEN_ADDR not provided, retrieving from rollup parameters file." >&3
+        readonly rollup_params_file=/opt/zkevm/create_rollup_parameters.json
+        run bash -c "$contracts_service_wrapper 'cat $rollup_params_file' | tail -n +2 | jq -r '.gasTokenAddress'"
+        assert_success
+        assert_output --regexp "0x[a-fA-F0-9]{40}"
+        local gas_token_addr=$output
+    fi
 
     echo "Gas token addr $gas_token_addr, L1 RPC: $l1_rpc_url" >&3
 
