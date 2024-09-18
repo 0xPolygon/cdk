@@ -3,7 +3,6 @@ setup() {
     load 'helpers/common'
     _common_setup
 
-    readonly enclave=${ENCLAVE:-cdk-v1}
     readonly sequencer=${KURTOSIS_NODE:-cdk-erigon-sequencer-001}
     readonly node=${KURTOSIS_NODE:-cdk-erigon-node-001}
     readonly l2_rpc_url=${RPC_URL:-$(kurtosis port print "$enclave" "$node" http-rpc)}
