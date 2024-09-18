@@ -199,7 +199,7 @@ func Load(ctx *cli.Context) (*Config, error) {
 		for _, field := range unexpectedFields {
 			forbbidenInfo := getForbiddenField(field)
 			if forbbidenInfo != nil {
-				log.Errorf("forbidden field %s in config file: %s", field, forbbidenInfo.Reason)
+				log.Warnf("forbidden field %s in config file: %s", field, forbbidenInfo.Reason)
 			} else {
 				log.Warnf("unexpected field %s in config file", field)
 			}
