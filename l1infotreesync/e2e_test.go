@@ -119,18 +119,43 @@ func TestE2E(t *testing.T) {
 			tx, err := verifySC.VerifyBatches(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, i%2 != 0)
 			require.NoError(t, err)
 			client.Commit()
-			// Let the processor catch up
-			time.Sleep(time.Millisecond * 100)
 			receipt, err := client.Client().TransactionReceipt(ctx, tx.Hash())
 			require.NoError(t, err)
 			require.Equal(t, receipt.Status, types.ReceiptStatusSuccessful)
 			require.True(t, len(receipt.Logs) == 1+i%2+i%2)
 
+			// Let the processor catch
+			processorUpdated := false
+			for i := 0; i < 30; i++ {
+				lpb, err := syncer.GetLastProcessedBlock(ctx)
+				require.NoError(t, err)
+				if receipt.BlockNumber.Uint64() == lpb {
+					processorUpdated = true
+					break
+				}
+				time.Sleep(time.Millisecond * 10)
+			}
+			require.True(t, processorUpdated)
+
+			// Assert rollup exit root
 			expectedRollupExitRoot, err := verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
 			require.NoError(t, err)
 			actualRollupExitRoot, err := syncer.GetLastRollupExitRoot(ctx)
 			require.NoError(t, err)
 			require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash, fmt.Sprintf("rollupID: %d, i: %d", rollupID, i))
+
+			// Assert verify batches
+			expectedVerify := l1infotreesync.VerifyBatches{
+				BlockNumber:    receipt.BlockNumber.Uint64(),
+				BlockPosition:  uint64(i%2 + i%2),
+				RollupID:       rollupID,
+				ExitRoot:       newLocalExitRoot,
+				Aggregator:     auth.From,
+				RollupExitRoot: expectedRollupExitRoot,
+			}
+			actualVerify, err := syncer.GetLastVerifiedBatches(rollupID)
+			require.NoError(t, err)
+			require.Equal(t, expectedVerify, *actualVerify)
 		}
 	}
 }

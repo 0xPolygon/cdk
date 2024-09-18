@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitroot"
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
-	"github.com/0xPolygon/cdk/tree"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -67,7 +67,7 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 	)
 	for {
 		lastIndex, err = d.processor.getLastIndex(ctx)
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			lastIndex = 0
 		} else if err != nil {
 			log.Errorf("error getting last indes: %v", err)
@@ -129,7 +129,7 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 
 func (d *downloader) getGERsFromIndex(ctx context.Context, fromL1InfoTreeIndex uint32) ([]Event, error) {
 	lastRoot, err := d.l1InfoTreesync.GetLastL1InfoTreeRoot(ctx)
-	if errors.Is(err, tree.ErrNotFound) {
+	if errors.Is(err, db.ErrNotFound) {
 		return nil, nil
 	}
 	if err != nil {

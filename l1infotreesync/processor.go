@@ -21,7 +21,6 @@ import (
 
 var (
 	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
-	ErrNotFound          = errors.New("not found")
 	ErrNoBlock0          = errors.New("blockNum must be greater than 0")
 )
 
@@ -42,12 +41,16 @@ type UpdateL1InfoTree struct {
 
 // VerifyBatches representation of the VerifyBatches and VerifyBatchesTrustedAggregator events
 type VerifyBatches struct {
-	BlockPosition uint64
-	RollupID      uint32
-	NumBatch      uint64
-	StateRoot     ethCommon.Hash
-	ExitRoot      ethCommon.Hash
-	Aggregator    ethCommon.Address
+	BlockNumber   uint64            `meddler:"block_num"`
+	BlockPosition uint64            `meddler:"block_pos"`
+	RollupID      uint32            `meddler:"rollup_id"`
+	NumBatch      uint64            `meddler:"batch_num"`
+	StateRoot     ethCommon.Hash    `meddler:"state_root,hash"`
+	ExitRoot      ethCommon.Hash    `meddler:"exit_root,hash"`
+	Aggregator    ethCommon.Address `meddler:"aggregator,address"`
+
+	// Not provided by downloader
+	RollupExitRoot ethCommon.Hash `meddler:"rollup_exit_root,hash"`
 }
 
 type InitL1InfoRootMap struct {
@@ -76,7 +79,7 @@ type L1InfoTreeLeaf struct {
 
 // Hash as expected by the tree
 func (l *L1InfoTreeLeaf) hash() ethCommon.Hash {
-	var res [32]byte
+	var res [treeTypes.DefaultHeight]byte
 	t := make([]byte, 8) //nolint:mnd
 	binary.BigEndian.PutUint64(t, l.Timestamp)
 	copy(res[:], keccak256.Hash(l.globalExitRoot().Bytes(), l.PreviousBlockHash.Bytes(), t))
@@ -85,7 +88,7 @@ func (l *L1InfoTreeLeaf) hash() ethCommon.Hash {
 
 // GlobalExitRoot returns the GER
 func (l *L1InfoTreeLeaf) globalExitRoot() ethCommon.Hash {
-	var gerBytes [32]byte
+	var gerBytes [treeTypes.DefaultHeight]byte
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(l.MainnetExitRoot[:])
 	hasher.Write(l.RollupExitRoot[:])
@@ -153,7 +156,7 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, db.ErrNotFound
 		}
 		return nil, err
 	}
@@ -219,7 +222,6 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -247,7 +249,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 	lastIndex, err := p.getLastIndex(tx)
 
 	switch {
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, db.ErrNotFound):
 		initialL1InfoIndex = 0
 		err = nil
 	case err != nil:
@@ -274,8 +276,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 			}
 			info.GlobalExitRoot = info.globalExitRoot()
 			info.Hash = info.hash()
-			err = meddler.Insert(tx, "l1info_leaf", info)
-			if err != nil {
+			if err = meddler.Insert(tx, "l1info_leaf", info); err != nil {
 				return fmt.Errorf("err: %w", err)
 			}
 			err = p.l1InfoTree.AddLeaf(tx, info.BlockNumber, info.BlockPosition, treeTypes.Leaf{
@@ -289,11 +290,17 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		}
 
 		if event.VerifyBatches != nil {
-			err = p.rollupExitTree.UpsertLeaf(tx, b.Num, event.VerifyBatches.BlockPosition, treeTypes.Leaf{
+			newRoot, err := p.rollupExitTree.UpsertLeaf(tx, b.Num, event.VerifyBatches.BlockPosition, treeTypes.Leaf{
 				Index: event.VerifyBatches.RollupID - 1,
 				Hash:  event.VerifyBatches.ExitRoot,
 			})
 			if err != nil {
+				return fmt.Errorf("err: %w", err)
+			}
+			verifyBatches := event.VerifyBatches
+			verifyBatches.BlockNumber = b.Num
+			verifyBatches.RollupExitRoot = newRoot
+			if err = meddler.Insert(tx, "verify_batches", verifyBatches); err != nil {
 				return fmt.Errorf("err: %w", err)
 			}
 		}
@@ -317,7 +324,82 @@ func (p *processor) getLastIndex(tx db.Querier) (uint32, error) {
 	row := tx.QueryRow("SELECT position FROM l1info_leaf ORDER BY block_num DESC, block_pos DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedIndex)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, ErrNotFound
+		return 0, db.ErrNotFound
 	}
 	return lastProcessedIndex, err
+}
+
+func (p *processor) GetLastVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
+	verified := &VerifyBatches{}
+	err := meddler.QueryRow(p.db, verified, `
+		SELECT * FROM verify_batches
+		WHERE rollup_id = $1
+		ORDER BY block_num DESC, block_pos DESC
+		LIMIT 1;
+	`, rollupID)
+	return verified, db.ReturnErrNotFound(err)
+}
+
+func (p *processor) GetFirstVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
+	verified := &VerifyBatches{}
+	err := meddler.QueryRow(p.db, verified, `
+		SELECT * FROM verify_batches
+		WHERE rollup_id = $1
+		ORDER BY block_num ASC, block_pos ASC
+		LIMIT 1;
+	`, rollupID)
+	return verified, db.ReturnErrNotFound(err)
+}
+
+func (p *processor) GetFirstVerifiedBatchesAfterBlock(rollupID uint32, blockNum uint64) (*VerifyBatches, error) {
+	verified := &VerifyBatches{}
+	err := meddler.QueryRow(p.db, verified, `
+		SELECT * FROM verify_batches
+		WHERE rollup_id = $1 AND block_num >= $2
+		ORDER BY block_num ASC, block_pos ASC
+		LIMIT 1;
+	`, rollupID, blockNum)
+	return verified, db.ReturnErrNotFound(err)
+}
+
+func (p *processor) GetFirstL1InfoWithRollupExitRoot(rollupExitRoot ethCommon.Hash) (*L1InfoTreeLeaf, error) {
+	info := &L1InfoTreeLeaf{}
+	err := meddler.QueryRow(p.db, info, `
+		SELECT * FROM l1info_leaf
+		WHERE rollup_exit_root = $1
+		ORDER BY block_num ASC, block_pos ASC
+		LIMIT 1;
+	`, rollupExitRoot.Hex())
+	return info, db.ReturnErrNotFound(err)
+}
+
+func (p *processor) GetLastInfo() (*L1InfoTreeLeaf, error) {
+	info := &L1InfoTreeLeaf{}
+	err := meddler.QueryRow(p.db, info, `
+		SELECT * FROM l1info_leaf
+		ORDER BY block_num DESC, block_pos DESC
+		LIMIT 1;
+	`)
+	return info, db.ReturnErrNotFound(err)
+}
+
+func (p *processor) GetFirstInfo() (*L1InfoTreeLeaf, error) {
+	info := &L1InfoTreeLeaf{}
+	err := meddler.QueryRow(p.db, info, `
+		SELECT * FROM l1info_leaf
+		ORDER BY block_num ASC, block_pos ASC
+		LIMIT 1;
+	`)
+	return info, db.ReturnErrNotFound(err)
+}
+
+func (p *processor) GetFirstInfoAfterBlock(blockNum uint64) (*L1InfoTreeLeaf, error) {
+	info := &L1InfoTreeLeaf{}
+	err := meddler.QueryRow(p.db, info, `
+		SELECT * FROM l1info_leaf
+		WHERE block_num >= $1
+		ORDER BY block_num ASC, block_pos ASC
+		LIMIT 1;
+	`, blockNum)
+	return info, db.ReturnErrNotFound(err)
 }
