@@ -109,6 +109,30 @@ function sendTx() {
             "$account_addr" --value "$value_or_function_sig" \
             --legacy \
             2>&1)
+
+        # Check if the transaction was successful
+        if [[ $? -ne 0 ]]; then
+            echo "Error: Failed to send transaction. The cast send output:"
+            echo "$cast_output"
+            return 1
+        fi
+
+        # Extract the transaction hash from the output
+        local tx_hash=$(echo "$cast_output" | grep 'transactionHash' | awk '{print $2}' | tail -n 1)
+        echo "Tx hash: $tx_hash"
+
+        if [[ -z "$tx_hash" ]]; then
+            echo "Error: Failed to extract transaction hash."
+            return 1
+        fi
+
+        if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
+            checkBalances "$sender_addr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
+            if [[ $? -ne 0 ]]; then
+                echo "Error: Balance not updated correctly."
+                return 1
+            fi
+        fi
     else
         # Case: Smart contract transaction (contract interaction with function signature and parameters)
         local params=("$@") # Collect all remaining arguments as function parameters
@@ -128,28 +152,20 @@ function sendTx() {
             "$account_addr" "$value_or_function_sig" "${params[@]}" \
             --legacy \
             2>&1)
-    fi
 
-    # Check if the transaction was successful
-    if [[ $? -ne 0 ]]; then
-        echo "Error: Failed to send transaction. The cast send output:"
-        echo "$cast_output"
-        return 1
-    fi
-
-    # Extract the transaction hash from the output
-    local tx_hash=$(echo "$cast_output" | grep 'transactionHash' | awk '{print $2}' | tail -n 1)
-    echo "Tx hash: $tx_hash"
-
-    if [[ -z "$tx_hash" ]]; then
-        echo "Error: Failed to extract transaction hash."
-        return 1
-    fi
-
-    if [[ "$value_or_function_sig" =~ ^[0-9]+(ether)?$ ]]; then
-        checkBalances "$sender_addr" "$receiver" "$value_or_function_sig" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
+        # Check if the transaction was successful
         if [[ $? -ne 0 ]]; then
-            echo "Error: Balance not updated correctly."
+            echo "Error: Failed to send transaction. The cast send output:"
+            echo "$cast_output"
+            return 1
+        fi
+
+        # Extract the transaction hash from the output
+        local tx_hash=$(echo "$cast_output" | grep 'transactionHash' | awk '{print $2}' | tail -n 1)
+        echo "Tx hash: $tx_hash"
+
+        if [[ -z "$tx_hash" ]]; then
+            echo "Error: Failed to extract transaction hash."
             return 1
         fi
     fi
