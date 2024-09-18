@@ -11,8 +11,6 @@ pub(crate) struct Cli {
         long,
         short,
         value_hint = ValueHint::FilePath,
-        global = true,
-        default_value = "config/example-config.toml",
         env = "CDK_CONFIG_PATH"
     )]
     pub(crate) config: PathBuf,
@@ -22,8 +20,6 @@ pub(crate) struct Cli {
         long,
         short = 'g',
         value_hint = ValueHint::FilePath,
-        global = true,
-        default_value = "config/genesis.json",
         env = "CDK_GENESIS_PATH"
     )]
     pub(crate) chain: PathBuf,

@@ -16,3 +16,6 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 
 
 cdk-config = { path = "../cdk-config" }
+serde.workspace = true
+serde_json.workspace = true
+tempfile = "3.12.0"
