@@ -17,13 +17,13 @@ function deployContract() {
     fi
 
     # Get the sender address
-    local sender_addr=$(cast wallet address "$private_key")
+    local sender=$(cast wallet address "$private_key")
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to retrieve sender address."
         return 1
     fi
 
-    echo "Attempting to deploy contract artifact '$contract_artifact' to $rpc_url (sender: $sender_addr)" >&3
+    echo "Attempting to deploy contract artifact '$contract_artifact' to $rpc_url (sender: $sender)" >&3
 
     # Get bytecode from the contract artifact
     local bytecode=$(jq -r .bytecode "$contract_artifact")
@@ -73,13 +73,13 @@ function deployContract() {
 function sendTx() {
     # Check if at least 4 arguments are provided
     if [[ $# -lt 4 ]]; then
-        echo "Usage: sendTx <private_key> <receiver> <value_or_function_signature> [<param1> <param2> ...]"
+        echo "Usage: sendTx <rpc_url> <private_key> <receiver> <value_or_function_signature> [<param1> <param2> ...]"
         return 1
     fi
 
-    local rpc_url="$1"
+    local rpc_url="$1"               # RPC URL
     local private_key="$2"           # Sender private key
-    local account_addr="$3"          # Receiver address
+    local receiver_addr="$3"          # Receiver address
     local value_or_function_sig="$4" # Value or function signature
 
     # Error handling: Ensure the receiver is a valid Ethereum address
@@ -88,28 +88,28 @@ function sendTx() {
         return 1
     fi
 
-    shift 4 # Shift the first 4 arguments (rpc_url, private_key, account_addr, value_or_function_sig)
+    shift 4             # Shift the first 4 arguments (rpc_url, private_key, receiver_addr, value_or_function_sig)
     local params=("$@") # Collect all remaining arguments as function parameters
 
     # Get sender address from private key
-    local sender_addr
-    sender_addr=$(cast wallet address "$private_key") || {
+    local sender
+    sender=$(cast wallet address "$private_key") || {
         echo "Error: Failed to extract the sender address."
         return 1
     }
 
     # Get initial ether balances of sender and receiver
     local sender_initial_balance receiver_initial_balance
-    sender_initial_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1
+    sender_initial_balance=$(cast balance "$sender" --ether --rpc-url "$rpc_url") || return 1
     receiver_initial_balance=$(cast balance "$receiver_addr" --ether --rpc-url "$rpc_url") || return 1
 
     # Check if the value_or_function_sig is a numeric value (Ether to be transferred)
     if [[ "$value_or_function_sig" =~ ^[0-9]+(\.[0-9]+)?(ether)?$ ]]; then
         # Case: Ether transfer (EOA transaction)
-        send_eoa_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "$sender_addr" "$sender_initial_balance" "$receiver_initial_balance"
+        send_eoa_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "$sender" "$sender_initial_balance" "$receiver_initial_balance"
     else
         # Case: Smart contract interaction (contract interaction with function signature and parameters)
-        send_smart_contract_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "$sender_addr" "${params[@]}"
+        send_smart_contract_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "$sender" "${params[@]}"
     fi
 }
 
@@ -117,7 +117,7 @@ function send_eoa_transaction() {
     local private_key="$1"
     local receiver_addr="$2"
     local value="$3"
-    local sender_addr="$4"
+    local sender="$4"
     local sender_initial_balance="$5"
     local receiver_initial_balance="$6"
 
@@ -138,7 +138,7 @@ function send_eoa_transaction() {
         return 1
     }
 
-    checkBalances "$sender_addr" "$receiver_addr" "$value" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
+    checkBalances "$sender" "$receiver_addr" "$value" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
     if [[ $? -ne 0 ]]; then
         echo "Error: Balance not updated correctly."
         return 1
@@ -151,7 +151,7 @@ function send_smart_contract_transaction() {
     local private_key="$1"
     local receiver_addr="$2"
     local function_sig="$3"
-    local sender_addr="$4"
+    local sender="$4"
     shift 4
     local params=("$@")
 
