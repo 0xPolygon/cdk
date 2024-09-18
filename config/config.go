@@ -3,7 +3,6 @@ package config
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -168,16 +167,18 @@ func Default() (*Config, error) {
 
 	return &cfg, nil
 }
+func Load(ctx *cli.Context) (*Config, error) {
+	configFilePath := ctx.String(FlagCfg)
+	return LoadFile(configFilePath)
+}
 
 // Load loads the configuration
-func Load(ctx *cli.Context) (*Config, error) {
+func LoadFile(configFilePath string) (*Config, error) {
 	cfg, err := Default()
 	if err != nil {
 		return nil, err
 	}
 	expectedKeys := viper.AllKeys()
-
-	configFilePath := ctx.String(FlagCfg)
 	if configFilePath != "" {
 		dirName, fileName := filepath.Split(configFilePath)
 
@@ -231,8 +232,6 @@ func Load(ctx *cli.Context) (*Config, error) {
 			}
 		}
 	}
-	fmt.Println("cfg", cfg.NetworkConfig.L1Config)
-
 	return cfg, nil
 }
 
