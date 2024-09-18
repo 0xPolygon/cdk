@@ -52,6 +52,8 @@ const (
 	FlagOutputFile = "output"
 	// FlagMaxAmount is the flag to avoid to use the flag FlagAmount
 	FlagMaxAmount = "max-amount"
+
+	deprecatedFieldSyncDB = "Aggregator.Synchronizer.DB is deprecated use Aggregator.Synchronizer.SQLDB instead"
 )
 
 type ForbiddenField struct {
@@ -62,8 +64,32 @@ type ForbiddenField struct {
 var (
 	forbiddenFieldsOnConfig = []ForbiddenField{
 		{
-			FieldName: "Aggregator.Synchronizer.DB",
-			Reason:    "Field deprecated use Aggregator.Synchronizer.SQLDB instead",
+			FieldName: "aggregator.synchronizer.db.port",
+			Reason:    deprecatedFieldSyncDB,
+		},
+		{
+			FieldName: "aggregator.synchronizer.db.host",
+			Reason:    deprecatedFieldSyncDB,
+		},
+		{
+			FieldName: "aggregator.synchronizer.db.enablelog",
+			Reason:    deprecatedFieldSyncDB,
+		},
+		{
+			FieldName: "aggregator.synchronizer.db.password",
+			Reason:    deprecatedFieldSyncDB,
+		},
+		{
+			FieldName: "aggregator.synchronizer.db.user",
+			Reason:    deprecatedFieldSyncDB,
+		},
+		{
+			FieldName: "aggregator.synchronizer.db.name",
+			Reason:    deprecatedFieldSyncDB,
+		},
+		{
+			FieldName: "aggregator.synchronizer.db.maxcoons",
+			Reason:    deprecatedFieldSyncDB,
 		},
 	}
 )
@@ -201,7 +227,7 @@ func Load(ctx *cli.Context) (*Config, error) {
 			if forbbidenInfo != nil {
 				log.Warnf("forbidden field %s in config file: %s", field, forbbidenInfo.Reason)
 			} else {
-				log.Warnf("unexpected field %s in config file", field)
+				log.Debugf("field %s in config file doesnt have a default value", field)
 			}
 		}
 	}
