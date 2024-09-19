@@ -9,11 +9,11 @@ setup() {
     [ $? -ne 0 ] && echo "Error preparing params.yml" && exit 1
 
     if [ -z "$BRIDGE_ADDRESS" ]; then
-        local combined_json_path="/opt/zkevm/combined.json"
-        echo "BRIDGE_ADDRESS env variable is not provided, resolving the bridge address from the Kurtosis CDK '$combined_json_path'" >&3
+        local combined_json_file="/opt/zkevm/combined.json"
+        echo "BRIDGE_ADDRESS env variable is not provided, resolving the bridge address from the Kurtosis CDK '$combined_json_file'" >&3
 
         # Fetching the combined JSON output and filtering to get polygonZkEVMBridgeAddress
-        combined_json_output=$($contracts_service_wrapper "cat $combined_json_path" | tail -n +2)
+        combined_json_output=$($contracts_service_wrapper "cat $combined_json_file" | tail -n +2)
         bridge_default_address=$(echo "$combined_json_output" | jq -r .polygonZkEVMBridgeAddress)
         BRIDGE_ADDRESS=$bridge_default_address
     fi
@@ -24,21 +24,19 @@ setup() {
     destination_net=${DESTINATION_NET:-"1"}
     destination_addr=${DESTINATION_ADDRESS:-"0x0bb7AA0b4FdC2D2862c088424260e99ed6299148"}
     ether_value=${ETHER_VALUE:-"0.0200000054"}
+    readonly amount=$(cast to-wei $ether_value ether)
     token_addr=${TOKEN_ADDRESS:-"0x0000000000000000000000000000000000000000"}
     readonly is_forced=${IS_FORCED:-"true"}
     readonly bridge_addr=$BRIDGE_ADDRESS
     readonly meta_bytes=${META_BYTES:-"0x"}
 
-    readonly l1_rpc_url=${L1_ETH_RPC_URL:-"$(kurtosis port print cdk-v1 el-1-geth-lighthouse rpc)"}
-    readonly l2_rpc_url=${L2_ETH_RPC_URL:-"$(kurtosis port print cdk-v1 cdk-erigon-node-001 http-rpc)"}
-    readonly bridge_api_url=${BRIDGE_API_URL:-"$(kurtosis port print cdk-v1 zkevm-bridge-service-001 rpc)"}
+    readonly l1_rpc_url=${L1_ETH_RPC_URL:-"$(kurtosis port print $enclave el-1-geth-lighthouse rpc)"}
+    readonly bridge_api_url=${BRIDGE_API_URL:-"$(kurtosis port print $enclave zkevm-bridge-service-001 rpc)"}
 
     readonly dry_run=${DRY_RUN:-"false"}
-
-    readonly amount=$(cast to-wei $ether_value ether)
     readonly sender_addr="$(cast wallet address --private-key $sender_private_key)"
-    readonly l1_rpc_network_id=$(cast call --rpc-url $l1_rpc_url $bridge_addr 'networkID()(uint32)')
-    readonly l2_rpc_network_id=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'networkID()(uint32)')
+    readonly l1_rpc_network_id=$(cast call --rpc-url $l1_rpc_url $bridge_addr 'networkID() (uint32)')
+    readonly l2_rpc_network_id=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'networkID() (uint32)')
 }
 
 @test "Run deposit" {
@@ -118,7 +116,6 @@ setup() {
     echo "Receiver balance: $receiver_balance" >&3
     assert_equal "$receiver_balance" "$expected_balance"
 
-    # TODO:
     # Send approve transaction
     deposit_ether_value="0.1ether"
     run sendTx "$l1_rpc_url" "$sender_private_key" "$gas_token_addr" "$approve_fn_sig" "$bridge_addr" "$deposit_ether_value"

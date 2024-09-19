@@ -3,13 +3,11 @@ setup() {
     load 'helpers/common'
     _common_setup
 
-    readonly sequencer=${KURTOSIS_NODE:-cdk-erigon-sequencer-001}
-    readonly node=${KURTOSIS_NODE:-cdk-erigon-node-001}
-    readonly l2_rpc_url=${RPC_URL:-$(kurtosis port print "$enclave" "$node" http-rpc)}
+    readonly erigon_sequencer_node=${KURTOSIS_ERIGON_SEQUENCER:-cdk-erigon-sequencer-001}
+    readonly kurtosis_sequencer_wrapper=${KURTOSIS_SEQUENCER_WRAPPER:-"kurtosis service exec $enclave $erigon_sequencer_node"}
     readonly key=${SENDER_key:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
     readonly receiver=${RECEIVER:-"0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"}
     readonly data_dir=${ACL_DATA_DIR:-"/home/erigon/data/dynamic-kurtosis-sequencer/txpool/acls"}
-    readonly kurtosis_sequencer_wrapper=${KURTOSIS_SEQUENCER_WRAPPER:-"kurtosis service exec $enclave $sequencer"}
 }
 
 teardown() {
@@ -69,7 +67,7 @@ set_acl_mode() {
 
     run set_acl_mode "blocklist"
     run add_to_access_list "blocklist" "deploy"
-    run deployContract $l2_rpc_url  $key $contract_artifact
+    run deployContract $l2_rpc_url $key $contract_artifact
 
     assert_failure
     assert_output --partial "sender disallowed to deploy contract by ACL policy"
@@ -98,10 +96,10 @@ set_acl_mode() {
 @test "Test Allow List - Sending regular transaction when address is in allow list" {
     local value="10ether"
 
-    run set_acl_mode "allowlist"    
-    run add_to_access_list "allowlist" "sendTx"    
+    run set_acl_mode "allowlist"
+    run add_to_access_list "allowlist" "sendTx"
     run sendTx $l2_rpc_url $key $receiver $value
-    
+
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 }
@@ -109,8 +107,8 @@ set_acl_mode() {
 @test "Test Allow List - Sending contracts deploy transaction when address is in allow list" {
     local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
 
-    run set_acl_mode "allowlist"    
-    run add_to_access_list "allowlist" "deploy" 
+    run set_acl_mode "allowlist"
+    run add_to_access_list "allowlist" "deploy"
     run deployContract $l2_rpc_url $key $contract_artifact
 
     assert_success

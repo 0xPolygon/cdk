@@ -3,11 +3,8 @@ setup() {
     load 'helpers/common'
     _common_setup
 
-    readonly node=${KURTOSIS_NODE:-cdk-erigon-node-001}
     readonly sender_private_key=${SENDER_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
     readonly receiver=${RECEIVER:-"0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"}
-
-    readonly l2_rpc_url=${L2_ETH_RPC_URL:-$(kurtosis port print "$enclave" "$node" http-rpc)}
 }
 
 @test "Send EOA transaction" {
