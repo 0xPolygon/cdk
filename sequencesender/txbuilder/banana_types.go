@@ -5,6 +5,7 @@ import (
 
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
+	"github.com/0xPolygon/cdk/state"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -146,4 +147,35 @@ func (b *BananaSequence) LastVirtualBatchNumber() uint64 {
 
 func (b *BananaSequence) SetLastVirtualBatchNumber(batchNumber uint64) {
 	b.SequenceBanana.LastVirtualBatchNumber = batchNumber
+}
+
+func CalculateMaxL1InfoTreeIndexInsideL2Data(l2data []byte) (uint32, error) {
+	batchRawV2, err := state.DecodeBatchV2(l2data)
+	if err != nil {
+		return 0, fmt.Errorf("CalculateMaxL1InfoTreeIndexInsideL2Data: error decoding batchL2Data, err:%w", err)
+	}
+	if batchRawV2 == nil {
+		return 0, fmt.Errorf("CalculateMaxL1InfoTreeIndexInsideL2Data: batchRawV2 is nil")
+	}
+	maxIndex := uint32(0)
+	for i := range batchRawV2.Blocks {
+		if batchRawV2.Blocks[i].IndexL1InfoTree > maxIndex {
+			maxIndex = batchRawV2.Blocks[i].IndexL1InfoTree
+		}
+	}
+	return maxIndex, nil
+}
+
+func CalculateMaxL1InfoTreeIndexInsideSequence(seq *etherman.SequenceBanana) (uint32, error) {
+	maxIndex := uint32(0)
+	for _, batch := range seq.Batches {
+		index, err := CalculateMaxL1InfoTreeIndexInsideL2Data(batch.L2Data)
+		if err != nil {
+			return 0, fmt.Errorf("CalculateMaxL1InfoTreeIndexInsideBatches: error getting batch L1InfoTree , err:%w", err)
+		}
+		if index > maxIndex {
+			maxIndex = index
+		}
+	}
+	return maxIndex, nil
 }
