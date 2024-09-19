@@ -1168,7 +1168,8 @@ func (s *SequenceSender) addInfoSequenceBatchEnd(batch *datastream.BatchEnd) {
 // addNewBatchL2Block adds a new L2 block to the work in progress batch
 func (s *SequenceSender) addNewBatchL2Block(l2Block *datastream.L2Block) {
 	s.mutexSequence.Lock()
-	s.logger.Infof(".....new L2 block, number %d (batch %d)", l2Block.Number, l2Block.BatchNumber)
+	s.logger.Infof(".....new L2 block, number %d (batch %d) l1infotree %d",
+		l2Block.Number, l2Block.BatchNumber, l2Block.L1InfotreeIndex)
 
 	// Current batch
 	data := s.sequenceData[s.wipBatch]
@@ -1183,7 +1184,11 @@ func (s *SequenceSender) addNewBatchL2Block(l2Block *datastream.L2Block) {
 			)
 		}
 		data.batch.SetLastCoinbase(common.BytesToAddress(l2Block.Coinbase))
-		data.batch.SetL1InfoTreeIndex(l2Block.L1InfotreeIndex)
+		if l2Block.L1InfotreeIndex != 0 {
+			data.batch.SetL1InfoTreeIndex(l2Block.L1InfotreeIndex)
+		} else {
+			s.logger.Warnf("L1InfotreeIndex is 0, we don't change batch L1InfotreeIndex (%d)", data.batch.L1InfoTreeIndex())
+		}
 		// New L2 block raw
 		newBlockRaw := state.L2BlockRaw{}
 
