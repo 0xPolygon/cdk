@@ -77,6 +77,13 @@ type L1InfoTreeLeaf struct {
 	Hash              common.Hash `meddler:"hash,hash"`
 }
 
+// L1InfoTreeInitial representation of the initial info of the L1 Info tree for this rollup
+type L1InfoTreeInitial struct {
+	BlockNumber uint64      `meddler:"block_num"`
+	LeafCount   uint32      `meddler:"leaf_count"`
+	L1InfoRoot  common.Hash `meddler:"l1_info_root,hash"`
+}
+
 // Hash as expected by the tree
 func (l *L1InfoTreeLeaf) hash() common.Hash {
 	var res [treeTypes.DefaultHeight]byte
@@ -309,6 +316,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 			// TODO: indicate that l1 Info tree indexes before the one on this
 			// event are not safe to use
 			log.Debugf("TODO: handle InitL1InfoRootMap event")
+			err = processEventInitL1InfoRootMap(tx, b.Num, event.InitL1InfoRootMap)
 		}
 	}
 
@@ -316,6 +324,18 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		return fmt.Errorf("err: %w", err)
 	}
 	log.Infof("block %d processed with %d events", b.Num, len(b.Events))
+	return nil
+}
+
+func processEventInitL1InfoRootMap(tx db.Txer, blockNumber uint64, event *InitL1InfoRootMap) error {
+	info := L1InfoTreeInitial{
+		BlockNumber: blockNumber,
+		LeafCount:   event.LeafCount,
+		L1InfoRoot:  event.CurrentL1InfoRoot,
+	}
+	if err := meddler.Insert(tx, "l1info_initial", info); err != nil {
+		return fmt.Errorf("err: %w", err)
+	}
 	return nil
 }
 
