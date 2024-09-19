@@ -95,9 +95,7 @@ setup() {
     local gas_token_final_sender_balance=$(echo "$output" |
         tail -n 1 |
         awk '{print $1}')
-    local expected_balance=$(echo "$gas_token_init_sender_balance + $wei_amount" |
-        bc |
-        awk '{print $1}')
+    local expected_balance=$(echo "$gas_token_init_sender_balance + $wei_amount" | bc)
 
     echo "Sender balance ($sender_addr) (gas token L1): $gas_token_final_sender_balance" >&3
     assert_equal "$gas_token_final_sender_balance" "$expected_balance"
@@ -122,6 +120,7 @@ setup() {
     run wait_for_claim "$timeout" "$claim_frequency"
     assert_success
 
+    # Validate that the native token of receiver on L2 has increased by the bridge tokens amount
     run verify_native_token_balance "$l2_rpc_url" "$receiver" "$initial_receiver_balance" "$tokens_amount"
     assert_success
 }
