@@ -7,7 +7,8 @@ setup() {
     readonly node=${KURTOSIS_NODE:-cdk-erigon-node-001}
     readonly rpc_url=${RPC_URL:-$(kurtosis port print "$enclave" "$node" http-rpc)}
     readonly private_key=${SENDER_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
-    readonly receiver=${RECEIVER:-"0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"}
+    readonly receiver_private_key=${RECEIVER_PRIVATE_KEY:-"14b34448b61f2b1599a37aaf3eecbc4e6f4955b19396f99c9ac00374966e84b9"}
+    readonly receiver=${RECEIVER:-"0x5C053Dd37650d8BEdf3f44232B1d1A3adc2b14B8"}
 }
 
 @test "Send EOA transaction" {
@@ -35,8 +36,12 @@ setup() {
 
 @test "Deploy ERC20Mock contract" {
     local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
+    wallet_A_output=$(cast wallet new)
+    address_A=$(echo "$wallet_A_output" | grep "Address" | awk '{print $2}')
+    address_A_private_key=$(echo "$wallet_A_output" | grep "Private key" | awk '{print $3}')
+    address_B=$(cast wallet new | grep "Address" | awk '{print $2}')
 
-    # Deploy ERC20Mock
+    ## Case 1: An address deploy ERC20Mock contract => Transaction successful
     run deployContract "$private_key" "$contract_artifact"
     assert_success
     contract_addr=$(echo "$output" | tail -n 1)
@@ -45,20 +50,81 @@ setup() {
     local mintFnSig="function mint(address receiver, uint256 amount)"
     local amount="5"
 
-    run sendTx "$private_key" "$contract_addr" "$mintFnSig" "$receiver" "$amount"
+    run sendTx "$private_key" "$contract_addr" "$mintFnSig" "$address_A" "$amount"
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
-    # Assert that balance is correct
+    ## Case 2: Insufficient gas scenario => Transactions fails
+    # Get bytecode from the contract artifact
+    local bytecode=$(jq -r .bytecode "$contract_artifact")
+    if [[ -z "$bytecode" || "$bytecode" == "null" ]]; then
+        echo "Error: Failed to read bytecode from $contract_artifact"
+        return 1
+    fi
+
+    # Estimate gas,gas price and gas cost
+    local gas_units=$(cast estimate --create "$bytecode")
+    local gas_price=$(cast gas-price)
+    local value=$(echo "$gas_units * $gas_price - 20000" | bc)
+    local value_ether=$(cast to-unit "$value" ether)"ether" 
+
+    # Transfer insufficient funds
+    cast_output=$(cast send --rpc-url "$rpc_url" --private-key "$private_key" "$address_A" --value "$value_ether" --legacy 2>&1)
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to send transaction. Output:"
+        echo "$cast_output"
+        return 1
+    fi
+    
+    # Fetch initial nonce for address_A
+    local address_A_initial_nonce=$(cast nonce "$address_A" --rpc-url "$rpc_url") || return 1
+    # Attempt to deploy contract with insufficient gas
+    run deployContract "$address_A_private_key" "$contract_artifact"
+    assert_failure
+
+    ## Case 3: Transaction should fail as address_A tries to transfer more tokens than it has
+    # Transfer funds for gas fees to address_A
+    value_ether="4ether" 
+    cast_output=$(cast send --rpc-url "$rpc_url" --private-key "$private_key" "$address_A" --value "$value_ether" --legacy 2>&1)
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to send transaction. Output:"
+        echo "$cast_output"
+        return 1
+    fi
+
+    # Fetch balance of address_A to simulate excessive transfer
     local balanceOfFnSig="function balanceOf(address) (uint256)"
-    run queryContract "$contract_addr" "$balanceOfFnSig" "$receiver"
+    run queryContract "$contract_addr" "$balanceOfFnSig" "$address_A"
     assert_success
-    receiverBalance=$(echo "$output" | tail -n 1)
+    local address_A_Balance=$(echo "$output" | tail -n 1)
+    address_A_Balance=$(echo "$address_A_Balance" | xargs)
 
-    # Convert balance and amount to a standard format for comparison (e.g., remove any leading/trailing whitespace)
-    receiverBalance=$(echo "$receiverBalance" | xargs)
-    amount=$(echo "$amount" | xargs)
+    # Set excessive amount for transfer
+    local excessive_amount=$(echo "$address_A_Balance + 1" | bc)
 
-    # Check if the balance is equal to the amount
-    assert_equal "$receiverBalance" "$amount"
+    # Attempt transfer of excessive amount from address_A to address_B
+    local tranferFnSig="function transfer(address receiver, uint256 amount)"
+    run sendTx "$address_A_private_key" "$contract_addr" "$tranferFnSig" "$address_B" "$excessive_amount"
+    assert_failure
+
+    # Verify balance of address_A after failed transaction
+    run queryContract "$contract_addr" "$balanceOfFnSig" "$address_A"
+    assert_success
+    address_A_BalanceAfterFailedTx=$(echo "$output" | tail -n 1)
+    address_A_BalanceAfterFailedTx=$(echo "$address_A_BalanceAfterFailedTx" | xargs)
+
+    # Ensure balance is unchanged
+    assert_equal "$address_A_BalanceAfterFailedTx" "$address_A_Balance"
+
+    # Verify balance of address_B is still zero
+    run queryContract "$contract_addr" "$balanceOfFnSig" "$address_B"
+    assert_success
+    local address_B_Balance=$(echo "$output" | tail -n 1)
+    address_B_Balance=$(echo "$address_B_Balance" | xargs)
+
+    assert_equal "$address_B_Balance" "0"
+
+    # Check if nonce increased by 2
+    local address_A_final_nonce=$(cast nonce "$address_A" --rpc-url "$rpc_url") || return 1
+    assert_equal "$address_A_final_nonce" "$(echo "$address_A_initial_nonce + 2" | bc)"
 }
