@@ -86,7 +86,8 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 				l, err,
 			)
 		}
-		log.Infof("updateL1InfoTreeSignatureV2: expected root: %s", common.BytesToHash(l1InfoTreeUpdate.CurrentL1InfoRoot[:]).String())
+		log.Infof("updateL1InfoTreeSignatureV2: expected root: %s",
+			common.BytesToHash(l1InfoTreeUpdate.CurrentL1InfoRoot[:]).String())
 
 		return nil
 	}

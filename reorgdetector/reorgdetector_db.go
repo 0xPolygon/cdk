@@ -55,9 +55,8 @@ func (rd *ReorgDetector) getTrackedBlocks(ctx context.Context) (map[string]*head
 func (rd *ReorgDetector) saveTrackedBlock(ctx context.Context, id string, b header) error {
 	rd.trackedBlocksLock.Lock()
 
-	// this has to go after the lock, because of a possible deadlock between AddBlocksToTrack and detectReorgInTrackedList
-	// because AddBlocksToTrack would start a transaction on db, but detectReorgInTrackedList would lock the trackedBlocksLock
-	// and then try to start a transaction on db, resulting in a deadlock
+	// this has to go after the lock, because of a possible deadlock
+	// between AddBlocksToTrack and detectReorgInTrackedList
 	tx, err := rd.db.BeginRw(ctx)
 	if err != nil {
 		return err

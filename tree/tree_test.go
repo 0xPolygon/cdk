@@ -20,8 +20,6 @@ import (
 )
 
 func TestCheckExpectedRoot(t *testing.T) {
-	t.Parallel()
-
 	createTreeDB := func() *sql.DB {
 		dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
 		log.Debug("DB created at: ", dbPath)
@@ -49,8 +47,6 @@ func TestCheckExpectedRoot(t *testing.T) {
 	}
 
 	t.Run("Check when no reorg", func(t *testing.T) {
-		t.Parallel()
-
 		numOfLeavesToAdd := 10
 		indexToCheck := uint32(numOfLeavesToAdd - 1)
 
@@ -71,8 +67,6 @@ func TestCheckExpectedRoot(t *testing.T) {
 	})
 
 	t.Run("Check after rebuild tree when reorg", func(t *testing.T) {
-		t.Parallel()
-
 		numOfLeavesToAdd := 10
 		indexToCheck := uint32(numOfLeavesToAdd - 1)
 		treeDB := createTreeDB()
