@@ -24,7 +24,7 @@ setup() {
     destination_net=${DESTINATION_NET:-"1"}
     destination_addr=${DESTINATION_ADDRESS:-"0x0bb7AA0b4FdC2D2862c088424260e99ed6299148"}
     ether_value=${ETHER_VALUE:-"0.0200000054"}
-    readonly amount=$(cast to-wei $ether_value ether)
+    amount=$(cast to-wei $ether_value ether)
     token_addr=${TOKEN_ADDRESS:-"0x0000000000000000000000000000000000000000"}
     readonly is_forced=${IS_FORCED:-"true"}
     readonly bridge_addr=$BRIDGE_ADDRESS
@@ -47,27 +47,11 @@ setup() {
 }
 
 @test "Run claim" {
-    echo "Running LxLy claim"
+    echo "Running LxLy claim" >&3
 
-    # The script timeout (in seconds).
     timeout="120"
-    start_time=$(date +%s)
-    end_time=$((start_time + timeout))
-
-    while true; do
-        current_time=$(date +%s)
-        if ((current_time > end_time)); then
-            echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Exiting... Timeout reached!"
-            exit 1
-        fi
-
-        run claim
-        if [ $status -eq 0 ]; then
-            break
-        fi
-        sleep 10
-    done
-
+    claim_frequency="10"
+    run wait_for_claim "$timeout" "$claim_frequency"
     assert_success
 }
 
@@ -87,36 +71,38 @@ setup() {
 
     echo "Gas token addr $gas_token_addr, L1 RPC: $l1_rpc_url" >&3
 
+    # Set receiver address and query for its initial native token balance on the L2
     receiver=${RECEIVER:-"0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"}
+    local initial_receiver_balance=$(cast balance --ether "$receiver" --rpc-url "$l2_rpc_url")
+    echo "Initial receiver balance of native token on L2 $initial_receiver_balance" >&3
 
-    # Query for initial receiver balance
-    run queryContract "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$receiver"
+    # Query for initial sender balance
+    run queryContract "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$sender_addr"
     assert_success
-    local initial_receiver_balance=$(echo "$output" | tail -n 1)
-    echo "Initial receiver balance $initial_receiver_balance"
+    local gas_token_init_sender_balance=$(echo "$output" | tail -n 1)
+    echo "Initial sender balance $gas_token_init_sender_balance" of gas token on L1 >&3
 
     # Mint gas token on L1
-    local tokens_amount="1ether"
-    run sendTx "$l1_rpc_url" "$sender_private_key" "$gas_token_addr" "$mint_fn_sig" "$receiver" "$tokens_amount"
+    local tokens_amount="0.1ether"
     local wei_amount=$(cast --to-unit $tokens_amount wei)
-
+    local minter_key=${MINTER_KEY:-"42b6e34dc21598a807dc19d7784c71b2a7a01f6480dc6f58258f78e539f1a1fa"}
+    run mint_erc20_tokens "$l1_rpc_url" "$gas_token_addr" "$minter_key" "$sender_addr" "$tokens_amount"
     assert_success
-    assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
     # Assert that balance of gas token (on the L1) is correct
-    run queryContract "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$receiver"
+    run queryContract "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$sender_addr"
     assert_success
-    local receiver_balance=$(echo "$output" |
+    local gas_token_final_sender_balance=$(echo "$output" |
         tail -n 1 |
         awk '{print $1}')
-    local expected_balance=$(echo "$initial_receiver_balance + $wei_amount" |
+    local expected_balance=$(echo "$gas_token_init_sender_balance + $wei_amount" |
         bc |
         awk '{print $1}')
 
-    echo "Receiver balance: $receiver_balance" >&3
-    assert_equal "$receiver_balance" "$expected_balance"
+    echo "Sender balance ($sender_addr) (gas token L1): $gas_token_final_sender_balance" >&3
+    assert_equal "$gas_token_final_sender_balance" "$expected_balance"
 
-    # Send approve transaction
+    # Send approve transaction to the gas token on L1
     deposit_ether_value="0.1ether"
     run sendTx "$l1_rpc_url" "$sender_private_key" "$gas_token_addr" "$approve_fn_sig" "$bridge_addr" "$deposit_ether_value"
     assert_success
@@ -126,9 +112,16 @@ setup() {
     token_addr=$gas_token_addr
     destination_addr=$receiver
     destination_net=$l2_rpc_network_id
+    amount=$wei_amount
     run deposit
     assert_success
 
-    # Run claim?
-    # Check whether native token balance on L2 has increased and send a dummy transaction
+    # Claim deposits (settle them on the L2)
+    timeout="120"
+    claim_frequency="10"
+    run wait_for_claim "$timeout" "$claim_frequency"
+    assert_success
+
+    run verify_native_token_balance "$l2_rpc_url" "$receiver" "$initial_receiver_balance" "$tokens_amount"
+    assert_success
 }

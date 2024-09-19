@@ -75,3 +75,25 @@ function claim() {
 
     done < <(seq 0 $((claimable_count - 1)))
 }
+
+function wait_for_claim() {
+    local timeout="$1"         # timeout (in seconds)
+    local claim_frequency="$2" # claim frequency (in seconds)
+    local start_time=$(date +%s)
+    local end_time=$((start_time + timeout))
+
+    while true; do
+        local current_time=$(date +%s)
+        if ((current_time > end_time)); then
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Exiting... Timeout reached!"
+            exit 1
+        fi
+
+        run claim
+        if [ $status -eq 0 ]; then
+            break
+        fi
+
+        sleep "$claim_frequency"
+    done
+}

@@ -79,7 +79,7 @@ function sendTx() {
 
     local rpc_url="$1"               # RPC URL
     local private_key="$2"           # Sender private key
-    local receiver_addr="$3"          # Receiver address
+    local receiver_addr="$3"         # Receiver address
     local value_or_function_sig="$4" # Value or function signature
 
     # Error handling: Ensure the receiver is a valid Ethereum address
@@ -277,4 +277,55 @@ function checkBalances() {
         echo "Error: sender balance updated incorrectly. Expected: $expected_sender_change, Actual: $sender_balance_change"
         return 1
     fi
+}
+
+function verify_native_token_balance() {
+    local rpc_url="$1"         # RPC URL
+    local account="$2"         # account address
+    local initial_balance="$3" # initial balance in Ether (decimal)
+    local ether_amount="$4"    # amount to be added (in Ether, decimal)
+
+    # Convert initial balance and amount to wei (no decimals)
+    local initial_balance_wei=$(cast --to-wei "$initial_balance")
+
+    # Trim 'ether' from ether_amount if it exists
+    ether_amount=$(echo "$ether_amount" | sed 's/ether//')
+    local amount_wei=$(cast --to-wei "$ether_amount")
+
+    # Get final balance in wei (after the operation)
+    local final_balance_wei=$(cast balance "$account" --rpc-url "$rpc_url")
+
+    # Calculate expected final balance (initial_balance + amount)
+    local expected_final_balance_wei=$((initial_balance_wei + amount_wei))
+
+    # Check if final_balance matches the expected final balance
+    if [ "$final_balance_wei" -eq "$expected_final_balance_wei" ]; then
+        echo "✅ Balance verification successful: final balance is correct."
+    else
+        echo "❌ Balance verification failed: expected $expected_final_balance_wei but got $final_balance_wei."
+        exit 1
+    fi
+}
+
+function mint_erc20_tokens() {
+    local rpc_url="$1"            # The L1 RPC URL
+    local erc20_token_addr="$2"   # The gas token contract address
+    local minter_private_key="$3" # The minter private key
+    local receiver="$4"           # The receiver address (for minted tokens)
+    local tokens_amount="$5"      # The amount of tokens to transfer (e.g., "0.1ether")
+
+    # Query the erc20 token balance of the sender
+    run queryContract "$rpc_url" "$erc20_token_addr" "$balance_of_fn_sig" "$sender_addr"
+    assert_success
+    local erc20_token_balance=$(echo "$output" | tail -n 1)
+
+    # Log the account's current gas token balance
+    echo "Initial account balance: $erc20_token_balance wei" >&3
+
+    # Convert tokens_amount to Wei for comparison
+    local wei_amount=$(cast --to-unit "$tokens_amount" wei)
+
+    # Mint the required tokens by sending a transaction
+    run sendTx "$rpc_url" "$minter_private_key" "$erc20_token_addr" "$mint_fn_sig" "$receiver" "$tokens_amount"
+    assert_success
 }
