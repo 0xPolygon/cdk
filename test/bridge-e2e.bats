@@ -95,11 +95,9 @@ setup() {
     local gas_token_final_sender_balance=$(echo "$output" |
         tail -n 1 |
         awk '{print $1}')
-    local expected_balance=$(
-        echo "$gas_token_init_sender_balance + $wei_amount" |
-            bc |
-            awk '{print $1}'
-    )
+    local expected_balance=$(echo "$gas_token_init_sender_balance + $wei_amount" |
+        bc |
+        awk '{print $1}')
 
     echo "Sender balance ($sender_addr) (gas token L1): $gas_token_final_sender_balance" >&3
     assert_equal "$gas_token_final_sender_balance" "$expected_balance"
