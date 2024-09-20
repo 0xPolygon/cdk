@@ -55,6 +55,7 @@ setup() {
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
     ## Case 2: Insufficient gas scenario => Transactions fails
+    # nonce would not increase since transaction fails at the node's pre-validation check
     # Get bytecode from the contract artifact
     local bytecode=$(jq -r .bytecode "$contract_artifact")
     if [[ -z "$bytecode" || "$bytecode" == "null" ]]; then
@@ -84,6 +85,7 @@ setup() {
     assert_failure
 
     ## Case 3: Transaction should fail as address_A tries to transfer more tokens than it has
+    # nonce would not increase 
     # Transfer funds for gas fees to address_A
     value_ether="4ether" 
     cast_output=$(cast send --rpc-url "$rpc_url" --private-key "$sender_private_key" "$address_A" --value "$value_ether" --legacy 2>&1)
@@ -125,7 +127,7 @@ setup() {
 
     assert_equal "$address_B_Balance" "0"
 
-    # Check if nonce increased by 1
+    # Nonce should not increase
     local address_A_final_nonce=$(cast nonce "$address_A" --rpc-url "$rpc_url") || return 1
-    assert_equal "$address_A_final_nonce" "$(echo "$address_A_initial_nonce + 1" | bc)"
+    assert_equal "$address_A_final_nonce" "$address_A_initial_nonce"
 }
