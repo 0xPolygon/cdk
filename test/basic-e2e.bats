@@ -3,10 +3,7 @@ setup() {
     load 'helpers/common'
     _common_setup
 
-    readonly enclave=${ENCLAVE:-cdk-v1}
-    readonly node=${KURTOSIS_NODE:-cdk-erigon-node-001}
-    readonly rpc_url=${RPC_URL:-$(kurtosis port print "$enclave" "$node" http-rpc)}
-    readonly private_key=${SENDER_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
+    readonly sender_private_key=${SENDER_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
     readonly receiver=${RECEIVER:-"0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"}
 }
 
@@ -16,7 +13,7 @@ setup() {
     local value="10ether"
 
     # case 1: Transaction successful sender has sufficient balance
-    run sendTx "$private_key" "$receiver" "$value"
+    run sendTx "$l2_rpc_url" "$sender_private_key" "$receiver" "$value"
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
@@ -37,21 +34,19 @@ setup() {
     local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
 
     # Deploy ERC20Mock
-    run deployContract "$private_key" "$contract_artifact"
+    run deployContract "$l2_rpc_url" "$sender_private_key" "$contract_artifact"
     assert_success
     contract_addr=$(echo "$output" | tail -n 1)
 
     # Mint ERC20 tokens
-    local mintFnSig="function mint(address receiver, uint256 amount)"
     local amount="5"
 
-    run sendTx "$private_key" "$contract_addr" "$mintFnSig" "$receiver" "$amount"
+    run sendTx "$l2_rpc_url" "$sender_private_key" "$contract_addr" "$mint_fn_sig" "$receiver" "$amount"
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
     # Assert that balance is correct
-    local balanceOfFnSig="function balanceOf(address) (uint256)"
-    run queryContract "$contract_addr" "$balanceOfFnSig" "$receiver"
+    run queryContract "$l2_rpc_url" "$contract_addr" "$balance_of_fn_sig" "$receiver"
     assert_success
     receiverBalance=$(echo "$output" | tail -n 1)
 
