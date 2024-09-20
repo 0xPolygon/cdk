@@ -214,6 +214,7 @@ func (s *SequenceSender) purgeSequences() {
 
 	// Purge the information of batches that are already virtualized
 	s.mutexSequence.Lock()
+	defer s.mutexSequence.Unlock()
 	truncateUntil := 0
 	toPurge := make([]uint64, 0)
 	for i := 0; i < len(s.sequenceList); i++ {
@@ -240,7 +241,6 @@ func (s *SequenceSender) purgeSequences() {
 		}
 		s.logger.Infof("batches purged count: %d, fromBatch: %d, toBatch: %d", len(toPurge), firstPurged, lastPurged)
 	}
-	s.mutexSequence.Unlock()
 }
 
 // purgeEthTx purges transactions from memory structures
@@ -252,6 +252,7 @@ func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 
 	// Purge old transactions that are finalized
 	s.mutexEthTx.Lock()
+	defer s.mutexEthTx.Unlock()
 	timePurge := time.Now().Add(-s.cfg.WaitPeriodPurgeTxFile.Duration)
 	toPurge := make([]common.Hash, 0)
 	for hash, data := range s.ethTransactions {
@@ -289,7 +290,6 @@ func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 		}
 		s.logger.Infof("txs purged count: %d, fromNonce: %d, toNonce: %d", len(toPurge), firstPurged, lastPurged)
 	}
-	s.mutexEthTx.Unlock()
 }
 
 // syncEthTxResults syncs results from L1 for transactions in the memory structure
@@ -1168,6 +1168,7 @@ func (s *SequenceSender) addInfoSequenceBatchEnd(batch *datastream.BatchEnd) {
 // addNewBatchL2Block adds a new L2 block to the work in progress batch
 func (s *SequenceSender) addNewBatchL2Block(l2Block *datastream.L2Block) {
 	s.mutexSequence.Lock()
+	defer s.mutexSequence.Unlock()
 	s.logger.Infof(".....new L2 block, number %d (batch %d) l1infotree %d",
 		l2Block.Number, l2Block.BatchNumber, l2Block.L1InfotreeIndex)
 
@@ -1187,7 +1188,8 @@ func (s *SequenceSender) addNewBatchL2Block(l2Block *datastream.L2Block) {
 		if l2Block.L1InfotreeIndex != 0 {
 			data.batch.SetL1InfoTreeIndex(l2Block.L1InfotreeIndex)
 		} else {
-			s.logger.Warnf("L1InfotreeIndex is 0, we don't change batch L1InfotreeIndex (%d)", data.batch.L1InfoTreeIndex())
+			s.logger.Warnf("L2 Block L1InfotreeIndex is 0, we don't change batch L1InfotreeIndex (%d)",
+				data.batch.L1InfoTreeIndex())
 		}
 		// New L2 block raw
 		newBlockRaw := state.L2BlockRaw{}
@@ -1205,13 +1207,12 @@ func (s *SequenceSender) addNewBatchL2Block(l2Block *datastream.L2Block) {
 		blockRaw.DeltaTimestamp = l2Block.DeltaTimestamp
 		blockRaw.IndexL1InfoTree = l2Block.L1InfotreeIndex
 	}
-
-	s.mutexSequence.Unlock()
 }
 
 // addNewBlockTx adds a new Tx to the current L2 block
 func (s *SequenceSender) addNewBlockTx(l2Tx *datastream.Transaction) {
 	s.mutexSequence.Lock()
+	defer s.mutexSequence.Unlock()
 	s.logger.Debugf("........new tx, length %d EGP %d SR %x..",
 		len(l2Tx.Encoded), l2Tx.EffectiveGasPricePercentage, l2Tx.ImStateRoot[:8],
 	)
@@ -1234,7 +1235,6 @@ func (s *SequenceSender) addNewBlockTx(l2Tx *datastream.Transaction) {
 
 	// Add Tx
 	blockRaw.Transactions = append(blockRaw.Transactions, l2TxRaw)
-	s.mutexSequence.Unlock()
 }
 
 // getWipL2Block returns index of the array and pointer to the current L2 block (helper func)

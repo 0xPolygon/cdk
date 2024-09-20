@@ -144,7 +144,7 @@ func (t *TxBuilderBananaBase) NewSequence(
 }
 
 func SequenceSanityCheck(seq *etherman.SequenceBanana) error {
-	maxL1InfoIndex, err := CalculateMaxL1InfoTreeIndexInsideSequence(seq)
+	maxL1InfoIndex, err := calculateMaxL1InfoTreeIndexInsideSequence(seq)
 	if err != nil {
 		return err
 	}

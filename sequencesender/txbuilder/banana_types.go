@@ -149,29 +149,32 @@ func (b *BananaSequence) SetLastVirtualBatchNumber(batchNumber uint64) {
 	b.SequenceBanana.LastVirtualBatchNumber = batchNumber
 }
 
-func CalculateMaxL1InfoTreeIndexInsideL2Data(l2data []byte) (uint32, error) {
+func calculateMaxL1InfoTreeIndexInsideL2Data(l2data []byte) (uint32, error) {
 	batchRawV2, err := state.DecodeBatchV2(l2data)
 	if err != nil {
-		return 0, fmt.Errorf("CalculateMaxL1InfoTreeIndexInsideL2Data: error decoding batchL2Data, err:%w", err)
+		return 0, fmt.Errorf("calculateMaxL1InfoTreeIndexInsideL2Data: error decoding batchL2Data, err:%w", err)
 	}
 	if batchRawV2 == nil {
-		return 0, fmt.Errorf("CalculateMaxL1InfoTreeIndexInsideL2Data: batchRawV2 is nil")
+		return 0, fmt.Errorf("calculateMaxL1InfoTreeIndexInsideL2Data: batchRawV2 is nil")
 	}
 	maxIndex := uint32(0)
-	for i := range batchRawV2.Blocks {
-		if batchRawV2.Blocks[i].IndexL1InfoTree > maxIndex {
-			maxIndex = batchRawV2.Blocks[i].IndexL1InfoTree
+	for _, block := range batchRawV2.Blocks {
+		if block.IndexL1InfoTree > maxIndex {
+			maxIndex = block.IndexL1InfoTree
 		}
 	}
 	return maxIndex, nil
 }
 
-func CalculateMaxL1InfoTreeIndexInsideSequence(seq *etherman.SequenceBanana) (uint32, error) {
+func calculateMaxL1InfoTreeIndexInsideSequence(seq *etherman.SequenceBanana) (uint32, error) {
+	if seq == nil {
+		return 0, fmt.Errorf("calculateMaxL1InfoTreeIndexInsideSequence: seq is nil")
+	}
 	maxIndex := uint32(0)
 	for _, batch := range seq.Batches {
-		index, err := CalculateMaxL1InfoTreeIndexInsideL2Data(batch.L2Data)
+		index, err := calculateMaxL1InfoTreeIndexInsideL2Data(batch.L2Data)
 		if err != nil {
-			return 0, fmt.Errorf("CalculateMaxL1InfoTreeIndexInsideBatches: error getting batch L1InfoTree , err:%w", err)
+			return 0, fmt.Errorf("calculateMaxL1InfoTreeIndexInsideBatches: error getting batch L1InfoTree , err:%w", err)
 		}
 		if index > maxIndex {
 			maxIndex = index
