@@ -96,18 +96,18 @@ function sendTx() {
         return 1
     }
 
-    # Get initial ether balances of sender and receiver
-    local sender_initial_balance receiver_initial_balance
-    sender_initial_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1
-    receiver_initial_balance=$(cast balance "$receiver_addr" --ether --rpc-url "$rpc_url") || return 1
-
     # Check if the value_or_function_sig is a numeric value (Ether to be transferred)
     if [[ "$value_or_function_sig" =~ ^[0-9]+(\.[0-9]+)?(ether)?$ ]]; then
         # Case: Ether transfer (EOA transaction)
+        # Get initial ether balances of sender and receiver
+        local sender_initial_balance receiver_initial_balance
+        sender_initial_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1
+        receiver_initial_balance=$(cast balance "$receiver_addr" --ether --rpc-url "$rpc_url") || return 1
+        
         send_eoa_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "$sender_addr" "$sender_initial_balance" "$receiver_initial_balance"
     else
         # Case: Smart contract interaction (contract interaction with function signature and parameters)
-        send_smart_contract_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "$sender_addr" "${params[@]}"
+        send_smart_contract_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "${params[@]}"
     fi
 }
 
@@ -149,21 +149,14 @@ function send_smart_contract_transaction() {
     local private_key="$1"
     local receiver_addr="$2"
     local function_sig="$3"
-    local sender_addr="$4"
-    shift 4
+    shift 3
     local params=("$@")
-
-    # Verify if the function signature starts with "function"
-    if [[ ! "$function_sig" =~ ^function\ .+\(.+\)$ ]]; then
-        echo "Error: Invalid function signature format '$function_sig'."
-        return 1
-    fi
 
     echo "Sending smart contract transaction to $receiver_addr with function signature: '$function_sig' and params: ${params[*]}" >&3
 
     # Send the smart contract interaction using cast
     local cast_output tx_hash
-    cast_output=$(cast send --rpc-url "$rpc_url" --private-key "$private_key" "$receiver_addr" "$function_sig" "${params[@]}" --legacy 2>&1)
+    cast_output=$(cast send "$receiver_addr" --rpc-url "$rpc_url" --private-key "$private_key" --legacy "$function_sig" "${params[@]}" 2>&1)
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to send transaction. Output:"
         echo "$cast_output"
