@@ -2,6 +2,18 @@
 #Include common varaibles
 source $(dirname $0)/../test/scripts/env.sh
 
+function export_values_of_genesis(){
+    local _GENESIS_FILE=$1
+    if [ ! -f $_GENESIS_FILE ]; then
+        echo "Error: genesis file not found: $_GENESIS_FILE"
+        exit 1
+    fi
+    export l1_chain_id=$(jq -r '.L1Config.chainId' $_GENESIS_FILE  | tr -d '"')
+    export pol_token_address=$(jq -r '.L1Config.polTokenAddress' $_GENESIS_FILE)
+    export zkevm_rollup_address=$(jq -r '.L1Config.polygonZkEVMAddress' $_GENESIS_FILE)
+    export zkevm_rollup_manager_address=$(jq -r '.L1Config.polygonRollupManagerAddress' $_GENESIS_FILE)
+    export zkevm_global_exit_root_address=$(jq -r '.L1Config.polygonZkEVMGlobalExitRootAddress' $_GENESIS_FILE)
+}
 
 
 
@@ -43,6 +55,7 @@ rm $DEST/*
 kurtosis files download $ENCLAVE genesis $DEST
 [ $? -ne 0 ] && echo "Error downloading genesis" && exit 1
 export genesis_file=$DEST/genesis.json
+export_values_of_genesis $genesis_file
 kurtosis files download $ENCLAVE sequencer-keystore $DEST
 [ $? -ne 0 ] && echo "Error downloading sequencer-keystore" && exit 1
 export sequencer_keystore_file=$DEST/sequencer.keystore

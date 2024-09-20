@@ -1,6 +1,9 @@
 ForkUpgradeBatchNumber = 0
 ForkUpgradeNewForkId = 0
 
+[Etherman]
+	URL = "http://127.0.0.1:${l1_rpc_port}"
+
 [Common]
 IsValidiumMode = ${zkevm_is_validium}
 ContractVersions = "elderberry"
@@ -124,3 +127,9 @@ SequencerPrivateKey = {}
 		[Aggregator.Synchronizer.Etherman]
 			[Aggregator.Synchronizer.Etherman.Validium]
 				Enabled = ${zkevm_is_validium}
+[NetworkConfig.L1]
+L1ChainID = ${l1_chain_id}
+PolAddr = "${pol_token_address}"
+ZkEVMAddr = "${zkevm_rollup_address}"
+RollupManagerAddr = "${zkevm_rollup_manager_address}"
+GlobalExitRootManagerAddr = "${zkevm_global_exit_root_address}"
