@@ -138,7 +138,7 @@ function send_eoa_transaction() {
         return 1
     }
 
-    checkBalances "$sender" "$receiver_addr" "$value" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
+    check_balances "$sender" "$receiver_addr" "$value" "$tx_hash" "$sender_initial_balance" "$receiver_initial_balance"
     if [[ $? -ne 0 ]]; then
         echo "Error: Balance not updated correctly."
         return 1
@@ -195,7 +195,7 @@ function queryContract() {
 
     echo "Querying state of $addr account (RPC URL: $rpc_url) with function signature: '$funcSignature' and params: ${params[*]}" >&3
 
-    # Check if url is available
+    # Check if rpc url is available
     if [[ -z "$rpc_url" ]]; then
         echo "Error: rpc_url parameter is not provided."
         return 1
@@ -224,7 +224,7 @@ function queryContract() {
     return 0
 }
 
-function checkBalances() {
+function check_balances() {
     local sender="$1"
     local receiver="$2"
     local amount="$3"
@@ -250,8 +250,9 @@ function checkBalances() {
     fi
 
     local sender_final_balance=$(cast balance "$sender" --ether --rpc-url "$rpc_url") || return 1
-    local gas_used=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gas ' | awk '{print $2}')
-    local gas_price=$(cast tx "$tx_hash" --rpc-url "$rpc_url" | grep '^gasPrice' | awk '{print $2}')
+    local tx_output=$(cast tx "$tx_hash" --rpc-url "$rpc_url")
+    local gas_used=$(tx_output | grep '^gas ' | awk '{print $2}')
+    local gas_price=$(tx_output | grep '^gasPrice' | awk '{print $2}')
     local gas_fee=$(echo "$gas_used * $gas_price" | bc)
     local gas_fee_in_ether=$(cast to-unit "$gas_fee" ether)
 
@@ -294,7 +295,7 @@ function verify_native_token_balance() {
     
     # Get final balance in wei (after the operation)
     local final_balance_wei=$(cast balance "$account" --rpc-url "$rpc_url" | awk '{print $1}')
-    
+
     # Calculate expected final balance (initial_balance + amount)
     local expected_final_balance_wei=$(echo "$initial_balance_wei + $amount_wei" | bc)
 
