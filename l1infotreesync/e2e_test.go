@@ -272,7 +272,7 @@ func TestWithReorgs(t *testing.T) {
 
 func TestStressAndReorgs(t *testing.T) {
 	const (
-		totalIterations       = 2 // Have tested with much larger number (+10k)
+		totalIterations       = 3
 		blocksInIteration     = 140
 		reorgEveryXIterations = 70
 		reorgSizeInBlocks     = 2
@@ -356,7 +356,7 @@ func TestStressAndReorgs(t *testing.T) {
 
 	t.Logf("expectedL1InfoRoot: %s", common.Hash(expectedL1InfoRoot).String())
 	require.Equal(t, common.Hash(expectedGER), info.GlobalExitRoot, fmt.Sprintf("%+v", info))
-	// require.Equal(t, common.Hash(expectedL1InfoRoot), lastRoot.Hash) // TODO this fails
+	require.Equal(t, common.Hash(expectedL1InfoRoot), lastRoot.Hash)
 }
 
 func waitForSyncerToCatchUp(ctx context.Context, t *testing.T, syncer *l1infotreesync.L1InfoTreeSync, client *simulated.Backend) {
