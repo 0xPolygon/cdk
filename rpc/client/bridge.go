@@ -8,12 +8,13 @@ import (
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/rpc/types"
 )
 
 type BridgeClientInterface interface {
 	L1InfoTreeIndexForBridge(networkID uint32, depositCount uint32) (uint32, error)
 	InjectedInfoAfterIndex(networkID uint32, l1InfoTreeIndex uint32) (*l1infotreesync.L1InfoTreeLeaf, error)
-	ClaimProof(networkID uint32, depositCount uint32, l1InfoTreeIndex uint32) (*ClaimProof, error)
+	ClaimProof(networkID uint32, depositCount uint32, l1InfoTreeIndex uint32) (*types.ClaimProof, error)
 	SponsorClaim(claim claimsponsor.Claim) error
 	GetSponsoredClaimStatus(globalIndex *big.Int) (claimsponsor.ClaimStatus, error)
 }
@@ -53,7 +54,7 @@ func (c *Client) InjectedInfoAfterIndex(
 // ClaimProof returns the proofs needed to claim a bridge. NetworkID and depositCount refere to the bridge origin
 // while globalExitRoot should be already injected on the destination network.
 // This call needs to be done to a client of the same network were the bridge tx was sent
-func (c *Client) ClaimProof(networkID uint32, depositCount uint32, l1InfoTreeIndex uint32) (*ClaimProof, error) {
+func (c *Client) ClaimProof(networkID uint32, depositCount uint32, l1InfoTreeIndex uint32) (*types.ClaimProof, error) {
 	response, err := rpc.JSONRPCCall(c.url, "bridge_claimProof", networkID, depositCount, l1InfoTreeIndex)
 	if err != nil {
 		return nil, err
@@ -61,7 +62,7 @@ func (c *Client) ClaimProof(networkID uint32, depositCount uint32, l1InfoTreeInd
 	if response.Error != nil {
 		return nil, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
 	}
-	var result ClaimProof
+	var result types.ClaimProof
 	return &result, json.Unmarshal(response.Result, &result)
 }
 
