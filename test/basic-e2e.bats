@@ -134,9 +134,12 @@ setup() {
 
 
 @test "Deploy and test UniswapV3 contract" {
-    run polycli loadtest uniswapv3 --legacy --rpc-url $rpc_url --private-key $sender_private_key
+    run polycli loadtest uniswapv3 --legacy -v 600 --rpc-url $rpc_url --private-key $sender_private_key
 
     assert_success
+
+    # Remove ANSI escape codes from the output
+    output=$(echo "$output" | sed -r "s/\x1B\[[0-9;]*[mGKH]//g")
 
     # Check if the WETH9 contract were deployed
     assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=WETH9"
