@@ -291,12 +291,10 @@ function verify_native_token_balance() {
     # Trim 'ether' from ether_amount if it exists
     ether_amount=$(echo "$ether_amount" | sed 's/ether//')
     local amount_wei=$(cast --to-wei "$ether_amount")
-    # TODO: REMOVE
-    echo "Initial wei balance $initial_balance_wei, Wei amount: $amount_wei" >&3
-
+    
     # Get final balance in wei (after the operation)
     local final_balance_wei=$(cast balance "$account" --rpc-url "$rpc_url" | awk '{print $1}')
-
+    
     # Calculate expected final balance (initial_balance + amount)
     local expected_final_balance_wei=$(echo "$initial_balance_wei + $amount_wei" | bc)
 
