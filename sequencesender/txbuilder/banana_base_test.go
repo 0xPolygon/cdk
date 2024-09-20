@@ -2,6 +2,7 @@ package txbuilder_test
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -33,8 +34,15 @@ func TestBananaBaseNewSequenceEmpty(t *testing.T) {
 	seq, err := testData.sut.NewSequence(context.TODO(), nil, common.Address{})
 	require.NotNil(t, seq)
 	require.NoError(t, err)
-	// TODO check values
-	// require.Equal(t, lastAcc, seq.LastAccInputHash())
+}
+
+func TestBananaBaseNewSequenceErrorHeaderByNumber(t *testing.T) {
+	testData := newBananaBaseTestData(t)
+	testData.l1Client.On("HeaderByNumber", mock.Anything, mock.Anything).
+		Return(nil, fmt.Errorf("error"))
+	seq, err := testData.sut.NewSequence(context.TODO(), nil, common.Address{})
+	require.Nil(t, seq)
+	require.Error(t, err)
 }
 
 func TestBananaBaseNewBatchFromL2Block(t *testing.T) {
@@ -109,6 +117,11 @@ func TestBananaSanityCheck(t *testing.T) {
 	seq.CounterL1InfoRoot = 1
 	err = txbuilder.SequenceSanityCheck(&seq)
 	require.Error(t, err, "inside batchl2data max is 1 and counter is 1. The batchl2data is not included in counter")
+}
+
+func TestBananaSanityCheckNilSeq(t *testing.T) {
+	err := txbuilder.SequenceSanityCheck(nil)
+	require.Error(t, err, "nil sequence")
 }
 
 type testDataBananaBase struct {
