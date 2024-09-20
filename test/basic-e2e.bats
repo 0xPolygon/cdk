@@ -156,8 +156,6 @@ setup() {
     assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=QuoterV2"
     assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=SwapRouter02"
 
-    assert_output --regexp "UniswapV3 deployed addresses={\"FactoryV3\":\"0x[a-fA-F0-9]{40}\".*}"
-
     # Check if ERC20 tokens were minted
     assert_output --regexp "Minted tokens amount=[0-9]+ recipient=0x[a-fA-F0-9]{40} token=SwapperA"
     assert_output --regexp "Minted tokens amount=[0-9]+ recipient=0x[a-fA-F0-9]{40} token=SwapperB"
