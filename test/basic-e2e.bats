@@ -108,7 +108,7 @@ setup() {
     # Attempt transfer of excessive amount from address_A to address_B
     local tranferFnSig="transfer(address,uint256)"
     run sendTx "$address_A_private_key" "$contract_addr" "$tranferFnSig" "$address_B" "$excessive_amount"
-    #assert_failure
+    assert_failure
 
     # Verify balance of address_A after failed transaction
     run queryContract "$contract_addr" "$balanceOfFnSig" "$address_A"
@@ -131,3 +131,45 @@ setup() {
     local address_A_final_nonce=$(cast nonce "$address_A" --rpc-url "$rpc_url") || return 1
     assert_equal "$address_A_final_nonce" "$address_A_initial_nonce"
 }
+
+
+@test "Deploy and test UniswapV3 contract" {
+    run polycli loadtest uniswapv3 --legacy --rpc-url $rpc_url --private-key $sender_private_key
+
+    assert_success
+
+    # Check if the WETH9 contract were deployed
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=WETH9"
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=UniswapV3Factory"
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=UniswapInterfaceMulticall"
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=ProxyAdmin"
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=TickLens"
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=NFTDescriptor"
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=NonfungibleTokenPositionDescriptor"
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=TransparentUpgradeableProxy"
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=NonfungiblePositionManager"
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=V3Migrator"
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=UniswapV3Staker"
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=QuoterV2"
+    assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=SwapRouter02"
+
+    assert_output --regexp "UniswapV3 deployed addresses={\"FactoryV3\":\"0x[a-fA-F0-9]{40}\".*}"
+
+    # Check if ERC20 tokens were minted
+    assert_output --regexp "Minted tokens amount=[0-9]+ recipient=0x[a-fA-F0-9]{40} token=SwapperA"
+    assert_output --regexp "Minted tokens amount=[0-9]+ recipient=0x[a-fA-F0-9]{40} token=SwapperB"
+
+    # Check if liquidity pool was created and initialized
+    assert_output --regexp "Pool created and initialized fees=[0-9]+"
+
+    # Check if liquidity was provided to the pool
+    assert_output --regexp "Liquidity provided to the pool liquidity=[0-9]+"
+
+    # Check if transaction got executed successfully
+    assert_output --regexp "Starting main load test loop currentNonce=[0-9]+"
+    assert_output --regexp "Finished main load test loop lastNonce=[0-9]+ startNonce=[0-9]+"
+    assert_output --regexp "Got final block number currentNonce=[0-9]+ final block number=[0-9]+"
+    assert_output --regexp "Num errors numErrors=0"
+    assert_output --regexp "Finished"
+}
+
