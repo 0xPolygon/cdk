@@ -130,8 +130,21 @@ setup() {
 
 
 @test "Deploy and test UniswapV3 contract" {
-    run polycli loadtest uniswapv3 --legacy -v 600 --rpc-url $l2_rpc_url --private-key $sender_private_key
+    # Generate new key pair
+    wallet_A_output=$(cast wallet new)
+    address_A=$(echo "$wallet_A_output" | grep "Address" | awk '{print $2}')
+    address_A_private_key=$(echo "$wallet_A_output" | grep "Private key" | awk '{print $3}')
 
+    # Transfer funds for gas
+    local value_ether="50ether"
+    cast_output=$(cast send --rpc-url "$l2_rpc_url" --private-key "$sender_private_key" "$address_A" --value "$value_ether" --legacy 2>&1)
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to send transaction. Output:"
+        echo "$cast_output"
+        return 1
+    fi
+
+    run polycli loadtest uniswapv3 --legacy -v 600 --rpc-url $l2_rpc_url --private-key $address_A_private_key
     assert_success
 
     # Remove ANSI escape codes from the output
