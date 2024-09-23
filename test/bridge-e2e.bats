@@ -77,7 +77,7 @@ setup() {
     echo "Initial receiver balance of native token on L2 $initial_receiver_balance" >&3
 
     # Query for initial sender balance
-    run queryContract "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$sender_addr"
+    run query_contract "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$sender_addr"
     assert_success
     local gas_token_init_sender_balance=$(echo "$output" | tail -n 1 | awk '{print $1}')
     echo "Initial sender balance $gas_token_init_sender_balance" of gas token on L1 >&3
@@ -90,7 +90,7 @@ setup() {
     assert_success
 
     # Assert that balance of gas token (on the L1) is correct
-    run queryContract "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$sender_addr"
+    run query_contract "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$sender_addr"
     assert_success
     local gas_token_final_sender_balance=$(echo "$output" |
         tail -n 1 |
@@ -104,7 +104,7 @@ setup() {
 
     # Send approve transaction to the gas token on L1
     deposit_ether_value="0.1ether"
-    run sendTx "$l1_rpc_url" "$sender_private_key" "$gas_token_addr" "$approve_fn_sig" "$bridge_addr" "$deposit_ether_value"
+    run send_tx "$l1_rpc_url" "$sender_private_key" "$gas_token_addr" "$approve_fn_sig" "$bridge_addr" "$deposit_ether_value"
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 

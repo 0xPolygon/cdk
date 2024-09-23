@@ -13,7 +13,7 @@ setup() {
     local value="10ether"
 
     # case 1: Transaction successful sender has sufficient balance
-    run sendTx "$l2_rpc_url" "$sender_private_key" "$receiver" "$value"
+    run send_tx "$l2_rpc_url" "$sender_private_key" "$receiver" "$value"
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
@@ -22,7 +22,7 @@ setup() {
     # without recording it on the chain and hence nonce will not change
     local sender_balance=$(cast balance "$sender_addr" --ether --rpc-url "$l2_rpc_url") || return 1
     local excessive_value=$(echo "$sender_balance + 1" | bc)"ether"
-    run sendTx "$l2_rpc_url" "$sender_private_key" "$receiver" "$excessive_value"
+    run send_tx "$l2_rpc_url" "$sender_private_key" "$receiver" "$excessive_value"
     assert_failure
 
     # Check whether the sender's nonce was updated correctly
@@ -38,7 +38,7 @@ setup() {
     address_B=$(cast wallet new | grep "Address" | awk '{print $2}')
 
     # Deploy ERC20Mock
-    run deployContract "$l2_rpc_url" "$sender_private_key" "$contract_artifact"
+    run deploy_contract "$l2_rpc_url" "$sender_private_key" "$contract_artifact"
     assert_success
     contract_addr=$(echo "$output" | tail -n 1)
 
@@ -46,7 +46,7 @@ setup() {
     local mintFnSig="mint(address,uint256)"
     local amount="5"
 
-    run sendTx "$l2_rpc_url" "$sender_private_key" "$contract_addr" "$mintFnSig" "$address_A" "$amount"
+    run send_tx "$l2_rpc_url" "$sender_private_key" "$contract_addr" "$mintFnSig" "$address_A" "$amount"
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
@@ -77,7 +77,7 @@ setup() {
     # Fetch initial nonce for address_A
     local address_A_initial_nonce=$(cast nonce "$address_A" --rpc-url "$l2_rpc_url") || return 1
     # Attempt to deploy contract with insufficient gas
-    run deployContract "$l2_rpc_url" "$address_A_private_key" "$contract_artifact"
+    run deploy_contract "$l2_rpc_url" "$address_A_private_key" "$contract_artifact"
     assert_failure
 
     ## Case 3: Transaction should fail as address_A tries to transfer more tokens than it has
@@ -93,7 +93,7 @@ setup() {
 
     # Fetch balance of address_A to simulate excessive transfer
     local balanceOfFnSig="balanceOf(address) (uint256)"
-    run queryContract "$l2_rpc_url" "$contract_addr" "$balanceOfFnSig" "$address_A"
+    run query_contract "$l2_rpc_url" "$contract_addr" "$balanceOfFnSig" "$address_A"
     assert_success
     local address_A_Balance=$(echo "$output" | tail -n 1)
     address_A_Balance=$(echo "$address_A_Balance" | xargs)
@@ -103,11 +103,11 @@ setup() {
 
     # Attempt transfer of excessive amount from address_A to address_B
     local tranferFnSig="transfer(address,uint256)"
-    run sendTx "$l2_rpc_url" "$address_A_private_key" "$contract_addr" "$tranferFnSig" "$address_B" "$excessive_amount"
+    run send_tx "$l2_rpc_url" "$address_A_private_key" "$contract_addr" "$tranferFnSig" "$address_B" "$excessive_amount"
     assert_failure
 
     # Verify balance of address_A after failed transaction
-    run queryContract "$l2_rpc_url" "$contract_addr" "$balanceOfFnSig" "$address_A"
+    run query_contract "$l2_rpc_url" "$contract_addr" "$balanceOfFnSig" "$address_A"
     assert_success
     address_A_BalanceAfterFailedTx=$(echo "$output" | tail -n 1)
     address_A_BalanceAfterFailedTx=$(echo "$address_A_BalanceAfterFailedTx" | xargs)
@@ -116,7 +116,7 @@ setup() {
     assert_equal "$address_A_BalanceAfterFailedTx" "$address_A_Balance"
 
     # Verify balance of address_B is still zero
-    run queryContract "$l2_rpc_url" "$contract_addr" "$balanceOfFnSig" "$address_B"
+    run query_contract "$l2_rpc_url" "$contract_addr" "$balanceOfFnSig" "$address_B"
     assert_success
     local address_B_Balance=$(echo "$output" | tail -n 1)
     address_B_Balance=$(echo "$address_B_Balance" | xargs)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-function deployContract() {
+function deploy_contract() {
     local rpc_url="$1"
     local private_key="$2"
     local contract_artifact="$3"
@@ -70,10 +70,10 @@ function deployContract() {
     return 0
 }
 
-function sendTx() {
+function send_tx() {
     # Check if at least 4 arguments are provided
     if [[ $# -lt 4 ]]; then
-        echo "Usage: sendTx <rpc_url> <private_key> <receiver> <value_or_function_signature> [<param1> <param2> ...]"
+        echo "Usage: send_tx <rpc_url> <private_key> <receiver> <value_or_function_signature> [<param1> <param2> ...]"
         return 1
     fi
 
@@ -180,7 +180,7 @@ function extract_tx_hash() {
     echo "$cast_output" | grep 'transactionHash' | awk '{print $2}' | tail -n 1
 }
 
-function queryContract() {
+function query_contract() {
     local rpc_url="$1"       # RPC URL
     local addr="$2"          # Contract address
     local funcSignature="$3" # Function signature
@@ -310,7 +310,7 @@ function mint_erc20_tokens() {
     local tokens_amount="$5"      # The amount of tokens to transfer (e.g., "0.1ether")
 
     # Query the erc20 token balance of the sender
-    run queryContract "$rpc_url" "$erc20_token_addr" "$balance_of_fn_sig" "$sender_addr"
+    run query_contract "$rpc_url" "$erc20_token_addr" "$balance_of_fn_sig" "$sender_addr"
     assert_success
     local erc20_token_balance=$(echo "$output" | tail -n 1)
 
@@ -321,6 +321,6 @@ function mint_erc20_tokens() {
     local wei_amount=$(cast --to-unit "$tokens_amount" wei)
 
     # Mint the required tokens by sending a transaction
-    run sendTx "$rpc_url" "$minter_private_key" "$erc20_token_addr" "$mint_fn_sig" "$receiver" "$tokens_amount"
+    run send_tx "$rpc_url" "$minter_private_key" "$erc20_token_addr" "$mint_fn_sig" "$receiver" "$tokens_amount"
     assert_success
 }

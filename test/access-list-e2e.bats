@@ -33,7 +33,7 @@ set_acl_mode() {
 @test "Test Block List - Sending regular transaction when address not in block list" {
     local value="10ether"
     run set_acl_mode "blocklist"
-    run sendTx $l2_rpc_url $key $receiver $value
+    run send_tx $l2_rpc_url $key $receiver $value
 
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
@@ -42,7 +42,7 @@ set_acl_mode() {
 @test "Test Block List - Sending contracts deploy transaction when address not in block list" {
     local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
     run set_acl_mode "blocklist"
-    run deployContract $l2_rpc_url $key $contract_artifact
+    run deploy_contract $l2_rpc_url $key $contract_artifact
 
     assert_success
 
@@ -54,9 +54,9 @@ set_acl_mode() {
     local value="10ether"
 
     run set_acl_mode "blocklist"
-    run add_to_access_list "blocklist" "sendTx"
+    run add_to_access_list "blocklist" "send_tx"
 
-    run sendTx $l2_rpc_url $key $receiver $value
+    run send_tx $l2_rpc_url $key $receiver $value
 
     assert_failure
     assert_output --partial "sender disallowed to send tx by ACL policy"
@@ -67,7 +67,7 @@ set_acl_mode() {
 
     run set_acl_mode "blocklist"
     run add_to_access_list "blocklist" "deploy"
-    run deployContract $l2_rpc_url $key $contract_artifact
+    run deploy_contract $l2_rpc_url $key $contract_artifact
 
     assert_failure
     assert_output --partial "sender disallowed to deploy contract by ACL policy"
@@ -77,7 +77,7 @@ set_acl_mode() {
     local value="10ether"
 
     run set_acl_mode "allowlist"
-    run sendTx $l2_rpc_url $key $receiver $value
+    run send_tx $l2_rpc_url $key $receiver $value
 
     assert_failure
     assert_output --partial "sender disallowed to send tx by ACL policy"
@@ -87,7 +87,7 @@ set_acl_mode() {
     local contract_artifact="./contracts/erc20mock/ERC20Mock.json"
 
     run set_acl_mode "allowlist"
-    run deployContract $l2_rpc_url $key $contract_artifact
+    run deploy_contract $l2_rpc_url $key $contract_artifact
 
     assert_failure
     assert_output --partial "sender disallowed to deploy contract by ACL policy"
@@ -97,8 +97,8 @@ set_acl_mode() {
     local value="10ether"
 
     run set_acl_mode "allowlist"
-    run add_to_access_list "allowlist" "sendTx"
-    run sendTx $l2_rpc_url $key $receiver $value
+    run add_to_access_list "allowlist" "send_tx"
+    run send_tx $l2_rpc_url $key $receiver $value
 
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
@@ -109,7 +109,7 @@ set_acl_mode() {
 
     run set_acl_mode "allowlist"
     run add_to_access_list "allowlist" "deploy"
-    run deployContract $l2_rpc_url $key $contract_artifact
+    run deploy_contract $l2_rpc_url $key $contract_artifact
 
     assert_success
 
