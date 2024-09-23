@@ -43,10 +43,9 @@ setup() {
     contract_addr=$(echo "$output" | tail -n 1)
 
     # Mint ERC20 tokens
-    local mintFnSig="mint(address,uint256)"
     local amount="5"
 
-    run send_tx "$l2_rpc_url" "$sender_private_key" "$contract_addr" "$mintFnSig" "$address_A" "$amount"
+    run send_tx "$l2_rpc_url" "$sender_private_key" "$contract_addr" "$mint_fn_sig" "$address_A" "$amount"
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
@@ -92,8 +91,7 @@ setup() {
     fi
 
     # Fetch balance of address_A to simulate excessive transfer
-    local balanceOfFnSig="balanceOf(address) (uint256)"
-    run query_contract "$l2_rpc_url" "$contract_addr" "$balanceOfFnSig" "$address_A"
+    run query_contract "$l2_rpc_url" "$contract_addr" "$balance_of_fn_sig" "$address_A"
     assert_success
     local address_A_Balance=$(echo "$output" | tail -n 1)
     address_A_Balance=$(echo "$address_A_Balance" | xargs)
@@ -107,7 +105,7 @@ setup() {
     assert_failure
 
     # Verify balance of address_A after failed transaction
-    run query_contract "$l2_rpc_url" "$contract_addr" "$balanceOfFnSig" "$address_A"
+    run query_contract "$l2_rpc_url" "$contract_addr" "$balance_of_fn_sig" "$address_A"
     assert_success
     address_A_BalanceAfterFailedTx=$(echo "$output" | tail -n 1)
     address_A_BalanceAfterFailedTx=$(echo "$address_A_BalanceAfterFailedTx" | xargs)
@@ -116,7 +114,7 @@ setup() {
     assert_equal "$address_A_BalanceAfterFailedTx" "$address_A_Balance"
 
     # Verify balance of address_B is still zero
-    run query_contract "$l2_rpc_url" "$contract_addr" "$balanceOfFnSig" "$address_B"
+    run query_contract "$l2_rpc_url" "$contract_addr" "$balance_of_fn_sig" "$address_B"
     assert_success
     local address_B_Balance=$(echo "$output" | tail -n 1)
     address_B_Balance=$(echo "$address_B_Balance" | xargs)
