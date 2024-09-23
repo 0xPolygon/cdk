@@ -102,6 +102,7 @@ function sendTx() {
     if [[ "$value_or_function_sig" =~ ^[0-9]+(\.[0-9]+)?(ether)?$ ]]; then
         # Case: Ether transfer (EOA transaction)
         # Get initial ether balances of sender and receiver
+        local sender_addr=$(cast wallet address --private-key "$private_key")
         local sender_initial_balance receiver_initial_balance
         sender_initial_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1
         receiver_initial_balance=$(cast balance "$receiver_addr" --ether --rpc-url "$rpc_url") || return 1
@@ -121,7 +122,7 @@ function send_eoa_transaction() {
     local sender_initial_balance="$5"
     local receiver_initial_balance="$6"
 
-    echo "Sending EOA transaction to: $receiver_addr with value: $value" >&3
+    echo "Sending EOA transaction (from: $sender, rpc url: $rpc_url) to: $receiver_addr with value: $value" >&3
 
     # Send transaction via cast
     local cast_output tx_hash
