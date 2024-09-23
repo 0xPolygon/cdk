@@ -33,15 +33,38 @@ type EthClienter interface {
 	bind.ContractBackend
 }
 
+func createContracts(client EthClienter, globalExitRoot, rollupManager common.Address) (*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
+	*polygonrollupmanager.Polygonrollupmanager,
+	error) {
+	gerContract, err := polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2(globalExitRoot, client)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	rollupManagerContract, err := polygonrollupmanager.NewPolygonrollupmanager(rollupManager, client)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	depositCount, err := gerContract.DepositCount(nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("fail sanity check GlobalExitRoot(%s) Contract. Err: %w", globalExitRoot.String(), err)
+	}
+	log.Debugf("sanity check GlobalExitRoot OK. DepositCount: %v", depositCount)
+	bridgeAddr, err := rollupManagerContract.BridgeAddress(nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManager.String(), err)
+	}
+	log.Debugf("sanity check rollupManager OK. bridgeAddr: %s", bridgeAddr.String())
+	return gerContract, rollupManagerContract, nil
+}
+
 func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Address) (sync.LogAppenderMap, error) {
-	ger, err := polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2(globalExitRoot, client)
+	ger, rm, err := createContracts(client, globalExitRoot, rollupManager)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("buildAppender: fails contracts creation. Err:%w", err)
 	}
-	rm, err := polygonrollupmanager.NewPolygonrollupmanager(rollupManager, client)
-	if err != nil {
-		return nil, err
-	}
+
 	appender := make(sync.LogAppenderMap)
 	appender[initL1InfoRootMapSignature] = func(b *sync.EVMBlock, l types.Log) error {
 		init, err := ger.ParseInitL1InfoRootMap(l)

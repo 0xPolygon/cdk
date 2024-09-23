@@ -84,6 +84,10 @@ type L1InfoTreeInitial struct {
 	L1InfoRoot  common.Hash `meddler:"l1_info_root,hash"`
 }
 
+func (l *L1InfoTreeInitial) String() string {
+	return fmt.Sprintf("BlockNumber: %d, LeafCount: %d, L1InfoRoot: %s", l.BlockNumber, l.LeafCount, l.L1InfoRoot.String())
+}
+
 // Hash as expected by the tree
 func (l *L1InfoTreeLeaf) hash() common.Hash {
 	var res [treeTypes.DefaultHeight]byte
@@ -198,6 +202,19 @@ func (p *processor) getLastProcessedBlockWithTx(tx db.Querier) (uint64, error) {
 	return lastProcessedBlock, err
 }
 
+// GetInitL1InfoRootMap returns the initial L1 info root map, nil if no root map has been set
+func (p *processor) GetInitL1InfoRootMap(tx db.Querier) (*L1InfoTreeInitial, error) {
+	if tx == nil {
+		tx = p.db
+	}
+	info := &L1InfoTreeInitial{}
+	err := meddler.QueryRow(tx, info, `SELECT block_num, leaf_count,l1_info_root  FROM l1info_initial`)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return info, err
+}
+
 // Reorg triggers a purge and reset process on the processor to leaf it on a state
 // as if the last block processed was firstReorgedBlock-1
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
@@ -234,7 +251,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 
 // ProcessBlock process the events of the block to build the rollup exit tree and the l1 info tree
 // and updates the last processed block (can be called without events for that purpose)
-func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
+func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
@@ -247,8 +264,8 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		}
 	}()
 
-	if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, b.Num); err != nil {
-		return fmt.Errorf("err: %w", err)
+	if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, block.Num); err != nil {
+		return fmt.Errorf("insert Block. err: %w", err)
 	}
 
 	var initialL1InfoIndex uint32
@@ -260,12 +277,12 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		initialL1InfoIndex = 0
 		err = nil
 	case err != nil:
-		return fmt.Errorf("err: %w", err)
+		return fmt.Errorf("getLastIndex err: %w", err)
 	default:
 		initialL1InfoIndex = lastIndex + 1
 	}
 
-	for _, e := range b.Events {
+	for _, e := range block.Events {
 		event, ok := e.(Event)
 		if !ok {
 			return errors.New("failed to convert from sync.Block.Event into Event")
@@ -273,7 +290,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		if event.UpdateL1InfoTree != nil {
 			index := initialL1InfoIndex + l1InfoLeavesAdded
 			info := &L1InfoTreeLeaf{
-				BlockNumber:       b.Num,
+				BlockNumber:       block.Num,
 				BlockPosition:     event.UpdateL1InfoTree.BlockPosition,
 				L1InfoTreeIndex:   index,
 				PreviousBlockHash: event.UpdateL1InfoTree.ParentHash,
@@ -284,28 +301,29 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 			info.GlobalExitRoot = info.globalExitRoot()
 			info.Hash = info.hash()
 			if err = meddler.Insert(tx, "l1info_leaf", info); err != nil {
-				return fmt.Errorf("err: %w", err)
+				return fmt.Errorf("insert l1info_leaf. err: %w", err)
 			}
 			err = p.l1InfoTree.AddLeaf(tx, info.BlockNumber, info.BlockPosition, treeTypes.Leaf{
 				Index: info.L1InfoTreeIndex,
 				Hash:  info.Hash,
 			})
 			if err != nil {
-				return fmt.Errorf("err: %w", err)
+				return fmt.Errorf("AddLeaf. err: %w", err)
 			}
 			l1InfoLeavesAdded++
 		}
-
-		if event.VerifyBatches != nil {
-			newRoot, err := p.rollupExitTree.UpsertLeaf(tx, b.Num, event.VerifyBatches.BlockPosition, treeTypes.Leaf{
+		// TODO: CDK-505
+		if event.VerifyBatches != nil && event.VerifyBatches.RollupExitRoot != (common.Hash{}) {
+			log.Debugf("VerifyBatches: rollupExitTree.UpsertLeaf (block=%d, pos=%d, rollupID=%d, exit_root=%s)", block.Num, event.VerifyBatches.BlockPosition, event.VerifyBatches.RollupID-1, event.VerifyBatches.ExitRoot.String())
+			newRoot, err := p.rollupExitTree.UpsertLeaf(tx, block.Num, event.VerifyBatches.BlockPosition, treeTypes.Leaf{
 				Index: event.VerifyBatches.RollupID - 1,
 				Hash:  event.VerifyBatches.ExitRoot,
 			})
 			if err != nil {
-				return fmt.Errorf("err: %w", err)
+				return fmt.Errorf("UpsertLeaf. err: %w", err)
 			}
 			verifyBatches := event.VerifyBatches
-			verifyBatches.BlockNumber = b.Num
+			verifyBatches.BlockNumber = block.Num
 			verifyBatches.RollupExitRoot = newRoot
 			if err = meddler.Insert(tx, "verify_batches", verifyBatches); err != nil {
 				return fmt.Errorf("err: %w", err)
@@ -315,24 +333,33 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		if event.InitL1InfoRootMap != nil {
 			// TODO: indicate that l1 Info tree indexes before the one on this
 			// event are not safe to use
-			log.Debugf("TODO: handle InitL1InfoRootMap event")
-			err = processEventInitL1InfoRootMap(tx, b.Num, event.InitL1InfoRootMap)
+			log.Debugf("handle InitL1InfoRootMap event")
+			err = processEventInitL1InfoRootMap(tx, block.Num, event.InitL1InfoRootMap)
+			if err != nil {
+				err = fmt.Errorf("initL1InfoRootMap. Err: %w", err)
+				log.Errorf("error processing InitL1InfoRootMap: %v", err)
+				return err
+			}
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("err: %w", err)
 	}
-	log.Infof("block %d processed with %d events", b.Num, len(b.Events))
+	log.Infof("block %d processed with %d events", block.Num, len(block.Events))
 	return nil
 }
 
 func processEventInitL1InfoRootMap(tx db.Txer, blockNumber uint64, event *InitL1InfoRootMap) error {
-	info := L1InfoTreeInitial{
+	if event == nil {
+		return nil
+	}
+	info := &L1InfoTreeInitial{
 		BlockNumber: blockNumber,
 		LeafCount:   event.LeafCount,
 		L1InfoRoot:  event.CurrentL1InfoRoot,
 	}
+	log.Infof("insert InitL1InfoRootMap %s ", info.String())
 	if err := meddler.Insert(tx, "l1info_initial", info); err != nil {
 		return fmt.Errorf("err: %w", err)
 	}

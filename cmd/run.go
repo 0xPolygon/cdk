@@ -511,7 +511,7 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 	log.Debugf("dialing L1 client at: %s", urlRPCL1)
 	l1CLient, err := ethclient.Dial(urlRPCL1)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to create client for L1 using URL: %s. Err:%v", urlRPCL1, err)
 	}
 
 	return l1CLient
