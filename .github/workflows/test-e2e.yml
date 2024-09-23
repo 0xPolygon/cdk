@@ -50,7 +50,7 @@ jobs:
 
     - name: Install polycli
       run: |
-        POLYCLI_VERSION="${{ env.POLYCLI_VERSION }}"
+        POLYCLI_VERSION="v0.1.57"
         tmp_dir=$(mktemp -d) 
         curl -L "https://github.com/0xPolygon/polygon-cli/releases/download/${POLYCLI_VERSION}/polycli_${POLYCLI_VERSION}_linux_amd64.tar.gz" | tar -xz -C "$tmp_dir" 
         mv "$tmp_dir"/* /usr/local/bin/polycli 
