@@ -54,7 +54,7 @@ set_acl_mode() {
     local value="10ether"
 
     run set_acl_mode "blocklist"
-    run add_to_access_list "blocklist" "send_tx"
+    run add_to_access_list "blocklist" "sendTx"
 
     run send_tx $l2_rpc_url $key $receiver $value
 
@@ -97,7 +97,7 @@ set_acl_mode() {
     local value="10ether"
 
     run set_acl_mode "allowlist"
-    run add_to_access_list "allowlist" "send_tx"
+    run add_to_access_list "allowlist" "sendTx"
     run send_tx $l2_rpc_url $key $receiver $value
 
     assert_success
