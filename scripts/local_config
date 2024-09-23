@@ -62,6 +62,10 @@ export sequencer_keystore_file=$DEST/sequencer.keystore
 
 l1_rpc_port=$(kurtosis port print $ENCLAVE el-1-geth-lighthouse rpc | cut -f 3 -d ":")
 [ $? -ne 0 ] && echo "Error getting l1_rpc_port" && exit 1 || export l1_rpc_port && echo "l1_rpc_port=$l1_rpc_port"
+l1_rpc_addr=$(kurtosis port print $ENCLAVE el-1-geth-lighthouse rpc)
+[ $? -ne 0 ] && echo "Error getting l1_rpc_addr" && exit 1 || export l1_rpc_addr && echo "l1_rpc_addr=$l1_rpc_addr"
+l2_rpc_addr=$(kurtosis port print $ENCLAVE  cdk-erigon-node-001 http-rpc)
+[ $? -ne 0 ] && echo "Error getting l2_rpc_addr" && exit 1 || export l2_rpc_addr && echo "l2_rpc_addr=$l2_rpc_addr"
 
 zkevm_data_streamer_port=$(kurtosis port print $ENCLAVE cdk-erigon-sequencer-001  data-streamer | cut -f 3 -d ":")
 [ $? -ne 0 ] && echo "Error getting zkevm_data_streamer_port" && exit 1 || export zkevm_data_streamer_port && echo "zkevm_data_streamer_port=$zkevm_data_streamer_port"
@@ -80,7 +84,7 @@ if [ "$zkevm_is_validium" == "true" ]; then
 fi
 
 envsubst < test/config/test.kurtosis_template.toml > $DEST/test.kurtosis.toml
-
+echo "file generated at:" $DEST/test.kurtosis.toml
 echo "- to restart kurtosis:"
 echo "    kurtosis clean --all; kurtosis run --enclave cdk-v1 --args-file params.yml --image-download always ."
 echo " "
@@ -100,7 +104,7 @@ cat << EOF
                 "run",
                 "-cfg", "$DEST/test.kurtosis.toml",
                 "-components", "sequence-sender,aggregator",
-                "-custom-network-file", "$DEST/local_config/genesis.json"
             ]
         },
 EOF
+
