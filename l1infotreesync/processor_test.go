@@ -176,7 +176,7 @@ func TestGetInfo(t *testing.T) {
 }
 
 func TestInitL1InfoRootMap(t *testing.T) {
-	dbPath := "file:TestGetVerifiedBatches?mode=memory&cache=shared"
+	dbPath := "file:TestInitL1InfoRootMap?mode=memory&cache=shared"
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	ctx := context.TODO()
@@ -203,7 +203,7 @@ func TestInitL1InfoRootMap(t *testing.T) {
 }
 
 func TestInitL1InfoRootMapDontAllow2Rows(t *testing.T) {
-	dbPath := "file:test?mode=memory&cache=shared"
+	dbPath := "file:TestInitL1InfoRootMapDontAllow2Rows?mode=memory&cache=shared"
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	ctx := context.TODO()
@@ -224,7 +224,7 @@ func TestInitL1InfoRootMapDontAllow2Rows(t *testing.T) {
 }
 
 func TestGetInitL1InfoRootMap(t *testing.T) {
-	dbPath := "file:test?mode=memory&cache=shared"
+	dbPath := "file:TestGetInitL1InfoRootMap?mode=memory&cache=shared"
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	info, err := sut.GetInitL1InfoRootMap(nil)
