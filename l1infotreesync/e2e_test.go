@@ -171,7 +171,7 @@ func TestStressAndReorgs(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPathSyncer := path.Join(t.TempDir(), "file:TestStressAndReorgs:memory:?cache=shared")
 	dbPathReorg := t.TempDir()
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
