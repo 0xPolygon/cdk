@@ -1,0 +1,16 @@
+[Unit]
+  Description=cdk
+  StartLimitIntervalSec=500
+  StartLimitBurst=5
+
+[Service]
+  Restart=on-failure
+  RestartSec=5s
+  ExecStart=/usr/bin/cdk-node -c $config
+  Type=simple
+  KillSignal=SIGINT
+  User=cdk
+  TimeoutStopSec=120
+
+[Install]
+  WantedBy=multi-user.target
