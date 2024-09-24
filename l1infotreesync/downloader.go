@@ -1,6 +1,7 @@
 package l1infotreesync
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonzkevmglobalexitrootv2"
@@ -33,6 +34,26 @@ type EthClienter interface {
 	bind.ContractBackend
 }
 
+func checkAddrIsContract(client EthClienter, addr common.Address) error {
+	code, err := client.CodeAt(context.Background(), addr, nil)
+	if err != nil {
+		return err
+	}
+	if len(code) == 0 {
+		return fmt.Errorf("address %s is not a contract", addr.String())
+	}
+	return nil
+}
+
+func checkSMCIsRollupManager(client EthClienter, rollupManagerAddr common.Address, rollupManagerContract *polygonrollupmanager.Polygonrollupmanager) error {
+	bridgeAddr, err := rollupManagerContract.BridgeAddress(nil)
+	if err != nil {
+		return fmt.Errorf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManagerAddr.String(), err)
+	}
+	log.Debugf("sanity check rollupManager (%s) OK. bridgeAddr: %s", rollupManagerAddr.String(), bridgeAddr.String())
+	return nil
+}
+
 func createContracts(client EthClienter, globalExitRoot, rollupManager common.Address, doSanityCheck bool) (
 	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
 	*polygonrollupmanager.Polygonrollupmanager,
@@ -54,11 +75,15 @@ func createContracts(client EthClienter, globalExitRoot, rollupManager common.Ad
 		log.Debugf("sanity check GlobalExitRoot OK. DepositCount: %v", depositCount)
 		zeroAddr := common.Address{}
 		if rollupManager != zeroAddr {
-			bridgeAddr, err := rollupManagerContract.BridgeAddress(nil)
+			err := checkSMCIsRollupManager(client, rollupManager, rollupManagerContract)
 			if err != nil {
-				return nil, nil, fmt.Errorf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManager.String(), err)
+				log.Warnf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManager.String(), err)
+				err = checkAddrIsContract(client, rollupManager)
+				if err != nil {
+					return nil, nil, fmt.Errorf("fail sanity check RollupManager(%s) Contract addr doesnt contain any contract.  Err: %w", rollupManager.String(), err)
+				}
+				log.Warnf("RollupManager(%s) is not the expected RollupManager but it is a contract", rollupManager.String())
 			}
-			log.Debugf("sanity check rollupManager OK. bridgeAddr: %s", bridgeAddr.String())
 		} else {
 			log.Warnf("RollupManager contract addr not set. Skipping sanity check. No VerifyBatches events expected")
 		}
@@ -120,7 +145,7 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 
 		return nil
 	}
-	// This event is comming from RollupManager
+	// This event is coming from RollupManager
 	appender[verifyBatchesSignature] = func(b *sync.EVMBlock, l types.Log) error {
 		verifyBatches, err := rm.ParseVerifyBatches(l)
 		if err != nil {
