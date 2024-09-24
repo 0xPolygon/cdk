@@ -12,6 +12,12 @@ import (
 )
 
 func (p *processor) processVerifyBatches(tx db.Txer, blockNumber uint64, event *VerifyBatches) error {
+	if event == nil {
+		return fmt.Errorf("processVerifyBatches: event is nil")
+	}
+	if tx == nil {
+		return fmt.Errorf("processVerifyBatches: tx is nil, is mandatory to pass a tx")
+	}
 	log.Debugf("VerifyBatches: rollupExitTree.UpsertLeaf (blockNumber=%d, event=%s)", blockNumber, event.String())
 	// If ExitRoot is zero if the leaf doesnt exists doesnt change the root of tree.
 	//  	if leaf already exists doesn't make sense to 'empty' the leaf, so we keep previous value
