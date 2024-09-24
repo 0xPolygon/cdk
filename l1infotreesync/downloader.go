@@ -33,7 +33,7 @@ type EthClienter interface {
 	bind.ContractBackend
 }
 
-func createContracts(client EthClienter, globalExitRoot, rollupManager common.Address) (
+func createContracts(client EthClienter, globalExitRoot, rollupManager common.Address, doSanityCheck bool) (
 	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
 	*polygonrollupmanager.Polygonrollupmanager,
 	error) {
@@ -46,22 +46,23 @@ func createContracts(client EthClienter, globalExitRoot, rollupManager common.Ad
 	if err != nil {
 		return nil, nil, err
 	}
-
-	depositCount, err := gerContract.DepositCount(nil)
-	if err != nil {
-		return nil, nil, fmt.Errorf("fail sanity check GlobalExitRoot(%s) Contract. Err: %w", globalExitRoot.String(), err)
+	if doSanityCheck {
+		depositCount, err := gerContract.DepositCount(nil)
+		if err != nil {
+			return nil, nil, fmt.Errorf("fail sanity check GlobalExitRoot(%s) Contract. Err: %w", globalExitRoot.String(), err)
+		}
+		log.Debugf("sanity check GlobalExitRoot OK. DepositCount: %v", depositCount)
+		bridgeAddr, err := rollupManagerContract.BridgeAddress(nil)
+		if err != nil {
+			return nil, nil, fmt.Errorf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManager.String(), err)
+		}
+		log.Debugf("sanity check rollupManager OK. bridgeAddr: %s", bridgeAddr.String())
 	}
-	log.Debugf("sanity check GlobalExitRoot OK. DepositCount: %v", depositCount)
-	bridgeAddr, err := rollupManagerContract.BridgeAddress(nil)
-	if err != nil {
-		return nil, nil, fmt.Errorf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManager.String(), err)
-	}
-	log.Debugf("sanity check rollupManager OK. bridgeAddr: %s", bridgeAddr.String())
 	return gerContract, rollupManagerContract, nil
 }
 
 func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Address) (sync.LogAppenderMap, error) {
-	ger, rm, err := createContracts(client, globalExitRoot, rollupManager)
+	ger, rm, err := createContracts(client, globalExitRoot, rollupManager, false)
 	if err != nil {
 		return nil, fmt.Errorf("buildAppender: fails contracts creation. Err:%w", err)
 	}
