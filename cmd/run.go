@@ -492,6 +492,7 @@ func runL1InfoTreeSyncerIfNeeded(
 		cfg.L1InfoTreeSync.InitialBlock,
 		cfg.L1InfoTreeSync.RetryAfterErrorPeriod.Duration,
 		cfg.L1InfoTreeSync.MaxRetryAttemptsAfterError,
+		l1infotreesync.FlagNone,
 	)
 	if err != nil {
 		log.Fatal(err)

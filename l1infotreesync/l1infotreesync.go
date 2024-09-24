@@ -12,9 +12,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+type CreationFlags uint64
+
 const (
 	reorgDetectorID    = "l1infotreesync"
 	downloadBufferSize = 1000
+	// CreationFlags defitinion
+	FlagNone                     CreationFlags = 0
+	FlagAllowWrongContractsAddrs CreationFlags = 1 << iota // Allow to set wrong contracts addresses
 )
 
 type L1InfoTreeSync struct {
@@ -36,6 +41,7 @@ func New(
 	initialBlock uint64,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
+	flags CreationFlags,
 ) (*L1InfoTreeSync, error) {
 	processor, err := newProcessor(dbPath)
 	if err != nil {
@@ -59,7 +65,7 @@ func New(
 		MaxRetryAttemptsAfterError: maxRetryAttemptsAfterError,
 	}
 
-	appender, err := buildAppender(l1Client, globalExitRoot, rollupManager)
+	appender, err := buildAppender(l1Client, globalExitRoot, rollupManager, flags)
 	if err != nil {
 		return nil, err
 	}

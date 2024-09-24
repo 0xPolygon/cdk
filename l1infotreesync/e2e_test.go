@@ -80,7 +80,8 @@ func TestE2E(t *testing.T) {
 	rdm.On("AddBlockToTrack", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	client, gerAddr, verifyAddr, gerSc, verifySC, err := newSimulatedClient(auth)
 	require.NoError(t, err)
-	syncer, err := l1infotreesync.New(ctx, dbPath, gerAddr, verifyAddr, 10, etherman.LatestBlock, rdm, client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3)
+	syncer, err := l1infotreesync.New(ctx, dbPath, gerAddr, verifyAddr, 10, etherman.LatestBlock, rdm, client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3,
+		l1infotreesync.FlagAllowWrongContractsAddrs)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
@@ -182,7 +183,8 @@ func TestStressAndReorgs(t *testing.T) {
 	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
 	require.NoError(t, err)
 	require.NoError(t, rd.Start(ctx))
-	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3)
+	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3,
+		l1infotreesync.FlagAllowWrongContractsAddrs)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 

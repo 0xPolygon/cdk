@@ -1,7 +1,6 @@
 package l1infotreesync
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonzkevmglobalexitrootv2"
@@ -34,28 +33,40 @@ type EthClienter interface {
 	bind.ContractBackend
 }
 
-func checkAddrIsContract(client EthClienter, addr common.Address) error {
-	code, err := client.CodeAt(context.Background(), addr, nil)
-	if err != nil {
-		return err
-	}
-	if len(code) == 0 {
-		return fmt.Errorf("address %s is not a contract", addr.String())
-	}
-	return nil
-}
-
 func checkSMCIsRollupManager(rollupManagerAddr common.Address,
 	rollupManagerContract *polygonrollupmanager.Polygonrollupmanager) error {
 	bridgeAddr, err := rollupManagerContract.BridgeAddress(nil)
 	if err != nil {
 		return fmt.Errorf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManagerAddr.String(), err)
 	}
-	log.Debugf("sanity check rollupManager (%s) OK. bridgeAddr: %s", rollupManagerAddr.String(), bridgeAddr.String())
+	log.Infof("sanity check rollupManager(%s) OK. bridgeAddr: %s", rollupManagerAddr.String(), bridgeAddr.String())
 	return nil
 }
 
-func createContracts(client EthClienter, globalExitRoot, rollupManager common.Address, doSanityCheck bool) (
+func checkSMCIsGlobalExitRoot(globalExitRootAddr common.Address, gerContract *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2) error {
+	depositCount, err := gerContract.DepositCount(nil)
+	if err != nil {
+		return fmt.Errorf("fail sanity check GlobalExitRoot(%s) Contract. Err: %w", globalExitRootAddr.String(), err)
+	}
+	log.Infof("sanity check GlobalExitRoot(%s) OK. DepositCount: %v", globalExitRootAddr.String(), depositCount)
+	return nil
+}
+
+func sanityCheckContracts(globalExitRoot, rollupManager common.Address,
+	gerContract *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
+	rollupManagerContract *polygonrollupmanager.Polygonrollupmanager) error {
+
+	errGER := checkSMCIsGlobalExitRoot(globalExitRoot, gerContract)
+	errRollup := checkSMCIsRollupManager(rollupManager, rollupManagerContract)
+	if errGER != nil || errRollup != nil {
+		err := fmt.Errorf("sanityCheckContracts: fails sanity check contracts. ErrGER: %w, ErrRollup: %w", errGER, errRollup)
+		log.Error(err)
+		return err
+	}
+	return nil
+}
+
+func createContracts(client EthClienter, globalExitRoot, rollupManager common.Address) (
 	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
 	*polygonrollupmanager.Polygonrollupmanager,
 	error) {
@@ -68,35 +79,19 @@ func createContracts(client EthClienter, globalExitRoot, rollupManager common.Ad
 	if err != nil {
 		return nil, nil, err
 	}
-	if doSanityCheck {
-		depositCount, err := gerContract.DepositCount(nil)
-		if err != nil {
-			return nil, nil, fmt.Errorf("fail sanity check GlobalExitRoot(%s) Contract. Err: %w", globalExitRoot.String(), err)
-		}
-		log.Debugf("sanity check GlobalExitRoot OK. DepositCount: %v", depositCount)
-		zeroAddr := common.Address{}
-		if rollupManager != zeroAddr {
-			err := checkSMCIsRollupManager(rollupManager, rollupManagerContract)
-			if err != nil {
-				log.Warnf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManager.String(), err)
-				err = checkAddrIsContract(client, rollupManager)
-				if err != nil {
-					return nil, nil, fmt.Errorf("fail sanity check RollupManager(%s) "+
-						"Contract addr doesnt contain any contract.  Err: %w", rollupManager.String(), err)
-				}
-				log.Warnf("RollupManager(%s) is not the expected RollupManager but it is a contract", rollupManager.String())
-			}
-		} else {
-			log.Warnf("RollupManager contract addr not set. Skipping sanity check. No VerifyBatches events expected")
-		}
-	}
 	return gerContract, rollupManagerContract, nil
 }
 
-func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Address) (sync.LogAppenderMap, error) {
-	ger, rm, err := createContracts(client, globalExitRoot, rollupManager, true)
+func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Address, flags CreationFlags) (sync.LogAppenderMap, error) {
+	ger, rm, err := createContracts(client, globalExitRoot, rollupManager)
 	if err != nil {
-		return nil, fmt.Errorf("buildAppender: fails contracts creation. Err:%w", err)
+		err := fmt.Errorf("buildAppender: fails contracts creation. Err:%w", err)
+		log.Error(err)
+		return nil, err
+	}
+	err = sanityCheckContracts(globalExitRoot, rollupManager, ger, rm)
+	if err != nil && flags&FlagAllowWrongContractsAddrs == 0 {
+		return nil, fmt.Errorf("buildAppender: fails sanity check contracts. Err:%w", err)
 	}
 
 	appender := make(sync.LogAppenderMap)
