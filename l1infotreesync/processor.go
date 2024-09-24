@@ -53,9 +53,18 @@ type VerifyBatches struct {
 	RollupExitRoot common.Hash `meddler:"rollup_exit_root,hash"`
 }
 
+func (v *VerifyBatches) String() string {
+	return fmt.Sprintf("BlockNumber: %d, BlockPosition: %d, RollupID: %d, NumBatch: %d, StateRoot: %s, ExitRoot: %s, Aggregator: %s, RollupExitRoot: %s",
+		v.BlockNumber, v.BlockPosition, v.RollupID, v.NumBatch, v.StateRoot.String(), v.ExitRoot.String(), v.Aggregator.String(), v.RollupExitRoot.String())
+}
+
 type InitL1InfoRootMap struct {
 	LeafCount         uint32
 	CurrentL1InfoRoot common.Hash
+}
+
+func (i *InitL1InfoRootMap) String() string {
+	return fmt.Sprintf("LeafCount: %d, CurrentL1InfoRoot: %s", i.LeafCount, i.CurrentL1InfoRoot.String())
 }
 
 type Event struct {
@@ -202,19 +211,6 @@ func (p *processor) getLastProcessedBlockWithTx(tx db.Querier) (uint64, error) {
 	return lastProcessedBlock, err
 }
 
-// GetInitL1InfoRootMap returns the initial L1 info root map, nil if no root map has been set
-func (p *processor) GetInitL1InfoRootMap(tx db.Querier) (*L1InfoTreeInitial, error) {
-	if tx == nil {
-		tx = p.db
-	}
-	info := &L1InfoTreeInitial{}
-	err := meddler.QueryRow(tx, info, `SELECT block_num, leaf_count,l1_info_root  FROM l1info_initial`)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	return info, err
-}
-
 // Reorg triggers a purge and reset process on the processor to leaf it on a state
 // as if the last block processed was firstReorgedBlock-1
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
@@ -313,27 +309,18 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			l1InfoLeavesAdded++
 		}
 		// TODO: CDK-505
-		if event.VerifyBatches != nil && event.VerifyBatches.RollupExitRoot != (common.Hash{}) {
-			log.Debugf("VerifyBatches: rollupExitTree.UpsertLeaf (block=%d, pos=%d, rollupID=%d, exit_root=%s)", block.Num, event.VerifyBatches.BlockPosition, event.VerifyBatches.RollupID-1, event.VerifyBatches.ExitRoot.String())
-			newRoot, err := p.rollupExitTree.UpsertLeaf(tx, block.Num, event.VerifyBatches.BlockPosition, treeTypes.Leaf{
-				Index: event.VerifyBatches.RollupID - 1,
-				Hash:  event.VerifyBatches.ExitRoot,
-			})
+		if event.VerifyBatches != nil {
+			log.Debugf("handle VerifyBatches event %s", event.VerifyBatches.String())
+			err = p.processVerifyBatches(tx, block.Num, event.VerifyBatches)
 			if err != nil {
-				return fmt.Errorf("UpsertLeaf. err: %w", err)
-			}
-			verifyBatches := event.VerifyBatches
-			verifyBatches.BlockNumber = block.Num
-			verifyBatches.RollupExitRoot = newRoot
-			if err = meddler.Insert(tx, "verify_batches", verifyBatches); err != nil {
-				return fmt.Errorf("err: %w", err)
+				err = fmt.Errorf("processVerifyBatches. err: %w", err)
+				log.Errorf("error processing VerifyBatches: %v", err)
+				return err
 			}
 		}
 
 		if event.InitL1InfoRootMap != nil {
-			// TODO: indicate that l1 Info tree indexes before the one on this
-			// event are not safe to use
-			log.Debugf("handle InitL1InfoRootMap event")
+			log.Debugf("handle InitL1InfoRootMap event %s", event.InitL1InfoRootMap.String())
 			err = processEventInitL1InfoRootMap(tx, block.Num, event.InitL1InfoRootMap)
 			if err != nil {
 				err = fmt.Errorf("initL1InfoRootMap. Err: %w", err)
@@ -347,22 +334,6 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		return fmt.Errorf("err: %w", err)
 	}
 	log.Infof("block %d processed with %d events", block.Num, len(block.Events))
-	return nil
-}
-
-func processEventInitL1InfoRootMap(tx db.Txer, blockNumber uint64, event *InitL1InfoRootMap) error {
-	if event == nil {
-		return nil
-	}
-	info := &L1InfoTreeInitial{
-		BlockNumber: blockNumber,
-		LeafCount:   event.LeafCount,
-		L1InfoRoot:  event.CurrentL1InfoRoot,
-	}
-	log.Infof("insert InitL1InfoRootMap %s ", info.String())
-	if err := meddler.Insert(tx, "l1info_initial", info); err != nil {
-		return fmt.Errorf("err: %w", err)
-	}
 	return nil
 }
 
@@ -459,4 +430,11 @@ func (p *processor) GetInfoByGlobalExitRoot(ger common.Hash) (*L1InfoTreeLeaf, e
 		LIMIT 1;
 	`, ger.Hex())
 	return info, db.ReturnErrNotFound(err)
+}
+
+func (p *processor) getDBQuerier(tx db.Txer) db.Querier {
+	if tx != nil {
+		return tx
+	}
+	return p.db
 }

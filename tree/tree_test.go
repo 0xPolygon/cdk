@@ -2,6 +2,7 @@ package tree_test
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -114,4 +115,13 @@ func TestMTGetProof(t *testing.T) {
 			}
 		})
 	}
+}
+
+func createTreeDBForTest(t *testing.T) *sql.DB {
+	dbPath := "file::memory:?cache=shared"
+	err := migrations.RunMigrations(dbPath)
+	require.NoError(t, err)
+	treeDB, err := db.NewSQLiteDB(dbPath)
+	require.NoError(t, err)
+	return treeDB
 }

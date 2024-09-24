@@ -129,12 +129,12 @@ func (s *L1InfoTreeSync) GetL1InfoTreeRootByIndex(ctx context.Context, index uin
 
 // GetLastRollupExitRoot return the last rollup exit root processed
 func (s *L1InfoTreeSync) GetLastRollupExitRoot(ctx context.Context) (types.Root, error) {
-	return s.processor.rollupExitTree.GetLastRoot(ctx)
+	return s.processor.rollupExitTree.GetLastRoot(nil)
 }
 
 // GetLastL1InfoTreeRoot return the last root and index processed from the L1 Info tree
 func (s *L1InfoTreeSync) GetLastL1InfoTreeRoot(ctx context.Context) (types.Root, error) {
-	return s.processor.l1InfoTree.GetLastRoot(ctx)
+	return s.processor.l1InfoTree.GetLastRoot(nil)
 }
 
 // GetLastProcessedBlock return the last processed block
@@ -149,7 +149,7 @@ func (s *L1InfoTreeSync) GetLocalExitRoot(
 		return common.Hash{}, errors.New("network 0 is not a rollup, and it's not part of the rollup exit tree")
 	}
 
-	return s.processor.rollupExitTree.GetLeaf(ctx, networkID-1, rollupExitRoot)
+	return s.processor.rollupExitTree.GetLeaf(nil, networkID-1, rollupExitRoot)
 }
 
 func (s *L1InfoTreeSync) GetLastVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
@@ -189,4 +189,9 @@ func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProofFromIndexToRoot(
 	ctx context.Context, index uint32, root common.Hash,
 ) (types.Proof, error) {
 	return s.processor.l1InfoTree.GetProof(ctx, index, root)
+}
+
+// GetInitL1InfoRootMap returns the initial L1 info root map, nil if no root map has been set
+func (s *L1InfoTreeSync) GetInitL1InfoRootMap(ctx context.Context) (*L1InfoTreeInitial, error) {
+	return s.processor.GetInitL1InfoRootMap(nil)
 }

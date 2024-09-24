@@ -27,6 +27,7 @@ type globalExitRootBananaContractor interface {
 
 type l1InfoSyncer interface {
 	GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*l1infotreesync.L1InfoTreeLeaf, error)
+	GetInitL1InfoRootMap(ctx context.Context) (*l1infotreesync.L1InfoTreeInitial, error)
 }
 
 type l1Client interface {
