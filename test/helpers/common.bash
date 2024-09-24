@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-function deployContract() {
+function deploy_contract() {
     local rpc_url="$1"
     local private_key="$2"
     local contract_artifact="$3"
@@ -70,10 +70,10 @@ function deployContract() {
     return 0
 }
 
-function sendTx() {
+function send_tx() {
     # Check if at least 4 arguments are provided
     if [[ $# -lt 4 ]]; then
-        echo "Usage: sendTx <rpc_url> <private_key> <receiver> <value_or_function_signature> [<param1> <param2> ...]"
+        echo "Usage: send_tx <rpc_url> <private_key> <receiver> <value_or_function_signature> [<param1> <param2> ...]"
         return 1
     fi
 
@@ -98,18 +98,19 @@ function sendTx() {
         return 1
     }
 
-    # Get initial ether balances of sender and receiver
-    local sender_initial_balance receiver_initial_balance
-    sender_initial_balance=$(cast balance "$sender" --ether --rpc-url "$rpc_url") || return 1
-    receiver_initial_balance=$(cast balance "$receiver_addr" --ether --rpc-url "$rpc_url") || return 1
-
     # Check if the value_or_function_sig is a numeric value (Ether to be transferred)
     if [[ "$value_or_function_sig" =~ ^[0-9]+(\.[0-9]+)?(ether)?$ ]]; then
         # Case: Ether transfer (EOA transaction)
-        send_eoa_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "$sender" "$sender_initial_balance" "$receiver_initial_balance"
+        # Get initial ether balances of sender and receiver
+        local sender_addr=$(cast wallet address --private-key "$private_key")
+        local sender_initial_balance receiver_initial_balance
+        sender_initial_balance=$(cast balance "$sender_addr" --ether --rpc-url "$rpc_url") || return 1
+        receiver_initial_balance=$(cast balance "$receiver_addr" --ether --rpc-url "$rpc_url") || return 1
+        
+        send_eoa_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "$sender_addr" "$sender_initial_balance" "$receiver_initial_balance"
     else
         # Case: Smart contract interaction (contract interaction with function signature and parameters)
-        send_smart_contract_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "$sender" "${params[@]}"
+        send_smart_contract_transaction "$private_key" "$receiver_addr" "$value_or_function_sig" "${params[@]}"
     fi
 }
 
@@ -121,7 +122,7 @@ function send_eoa_transaction() {
     local sender_initial_balance="$5"
     local receiver_initial_balance="$6"
 
-    echo "Sending EOA transaction to: $receiver_addr with value: $value" >&3
+    echo "Sending EOA transaction (from: $sender, rpc url: $rpc_url) to: $receiver_addr with value: $value" >&3
 
     # Send transaction via cast
     local cast_output tx_hash
@@ -151,21 +152,14 @@ function send_smart_contract_transaction() {
     local private_key="$1"
     local receiver_addr="$2"
     local function_sig="$3"
-    local sender="$4"
-    shift 4
+    shift 3
     local params=("$@")
-
-    # Verify if the function signature starts with "function"
-    if [[ ! "$function_sig" =~ ^function\ .+\(.+\)$ ]]; then
-        echo "Error: Invalid function signature format '$function_sig'."
-        return 1
-    fi
 
     echo "Sending smart contract transaction to $receiver_addr with function signature: '$function_sig' and params: ${params[*]}" >&3
 
     # Send the smart contract interaction using cast
     local cast_output tx_hash
-    cast_output=$(cast send --rpc-url "$rpc_url" --private-key "$private_key" "$receiver_addr" "$function_sig" "${params[@]}" --legacy 2>&1)
+    cast_output=$(cast send "$receiver_addr" --rpc-url "$rpc_url" --private-key "$private_key" --legacy "$function_sig" "${params[@]}" 2>&1)
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to send transaction. Output:"
         echo "$cast_output"
@@ -186,7 +180,7 @@ function extract_tx_hash() {
     echo "$cast_output" | grep 'transactionHash' | awk '{print $2}' | tail -n 1
 }
 
-function queryContract() {
+function query_contract() {
     local rpc_url="$1"       # RPC URL
     local addr="$2"          # Contract address
     local funcSignature="$3" # Function signature
@@ -316,7 +310,7 @@ function mint_erc20_tokens() {
     local tokens_amount="$5"      # The amount of tokens to transfer (e.g., "0.1ether")
 
     # Query the erc20 token balance of the sender
-    run queryContract "$rpc_url" "$erc20_token_addr" "$balance_of_fn_sig" "$sender_addr"
+    run query_contract "$rpc_url" "$erc20_token_addr" "$balance_of_fn_sig" "$sender_addr"
     assert_success
     local erc20_token_balance=$(echo "$output" | tail -n 1)
 
@@ -327,6 +321,6 @@ function mint_erc20_tokens() {
     local wei_amount=$(cast --to-unit "$tokens_amount" wei)
 
     # Mint the required tokens by sending a transaction
-    run sendTx "$rpc_url" "$minter_private_key" "$erc20_token_addr" "$mint_fn_sig" "$receiver" "$tokens_amount"
+    run send_tx "$rpc_url" "$minter_private_key" "$erc20_token_addr" "$mint_fn_sig" "$receiver" "$tokens_amount"
     assert_success
 }
