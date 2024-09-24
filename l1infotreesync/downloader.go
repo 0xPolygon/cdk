@@ -43,7 +43,8 @@ func checkSMCIsRollupManager(rollupManagerAddr common.Address,
 	return nil
 }
 
-func checkSMCIsGlobalExitRoot(globalExitRootAddr common.Address, gerContract *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2) error {
+func checkSMCIsGlobalExitRoot(globalExitRootAddr common.Address,
+	gerContract *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2) error {
 	depositCount, err := gerContract.DepositCount(nil)
 	if err != nil {
 		return fmt.Errorf("fail sanity check GlobalExitRoot(%s) Contract. Err: %w", globalExitRootAddr.String(), err)
@@ -55,7 +56,6 @@ func checkSMCIsGlobalExitRoot(globalExitRootAddr common.Address, gerContract *po
 func sanityCheckContracts(globalExitRoot, rollupManager common.Address,
 	gerContract *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
 	rollupManagerContract *polygonrollupmanager.Polygonrollupmanager) error {
-
 	errGER := checkSMCIsGlobalExitRoot(globalExitRoot, gerContract)
 	errRollup := checkSMCIsRollupManager(rollupManager, rollupManagerContract)
 	if errGER != nil || errRollup != nil {
@@ -82,7 +82,8 @@ func createContracts(client EthClienter, globalExitRoot, rollupManager common.Ad
 	return gerContract, rollupManagerContract, nil
 }
 
-func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Address, flags CreationFlags) (sync.LogAppenderMap, error) {
+func buildAppender(client EthClienter, globalExitRoot,
+	rollupManager common.Address, flags CreationFlags) (sync.LogAppenderMap, error) {
 	ger, rm, err := createContracts(client, globalExitRoot, rollupManager)
 	if err != nil {
 		err := fmt.Errorf("buildAppender: fails contracts creation. Err:%w", err)
