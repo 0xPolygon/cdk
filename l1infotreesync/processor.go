@@ -54,8 +54,10 @@ type VerifyBatches struct {
 }
 
 func (v *VerifyBatches) String() string {
-	return fmt.Sprintf("BlockNumber: %d, BlockPosition: %d, RollupID: %d, NumBatch: %d, StateRoot: %s, ExitRoot: %s, Aggregator: %s, RollupExitRoot: %s",
-		v.BlockNumber, v.BlockPosition, v.RollupID, v.NumBatch, v.StateRoot.String(), v.ExitRoot.String(), v.Aggregator.String(), v.RollupExitRoot.String())
+	return fmt.Sprintf("BlockNumber: %d, BlockPosition: %d, RollupID: %d, NumBatch: %d, StateRoot: %s, "+
+		"ExitRoot: %s, Aggregator: %s, RollupExitRoot: %s",
+		v.BlockNumber, v.BlockPosition, v.RollupID, v.NumBatch, v.StateRoot.String(),
+		v.ExitRoot.String(), v.Aggregator.String(), v.RollupExitRoot.String())
 }
 
 type InitL1InfoRootMap struct {

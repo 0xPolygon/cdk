@@ -33,7 +33,8 @@ type EthClienter interface {
 	bind.ContractBackend
 }
 
-func createContracts(client EthClienter, globalExitRoot, rollupManager common.Address) (*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
+func createContracts(client EthClienter, globalExitRoot, rollupManager common.Address) (
+	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
 	*polygonrollupmanager.Polygonrollupmanager,
 	error) {
 	gerContract, err := polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2(globalExitRoot, client)

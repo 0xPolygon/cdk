@@ -46,5 +46,4 @@ func TestUpdatableTreeExploratory(t *testing.T) {
 
 	_, err = sut.UpsertLeaf(tx, blockNum, blockPosition, leaf99)
 	require.Error(t, err, "insert 0x000 doesnt change root and return UNIQUE constraint failed: root.hash")
-
 }

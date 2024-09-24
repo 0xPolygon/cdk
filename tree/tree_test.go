@@ -52,7 +52,7 @@ func TestMTAddLeaf(t *testing.T) {
 			}
 			require.NoError(t, tx.Commit())
 			if len(testVector.ExistingLeaves) > 0 {
-				root, err := merkletree.GetLastRoot(ctx)
+				root, err := merkletree.GetLastRoot(nil)
 				require.NoError(t, err)
 				require.Equal(t, common.HexToHash(testVector.CurrentRoot), root.Hash)
 			}
@@ -67,7 +67,7 @@ func TestMTAddLeaf(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, tx.Commit())
 
-			root, err := merkletree.GetLastRoot(ctx)
+			root, err := merkletree.GetLastRoot(nil)
 			require.NoError(t, err)
 			require.Equal(t, common.HexToHash(testVector.NewRoot), root.Hash)
 		})
@@ -103,7 +103,7 @@ func TestMTGetProof(t *testing.T) {
 			}
 			require.NoError(t, tx.Commit())
 
-			root, err := tre.GetLastRoot(ctx)
+			root, err := tre.GetLastRoot(nil)
 			require.NoError(t, err)
 			expectedRoot := common.HexToHash(testVector.ExpectedRoot)
 			require.Equal(t, expectedRoot, root.Hash)
@@ -118,6 +118,7 @@ func TestMTGetProof(t *testing.T) {
 }
 
 func createTreeDBForTest(t *testing.T) *sql.DB {
+	t.Helper()
 	dbPath := "file::memory:?cache=shared"
 	err := migrations.RunMigrations(dbPath)
 	require.NoError(t, err)

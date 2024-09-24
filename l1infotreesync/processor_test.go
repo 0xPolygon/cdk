@@ -200,7 +200,6 @@ func TestInitL1InfoRootMap(t *testing.T) {
 	require.Equal(t, event.LeafCount, info.LeafCount)
 	require.Equal(t, event.CurrentL1InfoRoot, info.L1InfoRoot)
 	require.Equal(t, block.Num, info.BlockNumber)
-
 }
 
 func TestInitL1InfoRootMapDontAllow2Rows(t *testing.T) {
