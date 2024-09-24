@@ -52,17 +52,22 @@ func createContracts(client EthClienter, globalExitRoot, rollupManager common.Ad
 			return nil, nil, fmt.Errorf("fail sanity check GlobalExitRoot(%s) Contract. Err: %w", globalExitRoot.String(), err)
 		}
 		log.Debugf("sanity check GlobalExitRoot OK. DepositCount: %v", depositCount)
-		bridgeAddr, err := rollupManagerContract.BridgeAddress(nil)
-		if err != nil {
-			return nil, nil, fmt.Errorf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManager.String(), err)
+		zeroAddr := common.Address{}
+		if rollupManager != zeroAddr {
+			bridgeAddr, err := rollupManagerContract.BridgeAddress(nil)
+			if err != nil {
+				return nil, nil, fmt.Errorf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManager.String(), err)
+			}
+			log.Debugf("sanity check rollupManager OK. bridgeAddr: %s", bridgeAddr.String())
+		} else {
+			log.Warnf("RollupManager contract addr not set. Skipping sanity check. No VerifyBatches events expected")
 		}
-		log.Debugf("sanity check rollupManager OK. bridgeAddr: %s", bridgeAddr.String())
 	}
 	return gerContract, rollupManagerContract, nil
 }
 
 func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Address) (sync.LogAppenderMap, error) {
-	ger, rm, err := createContracts(client, globalExitRoot, rollupManager, false)
+	ger, rm, err := createContracts(client, globalExitRoot, rollupManager, true)
 	if err != nil {
 		return nil, fmt.Errorf("buildAppender: fails contracts creation. Err:%w", err)
 	}
@@ -115,6 +120,7 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 
 		return nil
 	}
+	// This event is comming from RollupManager
 	appender[verifyBatchesSignature] = func(b *sync.EVMBlock, l types.Log) error {
 		verifyBatches, err := rm.ParseVerifyBatches(l)
 		if err != nil {
