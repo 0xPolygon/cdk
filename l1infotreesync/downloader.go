@@ -45,7 +45,8 @@ func checkAddrIsContract(client EthClienter, addr common.Address) error {
 	return nil
 }
 
-func checkSMCIsRollupManager(client EthClienter, rollupManagerAddr common.Address, rollupManagerContract *polygonrollupmanager.Polygonrollupmanager) error {
+func checkSMCIsRollupManager(rollupManagerAddr common.Address,
+	rollupManagerContract *polygonrollupmanager.Polygonrollupmanager) error {
 	bridgeAddr, err := rollupManagerContract.BridgeAddress(nil)
 	if err != nil {
 		return fmt.Errorf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManagerAddr.String(), err)
@@ -75,12 +76,13 @@ func createContracts(client EthClienter, globalExitRoot, rollupManager common.Ad
 		log.Debugf("sanity check GlobalExitRoot OK. DepositCount: %v", depositCount)
 		zeroAddr := common.Address{}
 		if rollupManager != zeroAddr {
-			err := checkSMCIsRollupManager(client, rollupManager, rollupManagerContract)
+			err := checkSMCIsRollupManager(rollupManager, rollupManagerContract)
 			if err != nil {
 				log.Warnf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManager.String(), err)
 				err = checkAddrIsContract(client, rollupManager)
 				if err != nil {
-					return nil, nil, fmt.Errorf("fail sanity check RollupManager(%s) Contract addr doesnt contain any contract.  Err: %w", rollupManager.String(), err)
+					return nil, nil, fmt.Errorf("fail sanity check RollupManager(%s) "+
+						"Contract addr doesnt contain any contract.  Err: %w", rollupManager.String(), err)
 				}
 				log.Warnf("RollupManager(%s) is not the expected RollupManager but it is a contract", rollupManager.String())
 			}
