@@ -9,7 +9,10 @@ setup() {
 
 @test "Send EOA transaction" {
     local sender_addr=$(cast wallet address --private-key "$sender_private_key")
-    local initial_nonce=$(cast nonce "$sender_addr" --rpc-url "$l2_rpc_url") || return 1
+    local initial_nonce=$(cast nonce "$sender_addr" --rpc-url "$l2_rpc_url") || {
+        echo "Failed to retrieve nonce for sender: $sender_addr using RPC URL: $l2_rpc_url"
+        return 1
+    }
     local value="10ether"
 
     # case 1: Transaction successful sender has sufficient balance
@@ -20,13 +23,19 @@ setup() {
     # case 2: Transaction rejected as sender attempts to transfer more than it has in its wallet.
     # Transaction will fail pre-validation check on the node and will be dropped subsequently from the pool
     # without recording it on the chain and hence nonce will not change
-    local sender_balance=$(cast balance "$sender_addr" --ether --rpc-url "$l2_rpc_url") || return 1
+    local sender_balance=$(cast balance "$sender_addr" --ether --rpc-url "$l2_rpc_url") || {
+        echo "Failed to retrieve balance for sender: $sender_addr using RPC URL: $l2_rpc_url"
+        return 1
+    }
     local excessive_value=$(echo "$sender_balance + 1" | bc)"ether"
     run send_tx "$l2_rpc_url" "$sender_private_key" "$receiver" "$excessive_value"
     assert_failure
 
     # Check whether the sender's nonce was updated correctly
-    local final_nonce=$(cast nonce "$sender_addr" --rpc-url "$l2_rpc_url") || return 1
+    local final_nonce=$(cast nonce "$sender_addr" --rpc-url "$l2_rpc_url") || {
+        echo "Failed to retrieve nonce for sender: $sender_addr using RPC URL: $l2_rpc_url"
+        return 1
+    }
     assert_equal "$final_nonce" "$(echo "$initial_nonce + 1" | bc)"
 }
 
@@ -65,7 +74,7 @@ setup() {
     local value=$(echo "$gas_units * $gas_price" | bc)
     local value_ether=$(cast to-unit "$value" ether)"ether" 
 
-    # Transfer insufficient funds
+    # Transfer only half amount of tokens needed for contract deployment fees
     cast_output=$(cast send --rpc-url "$l2_rpc_url" --private-key "$sender_private_key" "$address_A" --value "$value_ether" --legacy 2>&1)
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to send transaction. Output:"
@@ -122,7 +131,10 @@ setup() {
     assert_equal "$address_B_Balance" "0"
 
     # Nonce should not increase
-    local address_A_final_nonce=$(cast nonce "$address_A" --rpc-url "$l2_rpc_url") || return 1
+    local address_A_final_nonce=$(cast nonce "$address_A" --rpc-url "$l2_rpc_url") || {
+        echo "Failed to retrieve nonce for sender: $address_A using RPC URL: $l2_rpc_url"
+        return 1
+    }
     assert_equal "$address_A_final_nonce" "$address_A_initial_nonce"
 }
 
@@ -148,7 +160,7 @@ setup() {
     # Remove ANSI escape codes from the output
     output=$(echo "$output" | sed -r "s/\x1B\[[0-9;]*[mGKH]//g")
 
-    # Check if the WETH9 contract were deployed
+    # Check if all required Uniswap contracts were deployed
     assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=WETH9"
     assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=UniswapV3Factory"
     assert_output --regexp "Contract deployed address=0x[a-fA-F0-9]{40} name=UniswapInterfaceMulticall"
