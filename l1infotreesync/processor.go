@@ -211,11 +211,6 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		return err
 	}
 
-	_, err = tx.Exec(`DELETE FROM l1info_leaf WHERE block_num >= $1;`, firstReorgedBlock)
-	if err != nil {
-		return err
-	}
-
 	if err = p.l1InfoTree.Reorg(tx, firstReorgedBlock); err != nil {
 		return err
 	}

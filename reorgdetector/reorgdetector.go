@@ -161,8 +161,6 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 					continue
 				}
 
-				log.Info("[ReorgDetector] Reorg detected", " blockNum ", hdr.Num)
-
 				// Notify the subscriber about the reorg
 				rd.notifySubscriber(id, hdr)
 

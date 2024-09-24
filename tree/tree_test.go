@@ -51,16 +51,16 @@ func TestCheckExpectedRoot(t *testing.T) {
 		indexToCheck := uint32(numOfLeavesToAdd - 1)
 
 		treeDB := createTreeDB()
-		merkletree := tree.NewAppendOnlyTree(treeDB, "")
+		merkleTree := tree.NewAppendOnlyTree(treeDB, "")
 
-		addLeaves(merkletree, treeDB, numOfLeavesToAdd, 0)
+		addLeaves(merkleTree, treeDB, numOfLeavesToAdd, 0)
 
-		expectedRoot, err := merkletree.GetLastRoot(context.Background())
+		expectedRoot, err := merkleTree.GetLastRoot(context.Background())
 		require.NoError(t, err)
 
-		addLeaves(merkletree, treeDB, numOfLeavesToAdd, numOfLeavesToAdd)
+		addLeaves(merkleTree, treeDB, numOfLeavesToAdd, numOfLeavesToAdd)
 
-		root2, err := merkletree.GetRootByIndex(context.Background(), indexToCheck)
+		root2, err := merkleTree.GetRootByIndex(context.Background(), indexToCheck)
 		require.NoError(t, err)
 		require.Equal(t, expectedRoot.Hash, root2.Hash)
 		require.Equal(t, expectedRoot.Index, root2.Index)
@@ -70,31 +70,31 @@ func TestCheckExpectedRoot(t *testing.T) {
 		numOfLeavesToAdd := 10
 		indexToCheck := uint32(numOfLeavesToAdd - 1)
 		treeDB := createTreeDB()
-		merkletree := tree.NewAppendOnlyTree(treeDB, "")
+		merkleTree := tree.NewAppendOnlyTree(treeDB, "")
 
-		addLeaves(merkletree, treeDB, numOfLeavesToAdd, 0)
+		addLeaves(merkleTree, treeDB, numOfLeavesToAdd, 0)
 
-		expectedRoot, err := merkletree.GetLastRoot(context.Background())
+		expectedRoot, err := merkleTree.GetLastRoot(context.Background())
 		require.NoError(t, err)
 
-		addLeaves(merkletree, treeDB, numOfLeavesToAdd, numOfLeavesToAdd)
+		addLeaves(merkleTree, treeDB, numOfLeavesToAdd, numOfLeavesToAdd)
 
 		// reorg tree
 		tx, err := db.NewTx(context.Background(), treeDB)
 		require.NoError(t, err)
-		require.NoError(t, merkletree.Reorg(tx, uint64(indexToCheck+1)))
+		require.NoError(t, merkleTree.Reorg(tx, uint64(indexToCheck+1)))
 		require.NoError(t, tx.Commit())
 
 		// rebuild cache on adding new leaf
 		tx, err = db.NewTx(context.Background(), treeDB)
 		require.NoError(t, err)
-		require.NoError(t, merkletree.AddLeaf(tx, uint64(indexToCheck+1), 0, types.Leaf{
+		require.NoError(t, merkleTree.AddLeaf(tx, uint64(indexToCheck+1), 0, types.Leaf{
 			Index: indexToCheck + 1,
 			Hash:  common.HexToHash(fmt.Sprintf("%x", indexToCheck+1)),
 		}))
 		require.NoError(t, tx.Commit())
 
-		root2, err := merkletree.GetRootByIndex(context.Background(), indexToCheck)
+		root2, err := merkleTree.GetRootByIndex(context.Background(), indexToCheck)
 		require.NoError(t, err)
 		require.Equal(t, expectedRoot.Hash, root2.Hash)
 		require.Equal(t, expectedRoot.Index, root2.Index)

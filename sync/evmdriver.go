@@ -65,7 +65,6 @@ func NewEVMDriver(
 }
 
 func (d *EVMDriver) Sync(ctx context.Context) {
-	syncID := 0
 reset:
 	var (
 		lastProcessedBlock uint64
@@ -73,7 +72,6 @@ reset:
 		err                error
 	)
 
-	syncID++
 	for {
 		lastProcessedBlock, err = d.processor.GetLastProcessedBlock(ctx)
 		if err != nil {
@@ -87,7 +85,7 @@ reset:
 	cancellableCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	log.Info("Starting sync. syncID: ", syncID, " lastProcessedBlock", lastProcessedBlock)
+	log.Info("Starting sync...", " lastProcessedBlock", lastProcessedBlock)
 	// start downloading
 	downloadCh := make(chan EVMBlock, d.downloadBufferSize)
 	go d.downloader.Download(cancellableCtx, lastProcessedBlock+1, downloadCh)
@@ -95,11 +93,10 @@ reset:
 	for {
 		select {
 		case b := <-downloadCh:
-			d.log.Debug("handleNewBlock: ", b.Num, b.Hash, " syncID ", syncID)
+			d.log.Debug("handleNewBlock", " blockNum: ", b.Num, " blockHash: ", b.Hash)
 			d.handleNewBlock(ctx, b)
-			d.log.Debug("handleNewBlock done: ", b.Num, b.Hash, " syncID ", syncID)
 		case firstReorgedBlock := <-d.reorgSub.ReorgedBlock:
-			d.log.Debug("handleReorg: ", firstReorgedBlock, " syncID ", syncID)
+			d.log.Debug("handleReorg from block: ", firstReorgedBlock)
 			d.handleReorg(ctx, cancel, firstReorgedBlock)
 			goto reset
 		}

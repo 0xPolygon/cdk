@@ -325,8 +325,6 @@ func TestStressAndReorgs(t *testing.T) {
 				reorgFrom := block.Hash()
 				err = client.Fork(reorgFrom)
 				require.NoError(t, err)
-
-				fmt.Println("reorg from block:", block.Number().Uint64()+1)
 			} else {
 				updateL1InfoTreeAndRollupExitTree(i, j, uint32(j%maxRollupID)+1)
 			}
