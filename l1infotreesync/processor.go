@@ -240,7 +240,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		}
 	}()
 
-	if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, b.Num); err != nil {
+	if _, err = tx.Exec(`INSERT INTO block (num) VALUES ($1)`, b.Num); err != nil {
 		return fmt.Errorf("err: %w", err)
 	}
 

@@ -160,14 +160,124 @@ func TestE2E(t *testing.T) {
 	}
 }
 
+func TestWithReorgs(t *testing.T) {
+	ctx := context.Background()
+	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPathReorg := t.TempDir()
+	privateKey, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	require.NoError(t, err)
+	client, gerAddr, verifyAddr, gerSc, verifySC, err := newSimulatedClient(auth)
+	require.NoError(t, err)
+	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 30)})
+	require.NoError(t, err)
+	require.NoError(t, rd.Start(ctx))
+	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, time.Second, 25)
+	require.NoError(t, err)
+	go syncer.Start(ctx)
+
+	// Commit block
+	header, err := client.Client().HeaderByHash(ctx, client.Commit()) // Block 3
+	require.NoError(t, err)
+	reorgFrom := header.Hash()
+	fmt.Println("start from header:", header.Number)
+
+	updateL1InfoTreeAndRollupExitTree := func(i int, rollupID uint32) {
+		// Update L1 Info Tree
+		_, err := gerSc.UpdateExitRoot(auth, common.HexToHash(strconv.Itoa(i)))
+		require.NoError(t, err)
+
+		// Update L1 Info Tree + Rollup Exit Tree
+		newLocalExitRoot := common.HexToHash(strconv.Itoa(i) + "ffff" + strconv.Itoa(1))
+		_, err = verifySC.VerifyBatches(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, true)
+		require.NoError(t, err)
+
+		// Update Rollup Exit Tree
+		newLocalExitRoot = common.HexToHash(strconv.Itoa(i) + "ffff" + strconv.Itoa(2))
+		_, err = verifySC.VerifyBatches(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, false)
+		require.NoError(t, err)
+	}
+
+	// create some events and update the trees
+	updateL1InfoTreeAndRollupExitTree(1, 1)
+
+	// Block 4
+	commitBlocks(t, client, 1, time.Second*5)
+
+	// Make sure syncer is up to date
+	waitForSyncerToCatchUp(ctx, t, syncer, client)
+
+	// Assert rollup exit root
+	expectedRollupExitRoot, err := verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
+	require.NoError(t, err)
+	actualRollupExitRoot, err := syncer.GetLastRollupExitRoot(ctx)
+	require.NoError(t, err)
+	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
+	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
+
+	// Assert L1 Info tree root
+	expectedL1InfoRoot, err := gerSc.GetRoot(&bind.CallOpts{Pending: false})
+	require.NoError(t, err)
+	expectedGER, err := gerSc.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
+	require.NoError(t, err)
+	actualL1InfoRoot, err := syncer.GetLastL1InfoTreeRoot(ctx)
+	require.NoError(t, err)
+	info, err := syncer.GetInfoByIndex(ctx, actualL1InfoRoot.Index)
+	require.NoError(t, err)
+
+	require.Equal(t, common.Hash(expectedL1InfoRoot), actualL1InfoRoot.Hash)
+	require.Equal(t, common.Hash(expectedGER), info.GlobalExitRoot, fmt.Sprintf("%+v", info))
+
+	// Forking from block 3
+	err = client.Fork(reorgFrom)
+	require.NoError(t, err)
+
+	// Block 4, 5, 6 after the fork
+	commitBlocks(t, client, 3, time.Millisecond*500)
+
+	// Make sure syncer is up to date
+	waitForSyncerToCatchUp(ctx, t, syncer, client)
+
+	// Assert rollup exit root after the fork - should be zero since there are no events in the block after the fork
+	expectedRollupExitRoot, err = verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
+	require.NoError(t, err)
+	actualRollupExitRoot, err = syncer.GetLastRollupExitRoot(ctx)
+	require.ErrorContains(t, err, "not found") // rollup exit tree reorged, it does not have any exits in it
+	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
+	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
+
+	// Forking from block 3 again
+	err = client.Fork(reorgFrom)
+	require.NoError(t, err)
+	time.Sleep(time.Millisecond * 500)
+
+	// create some events and update the trees
+	updateL1InfoTreeAndRollupExitTree(2, 1)
+
+	// Block 4, 5, 6, 7 after the fork
+	commitBlocks(t, client, 4, time.Millisecond*100)
+
+	// Make sure syncer is up to date
+	waitForSyncerToCatchUp(ctx, t, syncer, client)
+
+	// Assert rollup exit root after the fork - should be zero since there are no events in the block after the fork
+	expectedRollupExitRoot, err = verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
+	require.NoError(t, err)
+	actualRollupExitRoot, err = syncer.GetLastRollupExitRoot(ctx)
+	require.NoError(t, err)
+	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
+	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
+}
+
 func TestStressAndReorgs(t *testing.T) {
 	const (
-		totalIterations       = 200   // Have tested with much larger number (+10k)
-		enableReorgs          = false // test fails when set to true
-		reorgEveryXIterations = 53
-		maxReorgDepth         = 5
-		maxEventsPerBlock     = 7
-		maxRollups            = 31
+		totalIterations       = 3
+		blocksInIteration     = 140
+		reorgEveryXIterations = 70
+		reorgSizeInBlocks     = 2
+		maxRollupID           = 31
+		extraBlocksToMine     = 10
 	)
 
 	ctx := context.Background()
@@ -182,58 +292,48 @@ func TestStressAndReorgs(t *testing.T) {
 	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
 	require.NoError(t, err)
 	require.NoError(t, rd.Start(ctx))
-	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3)
+	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, time.Second, 100)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
-	for i := 0; i < totalIterations; i++ {
-		for j := 0; j < i%maxEventsPerBlock; j++ {
-			switch j % 3 {
-			case 0: // Update L1 Info Tree
-				_, err := gerSc.UpdateExitRoot(auth, common.HexToHash(strconv.Itoa(i)))
-				require.NoError(t, err)
-			case 1: // Update L1 Info Tree + Rollup Exit Tree
-				newLocalExitRoot := common.HexToHash(strconv.Itoa(i) + "ffff" + strconv.Itoa(j))
-				_, err := verifySC.VerifyBatches(auth, 1+uint32(i%maxRollups), 0, newLocalExitRoot, common.Hash{}, true)
-				require.NoError(t, err)
-			case 2: // Update Rollup Exit Tree
-				newLocalExitRoot := common.HexToHash(strconv.Itoa(i) + "ffff" + strconv.Itoa(j))
-				_, err := verifySC.VerifyBatches(auth, 1+uint32(i%maxRollups), 0, newLocalExitRoot, common.Hash{}, false)
-				require.NoError(t, err)
-			}
-		}
-		client.Commit()
-		time.Sleep(time.Microsecond * 30) // Sleep just enough for goroutine to switch
-		if enableReorgs && i%reorgEveryXIterations == 0 {
-			reorgDepth := i%maxReorgDepth + 1
-			currentBlockNum, err := client.Client().BlockNumber(ctx)
-			require.NoError(t, err)
-			targetReorgBlockNum := currentBlockNum - uint64(reorgDepth)
-			if targetReorgBlockNum < currentBlockNum { // we are dealing with uints...
-				reorgBlock, err := client.Client().BlockByNumber(ctx, big.NewInt(int64(targetReorgBlockNum)))
-				require.NoError(t, err)
-				err = client.Fork(reorgBlock.Hash())
-				require.NoError(t, err)
-			}
-		}
-	}
-
-	syncerUpToDate := false
-	var errMsg string
-	lb, err := client.Client().BlockNumber(ctx)
-	require.NoError(t, err)
-	for i := 0; i < 50; i++ {
-		lpb, err := syncer.GetLastProcessedBlock(ctx)
+	updateL1InfoTreeAndRollupExitTree := func(i, j int, rollupID uint32) {
+		// Update L1 Info Tree
+		_, err := gerSc.UpdateExitRoot(auth, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
-		if lpb == lb {
-			syncerUpToDate = true
 
-			break
-		}
-		time.Sleep(time.Millisecond * 100)
-		errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb, lpb)
+		// Update L1 Info Tree + Rollup Exit Tree
+		newLocalExitRoot := common.HexToHash(strconv.Itoa(i) + "ffff" + strconv.Itoa(j))
+		_, err = verifySC.VerifyBatches(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, true)
+		require.NoError(t, err)
+
+		// Update Rollup Exit Tree
+		newLocalExitRoot = common.HexToHash(strconv.Itoa(i) + "fffa" + strconv.Itoa(j))
+		_, err = verifySC.VerifyBatches(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, false)
+		require.NoError(t, err)
 	}
-	require.True(t, syncerUpToDate, errMsg)
+
+	for i := 1; i <= totalIterations; i++ {
+		for j := 1; j <= blocksInIteration; j++ {
+			commitBlocks(t, client, 1, time.Millisecond*10)
+
+			if j%reorgEveryXIterations == 0 {
+				currentBlockNum, err := client.Client().BlockNumber(ctx)
+				require.NoError(t, err)
+
+				block, err := client.Client().BlockByNumber(ctx, big.NewInt(int64(currentBlockNum-reorgSizeInBlocks)))
+				require.NoError(t, err)
+				reorgFrom := block.Hash()
+				err = client.Fork(reorgFrom)
+				require.NoError(t, err)
+			} else {
+				updateL1InfoTreeAndRollupExitTree(i, j, uint32(j%maxRollupID)+1)
+			}
+		}
+	}
+
+	commitBlocks(t, client, 1, time.Millisecond*10)
+
+	waitForSyncerToCatchUp(ctx, t, syncer, client)
 
 	// Assert rollup exit root
 	expectedRollupExitRoot, err := verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
@@ -252,6 +352,39 @@ func TestStressAndReorgs(t *testing.T) {
 	info, err := syncer.GetInfoByIndex(ctx, lastRoot.Index)
 	require.NoError(t, err, fmt.Sprintf("index: %d", lastRoot.Index))
 
-	require.Equal(t, common.Hash(expectedL1InfoRoot), lastRoot.Hash)
+	t.Logf("expectedL1InfoRoot: %s", common.Hash(expectedL1InfoRoot).String())
 	require.Equal(t, common.Hash(expectedGER), info.GlobalExitRoot, fmt.Sprintf("%+v", info))
+	require.Equal(t, common.Hash(expectedL1InfoRoot), lastRoot.Hash)
+}
+
+func waitForSyncerToCatchUp(ctx context.Context, t *testing.T, syncer *l1infotreesync.L1InfoTreeSync, client *simulated.Backend) {
+	t.Helper()
+
+	syncerUpToDate := false
+	var errMsg string
+
+	for i := 0; i < 200; i++ {
+		lpb, err := syncer.GetLastProcessedBlock(ctx)
+		require.NoError(t, err)
+		lb, err := client.Client().BlockNumber(ctx)
+		require.NoError(t, err)
+		if lpb == lb {
+			syncerUpToDate = true
+			break
+		}
+		time.Sleep(time.Second / 2)
+		errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb, lpb)
+	}
+
+	require.True(t, syncerUpToDate, errMsg)
+}
+
+// commitBlocks commits the specified number of blocks with the given client and waits for the specified duration after each block
+func commitBlocks(t *testing.T, client *simulated.Backend, numBlocks int, waitDuration time.Duration) {
+	t.Helper()
+
+	for i := 0; i < numBlocks; i++ {
+		client.Commit()
+		time.Sleep(waitDuration)
+	}
 }
