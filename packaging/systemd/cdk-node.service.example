@@ -6,7 +6,7 @@
 [Service]
   Restart=on-failure
   RestartSec=5s
-  ExecStart=/usr/bin/cdk-node -c $config
+  ExecStart=/usr/bin/cdk --config $config --chain $chain node
   Type=simple
   KillSignal=SIGINT
   User=cdk
