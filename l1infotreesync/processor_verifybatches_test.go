@@ -18,7 +18,7 @@ func TestProcessVerifyBatchesNil(t *testing.T) {
 }
 
 func TestProcessVerifyBatchesOK(t *testing.T) {
-	dbPath := "file:TestGetVerifiedBatches?mode=memory&cache=shared"
+	dbPath := "file:TestProcessVerifyBatchesOK?mode=memory&cache=shared"
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	event := VerifyBatches{
@@ -40,7 +40,7 @@ func TestProcessVerifyBatchesOK(t *testing.T) {
 }
 
 func TestProcessVerifyBatchesSkip0000(t *testing.T) {
-	dbPath := "file:TestGetVerifiedBatches?mode=memory&cache=shared"
+	dbPath := "file:TestProcessVerifyBatchesSkip0000?mode=memory&cache=shared"
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	event := VerifyBatches{
