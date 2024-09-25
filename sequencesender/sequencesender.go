@@ -831,21 +831,6 @@ func (s *SequenceSender) saveSentSequencesTransactions(ctx context.Context) erro
 	return nil
 }
 
-func (s *SequenceSender) entryTypeToString(entryType datastream.EntryType) string {
-	switch entryType {
-	case datastream.EntryType_ENTRY_TYPE_BATCH_START:
-		return "BatchStart"
-	case datastream.EntryType_ENTRY_TYPE_L2_BLOCK:
-		return "L2Block"
-	case datastream.EntryType_ENTRY_TYPE_TRANSACTION:
-		return "Transaction"
-	case datastream.EntryType_ENTRY_TYPE_BATCH_END:
-		return "BatchEnd"
-	default:
-		return fmt.Sprintf("%d", entryType)
-	}
-}
-
 // handleReceivedDataStream manages the events received by the streaming
 func (s *SequenceSender) handleReceivedDataStream(
 	entry *datastreamer.FileEntry, client *datastreamer.StreamClient, server *datastreamer.StreamServer,
@@ -881,7 +866,7 @@ func (s *SequenceSender) handleReceivedDataStream(
 				"prevEntry: %s, prevEntry.Number: %d",
 				entry.Number,
 				l2Block.Number,
-				s.entryTypeToString(prevEntryType),
+				entryTypeToString(prevEntryType),
 				s.prevStreamEntry.Number,
 			)
 		} else if prevEntryType == datastream.EntryType_ENTRY_TYPE_L2_BLOCK {
@@ -950,7 +935,7 @@ func (s *SequenceSender) handleReceivedDataStream(
 			prevEntryType == datastream.EntryType_ENTRY_TYPE_TRANSACTION) {
 			s.logger.Fatalf("unexpected Transaction entry received, entry.Number: %d, transaction.L2BlockNumber: %d, "+
 				"transaction.Index: %d, prevEntry: %s, prevEntry.Number: %d",
-				entry.Number, l2Tx.L2BlockNumber, l2Tx.Index, s.entryTypeToString(prevEntryType), s.prevStreamEntry.Number)
+				entry.Number, l2Tx.L2BlockNumber, l2Tx.Index, entryTypeToString(prevEntryType), s.prevStreamEntry.Number)
 		}
 
 		// Sanity check: tx should be decodable
@@ -1005,7 +990,7 @@ func (s *SequenceSender) handleReceivedDataStream(
 			s.logger.Fatalf(
 				"unexpected BatchEnd entry received, entry.Number: %d, batchEnd.Number: %d, "+
 					"prevEntry.Type: %s, prevEntry.Number: %d",
-				entry.Number, batch.Number, s.entryTypeToString(prevEntryType), s.prevStreamEntry.Number)
+				entry.Number, batch.Number, entryTypeToString(prevEntryType), s.prevStreamEntry.Number)
 		}
 
 		// Add batch end data
@@ -1048,7 +1033,7 @@ func (s *SequenceSender) closeSequenceBatch() error {
 
 	// Sanity Check
 	if s.cfg.SanityCheckRPCURL != "" {
-		rpcNumberOfBlocks, batchL2Data, err := s.getBatchFromRPC(s.wipBatch)
+		rpcNumberOfBlocks, batchL2Data, err := getBatchFromRPC(s.cfg.SanityCheckRPCURL, s.wipBatch)
 		if err != nil {
 			s.logger.Fatalf("error getting batch number from RPC while trying to perform sanity check: %v", err)
 		} else {
@@ -1074,36 +1059,6 @@ func (s *SequenceSender) closeSequenceBatch() error {
 	}
 
 	return nil
-}
-
-func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (int, string, error) {
-	type zkEVMBatch struct {
-		Blocks      []string `mapstructure:"blocks"`
-		BatchL2Data string   `mapstructure:"batchL2Data"`
-	}
-
-	zkEVMBatchData := zkEVMBatch{}
-
-	response, err := rpc.JSONRPCCall(s.cfg.SanityCheckRPCURL, "zkevm_getBatchByNumber", batchNumber)
-	if err != nil {
-		return 0, "", err
-	}
-
-	// Check if the response is an error
-	if response.Error != nil {
-		return 0, "", fmt.Errorf("error in the response calling zkevm_getBatchByNumber: %v", response.Error)
-	}
-
-	// Get the batch number from the response hex string
-	err = json.Unmarshal(response.Result, &zkEVMBatchData)
-	if err != nil {
-		return 0, "", fmt.Errorf(
-			"error unmarshalling the batch number from the response calling zkevm_getBatchByNumber: %w",
-			err,
-		)
-	}
-
-	return len(zkEVMBatchData.Blocks), zkEVMBatchData.BatchL2Data, nil
 }
 
 // addNewSequenceBatch adds a new batch to the sequence
@@ -1293,6 +1248,51 @@ func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
 	for {
 		time.Sleep(1 * time.Second)
 	}
+}
+
+func entryTypeToString(entryType datastream.EntryType) string {
+	switch entryType {
+	case datastream.EntryType_ENTRY_TYPE_BATCH_START:
+		return "BatchStart"
+	case datastream.EntryType_ENTRY_TYPE_L2_BLOCK:
+		return "L2Block"
+	case datastream.EntryType_ENTRY_TYPE_TRANSACTION:
+		return "Transaction"
+	case datastream.EntryType_ENTRY_TYPE_BATCH_END:
+		return "BatchEnd"
+	default:
+		return fmt.Sprintf("%d", entryType)
+	}
+}
+
+func getBatchFromRPC(url string, batchNumber uint64) (int, string, error) {
+	type zkEVMBatch struct {
+		Blocks      []string `mapstructure:"blocks"`
+		BatchL2Data string   `mapstructure:"batchL2Data"`
+	}
+
+	zkEVMBatchData := zkEVMBatch{}
+
+	response, err := rpc.JSONRPCCall(url, "zkevm_getBatchByNumber", batchNumber)
+	if err != nil {
+		return 0, "", err
+	}
+
+	// Check if the response is an error
+	if response.Error != nil {
+		return 0, "", fmt.Errorf("error in the response calling zkevm_getBatchByNumber: %v", response.Error)
+	}
+
+	// Get the batch number from the response hex string
+	err = json.Unmarshal(response.Result, &zkEVMBatchData)
+	if err != nil {
+		return 0, "", fmt.Errorf(
+			"error unmarshalling the batch number from the response calling zkevm_getBatchByNumber: %w",
+			err,
+		)
+	}
+
+	return len(zkEVMBatchData.Blocks), zkEVMBatchData.BatchL2Data, nil
 }
 
 // marginTimeElapsed checks if the time between currentTime and l2BlockTimestamp is greater than timeMargin.

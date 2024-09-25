@@ -1,9 +1,15 @@
 package sequencesender
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/0xPolygon/cdk/etherman"
 
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
@@ -365,7 +371,7 @@ func Test_syncEthTxResults(t *testing.T) {
 		expectPendingTxs uint64
 	}{
 		{
-			name: "sunccessfully synced",
+			name: "successfully synced",
 			ethTransactions: map[common.Hash]*ethTxData{
 				common.HexToHash("0x1"): {
 					StatusTimestamp: time.Now(),
@@ -417,6 +423,297 @@ func Test_syncEthTxResults(t *testing.T) {
 
 			err = os.RemoveAll(tmpFile.Name() + ".tmp")
 			require.NoError(t, err)
+		})
+	}
+}
+func Test_syncAllEthTxResults(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		ethTransactions map[common.Hash]*ethTxData
+		getEthTxManager func(t *testing.T) *EthTxMngrMock
+
+		expectErr        error
+		expectPendingTxs uint64
+	}{
+		{
+			name: "successfully synced",
+			ethTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x1"): {
+					StatusTimestamp: time.Now(),
+					OnMonitor:       true,
+					Status:          ethtxmanager.MonitoredTxStatusCreated.String(),
+				},
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				mngr := NewEthTxMngrMock(t)
+				mngr.On("ResultsByStatus", mock.Anything, []ethtxmanager.MonitoredTxStatus(nil)).Return([]ethtxmanager.MonitoredTxResult{
+					{
+						ID:   common.HexToHash("0x1"),
+						Data: []byte{1, 2, 3},
+					},
+				}, nil)
+				return mngr
+			},
+			expectPendingTxs: 1,
+		},
+		{
+			name:            "successfully synced with missing tx",
+			ethTransactions: map[common.Hash]*ethTxData{},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				mngr := NewEthTxMngrMock(t)
+				mngr.On("ResultsByStatus", mock.Anything, []ethtxmanager.MonitoredTxStatus(nil)).Return([]ethtxmanager.MonitoredTxResult{
+					{
+						ID:   common.HexToHash("0x1"),
+						Data: []byte{1, 2, 3},
+					},
+				}, nil)
+				return mngr
+			},
+			expectPendingTxs: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmpFile, err := os.CreateTemp(os.TempDir(), tt.name)
+			require.NoError(t, err)
+
+			mngr := tt.getEthTxManager(t)
+			ss := SequenceSender{
+				ethTransactions: tt.ethTransactions,
+				ethTxManager:    mngr,
+				ethTxData:       make(map[common.Hash][]byte),
+				cfg: Config{
+					SequencesTxFileName: tmpFile.Name() + ".tmp",
+				},
+				logger: log.GetDefaultLogger(),
+			}
+
+			err = ss.syncAllEthTxResults(context.Background())
+			if tt.expectErr != nil {
+				require.Equal(t, tt.expectErr, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			mngr.AssertExpectations(t)
+
+			err = os.RemoveAll(tmpFile.Name() + ".tmp")
+			require.NoError(t, err)
+		})
+	}
+}
+
+func Test_copyTxData(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                    string
+		txHash                  common.Hash
+		txData                  []byte
+		txsResults              map[common.Hash]ethtxmanager.TxResult
+		ethTxData               map[common.Hash][]byte
+		ethTransactions         map[common.Hash]*ethTxData
+		expectedRthTxData       map[common.Hash][]byte
+		expectedEthTransactions map[common.Hash]*ethTxData
+	}{
+		{
+			name:   "successfully copied",
+			txHash: common.HexToHash("0x1"),
+			txData: []byte{1, 2, 3},
+			txsResults: map[common.Hash]ethtxmanager.TxResult{
+				common.HexToHash("0x1"): {},
+			},
+			ethTxData: map[common.Hash][]byte{
+				common.HexToHash("0x1"): []byte{0, 2, 3},
+			},
+			ethTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x1"): {},
+			},
+			expectedRthTxData: map[common.Hash][]byte{
+				common.HexToHash("0x1"): []byte{1, 2, 3},
+			},
+			expectedEthTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x1"): {
+					Txs: map[common.Hash]ethTxAdditionalData{
+						common.HexToHash("0x1"): {},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := SequenceSender{
+				ethTxData:       tt.ethTxData,
+				ethTransactions: tt.ethTransactions,
+			}
+
+			s.copyTxData(tt.txHash, tt.txData, tt.txsResults)
+			require.Equal(t, tt.expectedRthTxData, s.ethTxData)
+			require.Equal(t, tt.expectedEthTransactions, s.ethTransactions)
+		})
+	}
+}
+
+func Test_getBatchFromRPC(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		batch        uint64
+		blocks       string
+		data         string
+		expectBlocks int
+		expectData   string
+		expectErr    error
+	}{
+		{
+			name:         "successfully fetched",
+			blocks:       `["1", "2", "3"]`,
+			data:         "test",
+			batch:        0,
+			expectBlocks: 3,
+			expectData:   "test",
+			expectErr:    nil,
+		},
+		{
+			name:         "wring response",
+			blocks:       `invalid`,
+			data:         "test",
+			batch:        0,
+			expectBlocks: 3,
+			expectData:   "test",
+			expectErr:    errors.New("invalid character 'i' looking for beginning of value"),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte(fmt.Sprintf(`{"jsonrpc":"2.0","id":1,"result":{"blocks":%s,"batchL2Data":"%s"}}`, tt.blocks, tt.data)))
+			}))
+			defer srv.Close()
+
+			blocks, data, err := getBatchFromRPC(srv.URL, tt.batch)
+			if tt.expectErr != nil {
+				require.Equal(t, tt.expectErr.Error(), err.Error())
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectBlocks, blocks)
+				require.Equal(t, tt.expectData, data)
+			}
+		})
+	}
+}
+
+func Test_addNewBatchL2Block(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                 string
+		wipBatch             uint64
+		l2Block              *datastream.L2Block
+		sequenceData         map[uint64]*sequenceData
+		expectedSequenceData map[uint64]*sequenceData
+	}{
+		{
+			name:     "successfully added",
+			wipBatch: 1,
+			l2Block: &datastream.L2Block{
+				Number:          34,
+				BatchNumber:     1,
+				Timestamp:       uint64(123),
+				DeltaTimestamp:  0,
+				MinTimestamp:    0,
+				L1Blockhash:     nil,
+				L1InfotreeIndex: 14,
+				Hash:            []byte{123, 123, 123},
+				StateRoot:       nil,
+				GlobalExitRoot:  nil,
+				Coinbase:        []byte{5, 6, 7},
+				BlockGasLimit:   0,
+				BlockInfoRoot:   nil,
+				Debug:           nil,
+			},
+			sequenceData: map[uint64]*sequenceData{
+				1: {
+					batchClosed: true,
+					batch: txbuilder.NewBananaBatch(&etherman.Batch{
+						L2Data:               nil,
+						LastCoinbase:         common.BytesToAddress([]byte{5, 6, 7}),
+						ForcedGlobalExitRoot: common.Hash{},
+						ForcedBlockHashL1:    common.Hash{},
+						ForcedBatchTimestamp: 0,
+						BatchNumber:          0,
+						L1InfoTreeIndex:      0,
+						LastL2BLockTimestamp: 0,
+						GlobalExitRoot:       common.Hash{},
+					}),
+					batchRaw: &state.BatchRawV2{
+						Blocks: nil,
+					},
+					batchType: 0,
+				},
+			},
+			expectedSequenceData: map[uint64]*sequenceData{
+				1: {
+					batchClosed: true,
+					batch: txbuilder.NewBananaBatch(&etherman.Batch{
+						L2Data:               nil,
+						LastCoinbase:         common.BytesToAddress([]byte{5, 6, 7}),
+						ForcedGlobalExitRoot: common.Hash{},
+						ForcedBlockHashL1:    common.Hash{},
+						ForcedBatchTimestamp: 0,
+						BatchNumber:          0,
+						L1InfoTreeIndex:      14,
+						LastL2BLockTimestamp: 123,
+						GlobalExitRoot:       common.Hash{},
+					}),
+					batchRaw: &state.BatchRawV2{
+						Blocks: []state.L2BlockRaw{
+							{
+								BlockNumber: 0,
+								ChangeL2BlockHeader: state.ChangeL2BlockHeader{
+									IndexL1InfoTree: 14,
+								},
+								Transactions: nil,
+							},
+						},
+					},
+					batchType: 0,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			ss := SequenceSender{
+				wipBatch:     tt.wipBatch,
+				sequenceData: tt.sequenceData,
+				logger:       log.GetDefaultLogger(),
+			}
+
+			ss.addNewBatchL2Block(tt.l2Block)
+			require.Equal(t, tt.expectedSequenceData, ss.sequenceData)
 		})
 	}
 }
