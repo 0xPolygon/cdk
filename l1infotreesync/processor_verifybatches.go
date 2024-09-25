@@ -25,7 +25,7 @@ func (p *processor) processVerifyBatches(tx db.Txer, blockNumber uint64, event *
 		log.Infof("skipping VerifyBatches event with empty ExitRoot (blockNumber=%d, event=%s)", blockNumber, event.String())
 		return nil
 	}
-	isNewLeaf, err := p.isNewValueForrollupExitTree(tx, event)
+	isNewLeaf, err := p.isNewValueForRollupExitTree(tx, event)
 	if err != nil {
 		return fmt.Errorf("isNewValueForrollupExitTree. err: %w", err)
 	}
@@ -50,7 +50,7 @@ func (p *processor) processVerifyBatches(tx db.Txer, blockNumber uint64, event *
 	return nil
 }
 
-func (p *processor) isNewValueForrollupExitTree(tx db.Querier, event *VerifyBatches) (bool, error) {
+func (p *processor) isNewValueForRollupExitTree(tx db.Querier, event *VerifyBatches) (bool, error) {
 	currentRoot, err := p.rollupExitTree.GetLastRoot(tx)
 	if err != nil && errors.Is(err, db.ErrNotFound) {
 		// The tree is empty, so is a new value for sure
