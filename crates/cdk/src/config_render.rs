@@ -36,7 +36,6 @@ pub fn render(
     )?;
 
     let zkevm_address = res.wrapper.l1_config.zkevm_address;
-    // admin_address: String,
     let rollup_address = res.wrapper.l1_config.rollup_manager_address;
     let ger_manager_address = res.wrapper.l1_config.zkevm_global_exit_root_address;
     let matic_contract_address = res.wrapper.l1_config.pol_token_address;
@@ -52,7 +51,6 @@ pub fn render(
             l1_rpc_url,
             sequencer_address,
             zkevm_address,
-            "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef".to_string(),
             rollup_address,
             ger_manager_address,
             matic_contract_address,
@@ -115,7 +113,6 @@ fn render_yaml(
     l1_rpc_url: String,
     sequencer_address: String,
     zkevm_address: String,
-    admin_address: String,
     rollup_address: String,
     ger_manager_address: String,
     matic_contract_address: String,
@@ -134,7 +131,6 @@ zkevm.l1-rpc-url: {l1_rpc_url}
 
 zkevm.address-sequencer: {sequencer_address}
 zkevm.address-zkevm: {zkevm_address}
-zkevm.address-admin: {admin_address}
 zkevm.address-rollup: {rollup_address}
 zkevm.address-ger-manager: {ger_manager_address}
 
