@@ -310,7 +310,6 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			}
 			l1InfoLeavesAdded++
 		}
-		// TODO: CDK-505
 		if event.VerifyBatches != nil {
 			log.Debugf("handle VerifyBatches event %s", event.VerifyBatches.String())
 			err = p.processVerifyBatches(tx, block.Num, event.VerifyBatches)

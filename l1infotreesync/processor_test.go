@@ -10,72 +10,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestGetVerifiedBatches(t *testing.T) {
-	dbPath := "file:TestGetVerifiedBatches?mode=memory&cache=shared"
-	p, err := newProcessor(dbPath)
-	require.NoError(t, err)
-	ctx := context.Background()
-
-	// Test ErrNotFound returned correctly on all methods
-	_, err = p.GetLastVerifiedBatches(0)
-	require.Equal(t, db.ErrNotFound, err)
-	_, err = p.GetFirstVerifiedBatches(0)
-	require.Equal(t, db.ErrNotFound, err)
-	_, err = p.GetFirstVerifiedBatchesAfterBlock(0, 0)
-	require.Equal(t, db.ErrNotFound, err)
-
-	// First insert
-	expected1 := &VerifyBatches{
-		RollupID:   420,
-		NumBatch:   69,
-		StateRoot:  common.HexToHash("5ca1e"),
-		ExitRoot:   common.HexToHash("b455"),
-		Aggregator: common.HexToAddress("beef"),
-	}
-	err = p.ProcessBlock(ctx, sync.Block{
-		Num: 1,
-		Events: []interface{}{
-			Event{VerifyBatches: expected1},
-		},
-	})
-	require.NoError(t, err)
-	_, err = p.GetLastVerifiedBatches(0)
-	require.Equal(t, db.ErrNotFound, err)
-	actual, err := p.GetLastVerifiedBatches(420)
-	require.NoError(t, err)
-	require.Equal(t, expected1, actual)
-	actual, err = p.GetFirstVerifiedBatches(420)
-	require.NoError(t, err)
-	require.Equal(t, expected1, actual)
-
-	// Second insert
-	expected2 := &VerifyBatches{
-		RollupID:   420,
-		NumBatch:   690,
-		StateRoot:  common.HexToHash("5ca1e3"),
-		ExitRoot:   common.HexToHash("ba55"),
-		Aggregator: common.HexToAddress("beef3"),
-	}
-	err = p.ProcessBlock(ctx, sync.Block{
-		Num: 2,
-		Events: []interface{}{
-			Event{VerifyBatches: expected2},
-		},
-	})
-	require.NoError(t, err)
-	_, err = p.GetLastVerifiedBatches(0)
-	require.Equal(t, db.ErrNotFound, err)
-	actual, err = p.GetLastVerifiedBatches(420)
-	require.NoError(t, err)
-	require.Equal(t, expected2, actual)
-	actual, err = p.GetFirstVerifiedBatches(420)
-	require.NoError(t, err)
-	require.Equal(t, expected1, actual)
-	actual, err = p.GetFirstVerifiedBatchesAfterBlock(420, 2)
-	require.NoError(t, err)
-	require.Equal(t, expected2, actual)
-}
-
 func TestGetInfo(t *testing.T) {
 	dbPath := "file:TestGetInfo?mode=memory&cache=shared"
 	p, err := newProcessor(dbPath)
@@ -175,59 +109,15 @@ func TestGetInfo(t *testing.T) {
 	require.Equal(t, expected2, *actual)
 }
 
-func TestInitL1InfoRootMap(t *testing.T) {
-	dbPath := "file:TestInitL1InfoRootMap?mode=memory&cache=shared"
+func TestGetLatestInfoUntilBlockIfNotFoundReturnsErrNotFound(t *testing.T) {
+	dbPath := "file:TestGetLatestInfoUntilBlock?mode=memory&cache=shared"
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
-	ctx := context.TODO()
-	event := InitL1InfoRootMap{
-		LeafCount:         1,
-		CurrentL1InfoRoot: common.HexToHash("beef"),
-	}
-	block := sync.Block{
-		Num: 1,
-		Events: []interface{}{
-			Event{InitL1InfoRootMap: &event},
-		},
-	}
-
-	err = sut.ProcessBlock(ctx, block)
+	ctx := context.Background()
+	// Fake block 1
+	_, err = sut.db.Exec(`INSERT INTO block (num) VALUES ($1)`, 1)
 	require.NoError(t, err)
 
-	info, err := sut.GetInitL1InfoRootMap(nil)
-	require.NoError(t, err)
-	require.NotNil(t, info)
-	require.Equal(t, event.LeafCount, info.LeafCount)
-	require.Equal(t, event.CurrentL1InfoRoot, info.L1InfoRoot)
-	require.Equal(t, block.Num, info.BlockNumber)
-}
-
-func TestInitL1InfoRootMapDontAllow2Rows(t *testing.T) {
-	dbPath := "file:TestInitL1InfoRootMapDontAllow2Rows?mode=memory&cache=shared"
-	sut, err := newProcessor(dbPath)
-	require.NoError(t, err)
-	ctx := context.TODO()
-	block := sync.Block{
-		Num: 1,
-		Events: []interface{}{
-			Event{InitL1InfoRootMap: &InitL1InfoRootMap{
-				LeafCount:         1,
-				CurrentL1InfoRoot: common.HexToHash("beef"),
-			}},
-		},
-	}
-	err = sut.ProcessBlock(ctx, block)
-	require.NoError(t, err)
-	block.Num = 2
-	err = sut.ProcessBlock(ctx, block)
-	require.Error(t, err, "should not allow to insert a second row")
-}
-
-func TestGetInitL1InfoRootMap(t *testing.T) {
-	dbPath := "file:TestGetInitL1InfoRootMap?mode=memory&cache=shared"
-	sut, err := newProcessor(dbPath)
-	require.NoError(t, err)
-	info, err := sut.GetInitL1InfoRootMap(nil)
-	require.NoError(t, err, "should return no error if no row is present, because it returns data=nil")
-	require.Nil(t, info, "should return nil if no row is present")
+	_, err = sut.GetLatestInfoUntilBlock(ctx, 1)
+	require.Equal(t, db.ErrNotFound, err)
 }

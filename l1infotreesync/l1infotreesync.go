@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree"
@@ -20,6 +21,10 @@ const (
 	// CreationFlags defitinion
 	FlagNone                     CreationFlags = 0
 	FlagAllowWrongContractsAddrs CreationFlags = 1 << iota // Allow to set wrong contracts addresses
+)
+
+var (
+	ErrNotFound = errors.New("l1infotreesync: not found")
 )
 
 type L1InfoTreeSync struct {
@@ -117,10 +122,21 @@ func (s *L1InfoTreeSync) GetRollupExitTreeMerkleProof(
 	return s.processor.rollupExitTree.GetProof(ctx, networkID-1, root)
 }
 
+func translateError(err error) error {
+	if errors.Is(err, db.ErrNotFound) {
+		return ErrNotFound
+	}
+	return err
+}
+
 // GetLatestInfoUntilBlock returns the most recent L1InfoTreeLeaf that occurred before or at blockNum.
 // If the blockNum has not been processed yet the error ErrBlockNotProcessed will be returned
+// It can returns next errors:
+// - ErrBlockNotProcessed,
+// - ErrNotFound
 func (s *L1InfoTreeSync) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*L1InfoTreeLeaf, error) {
-	return s.processor.GetLatestInfoUntilBlock(ctx, blockNum)
+	leaf, err := s.processor.GetLatestInfoUntilBlock(ctx, blockNum)
+	return leaf, translateError(err)
 }
 
 // GetInfoByIndex returns the value of a leaf (not the hash) of the L1 info tree
