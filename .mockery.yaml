@@ -9,3 +9,11 @@ packages:
       EthTxMngr:
         config:
           filename: ethtxmngr_mock_test.go
+  github.com/0xPolygon/cdk/sequencesender/txbuilder:
+    config:
+      dir: ./sequencesender
+    interfaces:
+      TxBuilder:
+        config:
+          filename: txbuilder_mock_test.go
+          outpkg: sequencesender

@@ -717,3 +717,131 @@ func Test_addNewBatchL2Block(t *testing.T) {
 		})
 	}
 }
+
+func Test_addInfoSequenceBatchStart(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                 string
+		batch                *datastream.BatchStart
+		wipBatch             uint64
+		sequenceData         map[uint64]*sequenceData
+		expectedSequenceData map[uint64]*sequenceData
+	}{
+		{
+			name: "successfully added",
+			batch: &datastream.BatchStart{
+				Type:   datastream.BatchType_BATCH_TYPE_FORCED,
+				Number: 2,
+			},
+			wipBatch: 1,
+			sequenceData: map[uint64]*sequenceData{
+				1: {
+					batchType: 1,
+					batch: txbuilder.NewBananaBatch(&etherman.Batch{
+						BatchNumber: 1,
+					}),
+				},
+			},
+			expectedSequenceData: map[uint64]*sequenceData{
+				1: {
+					batchType: 2,
+					batch: txbuilder.NewBananaBatch(&etherman.Batch{
+						BatchNumber: 1,
+					}),
+				},
+			},
+		},
+		{
+			name: "batch does not exist",
+			batch: &datastream.BatchStart{
+				Type:   datastream.BatchType_BATCH_TYPE_FORCED,
+				Number: 2,
+			},
+			wipBatch: 1,
+			sequenceData: map[uint64]*sequenceData{
+				10: {},
+			},
+			expectedSequenceData: map[uint64]*sequenceData{
+				10: {},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			ss := SequenceSender{
+				sequenceData: tt.sequenceData,
+				wipBatch:     tt.wipBatch,
+				logger:       log.GetDefaultLogger(),
+			}
+
+			ss.addInfoSequenceBatchStart(tt.batch)
+			require.Equal(t, tt.expectedSequenceData, ss.sequenceData)
+		})
+	}
+}
+
+func Test_addNewSequenceBatch(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                 string
+		l2Block              *datastream.L2Block
+		wipBatch             uint64
+		sequenceList         []uint64
+		sequenceData         map[uint64]*sequenceData
+		getTxBuilder         func(t *testing.T) *TxBuilderMock
+		expectedSequenceList []uint64
+		expectedSequenceData map[uint64]*sequenceData
+	}{
+		{
+			name: "successfully added new batch",
+			l2Block: &datastream.L2Block{
+				Number:      1,
+				BatchNumber: 2,
+			},
+			wipBatch:     1,
+			sequenceList: []uint64{1},
+			sequenceData: map[uint64]*sequenceData{
+				1: {},
+			},
+			getTxBuilder: func(t *testing.T) *TxBuilderMock {
+				mngr := NewTxBuilderMock(t)
+				mngr.On("NewBatchFromL2Block", mock.Anything).Return(txbuilder.NewBananaBatch(&etherman.Batch{
+					BatchNumber: 2,
+				}), nil)
+				return mngr
+			},
+			expectedSequenceList: []uint64{1, 2},
+			expectedSequenceData: map[uint64]*sequenceData{
+				1: {},
+				2: {
+					batchClosed: false,
+					batch: txbuilder.NewBananaBatch(&etherman.Batch{
+						BatchNumber: 2,
+					}),
+					batchRaw: &state.BatchRawV2{},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			ss := SequenceSender{
+				sequenceData: tt.sequenceData,
+				wipBatch:     tt.wipBatch,
+				TxBuilder:    tt.getTxBuilder(t),
+				logger:       log.GetDefaultLogger(),
+			}
+
+			ss.addNewSequenceBatch(tt.l2Block)
+			require.Equal(t, tt.expectedSequenceData, ss.sequenceData)
+		})
+	}
+}
