@@ -2,14 +2,18 @@ package sequencesender
 
 import (
 	"testing"
+	"time"
 
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/datastream"
+	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -114,4 +118,236 @@ func TestAddNewBatchL2Block(t *testing.T) {
 	sut.addNewBatchL2Block(&l2Block)
 	data = sut.sequenceData[sut.wipBatch]
 	require.Equal(t, uint32(5), data.batch.L1InfoTreeIndex(), "new block have index=5 and is set")
+}
+
+func Test_marginTimeElapsed(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		l2BlockTimestamp uint64
+		currentTime      uint64
+		timeMargin       int64
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  bool
+		want1 int64
+	}{
+		{
+			name: "time elapsed",
+			args: args{
+				l2BlockTimestamp: 100,
+				currentTime:      200,
+				timeMargin:       50,
+			},
+			want:  true,
+			want1: 0,
+		},
+		{
+			name: "time not elapsed",
+			args: args{
+				l2BlockTimestamp: 100,
+				currentTime:      200,
+				timeMargin:       150,
+			},
+			want:  false,
+			want1: 50,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, got1 := marginTimeElapsed(tt.args.l2BlockTimestamp, tt.args.currentTime, tt.args.timeMargin)
+			require.Equal(t, tt.want, got, "marginTimeElapsed() got = %v, want %v", got, tt.want)
+			require.Equal(t, tt.want1, got1, "marginTimeElapsed() got1 = %v, want %v", got1, tt.want1)
+		})
+	}
+}
+
+func Test_purgeSequences(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name               string
+		seqSendingStopped  bool
+		latestVirtualBatch uint64
+		sequenceList       []uint64
+		sequenceData       map[uint64]*sequenceData
+
+		expectedSequenceList []uint64
+		expectedSequenceData map[uint64]*sequenceData
+	}{
+		{
+			name:               "sequences purged when seqSendingStopped",
+			seqSendingStopped:  true,
+			latestVirtualBatch: 2,
+			sequenceList:       []uint64{1, 2},
+			sequenceData: map[uint64]*sequenceData{
+				1: {},
+				2: {},
+			},
+			expectedSequenceList: []uint64{1, 2},
+			expectedSequenceData: map[uint64]*sequenceData{
+				1: {},
+				2: {},
+			},
+		},
+		{
+			name:               "no sequences purged",
+			seqSendingStopped:  false,
+			latestVirtualBatch: 3,
+			sequenceList:       []uint64{4, 5},
+			sequenceData: map[uint64]*sequenceData{
+				4: {},
+				5: {},
+			},
+			expectedSequenceList: []uint64{4, 5},
+			expectedSequenceData: map[uint64]*sequenceData{
+				4: {},
+				5: {},
+			},
+		},
+		{
+			name:               "sequences purged",
+			seqSendingStopped:  false,
+			latestVirtualBatch: 5,
+			sequenceList:       []uint64{4, 5, 6},
+			sequenceData: map[uint64]*sequenceData{
+				4: {},
+				5: {},
+				6: {},
+			},
+			expectedSequenceList: []uint64{6},
+			expectedSequenceData: map[uint64]*sequenceData{
+				6: {},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ss := SequenceSender{
+				seqSendingStopped:  tt.seqSendingStopped,
+				latestVirtualBatch: tt.latestVirtualBatch,
+				sequenceList:       tt.sequenceList,
+				sequenceData:       tt.sequenceData,
+				logger:             log.GetDefaultLogger(),
+			}
+
+			ss.purgeSequences()
+
+			require.Equal(t, tt.expectedSequenceList, ss.sequenceList)
+			require.Equal(t, tt.expectedSequenceData, ss.sequenceData)
+		})
+	}
+}
+
+func Test_purgeEthTransactions(t *testing.T) {
+	t.Parallel()
+
+	firstTimestamp := time.Now().Add(-time.Hour)
+	secondTimestamp := time.Now().Add(time.Hour)
+
+	tests := []struct {
+		name                    string
+		seqSendingStopped       bool
+		ethTransactions         map[common.Hash]*ethTxData
+		ethTxData               map[common.Hash][]byte
+		getEthTxManager         func(t *testing.T) *EthTxMngrMock
+		sequenceList            []uint64
+		expectedEthTransactions map[common.Hash]*ethTxData
+		expectedEthTxData       map[common.Hash][]byte
+	}{
+		{
+			name:              "sequence sender stopped",
+			seqSendingStopped: true,
+			ethTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x1"): {
+					StatusTimestamp: firstTimestamp,
+					OnMonitor:       true,
+					Status:          ethtxmanager.MonitoredTxStatusFinalized.String(),
+				},
+			},
+			ethTxData: map[common.Hash][]byte{
+				common.HexToHash("0x1"): []byte{1, 2, 3},
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				return NewEthTxMngrMock(t)
+			},
+			sequenceList: []uint64{1, 2},
+			expectedEthTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x1"): {
+					StatusTimestamp: firstTimestamp,
+					OnMonitor:       true,
+					Status:          ethtxmanager.MonitoredTxStatusFinalized.String(),
+				},
+			},
+			expectedEthTxData: map[common.Hash][]byte{
+				common.HexToHash("0x1"): []byte{1, 2, 3},
+			},
+		},
+		{
+			name: "transactions purged",
+			ethTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x1"): {
+					StatusTimestamp: firstTimestamp,
+					OnMonitor:       true,
+					Status:          ethtxmanager.MonitoredTxStatusFinalized.String(),
+				},
+				common.HexToHash("0x2"): {
+					StatusTimestamp: secondTimestamp,
+				},
+			},
+			ethTxData: map[common.Hash][]byte{
+				common.HexToHash("0x1"): []byte{1, 2, 3},
+				common.HexToHash("0x2"): []byte{4, 5, 6},
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				mngr := NewEthTxMngrMock(t)
+				mngr.On("Remove", mock.Anything, common.HexToHash("0x1")).Return(nil)
+				return mngr
+			},
+			sequenceList: []uint64{1, 2},
+			expectedEthTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x2"): {
+					StatusTimestamp: secondTimestamp,
+				},
+			},
+			expectedEthTxData: map[common.Hash][]byte{
+				common.HexToHash("0x2"): []byte{4, 5, 6},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			mngr := tt.getEthTxManager(t)
+			ss := SequenceSender{
+				seqSendingStopped: tt.seqSendingStopped,
+				ethTransactions:   tt.ethTransactions,
+				ethTxData:         tt.ethTxData,
+				ethTxManager:      mngr,
+				logger:            log.GetDefaultLogger(),
+			}
+
+			ss.purgeEthTx(context.Background())
+
+			mngr.AssertExpectations(t)
+			require.Equal(t, tt.expectedEthTransactions, ss.ethTransactions)
+			require.Equal(t, tt.expectedEthTxData, ss.ethTxData)
+		})
+	}
 }

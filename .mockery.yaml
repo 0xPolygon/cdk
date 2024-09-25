@@ -1,0 +1,11 @@
+with-expecter: true
+filename: "{{.InterfaceName | lower }}.generated.go"
+mockname: "{{.InterfaceName}}Mock"
+packages:
+  github.com/0xPolygon/cdk/sequencesender:
+    config:
+      dir: ./sequencesender
+    interfaces:
+      EthTxMngr:
+        config:
+          filename: ethtxmngr_mock_test.go

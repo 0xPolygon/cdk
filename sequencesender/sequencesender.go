@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
@@ -26,11 +28,20 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// EthTxMngr represents the eth tx manager interface
+type EthTxMngr interface {
+	Start()
+	AddWithGas(ctx context.Context, to *common.Address, forcedNonce *uint64, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar, gas uint64) (common.Hash, error)
+	Remove(ctx context.Context, hash common.Hash) error
+	ResultsByStatus(ctx context.Context, status []ethtxmanager.MonitoredTxStatus) ([]ethtxmanager.MonitoredTxResult, error)
+	Result(ctx context.Context, hash common.Hash) (ethtxmanager.MonitoredTxResult, error)
+}
+
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
 	cfg                    Config
 	logger                 *log.Logger
-	ethTxManager           *ethtxmanager.Client
+	ethTxManager           EthTxMngr
 	etherman               *etherman.Client
 	currentNonce           uint64
 	nonceMutex             sync.Mutex
@@ -215,8 +226,9 @@ func (s *SequenceSender) purgeSequences() {
 	// Purge the information of batches that are already virtualized
 	s.mutexSequence.Lock()
 	defer s.mutexSequence.Unlock()
+
 	truncateUntil := 0
-	toPurge := make([]uint64, 0)
+	toPurge := make([]uint64, 0, len(s.sequenceList))
 	for i := 0; i < len(s.sequenceList); i++ {
 		batchNumber := s.sequenceList[i]
 		if batchNumber <= s.latestVirtualBatch {
@@ -250,11 +262,12 @@ func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 		return
 	}
 
-	// Purge old transactions that are finalized
 	s.mutexEthTx.Lock()
 	defer s.mutexEthTx.Unlock()
+
+	// Purge old transactions that are finalized
 	timePurge := time.Now().Add(-s.cfg.WaitPeriodPurgeTxFile.Duration)
-	toPurge := make([]common.Hash, 0)
+	toPurge := make([]common.Hash, 0, len(s.ethTransactions))
 	for hash, data := range s.ethTransactions {
 		if !data.StatusTimestamp.Before(timePurge) {
 			continue
@@ -508,7 +521,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 			return
 		}
 
-		elapsed, waitTime := s.marginTimeElapsed(lastL2BlockTimestamp, lastL1BlockHeader.Time, timeMargin)
+		elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, lastL1BlockHeader.Time, timeMargin)
 
 		if !elapsed {
 			s.logger.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block %d (ts: %d) "+
@@ -535,7 +548,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	for {
 		currentTime := uint64(time.Now().Unix())
 
-		elapsed, waitTime := s.marginTimeElapsed(lastL2BlockTimestamp, currentTime, timeMargin)
+		elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, currentTime, timeMargin)
 
 		// Wait if the time difference is less than L1BlockTimestampMargin
 		if !elapsed {
@@ -1272,9 +1285,19 @@ func (s *SequenceSender) updateLatestVirtualBatch() error {
 	return nil
 }
 
+// logFatalf logs error, activates flag to stop sequencing, and remains in an infinite loop
+func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
+	s.seqSendingStopped = true
+	s.logger.Errorf(template, args...)
+	s.logger.Errorf("sequence sending stopped.")
+	for {
+		time.Sleep(1 * time.Second)
+	}
+}
+
 // marginTimeElapsed checks if the time between currentTime and l2BlockTimestamp is greater than timeMargin.
 // If it's greater returns true, otherwise it returns false and the waitTime needed to achieve this timeMargin
-func (s *SequenceSender) marginTimeElapsed(
+func marginTimeElapsed(
 	l2BlockTimestamp uint64, currentTime uint64, timeMargin int64,
 ) (bool, int64) {
 	// Check the time difference between L2 block and currentTime
@@ -1295,19 +1318,10 @@ func (s *SequenceSender) marginTimeElapsed(
 			waitTime = timeMargin - timeDiff
 		}
 		return false, waitTime
-	} else { // timeDiff is greater than timeMargin
-		return true, 0
 	}
-}
 
-// logFatalf logs error, activates flag to stop sequencing, and remains in an infinite loop
-func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
-	s.seqSendingStopped = true
-	s.logger.Errorf(template, args...)
-	s.logger.Errorf("sequence sending stopped.")
-	for {
-		time.Sleep(1 * time.Second)
-	}
+	// timeDiff is greater than timeMargin
+	return true, 0
 }
 
 // printBatch prints data from batch raw V2
