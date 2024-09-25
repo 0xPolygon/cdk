@@ -31,6 +31,22 @@ Setup Kurtosis following this instructions https://github.com/0xPolygon/kurtosis
 
 - You can run locally against kurtosis-cdk environment using: [docs/local_debug.md](docs/local_debug.md)
 
+### Build locally
+
+You can locally build CDK CLI + cdk-node with:
+
+```
+cargo build
+```
+
+Or build and run with:
+
+```
+cargo run
+```
+
+You will need to provide the necessary parameters.
+
 ## Contributing
 
 Contributions are very welcomed, the guidelines are currently not available (WIP)
