@@ -174,7 +174,8 @@ func TestWithReorgs(t *testing.T) {
 	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 30)})
 	require.NoError(t, err)
 	require.NoError(t, rd.Start(ctx))
-	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, time.Second, 25)
+	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, time.Second, 25,
+		l1infotreesync.FlagAllowWrongContractsAddrs)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
@@ -293,7 +294,8 @@ func TestStressAndReorgs(t *testing.T) {
 	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
 	require.NoError(t, err)
 	require.NoError(t, rd.Start(ctx))
-	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, time.Second, 100)
+	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, time.Second, 100,
+		l1infotreesync.FlagAllowWrongContractsAddrs)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 

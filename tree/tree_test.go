@@ -55,7 +55,7 @@ func TestCheckExpectedRoot(t *testing.T) {
 
 		addLeaves(merkleTree, treeDB, numOfLeavesToAdd, 0)
 
-		expectedRoot, err := merkleTree.GetLastRoot(context.Background())
+		expectedRoot, err := merkleTree.GetLastRoot(nil)
 		require.NoError(t, err)
 
 		addLeaves(merkleTree, treeDB, numOfLeavesToAdd, numOfLeavesToAdd)
@@ -74,7 +74,7 @@ func TestCheckExpectedRoot(t *testing.T) {
 
 		addLeaves(merkleTree, treeDB, numOfLeavesToAdd, 0)
 
-		expectedRoot, err := merkleTree.GetLastRoot(context.Background())
+		expectedRoot, err := merkleTree.GetLastRoot(nil)
 		require.NoError(t, err)
 
 		addLeaves(merkleTree, treeDB, numOfLeavesToAdd, numOfLeavesToAdd)
