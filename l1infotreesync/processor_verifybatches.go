@@ -69,3 +69,36 @@ func (p *processor) isNewValueForrollupExitTree(tx db.Querier, event *VerifyBatc
 	}
 	return leaf != event.ExitRoot, nil
 }
+
+func (p *processor) GetLastVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
+	verified := &VerifyBatches{}
+	err := meddler.QueryRow(p.db, verified, `
+		SELECT * FROM verify_batches
+		WHERE rollup_id = $1
+		ORDER BY block_num DESC, block_pos DESC
+		LIMIT 1;
+	`, rollupID)
+	return verified, db.ReturnErrNotFound(err)
+}
+
+func (p *processor) GetFirstVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
+	verified := &VerifyBatches{}
+	err := meddler.QueryRow(p.db, verified, `
+		SELECT * FROM verify_batches
+		WHERE rollup_id = $1
+		ORDER BY block_num ASC, block_pos ASC
+		LIMIT 1;
+	`, rollupID)
+	return verified, db.ReturnErrNotFound(err)
+}
+
+func (p *processor) GetFirstVerifiedBatchesAfterBlock(rollupID uint32, blockNum uint64) (*VerifyBatches, error) {
+	verified := &VerifyBatches{}
+	err := meddler.QueryRow(p.db, verified, `
+		SELECT * FROM verify_batches
+		WHERE rollup_id = $1 AND block_num >= $2
+		ORDER BY block_num ASC, block_pos ASC
+		LIMIT 1;
+	`, rollupID, blockNum)
+	return verified, db.ReturnErrNotFound(err)
+}
