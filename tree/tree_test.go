@@ -19,6 +19,88 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCheckExpectedRoot(t *testing.T) {
+	createTreeDB := func() *sql.DB {
+		dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+		log.Debug("DB created at: ", dbPath)
+		require.NoError(t, migrations.RunMigrations(dbPath))
+		treeDB, err := db.NewSQLiteDB(dbPath)
+		require.NoError(t, err)
+
+		return treeDB
+	}
+
+	addLeaves := func(merkletree *tree.AppendOnlyTree,
+		treeDB *sql.DB,
+		numOfLeavesToAdd, from int) {
+		tx, err := db.NewTx(context.Background(), treeDB)
+		require.NoError(t, err)
+
+		for i := from; i < from+numOfLeavesToAdd; i++ {
+			require.NoError(t, merkletree.AddLeaf(tx, uint64(i), 0, types.Leaf{
+				Index: uint32(i),
+				Hash:  common.HexToHash(fmt.Sprintf("%x", i)),
+			}))
+		}
+
+		require.NoError(t, tx.Commit())
+	}
+
+	t.Run("Check when no reorg", func(t *testing.T) {
+		numOfLeavesToAdd := 10
+		indexToCheck := uint32(numOfLeavesToAdd - 1)
+
+		treeDB := createTreeDB()
+		merkleTree := tree.NewAppendOnlyTree(treeDB, "")
+
+		addLeaves(merkleTree, treeDB, numOfLeavesToAdd, 0)
+
+		expectedRoot, err := merkleTree.GetLastRoot(context.Background())
+		require.NoError(t, err)
+
+		addLeaves(merkleTree, treeDB, numOfLeavesToAdd, numOfLeavesToAdd)
+
+		root2, err := merkleTree.GetRootByIndex(context.Background(), indexToCheck)
+		require.NoError(t, err)
+		require.Equal(t, expectedRoot.Hash, root2.Hash)
+		require.Equal(t, expectedRoot.Index, root2.Index)
+	})
+
+	t.Run("Check after rebuild tree when reorg", func(t *testing.T) {
+		numOfLeavesToAdd := 10
+		indexToCheck := uint32(numOfLeavesToAdd - 1)
+		treeDB := createTreeDB()
+		merkleTree := tree.NewAppendOnlyTree(treeDB, "")
+
+		addLeaves(merkleTree, treeDB, numOfLeavesToAdd, 0)
+
+		expectedRoot, err := merkleTree.GetLastRoot(context.Background())
+		require.NoError(t, err)
+
+		addLeaves(merkleTree, treeDB, numOfLeavesToAdd, numOfLeavesToAdd)
+
+		// reorg tree
+		tx, err := db.NewTx(context.Background(), treeDB)
+		require.NoError(t, err)
+		require.NoError(t, merkleTree.Reorg(tx, uint64(indexToCheck+1)))
+		require.NoError(t, tx.Commit())
+
+		// rebuild cache on adding new leaf
+		tx, err = db.NewTx(context.Background(), treeDB)
+		require.NoError(t, err)
+		require.NoError(t, merkleTree.AddLeaf(tx, uint64(indexToCheck+1), 0, types.Leaf{
+			Index: indexToCheck + 1,
+			Hash:  common.HexToHash(fmt.Sprintf("%x", indexToCheck+1)),
+		}))
+		require.NoError(t, tx.Commit())
+
+		root2, err := merkleTree.GetRootByIndex(context.Background(), indexToCheck)
+		require.NoError(t, err)
+		require.Equal(t, expectedRoot.Hash, root2.Hash)
+		require.Equal(t, expectedRoot.Index, root2.Index)
+	})
+}
+
 func TestMTAddLeaf(t *testing.T) {
 	data, err := os.ReadFile("testvectors/root-vectors.json")
 	require.NoError(t, err)
