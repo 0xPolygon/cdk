@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     match cli.cmd {
-        cli::Commands::Node {} => node(cli.config)?,
+        cli::Commands::Node { components } => node(cli.config, components)?,
         cli::Commands::Erigon {} => erigon(config, cli.chain)?,
         // _ => forward()?,
     }
@@ -66,17 +66,27 @@ fn read_config(config_path: PathBuf) -> anyhow::Result<Config> {
 ///
 /// This function returns on fatal error or after graceful shutdown has
 /// completed.
-pub fn node(config_path: PathBuf) -> anyhow::Result<()> {
+pub fn node(config_path: PathBuf, components: Option<String>) -> anyhow::Result<()> {
     // This is to find the erigon binary when running in development mode
     // otherwise it will use system path
     let mut bin_path = env::var("CARGO_MANIFEST_DIR").unwrap_or(CDK_CLIENT_BIN.into());
     if bin_path != CDK_CLIENT_BIN {
-        bin_path = format!("{}/../../{}", bin_path, CDK_CLIENT_BIN);
+        bin_path = format!("{}/../../target/{}", bin_path, CDK_CLIENT_BIN);
     }
+
+    let components_param = match components {
+        Some(components) => format!("-components={}", components),
+        None => "".to_string(),
+    };
 
     // Run the node passing the config file path as argument
     let mut command = Command::new(bin_path.clone());
-    command.args(&["run", "-cfg", config_path.canonicalize()?.to_str().unwrap()]);
+    command.args(&[
+        "run",
+        "-cfg",
+        config_path.canonicalize()?.to_str().unwrap(),
+        components_param.as_str(),
+    ]);
 
     let output_result = command.execute_output();
     let output = match output_result {

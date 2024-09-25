@@ -30,6 +30,15 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
-    Node,
+    Node {
+        /// Components to run.
+        #[arg(
+            long,
+            short,
+            value_hint = ValueHint::CommandString,
+            env = "CDK_COMPONENTS",
+        )]
+        components: Option<String>,
+    },
     Erigon,
 }
