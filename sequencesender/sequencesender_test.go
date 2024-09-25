@@ -1,6 +1,7 @@
 package sequencesender
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -348,6 +349,74 @@ func Test_purgeEthTransactions(t *testing.T) {
 			mngr.AssertExpectations(t)
 			require.Equal(t, tt.expectedEthTransactions, ss.ethTransactions)
 			require.Equal(t, tt.expectedEthTxData, ss.ethTxData)
+		})
+	}
+}
+
+func Test_syncEthTxResults(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		ethTransactions map[common.Hash]*ethTxData
+		getEthTxManager func(t *testing.T) *EthTxMngrMock
+
+		expectErr        error
+		expectPendingTxs uint64
+	}{
+		{
+			name: "sunccessfully synced",
+			ethTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x1"): {
+					StatusTimestamp: time.Now(),
+					OnMonitor:       true,
+					Status:          ethtxmanager.MonitoredTxStatusCreated.String(),
+				},
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				mngr := NewEthTxMngrMock(t)
+				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxmanager.MonitoredTxResult{
+					ID:   common.HexToHash("0x1"),
+					Data: []byte{1, 2, 3},
+				}, nil)
+				return mngr
+			},
+			expectPendingTxs: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmpFile, err := os.CreateTemp(os.TempDir(), tt.name)
+			require.NoError(t, err)
+
+			mngr := tt.getEthTxManager(t)
+			ss := SequenceSender{
+				ethTransactions: tt.ethTransactions,
+				ethTxManager:    mngr,
+				ethTxData:       make(map[common.Hash][]byte),
+				cfg: Config{
+					SequencesTxFileName: tmpFile.Name() + ".tmp",
+				},
+				logger: log.GetDefaultLogger(),
+			}
+
+			pendingTxs, err := ss.syncEthTxResults(context.Background())
+			if tt.expectErr != nil {
+				require.Equal(t, tt.expectErr, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectPendingTxs, pendingTxs)
+			}
+
+			mngr.AssertExpectations(t)
+
+			err = os.RemoveAll(tmpFile.Name() + ".tmp")
+			require.NoError(t, err)
 		})
 	}
 }

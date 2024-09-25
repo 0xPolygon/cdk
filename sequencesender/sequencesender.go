@@ -801,7 +801,7 @@ func (s *SequenceSender) saveSentSequencesTransactions(ctx context.Context) erro
 	// Purge tx
 	s.purgeEthTx(ctx)
 
-	// Ceate file
+	// Create file
 	fileName := s.cfg.SequencesTxFileName[0:strings.IndexRune(s.cfg.SequencesTxFileName, '.')] + ".tmp"
 	s.sequencesTxFile, err = os.Create(fileName)
 	if err != nil {
