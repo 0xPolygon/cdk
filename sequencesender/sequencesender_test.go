@@ -845,3 +845,74 @@ func Test_addNewSequenceBatch(t *testing.T) {
 		})
 	}
 }
+
+func Test_closeSequenceBatch(t *testing.T) {
+	t.Parallel()
+
+	batchRaw := &state.BatchRawV2{
+		Blocks: []state.L2BlockRaw{{
+			BlockNumber:         1,
+			ChangeL2BlockHeader: state.ChangeL2BlockHeader{},
+			Transactions:        nil,
+		}},
+	}
+	lsData, err := state.EncodeBatchV2(batchRaw)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name                 string
+		wipBatch             uint64
+		sequenceData         map[uint64]*sequenceData
+		expectedSequenceData map[uint64]*sequenceData
+		expectedErr          error
+	}{
+		{
+			name:     "successfully closed",
+			wipBatch: 1,
+			sequenceData: map[uint64]*sequenceData{
+				1: {
+					batch: txbuilder.NewBananaBatch(&etherman.Batch{}),
+					batchRaw: &state.BatchRawV2{
+						Blocks: []state.L2BlockRaw{{
+							BlockNumber:         1,
+							ChangeL2BlockHeader: state.ChangeL2BlockHeader{},
+							Transactions:        nil,
+						}},
+					},
+				},
+			},
+			expectedSequenceData: map[uint64]*sequenceData{
+				1: {
+					batchClosed: true,
+					batch: txbuilder.NewBananaBatch(&etherman.Batch{
+						L2Data: lsData,
+					}),
+					batchRaw: batchRaw,
+				},
+			},
+			expectedErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ss := SequenceSender{
+				wipBatch:     tt.wipBatch,
+				sequenceData: tt.sequenceData,
+				logger:       log.GetDefaultLogger(),
+			}
+
+			err := ss.closeSequenceBatch()
+			if tt.expectedErr != nil {
+				require.Equal(t, tt.expectedErr, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedSequenceData, ss.sequenceData)
+			}
+		})
+	}
+}
