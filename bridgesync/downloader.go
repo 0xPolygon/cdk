@@ -151,8 +151,6 @@ func setClaimCalldata(client EthClienter, bridge common.Address, txHash common.H
 	}
 
 	// find the claim linked to the event using DFS
-	// TODO: take into account potential reverts that may be found on the path,
-	// and other edge cases
 	callStack := stack.New()
 	callStack.Push(*c)
 	for {
