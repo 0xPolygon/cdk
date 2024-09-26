@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk/etherman"
+	"github.com/status-im/keycard-go/hexutils"
 
+	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
@@ -1169,6 +1170,78 @@ func Test_updateLatestVirtualBatch(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedLatestVirtualBatch, ss.latestVirtualBatch)
 			}
+		})
+	}
+}
+
+func Test_addNewBlockTx(t *testing.T) {
+	t.Parallel()
+
+	tx1, err := state.DecodeTx(txStreamEncoded1)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name                 string
+		l2Tx                 *datastream.Transaction
+		wipBatch             uint64
+		sequenceData         map[uint64]*sequenceData
+		expectedSequenceData map[uint64]*sequenceData
+	}{
+		{
+			name: "successfully added",
+			l2Tx: &datastream.Transaction{
+				L2BlockNumber: 2,
+				ImStateRoot:   []byte{1, 2, 3, 5, 6, 7, 8, 9, 0},
+				Encoded:       hexutils.HexToBytes(txStreamEncoded1),
+			},
+			wipBatch: 1,
+			sequenceData: map[uint64]*sequenceData{
+				1: {
+					batch: txbuilder.NewBananaBatch(&etherman.Batch{
+						BatchNumber: 2,
+					}),
+					batchRaw: &state.BatchRawV2{
+						Blocks: []state.L2BlockRaw{{
+							BlockNumber:         1,
+							ChangeL2BlockHeader: state.ChangeL2BlockHeader{},
+							Transactions:        nil,
+						}},
+					},
+				},
+			},
+			expectedSequenceData: map[uint64]*sequenceData{
+				1: {
+					batch: txbuilder.NewBananaBatch(&etherman.Batch{
+						BatchNumber: 2,
+					}),
+					batchRaw: &state.BatchRawV2{
+						Blocks: []state.L2BlockRaw{{
+							BlockNumber:         1,
+							ChangeL2BlockHeader: state.ChangeL2BlockHeader{},
+							Transactions: []state.L2TxRaw{{
+								Tx: tx1,
+							}},
+						}},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			ss := SequenceSender{
+				wipBatch:     tt.wipBatch,
+				sequenceData: tt.sequenceData,
+				logger:       log.GetDefaultLogger(),
+			}
+
+			ss.addNewBlockTx(tt.l2Tx)
+			require.Equal(t, tt.expectedSequenceData[tt.wipBatch].batchClosed, ss.sequenceData[tt.wipBatch].batchClosed)
+			require.Equal(t, tt.expectedSequenceData[tt.wipBatch].batchType, ss.sequenceData[tt.wipBatch].batchType)
+			require.Equal(t, tt.expectedSequenceData[tt.wipBatch].batch, ss.sequenceData[tt.wipBatch].batch)
 		})
 	}
 }
