@@ -1068,3 +1068,107 @@ func Test_sendTx(t *testing.T) {
 		})
 	}
 }
+
+func Test_entryTypeToString(t *testing.T) {
+	type args struct {
+		entryType datastream.EntryType
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "entry type 1",
+			args: args{
+				entryType: datastream.EntryType_ENTRY_TYPE_BATCH_START,
+			},
+			want: "BatchStart",
+		},
+		{
+			name: "entry type 2",
+			args: args{
+				entryType: datastream.EntryType_ENTRY_TYPE_L2_BLOCK,
+			},
+			want: "L2Block",
+		},
+		{
+			name: "entry type 3",
+			args: args{
+				entryType: datastream.EntryType_ENTRY_TYPE_TRANSACTION,
+			},
+			want: "Transaction",
+		},
+		{
+			name: "entry type 4",
+			args: args{
+				entryType: datastream.EntryType_ENTRY_TYPE_BATCH_END,
+			},
+			want: "BatchEnd",
+		},
+		{
+			name: "entry type unexpected",
+			args: args{
+				entryType: 10,
+			},
+			want: "10",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := entryTypeToString(tt.args.entryType)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_updateLatestVirtualBatch(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                       string
+		getEtherman                func(t *testing.T) *EthermanMock
+		latestVirtualBatch         uint64
+		expectedLatestVirtualBatch uint64
+		expectedErr                error
+	}{
+		{
+			name: "successfully updated",
+			getEtherman: func(t *testing.T) *EthermanMock {
+				mngr := NewEthermanMock(t)
+				mngr.On("GetLatestBatchNumber").Return(uint64(3), nil)
+				return mngr
+			},
+			expectedLatestVirtualBatch: 3,
+		},
+		{
+			name: "etherman returns error",
+			getEtherman: func(t *testing.T) *EthermanMock {
+				mngr := NewEthermanMock(t)
+				mngr.On("GetLatestBatchNumber").Return(uint64(0), errors.New("test error"))
+				return mngr
+			},
+			expectedErr: errors.New("fail to get latest virtual batch"),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			ss := SequenceSender{
+				etherman:           tt.getEtherman(t),
+				latestVirtualBatch: tt.latestVirtualBatch,
+				logger:             log.GetDefaultLogger(),
+			}
+
+			err := ss.updateLatestVirtualBatch()
+			if tt.expectedErr != nil {
+				require.Equal(t, tt.expectedErr, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedLatestVirtualBatch, ss.latestVirtualBatch)
+			}
+		})
+	}
+}

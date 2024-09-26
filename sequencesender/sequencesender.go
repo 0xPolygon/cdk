@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
-	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
@@ -41,12 +40,20 @@ type EthTxMngr interface {
 	Result(ctx context.Context, hash common.Hash) (ethtxmanager.MonitoredTxResult, error)
 }
 
+// Etherman represents the etherman behaviour
+type Etherman interface {
+	CurrentNonce(ctx context.Context, address common.Address) (uint64, error)
+	GetLatestBlockHeader(ctx context.Context) (*types.Header, error)
+	EstimateGas(ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte) (uint64, error)
+	GetLatestBatchNumber() (uint64, error)
+}
+
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
 	cfg                    Config
 	logger                 *log.Logger
 	ethTxManager           EthTxMngr
-	etherman               *etherman.Client
+	etherman               Etherman
 	currentNonce           uint64
 	nonceMutex             sync.Mutex
 	latestVirtualBatch     uint64                     // Latest virtualized batch obtained from L1
@@ -98,8 +105,7 @@ type ethTxAdditionalData struct {
 }
 
 // New inits sequence sender
-func New(cfg Config, logger *log.Logger,
-	etherman *etherman.Client, txBuilder txbuilder.TxBuilder) (*SequenceSender, error) {
+func New(cfg Config, logger *log.Logger, etherman Etherman, txBuilder txbuilder.TxBuilder) (*SequenceSender, error) {
 	// Create sequencesender
 	s := SequenceSender{
 		cfg:               cfg,

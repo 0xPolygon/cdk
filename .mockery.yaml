@@ -9,6 +9,9 @@ packages:
       EthTxMngr:
         config:
           filename: ethtxmngr_mock_test.go
+      Etherman:
+        config:
+          filename: etherman_mock_test.go
   github.com/0xPolygon/cdk/sequencesender/txbuilder:
     config:
       dir: ./sequencesender
