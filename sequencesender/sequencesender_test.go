@@ -3,12 +3,17 @@ package sequencesender
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
@@ -30,6 +35,10 @@ const (
 	txStreamEncoded1 = "f86508843b9aca0082520894617b3a3528f9cdd6630fd3301b9c8911f7bf063d0a808207f5a0579b72a1c1ffdd845fba45317540982109298e2ec8d67ddf2cdaf22e80903677a01831e9a01291c7ea246742a5b5a543ca6938bfc3f6958c22be06fad99274e4ac"
 	txStreamEncoded2 = "f86509843b9aca0082520894617b3a3528f9cdd6630fd3301b9c8911f7bf063d0a808207f5a0908a522075e09485166ffa7630cd2b7013897fa1f1238013677d6f0a86efb3d2a0068b12435fcdc8ee254f3b1df8c5b29ed691eeee6065704f061130935976ca99"
 	txStreamEncoded3 = "b8b402f8b101268505d21dba0085076c363d8982dc60941929761e87667283f087ea9ab8370c174681b4e980b844095ea7b300000000000000000000000080a64c6d7f12c47b7c66c5b4e20e72bc1fcd5d9effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc001a0dd4db494969139a120e8721842455ec13f82757a4fc49b66d447c7d32d095a1da06ef54068a9aa67ecc4f52d885299a04feb6f3531cdfc771f1412cd3331d1ba4c"
+)
+
+var (
+	getNowLock sync.Mutex
 )
 
 func TestStreamTx(t *testing.T) {
@@ -328,6 +337,39 @@ func Test_purgeEthTransactions(t *testing.T) {
 
 				mngr := NewEthTxMngrMock(t)
 				mngr.On("Remove", mock.Anything, common.HexToHash("0x1")).Return(nil)
+				return mngr
+			},
+			sequenceList: []uint64{1, 2},
+			expectedEthTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x2"): {
+					StatusTimestamp: secondTimestamp,
+				},
+			},
+			expectedEthTxData: map[common.Hash][]byte{
+				common.HexToHash("0x2"): {4, 5, 6},
+			},
+		},
+		{
+			name: "removed with error",
+			ethTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x1"): {
+					StatusTimestamp: firstTimestamp,
+					OnMonitor:       true,
+					Status:          ethtxmanager.MonitoredTxStatusFinalized.String(),
+				},
+				common.HexToHash("0x2"): {
+					StatusTimestamp: secondTimestamp,
+				},
+			},
+			ethTxData: map[common.Hash][]byte{
+				common.HexToHash("0x1"): {1, 2, 3},
+				common.HexToHash("0x2"): {4, 5, 6},
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
+				mngr := NewEthTxMngrMock(t)
+				mngr.On("Remove", mock.Anything, common.HexToHash("0x1")).Return(errors.New("test err"))
 				return mngr
 			},
 			sequenceList: []uint64{1, 2},
@@ -911,6 +953,7 @@ func Test_closeSequenceBatch(t *testing.T) {
 		name                 string
 		wipBatch             uint64
 		sequenceData         map[uint64]*sequenceData
+		getSanityCheckURL    func(t *testing.T) string
 		expectedSequenceData map[uint64]*sequenceData
 		expectedErr          error
 	}{
@@ -919,7 +962,9 @@ func Test_closeSequenceBatch(t *testing.T) {
 			wipBatch: 1,
 			sequenceData: map[uint64]*sequenceData{
 				1: {
-					batch: txbuilder.NewBananaBatch(&etherman.Batch{}),
+					batch: txbuilder.NewBananaBatch(&etherman.Batch{
+						L2Data: lsData,
+					}),
 					batchRaw: &state.BatchRawV2{
 						Blocks: []state.L2BlockRaw{{
 							BlockNumber:         1,
@@ -927,7 +972,16 @@ func Test_closeSequenceBatch(t *testing.T) {
 							Transactions:        nil,
 						}},
 					},
+					batchType: 1,
 				},
+			},
+			getSanityCheckURL: func(t *testing.T) string {
+				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					_, _ = w.Write([]byte(fmt.Sprintf(`{"jsonrpc":"2.0","id":1,"result":{"blocks":["1"],"batchL2Data":"%s"}}`, strings.ToLower(hexutils.BytesToHex(lsData)))))
+				}))
+				t.Cleanup(srv.Close)
+
+				return srv.URL
 			},
 			expectedSequenceData: map[uint64]*sequenceData{
 				1: {
@@ -935,7 +989,8 @@ func Test_closeSequenceBatch(t *testing.T) {
 					batch: txbuilder.NewBananaBatch(&etherman.Batch{
 						L2Data: lsData,
 					}),
-					batchRaw: batchRaw,
+					batchRaw:  batchRaw,
+					batchType: 1,
 				},
 			},
 			expectedErr: nil,
@@ -951,7 +1006,10 @@ func Test_closeSequenceBatch(t *testing.T) {
 			ss := SequenceSender{
 				wipBatch:     tt.wipBatch,
 				sequenceData: tt.sequenceData,
-				logger:       log.GetDefaultLogger(),
+				cfg: Config{
+					SanityCheckRPCURL: tt.getSanityCheckURL(t),
+				},
+				logger: log.GetDefaultLogger(),
 			}
 
 			err := ss.closeSequenceBatch()
@@ -970,6 +1028,7 @@ func Test_sendTx(t *testing.T) {
 
 	addr := common.BytesToAddress([]byte{1, 2, 3})
 	hash := common.HexToHash("0x1")
+	oldHash := common.HexToHash("0x2")
 	now := time.Now()
 
 	type args struct {
@@ -1052,6 +1111,130 @@ func Test_sendTx(t *testing.T) {
 			},
 			expectedErr: nil,
 		},
+		{
+			name: "successfully sent with resend",
+			args: args{
+				resend:    true,
+				txOldHash: &oldHash,
+				gas:       100500,
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
+				mngr := NewEthTxMngrMock(t)
+				nonce := uint64(10)
+				mngr.On("AddWithGas", mock.Anything, &addr, &nonce, big.NewInt(0), []byte(nil), uint64(0), mock.Anything, uint64(100500)).Return(hash, nil)
+				mngr.On("Result", mock.Anything, hash).Return(ethtxmanager.MonitoredTxResult{
+					ID:   hash,
+					Data: []byte{1, 2, 3},
+				}, nil)
+				return mngr
+			},
+			state: state{
+				ethTxData: map[common.Hash][]byte{
+					hash: []byte("test"),
+				},
+				ethTransactions: map[common.Hash]*ethTxData{
+					oldHash: {
+						To:        addr,
+						Nonce:     10,
+						FromBatch: 1,
+						ToBatch:   2,
+					},
+				},
+				latestSentToL1Batch: 0,
+			},
+			expectedState: state{
+				currentNonce: 0,
+				ethTxData: map[common.Hash][]byte{
+					hash: {1, 2, 3},
+				},
+				ethTransactions: map[common.Hash]*ethTxData{
+					hash: {
+						SentL1Timestamp: now,
+						StatusTimestamp: now,
+						FromBatch:       1,
+						ToBatch:         2,
+						OnMonitor:       true,
+						To:              addr,
+						Gas:             100500,
+						StateHistory:    []string{now.Format("2006-01-02T15:04:05.000-07:00") + ", *new, "},
+						Txs:             map[common.Hash]ethTxAdditionalData{},
+					},
+				},
+				latestSentToL1Batch: 0,
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "add with gas returns error",
+			args: args{
+				resend:    true,
+				txOldHash: &oldHash,
+				gas:       100500,
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
+				mngr := NewEthTxMngrMock(t)
+				nonce := uint64(10)
+				mngr.On("AddWithGas", mock.Anything, &addr, &nonce, big.NewInt(0), []byte(nil), uint64(0), mock.Anything, uint64(100500)).Return(nil, errors.New("failed to add with gas"))
+				mngr.On("Result", mock.Anything, hash).Return(ethtxmanager.MonitoredTxResult{
+					ID:   hash,
+					Data: []byte{1, 2, 3},
+				}, nil)
+				return mngr
+			},
+			state: state{
+				ethTxData: map[common.Hash][]byte{
+					hash: []byte("test"),
+				},
+				ethTransactions: map[common.Hash]*ethTxData{
+					oldHash: {
+						To:        addr,
+						Nonce:     10,
+						FromBatch: 1,
+						ToBatch:   2,
+					},
+				},
+				latestSentToL1Batch: 0,
+			},
+			expectedErr: errors.New("failed to add with gas"),
+		},
+		{
+			name: "empty old hash",
+			args: args{
+				resend: true,
+				gas:    100500,
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
+				mngr := NewEthTxMngrMock(t)
+				nonce := uint64(10)
+				mngr.On("AddWithGas", mock.Anything, &addr, &nonce, big.NewInt(0), []byte(nil), uint64(0), mock.Anything, uint64(100500)).Return(nil, nil)
+				mngr.On("Result", mock.Anything, hash).Return(ethtxmanager.MonitoredTxResult{
+					ID:   hash,
+					Data: []byte{1, 2, 3},
+				}, nil)
+				return mngr
+			},
+			state: state{
+				ethTxData: map[common.Hash][]byte{
+					hash: []byte("test"),
+				},
+				ethTransactions: map[common.Hash]*ethTxData{
+					oldHash: {
+						To:        addr,
+						Nonce:     10,
+						FromBatch: 1,
+						ToBatch:   2,
+					},
+				},
+				latestSentToL1Batch: 0,
+			},
+			expectedErr: errors.New("resend tx with nil hash monitor id"),
+		},
 	}
 
 	for _, tt := range tests {
@@ -1060,7 +1243,7 @@ func Test_sendTx(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			tmpFile, err := os.CreateTemp(os.TempDir(), tt.name)
+			tmpFile, err := os.CreateTemp(os.TempDir(), tt.name+".tmp")
 			require.NoError(t, err)
 			defer os.RemoveAll(tmpFile.Name() + ".tmp")
 
@@ -1076,9 +1259,11 @@ func Test_sendTx(t *testing.T) {
 				logger: log.GetDefaultLogger(),
 			}
 
+			getNowLock.Lock()
 			getNow = func() time.Time { return now }
 			err = ss.sendTx(context.Background(), tt.args.resend, tt.args.txOldHash, tt.args.to, tt.args.fromBatch, tt.args.toBatch, tt.args.data, tt.args.gas)
 			getNow = time.Now
+			getNowLock.Unlock()
 			if tt.expectedErr != nil {
 				require.Equal(t, tt.expectedErr, err)
 			} else {
@@ -1580,6 +1765,247 @@ func Test_Start(t *testing.T) {
 			require.Equal(t, tt.expectFromStreamBatch, s.fromStreamBatch)
 			require.Equal(t, tt.expectWipBatch, s.wipBatch)
 			require.Equal(t, tt.expectLatestSentToL1Batch, s.latestSentToL1Batch)
+		})
+	}
+}
+
+func Test_tryToSendSequence(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                string
+		getEthTxManager     func(t *testing.T) *EthTxMngrMock
+		getEtherman         func(t *testing.T) *EthermanMock
+		getStreamClient     func(t *testing.T) *StreamClientMock
+		getTxBuilder        func(t *testing.T) *TxBuilderMock
+		maxPendingTxn       uint64
+		sequenceList        []uint64
+		latestVirtualBatch  uint64
+		latestSentToL1Batch uint64
+		sequenceData        map[uint64]*sequenceData
+		ethTransactions     map[common.Hash]*ethTxData
+		ethTxData           map[common.Hash][]byte
+
+		expectErr error
+	}{
+		{
+			name: "successfully sent",
+			getEtherman: func(t *testing.T) *EthermanMock {
+				t.Helper()
+
+				mngr := NewEthermanMock(t)
+				mngr.On("GetLatestBatchNumber").Return(uint64(1), nil)
+				return mngr
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
+				mngr := NewEthTxMngrMock(t)
+				//mngr.On("ResultsByStatus", mock.Anything, []ethtxmanager.MonitoredTxStatus(nil)).Return(nil, nil)
+				return mngr
+			},
+			getStreamClient: func(t *testing.T) *StreamClientMock {
+				t.Helper()
+
+				mngr := NewStreamClientMock(t)
+				//mngr.On("ExecCommandStartBookmark", mock.Anything).Return(nil)
+				return mngr
+			},
+			getTxBuilder: func(t *testing.T) *TxBuilderMock {
+				t.Helper()
+
+				mngr := NewTxBuilderMock(t)
+				mngr.On("NewSequenceIfWorthToSend", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(txbuilder.NewBananaSequence(etherman.SequenceBanana{}), nil)
+				return mngr
+			},
+			maxPendingTxn:       10,
+			sequenceList:        []uint64{2},
+			latestVirtualBatch:  1,
+			latestSentToL1Batch: 1,
+			sequenceData: map[uint64]*sequenceData{
+				2: {
+					batchClosed: true,
+					batch:       txbuilder.NewBananaBatch(&etherman.Batch{}),
+				},
+			},
+		},
+		{
+			name: "successfully sent new sequence",
+			getEtherman: func(t *testing.T) *EthermanMock {
+				t.Helper()
+
+				mngr := NewEthermanMock(t)
+				mngr.On("GetLatestBatchNumber").Return(uint64(1), nil)
+				mngr.On("GetLatestBlockHeader", mock.Anything).Return(&types.Header{
+					Number: big.NewInt(1),
+				}, nil)
+				mngr.On("EstimateGas", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(uint64(100500), nil)
+				return mngr
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
+				mngr := NewEthTxMngrMock(t)
+				mngr.On("AddWithGas", mock.Anything, mock.Anything, mock.Anything, big.NewInt(0), mock.Anything, mock.Anything, mock.Anything, uint64(100500)).Return(common.Hash{}, nil)
+				mngr.On("Result", mock.Anything, common.Hash{}).Return(ethtxmanager.MonitoredTxResult{
+					ID:   common.Hash{},
+					Data: []byte{1, 2, 3},
+				}, nil)
+				return mngr
+			},
+			getStreamClient: func(t *testing.T) *StreamClientMock {
+				t.Helper()
+
+				mngr := NewStreamClientMock(t)
+				//mngr.On("ExecCommandStartBookmark", mock.Anything).Return(nil)
+				return mngr
+			},
+			getTxBuilder: func(t *testing.T) *TxBuilderMock {
+				t.Helper()
+
+				mngr := NewTxBuilderMock(t)
+				mngr.On("NewSequenceIfWorthToSend", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+				mngr.On("NewSequence", mock.Anything, mock.Anything, mock.Anything).Return(txbuilder.NewBananaSequence(etherman.SequenceBanana{
+					Batches: []etherman.Batch{{
+						BatchNumber: 2,
+					}},
+				}), nil)
+				mngr.On("BuildSequenceBatchesTx", mock.Anything, mock.Anything).Return(types.NewTx(&types.LegacyTx{}), nil)
+				return mngr
+			},
+			maxPendingTxn:       10,
+			sequenceList:        []uint64{2},
+			latestVirtualBatch:  1,
+			latestSentToL1Batch: 1,
+			sequenceData: map[uint64]*sequenceData{
+				2: {
+					batchClosed: true,
+					batch:       txbuilder.NewBananaBatch(&etherman.Batch{}),
+				},
+			},
+			ethTransactions: map[common.Hash]*ethTxData{},
+			ethTxData:       map[common.Hash][]byte{},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmpFile, err := os.CreateTemp(os.TempDir(), tt.name+".tmp")
+			require.NoError(t, err)
+			defer os.RemoveAll(tmpFile.Name() + ".tmp")
+
+			s := SequenceSender{
+				ethTxManager: tt.getEthTxManager(t),
+				etherman:     tt.getEtherman(t),
+				streamClient: tt.getStreamClient(t),
+				TxBuilder:    tt.getTxBuilder(t),
+				cfg: Config{
+					SequencesTxFileName: tmpFile.Name() + ".tmp",
+					MaxPendingTx:        tt.maxPendingTxn,
+				},
+				sequenceList:        tt.sequenceList,
+				latestVirtualBatch:  tt.latestVirtualBatch,
+				latestSentToL1Batch: tt.latestSentToL1Batch,
+				sequenceData:        tt.sequenceData,
+				ethTransactions:     tt.ethTransactions,
+				ethTxData:           tt.ethTxData,
+				logger:              log.GetDefaultLogger(),
+			}
+
+			s.tryToSendSequence(context.Background())
+		})
+	}
+}
+
+func Test_getResultAndUpdateEthTx(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		hash            common.Hash
+		ethTransactions map[common.Hash]*ethTxData
+		ethTxData       map[common.Hash][]byte
+		getEthTxManager func(t *testing.T) *EthTxMngrMock
+		expectedErr     error
+	}{
+		{
+			name: "successfully updated",
+			hash: common.HexToHash("0x1"),
+			ethTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x1"): {},
+			},
+			ethTxData: map[common.Hash][]byte{
+				common.HexToHash("0x1"): {},
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
+				mngr := NewEthTxMngrMock(t)
+				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxmanager.MonitoredTxResult{
+					ID:   common.HexToHash("0x1"),
+					Data: []byte{1, 2, 3},
+				}, nil)
+				return mngr
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "not found",
+			hash: common.HexToHash("0x1"),
+			ethTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x1"): {
+					Gas: 100500,
+				},
+			},
+			ethTxData: map[common.Hash][]byte{
+				common.HexToHash("0x1"): {},
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
+				mngr := NewEthTxMngrMock(t)
+				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxmanager.MonitoredTxResult{}, ethtxmanager.ErrNotFound)
+				mngr.On("AddWithGas", mock.Anything, mock.Anything, mock.Anything, big.NewInt(0), mock.Anything, mock.Anything, mock.Anything, uint64(100500)).Return(common.Hash{}, nil)
+				mngr.On("Result", mock.Anything, common.Hash{}).Return(ethtxmanager.MonitoredTxResult{
+					ID:   common.HexToHash("0x1"),
+					Data: []byte{1, 2, 3},
+				}, nil)
+				return mngr
+			},
+			expectedErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmpFile, err := os.CreateTemp(os.TempDir(), tt.name+".tmp")
+			require.NoError(t, err)
+			defer os.RemoveAll(tmpFile.Name() + ".tmp")
+
+			ss := SequenceSender{
+				ethTransactions: tt.ethTransactions,
+				ethTxData:       tt.ethTxData,
+				ethTxManager:    tt.getEthTxManager(t),
+				cfg: Config{
+					SequencesTxFileName: tmpFile.Name() + ".tmp",
+				},
+				logger: log.GetDefaultLogger(),
+			}
+
+			err = ss.getResultAndUpdateEthTx(context.Background(), tt.hash)
+			if tt.expectedErr != nil {
+				require.Equal(t, tt.expectedErr, err)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }
