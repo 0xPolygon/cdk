@@ -88,6 +88,13 @@ type L1InfoTreeLeaf struct {
 	Hash              common.Hash `meddler:"hash,hash"`
 }
 
+func (l *L1InfoTreeLeaf) String() string {
+	return fmt.Sprintf("BlockNumber: %d, BlockPosition: %d, L1InfoTreeIndex: %d, PreviousBlockHash: %s, "+
+		"Timestamp: %d, MainnetExitRoot: %s, RollupExitRoot: %s, GlobalExitRoot: %s, Hash: %s",
+		l.BlockNumber, l.BlockPosition, l.L1InfoTreeIndex, l.PreviousBlockHash.String(),
+		l.Timestamp, l.MainnetExitRoot.String(), l.RollupExitRoot.String(), l.GlobalExitRoot.String(), l.Hash.String())
+}
+
 // L1InfoTreeInitial representation of the initial info of the L1 Info tree for this rollup
 type L1InfoTreeInitial struct {
 	BlockNumber uint64      `meddler:"block_num"`
@@ -299,15 +306,17 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			info.GlobalExitRoot = info.globalExitRoot()
 			info.Hash = info.hash()
 			if err = meddler.Insert(tx, "l1info_leaf", info); err != nil {
-				return fmt.Errorf("insert l1info_leaf. err: %w", err)
+				return fmt.Errorf("insert l1info_leaf %s. err: %w", info.String(), err)
 			}
+
 			err = p.l1InfoTree.AddLeaf(tx, info.BlockNumber, info.BlockPosition, treeTypes.Leaf{
 				Index: info.L1InfoTreeIndex,
 				Hash:  info.Hash,
 			})
 			if err != nil {
-				return fmt.Errorf("AddLeaf. err: %w", err)
+				return fmt.Errorf("AddLeaf(%s). err: %w", info.String(), err)
 			}
+			log.Infof("inserted L1InfoTreeLeaf %s", info.String())
 			l1InfoLeavesAdded++
 		}
 		if event.VerifyBatches != nil {

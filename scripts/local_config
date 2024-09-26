@@ -35,16 +35,16 @@ EOF
     
 fi
 
-if [ -z $TMP_CDK_FOLDER -o -z $ENCLAVE ]; then
-    echo "TMP_CDK_FOLDER or ENCLAVE is not set. Must be set on file env.sh"
+if [ -z $TMP_CDK_FOLDER -o -z $KURTOSIS_ENCLAVE ]; then
+    echo "TMP_CDK_FOLDER or KURTOSIS_ENCLAVE is not set. Must be set on file env.sh"
     exit 1
 fi
-kurtosis enclave inspect $ENCLAVE > /dev/null
+kurtosis enclave inspect $KURTOSIS_ENCLAVE > /dev/null
 if [ $? -ne 0 ]; then
-    echo "Error inspecting enclave $ENCLAVE"
+    echo "Error inspecting enclave $KURTOSIS_ENCLAVE"
     echo "You must start kurtosis environment before running this script"
     echo "- start kurtosis:"
-    echo "    kurtosis clean --all; kurtosis run --enclave $ENCLAVE --args-file params.yml --image-download always ."
+    echo "    kurtosis clean --all; kurtosis run --enclave $KURTOSIS_ENCLAVE --args-file params.yml --image-download always ."
 
     exit 1
 fi
@@ -52,25 +52,25 @@ DEST=${TMP_CDK_FOLDER}/local_config
 
 [ ! -d ${DEST} ] && mkdir -p ${DEST}
 rm $DEST/*
-kurtosis files download $ENCLAVE genesis $DEST
+kurtosis files download $KURTOSIS_ENCLAVE genesis $DEST
 [ $? -ne 0 ] && echo "Error downloading genesis" && exit 1
 export genesis_file=$DEST/genesis.json
 export_values_of_genesis $genesis_file
-kurtosis files download $ENCLAVE sequencer-keystore $DEST
+kurtosis files download $KURTOSIS_ENCLAVE sequencer-keystore $DEST
 [ $? -ne 0 ] && echo "Error downloading sequencer-keystore" && exit 1
 export sequencer_keystore_file=$DEST/sequencer.keystore
 
-l1_rpc_port=$(kurtosis port print $ENCLAVE el-1-geth-lighthouse rpc | cut -f 3 -d ":")
+l1_rpc_port=$(kurtosis port print $KURTOSIS_ENCLAVE el-1-geth-lighthouse rpc | cut -f 3 -d ":")
 [ $? -ne 0 ] && echo "Error getting l1_rpc_port" && exit 1 || export l1_rpc_port && echo "l1_rpc_port=$l1_rpc_port"
-l1_rpc_addr=$(kurtosis port print $ENCLAVE el-1-geth-lighthouse rpc)
+l1_rpc_addr=$(kurtosis port print $KURTOSIS_ENCLAVE el-1-geth-lighthouse rpc)
 [ $? -ne 0 ] && echo "Error getting l1_rpc_addr" && exit 1 || export l1_rpc_addr && echo "l1_rpc_addr=$l1_rpc_addr"
-l2_rpc_addr=$(kurtosis port print $ENCLAVE  cdk-erigon-node-001 http-rpc)
+l2_rpc_addr=$(kurtosis port print $KURTOSIS_ENCLAVE  cdk-erigon-node-001 http-rpc)
 [ $? -ne 0 ] && echo "Error getting l2_rpc_addr" && exit 1 || export l2_rpc_addr && echo "l2_rpc_addr=$l2_rpc_addr"
 
-zkevm_data_streamer_port=$(kurtosis port print $ENCLAVE cdk-erigon-sequencer-001  data-streamer | cut -f 3 -d ":")
+zkevm_data_streamer_port=$(kurtosis port print $KURTOSIS_ENCLAVE cdk-erigon-sequencer-001  data-streamer | cut -f 3 -d ":")
 [ $? -ne 0 ] && echo "Error getting zkevm_data_streamer_port" && exit 1 || export zkevm_data_streamer_port && echo "zkevm_data_streamer_port=$zkevm_data_streamer_port"
 
-kurtosis files download $ENCLAVE cdk-node-config-artifact $DEST
+kurtosis files download $KURTOSIS_ENCLAVE cdk-node-config-artifact $DEST
 export zkevm_l2_sequencer_address=$(cat $DEST/cdk-node-config.toml  |grep L2Coinbase | cut -f 2 -d "="| tr -d '"'  | tr -d ' ')
 export zkevm_l2_keystore_password=$(cat $DEST/cdk-node-config.toml  |grep -A1 L2Coinbase  | tr ',' '\n' | grep Password | cut -f 2 -d '=' | tr -d '}' | tr -d '"' | tr -d ' ')
 export l1_chain_id=$(cat $DEST/cdk-node-config.toml | grep L1ChainID | cut -f 2 -d '=' | head -n 1)
@@ -79,7 +79,7 @@ export zkevm_is_validium=$(cat $DEST/cdk-node-config.toml | grep IsValidiumMode 
 
 if [ "$zkevm_is_validium" == "true" ]; then
     echo "Validium mode detected... Retrieving the dac_port"
-    dac_port=$(kurtosis port print $ENCLAVE zkevm-dac-001 dac | cut -f 3 -d ":")
+    dac_port=$(kurtosis port print $KURTOSIS_ENCLAVE zkevm-dac-001 dac | cut -f 3 -d ":")
     [ $? -ne 0 ] && echo "Error getting dac_port" && exit 1 || export dac_port  && echo "dac_port=$dac_port"
 fi
 

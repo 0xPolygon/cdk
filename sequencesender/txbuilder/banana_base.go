@@ -92,7 +92,12 @@ func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL
 	if err != nil {
 		return 0, fmt.Errorf("error calling HeaderByNumber, with block finality %d: %w", t.blockFinality.Int64(), err)
 	}
+	var resL1InfoCounter uint32
+
 	info, err := t.l1InfoTree.GetLatestInfoUntilBlock(ctx, header.Number.Uint64())
+	if err == nil {
+		resL1InfoCounter = info.L1InfoTreeIndex + 1
+	}
 	if errors.Is(err, l1infotreesync.ErrNotFound) {
 		// There are no L1 Info tree leaves yet, so we can try to use L1InfoRootMap event
 		l1infotreeInitial, err := t.l1InfoTree.GetInitL1InfoRootMap(ctx)
@@ -100,20 +105,22 @@ func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL
 			return 0, fmt.Errorf("error no leaves on L1InfoTree yet and GetInitL1InfoRootMap fails: %w", err)
 		}
 		// We use this leaf as first one
-		info = &l1infotreesync.L1InfoTreeLeaf{
-			L1InfoTreeIndex: l1infotreeInitial.LeafCount - 1,
-		}
+		resL1InfoCounter = l1infotreeInitial.LeafCount
 	} else if err != nil {
 		return 0, fmt.Errorf("error calling GetLatestInfoUntilBlock with block num %d: %w", header.Number.Uint64(), err)
 	}
-
-	if info.L1InfoTreeIndex >= highestL1IndexInBatch {
-		return info.L1InfoTreeIndex + 1, nil
+	// This is a very rare case, but it can happen if there are no leaves in L1InfoTree yet, so the batch can use any of them and set 0
+	if resL1InfoCounter == 0 && highestL1IndexInBatch == 0 {
+		log.Infof("No L1 Info tree leaves yet, batch don't use any leaf (index=0), so we use CounterL1InfoRoot=0 that is the empty tree")
+		return resL1InfoCounter, nil
+	}
+	if resL1InfoCounter > highestL1IndexInBatch {
+		return resL1InfoCounter, nil
 	}
 
 	return 0, fmt.Errorf(
 		"sequence contained an L1 Info tree index (%d) that is greater than the one synced with the desired finality (%d)",
-		highestL1IndexInBatch, info.L1InfoTreeIndex,
+		highestL1IndexInBatch, resL1InfoCounter,
 	)
 }
 
