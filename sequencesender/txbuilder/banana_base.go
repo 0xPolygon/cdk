@@ -109,9 +109,9 @@ func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL
 	} else if err != nil {
 		return 0, fmt.Errorf("error calling GetLatestInfoUntilBlock with block num %d: %w", header.Number.Uint64(), err)
 	}
-	// This is a very rare case, but it can happen if there are no leaves in L1InfoTree yet, so the batch can use any of them and set 0
+	// special case: there are no leaves in L1InfoTree yet
 	if resL1InfoCounter == 0 && highestL1IndexInBatch == 0 {
-		log.Infof("No L1 Info tree leaves yet, batch don't use any leaf (index=0), so we use CounterL1InfoRoot=0 that is the empty tree")
+		log.Infof("No L1 Info tree leaves yet, batch use no leaf")
 		return resL1InfoCounter, nil
 	}
 	if resL1InfoCounter > highestL1IndexInBatch {
