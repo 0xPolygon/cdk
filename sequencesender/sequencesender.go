@@ -235,8 +235,15 @@ func (s *SequenceSender) Start(ctx context.Context) {
 // sequenceSending starts loop to check if there are sequences to send and sends them if it's convenient
 func (s *SequenceSender) sequenceSending(ctx context.Context) {
 	for {
-		s.tryToSendSequence(ctx)
-		time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
+		select {
+		case <-ctx.Done():
+			s.logger.Infof("sequence sending stopped")
+			s.seqSendingStopped = true
+			return
+		default:
+			s.tryToSendSequence(ctx)
+			time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
+		}
 	}
 }
 

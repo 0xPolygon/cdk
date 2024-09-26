@@ -36,6 +36,16 @@ const (
 	txStreamEncoded3 = "b8b402f8b101268505d21dba0085076c363d8982dc60941929761e87667283f087ea9ab8370c174681b4e980b844095ea7b300000000000000000000000080a64c6d7f12c47b7c66c5b4e20e72bc1fcd5d9effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc001a0dd4db494969139a120e8721842455ec13f82757a4fc49b66d447c7d32d095a1da06ef54068a9aa67ecc4f52d885299a04feb6f3531cdfc771f1412cd3331d1ba4c"
 )
 
+var (
+	now = time.Now()
+)
+
+func TestMain(t *testing.M) {
+	getNow = func() time.Time { return now }
+	t.Run()
+	getNow = time.Now
+}
+
 func TestStreamTx(t *testing.T) {
 	tx1, err := state.DecodeTx(txStreamEncoded1)
 	require.NoError(t, err)
@@ -1018,11 +1028,6 @@ func Test_sendTx(t *testing.T) {
 	addr := common.BytesToAddress([]byte{1, 2, 3})
 	hash := common.HexToHash("0x1")
 	oldHash := common.HexToHash("0x2")
-	now := time.Now()
-	getNow = func() time.Time { return now }
-	t.Cleanup(func() {
-		getNow = time.Now
-	})
 
 	type args struct {
 		resend    bool
@@ -1172,10 +1177,6 @@ func Test_sendTx(t *testing.T) {
 				mngr := NewEthTxMngrMock(t)
 				nonce := uint64(10)
 				mngr.On("AddWithGas", mock.Anything, &addr, &nonce, big.NewInt(0), []byte(nil), uint64(0), mock.Anything, uint64(100500)).Return(nil, errors.New("failed to add with gas"))
-				mngr.On("Result", mock.Anything, hash).Return(ethtxmanager.MonitoredTxResult{
-					ID:   hash,
-					Data: []byte{1, 2, 3},
-				}, nil)
 				return mngr
 			},
 			state: state{
@@ -1204,12 +1205,6 @@ func Test_sendTx(t *testing.T) {
 				t.Helper()
 
 				mngr := NewEthTxMngrMock(t)
-				nonce := uint64(10)
-				mngr.On("AddWithGas", mock.Anything, &addr, &nonce, big.NewInt(0), []byte(nil), uint64(0), mock.Anything, uint64(100500)).Return(nil, nil)
-				mngr.On("Result", mock.Anything, hash).Return(ethtxmanager.MonitoredTxResult{
-					ID:   hash,
-					Data: []byte{1, 2, 3},
-				}, nil)
 				return mngr
 			},
 			state: state{
@@ -1815,7 +1810,12 @@ func Test_Start(t *testing.T) {
 				logger: log.GetDefaultLogger(),
 			}
 
-			s.Start(context.Background())
+			ctx, cancel := context.WithCancel(context.Background())
+			s.Start(ctx)
+			time.Sleep(time.Second)
+			cancel()
+			time.Sleep(time.Second)
+
 			require.Equal(t, tt.expectNonce, s.currentNonce)
 			require.Equal(t, tt.expectLastVirtualBatch, s.latestVirtualBatch)
 			require.Equal(t, tt.expectFromStreamBatch, s.fromStreamBatch)
