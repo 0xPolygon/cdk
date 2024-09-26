@@ -58,7 +58,7 @@ generate-code-from-proto: check-protoc
 .PHONY: build
 build: build-rust build-go ## Builds the binaries locally into ./target
 
-.PHONY: build-go
+.PHONY: build-rust
 build-rust:
 	export BUILD_SCRIPT_DISABLED=1 && cargo build --release
 
