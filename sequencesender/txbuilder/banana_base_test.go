@@ -124,6 +124,19 @@ func TestBananaSanityCheckNilSeq(t *testing.T) {
 	require.Error(t, err, "nil sequence")
 }
 
+func TestBananaEmptyL1InfoTree(t *testing.T) {
+	testData := newBananaBaseTestData(t)
+
+	testData.l1Client.On("HeaderByNumber", mock.Anything, mock.Anything).
+		Return(&types.Header{Number: big.NewInt(69)}, nil)
+	testData.l1InfoTreeSync.EXPECT().GetLatestInfoUntilBlock(testData.ctx, uint64(69)).Return(nil, l1infotreesync.ErrNotFound)
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(testData.ctx).Return(&l1infotreesync.L1InfoTreeInitial{LeafCount: 10}, nil)
+
+	leafCounter, err := testData.sut.GetCounterL1InfoRoot(testData.ctx, 0)
+	require.NoError(t, err)
+	require.Equal(t, uint32(10), leafCounter)
+}
+
 type testDataBananaBase struct {
 	rollupContract *mocks_txbuilder.RollupBananaBaseContractor
 	getContract    *mocks_txbuilder.GlobalExitRootBananaContractor
@@ -131,6 +144,7 @@ type testDataBananaBase struct {
 	sut            *txbuilder.TxBuilderBananaBase
 	l1InfoTreeSync *mocks_txbuilder.L1InfoSyncer
 	l1Client       *mocks_txbuilder.L1Client
+	ctx            context.Context
 }
 
 func newBananaBaseTestData(t *testing.T) *testDataBananaBase {
@@ -155,5 +169,6 @@ func newBananaBaseTestData(t *testing.T) *testDataBananaBase {
 		sut:            sut,
 		l1InfoTreeSync: l1InfoSyncer,
 		l1Client:       l1Client,
+		ctx:            context.TODO(),
 	}
 }
