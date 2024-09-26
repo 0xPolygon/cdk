@@ -2,7 +2,6 @@ package sequencesender
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -574,29 +573,51 @@ func Test_getBatchFromRPC(t *testing.T) {
 	tests := []struct {
 		name         string
 		batch        uint64
-		blocks       string
-		data         string
+		resp         string
+		requestErr   error
 		expectBlocks int
 		expectData   string
 		expectErr    error
 	}{
 		{
 			name:         "successfully fetched",
-			blocks:       `["1", "2", "3"]`,
-			data:         "test",
+			resp:         `{"jsonrpc":"2.0","id":1,"result":{"blocks":["1", "2", "3"],"batchL2Data":"test"}}`,
 			batch:        0,
 			expectBlocks: 3,
 			expectData:   "test",
 			expectErr:    nil,
 		},
 		{
-			name:         "wring response",
-			blocks:       `invalid`,
-			data:         "test",
+			name:         "invalid json",
+			resp:         `{"jsonrpc":"2.0","id":1,"result":{"blocks":invalid,"batchL2Data":"test"}}`,
 			batch:        0,
 			expectBlocks: 3,
 			expectData:   "test",
 			expectErr:    errors.New("invalid character 'i' looking for beginning of value"),
+		},
+		{
+			name:         "wrong json",
+			resp:         `{"jsonrpc":"2.0","id":1,"result":{"blocks":"invalid","batchL2Data":"test"}}`,
+			batch:        0,
+			expectBlocks: 3,
+			expectData:   "test",
+			expectErr:    errors.New("error unmarshalling the batch number from the response calling zkevm_getBatchByNumber: json: cannot unmarshal string into Go struct field zkEVMBatch.Blocks of type []string"),
+		},
+		{
+			name:         "error in the response",
+			resp:         `{"jsonrpc":"2.0","id":1,"result":null,"error":{"code":-32602,"message":"Invalid params"}}`,
+			batch:        0,
+			expectBlocks: 0,
+			expectData:   "",
+			expectErr:    errors.New("error in the response calling zkevm_getBatchByNumber: &{-32602 Invalid params <nil>}"),
+		},
+		{
+			name:         "http failed",
+			requestErr:   errors.New("failed to fetch"),
+			batch:        0,
+			expectBlocks: 0,
+			expectData:   "",
+			expectErr:    errors.New("invalid status code, expected: 200, found: 500"),
 		},
 	}
 
@@ -607,7 +628,12 @@ func Test_getBatchFromRPC(t *testing.T) {
 			t.Parallel()
 
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_, _ = w.Write([]byte(fmt.Sprintf(`{"jsonrpc":"2.0","id":1,"result":{"blocks":%s,"batchL2Data":"%s"}}`, tt.blocks, tt.data)))
+				if tt.requestErr != nil {
+					http.Error(w, tt.requestErr.Error(), http.StatusInternalServerError)
+					return
+				}
+
+				_, _ = w.Write([]byte(tt.resp))
 			}))
 			defer srv.Close()
 
