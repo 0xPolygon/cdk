@@ -9,19 +9,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/status-im/keycard-go/hexutils"
-
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/datastream"
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/status-im/keycard-go/hexutils"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -1242,6 +1243,113 @@ func Test_addNewBlockTx(t *testing.T) {
 			require.Equal(t, tt.expectedSequenceData[tt.wipBatch].batchClosed, ss.sequenceData[tt.wipBatch].batchClosed)
 			require.Equal(t, tt.expectedSequenceData[tt.wipBatch].batchType, ss.sequenceData[tt.wipBatch].batchType)
 			require.Equal(t, tt.expectedSequenceData[tt.wipBatch].batch, ss.sequenceData[tt.wipBatch].batch)
+		})
+	}
+}
+
+func Test_handleReceivedDataStream(t *testing.T) {
+	t.Parallel()
+
+	l2Block, err := proto.Marshal(&datastream.L2Block{
+		Number: 2,
+	})
+	require.NoError(t, err)
+
+	prevL2Block, err := proto.Marshal(&datastream.L2Block{
+		Number: 1,
+	})
+	require.NoError(t, err)
+
+	l2Tx := &datastream.Transaction{
+		Encoded:     hexutils.HexToBytes(txStreamEncoded1),
+		ImStateRoot: []byte{1, 2, 3, 5, 6, 7, 8, 9, 0},
+	}
+	l2TxRaw, err := proto.Marshal(l2Tx)
+
+	tests := []struct {
+		name              string
+		entry             *datastreamer.FileEntry
+		prevStreamEntry   *datastreamer.FileEntry
+		fromStreamBatch   uint64
+		latestStreamBatch uint64
+		validStream       bool
+		wipBatch          uint64
+		sequenceData      map[uint64]*sequenceData
+		expectedErr       error
+	}{
+		{
+			name: "successfully handled L2 block",
+			entry: &datastreamer.FileEntry{
+				Type: 2,
+			},
+			prevStreamEntry: &datastreamer.FileEntry{
+				Type: 1,
+			},
+			fromStreamBatch:   1,
+			latestStreamBatch: 2,
+			validStream:       true,
+		},
+		{
+			name: "successfully handled L2 block with the same prev block",
+			entry: &datastreamer.FileEntry{
+				Type: 2,
+				Data: l2Block,
+			},
+			prevStreamEntry: &datastreamer.FileEntry{
+				Type: 2,
+				Data: prevL2Block,
+			},
+			fromStreamBatch:   1,
+			latestStreamBatch: 2,
+			validStream:       true,
+		},
+		{
+			name: "successfully handled transaction",
+			entry: &datastreamer.FileEntry{
+				Type: 3,
+				Data: l2TxRaw,
+			},
+			prevStreamEntry: &datastreamer.FileEntry{
+				Type: 2,
+			},
+			fromStreamBatch:   1,
+			latestStreamBatch: 2,
+			validStream:       true,
+			wipBatch:          2,
+			sequenceData: map[uint64]*sequenceData{
+				2: {
+					batchRaw: &state.BatchRawV2{
+						Blocks: []state.L2BlockRaw{{
+							BlockNumber: 1,
+						}},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := SequenceSender{
+				prevStreamEntry:   tt.prevStreamEntry,
+				fromStreamBatch:   tt.fromStreamBatch,
+				latestStreamBatch: tt.latestStreamBatch,
+				validStream:       tt.validStream,
+				sequenceData:      tt.sequenceData,
+				wipBatch:          tt.wipBatch,
+				logger:            log.GetDefaultLogger(),
+			}
+
+			err := s.handleReceivedDataStream(tt.entry, nil, nil)
+			if tt.expectedErr != nil {
+				require.Equal(t, tt.expectedErr, err)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }
