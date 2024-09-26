@@ -12,8 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
@@ -23,6 +21,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/status-im/keycard-go/hexutils"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -971,6 +970,8 @@ func Test_closeSequenceBatch(t *testing.T) {
 				},
 			},
 			getSanityCheckURL: func(t *testing.T) string {
+				t.Helper()
+
 				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					_, _ = w.Write([]byte(fmt.Sprintf(`{"jsonrpc":"2.0","id":1,"result":{"blocks":["1"],"batchL2Data":"%s"}}`, strings.ToLower(hexutils.BytesToHex(lsData)))))
 				}))
@@ -1026,9 +1027,9 @@ func Test_sendTx(t *testing.T) {
 	oldHash := common.HexToHash("0x2")
 	now := time.Now()
 	getNow = func() time.Time { return now }
-	defer func() {
+	t.Cleanup(func() {
 		getNow = time.Now
-	}()
+	})
 
 	type args struct {
 		resend    bool
@@ -1796,14 +1797,12 @@ func Test_tryToSendSequence(t *testing.T) {
 				t.Helper()
 
 				mngr := NewEthTxMngrMock(t)
-				//mngr.On("ResultsByStatus", mock.Anything, []ethtxmanager.MonitoredTxStatus(nil)).Return(nil, nil)
 				return mngr
 			},
 			getStreamClient: func(t *testing.T) *StreamClientMock {
 				t.Helper()
 
 				mngr := NewStreamClientMock(t)
-				//mngr.On("ExecCommandStartBookmark", mock.Anything).Return(nil)
 				return mngr
 			},
 			getTxBuilder: func(t *testing.T) *TxBuilderMock {
@@ -1852,7 +1851,6 @@ func Test_tryToSendSequence(t *testing.T) {
 				t.Helper()
 
 				mngr := NewStreamClientMock(t)
-				//mngr.On("ExecCommandStartBookmark", mock.Anything).Return(nil)
 				return mngr
 			},
 			getTxBuilder: func(t *testing.T) *TxBuilderMock {
