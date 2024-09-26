@@ -28,6 +28,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var (
+	getNow = time.Now
+)
+
 // EthTxMngr represents the eth tx manager interface
 type EthTxMngr interface {
 	Start()
@@ -266,7 +270,7 @@ func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 	defer s.mutexEthTx.Unlock()
 
 	// Purge old transactions that are finalized
-	timePurge := time.Now().Add(-s.cfg.WaitPeriodPurgeTxFile.Duration)
+	timePurge := getNow().Add(-s.cfg.WaitPeriodPurgeTxFile.Duration)
 	toPurge := make([]common.Hash, 0, len(s.ethTransactions))
 	for hash, data := range s.ethTransactions {
 		if !data.StatusTimestamp.Before(timePurge) {
@@ -357,7 +361,7 @@ func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) error {
 			// No info: from/to batch and the sent timestamp
 			s.ethTransactions[result.ID] = &ethTxData{
 				SentL1Timestamp: time.Time{},
-				StatusTimestamp: time.Now(),
+				StatusTimestamp: getNow(),
 				OnMonitor:       true,
 				Status:          "*missing",
 			}
@@ -404,7 +408,7 @@ func (s *SequenceSender) copyTxData(
 func (s *SequenceSender) updateEthTxResult(txData *ethTxData, txResult ethtxmanager.MonitoredTxResult) {
 	if txData.Status != txResult.Status.String() {
 		s.logger.Infof("update transaction %v to state %s", txResult.ID, txResult.Status.String())
-		txData.StatusTimestamp = time.Now()
+		txData.StatusTimestamp = getNow()
 		stTrans := txData.StatusTimestamp.Format("2006-01-02T15:04:05.000-07:00") + ", " +
 			txData.Status + ", " + txResult.Status.String()
 
@@ -546,7 +550,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Sanity check: Wait also until current time is L1BlockTimestampMargin seconds above the
 	// timestamp of the last L2 block in the sequence
 	for {
-		currentTime := uint64(time.Now().Unix())
+		currentTime := uint64(getNow().Unix())
 
 		elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, currentTime, timeMargin)
 
@@ -654,8 +658,8 @@ func (s *SequenceSender) sendTx(
 
 	// Add new eth tx
 	txData := ethTxData{
-		SentL1Timestamp: time.Now(),
-		StatusTimestamp: time.Now(),
+		SentL1Timestamp: getNow(),
+		StatusTimestamp: getNow(),
 		Status:          "*new",
 		FromBatch:       valueFromBatch,
 		ToBatch:         valueToBatch,
@@ -755,7 +759,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 		return nil, nil
 	}
 
-	if s.latestVirtualTime.Before(time.Now().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
+	if s.latestVirtualTime.Before(getNow().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
 		s.logger.Infof("sequence should be sent, too much time without sending anything to L1")
 		return s.TxBuilder.NewSequence(ctx, sequenceBatches, s.cfg.L2Coinbase)
 	}
@@ -833,7 +837,7 @@ func (s *SequenceSender) saveSentSequencesTransactions(ctx context.Context) erro
 
 // handleReceivedDataStream manages the events received by the streaming
 func (s *SequenceSender) handleReceivedDataStream(
-	entry *datastreamer.FileEntry, client *datastreamer.StreamClient, server *datastreamer.StreamServer,
+	entry *datastreamer.FileEntry, _ *datastreamer.StreamClient, _ *datastreamer.StreamServer,
 ) error {
 	dsType := datastream.EntryType(entry.Type)
 

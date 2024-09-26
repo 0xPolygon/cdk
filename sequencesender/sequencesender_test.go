@@ -3,6 +3,7 @@ package sequencesender
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -912,6 +913,131 @@ func Test_closeSequenceBatch(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedSequenceData, ss.sequenceData)
+			}
+		})
+	}
+}
+
+func Test_sendTx(t *testing.T) {
+	t.Parallel()
+
+	addr := common.BytesToAddress([]byte{1, 2, 3})
+	hash := common.HexToHash("0x1")
+	now := time.Now()
+
+	type args struct {
+		resend    bool
+		txOldHash *common.Hash
+		to        *common.Address
+		fromBatch uint64
+		toBatch   uint64
+		data      []byte
+		gas       uint64
+	}
+
+	type state struct {
+		currentNonce        uint64
+		ethTxData           map[common.Hash][]byte
+		ethTransactions     map[common.Hash]*ethTxData
+		latestSentToL1Batch uint64
+	}
+
+	tests := []struct {
+		name            string
+		args            args
+		state           state
+		getEthTxManager func(t *testing.T) *EthTxMngrMock
+		expectedState   state
+		expectedErr     error
+	}{
+		{
+			name: "successfully sent",
+			args: args{
+				resend:    false,
+				txOldHash: nil,
+				to:        &addr,
+				fromBatch: 1,
+				toBatch:   2,
+				data:      []byte("test"),
+				gas:       100500,
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				mngr := NewEthTxMngrMock(t)
+				nonce := uint64(10)
+				mngr.On("AddWithGas", mock.Anything, &addr, &nonce, big.NewInt(0), []byte("test"), uint64(0), mock.Anything, uint64(100500)).Return(hash, nil)
+				mngr.On("Result", mock.Anything, hash).Return(ethtxmanager.MonitoredTxResult{
+					ID:   hash,
+					Data: []byte{1, 2, 3},
+				}, nil)
+				return mngr
+			},
+			state: state{
+				currentNonce: 10,
+				ethTxData: map[common.Hash][]byte{
+					hash: {},
+				},
+				ethTransactions: map[common.Hash]*ethTxData{
+					hash: {},
+				},
+				latestSentToL1Batch: 0,
+			},
+			expectedState: state{
+				currentNonce: 11,
+				ethTxData: map[common.Hash][]byte{
+					hash: {1, 2, 3},
+				},
+				ethTransactions: map[common.Hash]*ethTxData{
+					hash: {
+						SentL1Timestamp: now,
+						StatusTimestamp: now,
+						FromBatch:       1,
+						ToBatch:         2,
+						OnMonitor:       true,
+						To:              addr,
+						Gas:             100500,
+						StateHistory:    []string{now.Format("2006-01-02T15:04:05.000-07:00") + ", *new, "},
+						Txs:             map[common.Hash]ethTxAdditionalData{},
+					},
+				},
+				latestSentToL1Batch: 2,
+			},
+			expectedErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmpFile, err := os.CreateTemp(os.TempDir(), tt.name)
+			require.NoError(t, err)
+			defer os.RemoveAll(tmpFile.Name() + ".tmp")
+
+			ss := SequenceSender{
+				currentNonce:        tt.state.currentNonce,
+				ethTxData:           tt.state.ethTxData,
+				ethTransactions:     tt.state.ethTransactions,
+				ethTxManager:        tt.getEthTxManager(t),
+				latestSentToL1Batch: tt.state.latestSentToL1Batch,
+				cfg: Config{
+					SequencesTxFileName: tmpFile.Name() + ".tmp",
+				},
+				logger: log.GetDefaultLogger(),
+			}
+
+			getNow = func() time.Time { return now }
+			err = ss.sendTx(context.Background(), tt.args.resend, tt.args.txOldHash, tt.args.to, tt.args.fromBatch, tt.args.toBatch, tt.args.data, tt.args.gas)
+			getNow = time.Now
+			if tt.expectedErr != nil {
+				require.Equal(t, tt.expectedErr, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedState.currentNonce, ss.currentNonce)
+				require.Equal(t, tt.expectedState.ethTxData, ss.ethTxData)
+				require.Equal(t, tt.expectedState.ethTransactions, ss.ethTransactions)
+				require.Equal(t, tt.expectedState.latestSentToL1Batch, ss.latestSentToL1Batch)
 			}
 		})
 	}
