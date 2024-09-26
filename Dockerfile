@@ -9,7 +9,7 @@ RUN go mod download
 
 # BUILD BINARY
 COPY . .
-RUN make build
+RUN make build-go
 
 # BUILD RUST BIN
 FROM --platform=${BUILDPLATFORM} rust:slim-bullseye AS chef
