@@ -716,17 +716,9 @@ func Test_addNewBatchL2Block(t *testing.T) {
 				Number:          34,
 				BatchNumber:     1,
 				Timestamp:       uint64(123),
-				DeltaTimestamp:  0,
-				MinTimestamp:    0,
-				L1Blockhash:     nil,
 				L1InfotreeIndex: 14,
 				Hash:            []byte{123, 123, 123},
-				StateRoot:       nil,
-				GlobalExitRoot:  nil,
 				Coinbase:        []byte{5, 6, 7},
-				BlockGasLimit:   0,
-				BlockInfoRoot:   nil,
-				Debug:           nil,
 			},
 			sequenceData: map[uint64]*sequenceData{
 				1: {
@@ -1586,6 +1578,64 @@ func Test_handleReceivedDataStream(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "stream is not valid",
+			entry: &datastreamer.FileEntry{
+				Type: 1,
+			},
+			prevStreamEntry: &datastreamer.FileEntry{
+				Type: 2,
+			},
+			validStream: false,
+		},
+		{
+			name: "invalid batch end raw 1",
+			entry: &datastreamer.FileEntry{
+				Type: 1,
+				Data: []byte("invalid"),
+			},
+			prevStreamEntry: &datastreamer.FileEntry{
+				Type: 2,
+			},
+			validStream: true,
+			expectedErr: errors.New("cannot parse invalid wire-format data"),
+		},
+		{
+			name: "invalid batch end raw 2",
+			entry: &datastreamer.FileEntry{
+				Type: 2,
+				Data: []byte("invalid"),
+			},
+			prevStreamEntry: &datastreamer.FileEntry{
+				Type: 2,
+			},
+			validStream: true,
+			expectedErr: errors.New("cannot parse invalid wire-format data"),
+		},
+		{
+			name: "invalid batch end raw 3",
+			entry: &datastreamer.FileEntry{
+				Type: 3,
+				Data: []byte("invalid"),
+			},
+			prevStreamEntry: &datastreamer.FileEntry{
+				Type: 2,
+			},
+			validStream: true,
+			expectedErr: errors.New("cannot parse invalid wire-format data"),
+		},
+		{
+			name: "invalid batch end raw 4",
+			entry: &datastreamer.FileEntry{
+				Type: 4,
+				Data: []byte("invalid"),
+			},
+			prevStreamEntry: &datastreamer.FileEntry{
+				Type: 2,
+			},
+			validStream: true,
+			expectedErr: errors.New("cannot parse invalid wire-format data"),
+		},
 	}
 
 	for _, tt := range tests {
@@ -1606,7 +1656,7 @@ func Test_handleReceivedDataStream(t *testing.T) {
 
 			err := s.handleReceivedDataStream(tt.entry, nil, nil)
 			if tt.expectedErr != nil {
-				require.Equal(t, tt.expectedErr, err)
+				require.Contains(t, err.Error(), tt.expectedErr.Error())
 			} else {
 				require.NoError(t, err)
 			}
@@ -2210,6 +2260,48 @@ func Test_getSequencesToSend(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedSequence, sequence)
 			}
+		})
+	}
+}
+
+func Test_getWipL2Block(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name               string
+		wipBlock           uint64
+		sequenceData       map[uint64]*sequenceData
+		expectedBlockIndex uint64
+		expectedBlock      *state.L2BlockRaw
+	}{
+		{
+			name:     "zero blocks",
+			wipBlock: 1,
+			sequenceData: map[uint64]*sequenceData{
+				1: {
+					batchRaw: &state.BatchRawV2{},
+				},
+			},
+			expectedBlockIndex: 0,
+			expectedBlock:      nil,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ss := SequenceSender{
+				wipBatch:     tt.wipBlock,
+				sequenceData: tt.sequenceData,
+				logger:       log.GetDefaultLogger(),
+			}
+
+			blockIndex, block := ss.getWipL2Block()
+			require.Equal(t, tt.expectedBlockIndex, blockIndex)
+			require.Equal(t, tt.expectedBlock, block)
 		})
 	}
 }
