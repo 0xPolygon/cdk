@@ -1238,7 +1238,7 @@ func (s *SequenceSender) addNewBlockTx(l2Tx *datastream.Transaction) {
 }
 
 // getWipL2Block returns index of the array and pointer to the current L2 block (helper func)
-func (s *SequenceSender) getWipL2Block() (uint64, *state.L2BlockRaw) { //nolint:unparam
+func (s *SequenceSender) getWipL2Block() (uint64, *state.L2BlockRaw) {
 	// Current batch
 	var wipBatchRaw *state.BatchRawV2
 	if s.sequenceData[s.wipBatch] != nil {
