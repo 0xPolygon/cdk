@@ -1468,3 +1468,76 @@ func Test_loadSentSequencesTransactions(t *testing.T) {
 		})
 	}
 }
+
+func Test_Start(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		getEthTxManager func(t *testing.T) *EthTxMngrMock
+		getEtherman     func(t *testing.T) *EthermanMock
+		getStreamClient func(t *testing.T) *StreamClientMock
+
+		expectNonce               uint64
+		expectLastVirtualBatch    uint64
+		expectFromStreamBatch     uint64
+		expectWipBatch            uint64
+		expectLatestSentToL1Batch uint64
+	}{
+		{
+			name: "successfully started",
+			getEtherman: func(t *testing.T) *EthermanMock {
+				mngr := NewEthermanMock(t)
+				mngr.On("CurrentNonce", mock.Anything, mock.Anything).Return(uint64(3), nil)
+				mngr.On("GetLatestBatchNumber").Return(uint64(1), nil)
+				return mngr
+			},
+			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				mngr := NewEthTxMngrMock(t)
+				mngr.On("Start").Return(nil)
+				mngr.On("ResultsByStatus", mock.Anything, []ethtxmanager.MonitoredTxStatus(nil)).Return(nil, nil)
+				return mngr
+			},
+			getStreamClient: func(t *testing.T) *StreamClientMock {
+				mngr := NewStreamClientMock(t)
+				mngr.On("Start").Return(nil)
+				mngr.On("ExecCommandStartBookmark", mock.Anything).Return(nil)
+				return mngr
+			},
+			expectNonce:               3,
+			expectLastVirtualBatch:    1,
+			expectFromStreamBatch:     1,
+			expectWipBatch:            2,
+			expectLatestSentToL1Batch: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmpFile, err := os.CreateTemp(os.TempDir(), tt.name+".tmp")
+			require.NoError(t, err)
+			defer os.RemoveAll(tmpFile.Name() + ".tmp")
+
+			s := SequenceSender{
+				etherman:     tt.getEtherman(t),
+				ethTxManager: tt.getEthTxManager(t),
+				streamClient: tt.getStreamClient(t),
+				cfg: Config{
+					SequencesTxFileName: tmpFile.Name() + ".tmp",
+				},
+				logger: log.GetDefaultLogger(),
+			}
+
+			s.Start(context.Background())
+			require.Equal(t, tt.expectNonce, s.currentNonce)
+			require.Equal(t, tt.expectLastVirtualBatch, s.latestVirtualBatch)
+			require.Equal(t, tt.expectFromStreamBatch, s.fromStreamBatch)
+			require.Equal(t, tt.expectWipBatch, s.wipBatch)
+			require.Equal(t, tt.expectLatestSentToL1Batch, s.latestSentToL1Batch)
+		})
+	}
+}

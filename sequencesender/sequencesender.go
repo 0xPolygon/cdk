@@ -47,6 +47,13 @@ type Etherman interface {
 	GetLatestBatchNumber() (uint64, error)
 }
 
+// StreamClient represents the stream client behaviour
+type StreamClient interface {
+	Start() error
+	ExecCommandStartBookmark(bookmark []byte) error
+	SetProcessEntryFunc(f datastreamer.ProcessEntryFunc)
+}
+
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
 	cfg                    Config
@@ -71,7 +78,7 @@ type SequenceSender struct {
 	latestStreamBatch      uint64                     // Latest batch received by the streaming
 	seqSendingStopped      bool                       // If there is a critical error
 	prevStreamEntry        *datastreamer.FileEntry
-	streamClient           *datastreamer.StreamClient
+	streamClient           StreamClient
 	TxBuilder              txbuilder.TxBuilder
 	latestVirtualBatchLock sync.Mutex
 }

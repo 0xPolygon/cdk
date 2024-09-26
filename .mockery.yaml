@@ -12,6 +12,9 @@ packages:
       Etherman:
         config:
           filename: etherman_mock_test.go
+      StreamClient:
+        config:
+          filename: streamclient_mock_test.go
   github.com/0xPolygon/cdk/sequencesender/txbuilder:
     config:
       dir: ./sequencesender
