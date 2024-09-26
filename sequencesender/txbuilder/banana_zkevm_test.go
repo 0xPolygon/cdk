@@ -40,6 +40,8 @@ func TestBananaZkevmBuildSequenceBatchesTxOk(t *testing.T) {
 		Return(&types.Header{Number: big.NewInt(69)}, nil)
 	testData.l1InfoTreeSync.On("GetLatestInfoUntilBlock", mock.Anything, mock.Anything).
 		Return(&l1infotreesync.L1InfoTreeLeaf{L1InfoTreeIndex: 7}, nil)
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, l1infotreesync.ErrNotFound)
+
 	seq, err := newSequenceBananaZKEVMForTest(testData)
 	require.NoError(t, err)
 
@@ -61,6 +63,8 @@ func TestBananaZkevmBuildSequenceBatchesTxErr(t *testing.T) {
 		Return(&types.Header{Number: big.NewInt(69)}, nil)
 	testData.l1InfoTreeSync.On("GetLatestInfoUntilBlock", mock.Anything, mock.Anything).
 		Return(&l1infotreesync.L1InfoTreeLeaf{L1InfoTreeIndex: 7}, nil)
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, l1infotreesync.ErrNotFound)
+
 	seq, err := newSequenceBananaZKEVMForTest(testData)
 	require.NoError(t, err)
 
