@@ -49,12 +49,12 @@ generate-mocks-sync: ## Generates mocks for sync, using mockery tool
 .PHONY: test-e2e-elderberry-validium
 test-e2e-elderberry-validium: stop ## Runs e2e tests checking elderberry/validium
 	./run-e2e.sh cdk-validium
-	bats . || kurtosis service logs --all cdk-v1 cdk-node-001 && false
+	bats .
 
 .PHONY: test-e2e-elderberry-rollup
 test-e2e-elderberry-rollup: stop ## Runs e2e tests checking elderberry/rollup
 	./run-e2e.sh rollup
-	bats . || kurtosis service logs --all cdk-v1 cdk-node-001 && false
+	bats .
 
 .PHONY: stop
 stop:

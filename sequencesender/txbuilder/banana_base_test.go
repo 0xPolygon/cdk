@@ -140,6 +140,28 @@ func TestBananaEmptyL1InfoTree(t *testing.T) {
 	require.Equal(t, uint32(10), leafCounter)
 }
 
+func TestCheckL1InfoTreeLeafCounterVsInitL1InfoMap(t *testing.T) {
+	testData := newBananaBaseTestData(t)
+
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(testData.ctx).Return(&l1infotreesync.L1InfoTreeInitial{LeafCount: 10}, nil)
+	err := testData.sut.CheckL1InfoTreeLeafCounterVsInitL1InfoMap(testData.ctx, 10)
+	require.NoError(t, err, "10 == 10 so is accepted")
+
+	err = testData.sut.CheckL1InfoTreeLeafCounterVsInitL1InfoMap(testData.ctx, 9)
+	require.Error(t, err, "9 < 10 so is rejected")
+
+	err = testData.sut.CheckL1InfoTreeLeafCounterVsInitL1InfoMap(testData.ctx, 11)
+	require.NoError(t, err, "11 > 10 so is accepted")
+}
+
+func TestCheckL1InfoTreeLeafCounterVsInitL1InfoMapNotFound(t *testing.T) {
+	testData := newBananaBaseTestData(t)
+
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(testData.ctx).Return(nil, nil)
+	err := testData.sut.CheckL1InfoTreeLeafCounterVsInitL1InfoMap(testData.ctx, 10)
+	require.NoError(t, err, "10 == 10 so is accepted")
+}
+
 type testDataBananaBase struct {
 	rollupContract *mocks_txbuilder.RollupBananaBaseContractor
 	getContract    *mocks_txbuilder.GlobalExitRootBananaContractor

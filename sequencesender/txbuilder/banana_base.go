@@ -101,7 +101,7 @@ func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL
 	if errors.Is(err, l1infotreesync.ErrNotFound) {
 		// There are no L1 Info tree leaves yet, so we can try to use L1InfoRootMap event
 		l1infotreeInitial, err := t.l1InfoTree.GetInitL1InfoRootMap(ctx)
-		if err != nil {
+		if l1infotreeInitial == nil || err != nil {
 			return 0, fmt.Errorf("error no leaves on L1InfoTree yet and GetInitL1InfoRootMap fails: %w", err)
 		}
 		// We use this leaf as first one
@@ -126,12 +126,12 @@ func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL
 
 func (t *TxBuilderBananaBase) CheckL1InfoTreeLeafCounterVsInitL1InfoMap(ctx context.Context, leafCounter uint32) error {
 	l1infotreeInitial, err := t.l1InfoTree.GetInitL1InfoRootMap(ctx)
-	if errors.Is(err, l1infotreesync.ErrNotFound) {
-		log.Warnf("No InitL1InfoRootMap found, skipping check")
-		return nil
-	}
 	if err != nil {
 		return fmt.Errorf("l1InfoTree.GetInitL1InfoRootMap fails: %w", err)
+	}
+	if l1infotreeInitial == nil {
+		log.Warnf("No InitL1InfoRootMap found, skipping check")
+		return nil
 	}
 	if leafCounter < l1infotreeInitial.LeafCount {
 		return fmt.Errorf("cant use this leafCounter because is previous to first value on contract Map"+
