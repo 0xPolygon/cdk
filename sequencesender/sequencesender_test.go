@@ -288,9 +288,11 @@ func Test_purgeEthTransactions(t *testing.T) {
 				},
 			},
 			ethTxData: map[common.Hash][]byte{
-				common.HexToHash("0x1"): []byte{1, 2, 3},
+				common.HexToHash("0x1"): {1, 2, 3},
 			},
 			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
 				return NewEthTxMngrMock(t)
 			},
 			sequenceList: []uint64{1, 2},
@@ -302,7 +304,7 @@ func Test_purgeEthTransactions(t *testing.T) {
 				},
 			},
 			expectedEthTxData: map[common.Hash][]byte{
-				common.HexToHash("0x1"): []byte{1, 2, 3},
+				common.HexToHash("0x1"): {1, 2, 3},
 			},
 		},
 		{
@@ -318,10 +320,12 @@ func Test_purgeEthTransactions(t *testing.T) {
 				},
 			},
 			ethTxData: map[common.Hash][]byte{
-				common.HexToHash("0x1"): []byte{1, 2, 3},
-				common.HexToHash("0x2"): []byte{4, 5, 6},
+				common.HexToHash("0x1"): {1, 2, 3},
+				common.HexToHash("0x2"): {4, 5, 6},
 			},
 			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
 				mngr := NewEthTxMngrMock(t)
 				mngr.On("Remove", mock.Anything, common.HexToHash("0x1")).Return(nil)
 				return mngr
@@ -333,7 +337,7 @@ func Test_purgeEthTransactions(t *testing.T) {
 				},
 			},
 			expectedEthTxData: map[common.Hash][]byte{
-				common.HexToHash("0x2"): []byte{4, 5, 6},
+				common.HexToHash("0x2"): {4, 5, 6},
 			},
 		},
 	}
@@ -383,6 +387,8 @@ func Test_syncEthTxResults(t *testing.T) {
 				},
 			},
 			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
 				mngr := NewEthTxMngrMock(t)
 				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxmanager.MonitoredTxResult{
 					ID:   common.HexToHash("0x1"),
@@ -450,6 +456,8 @@ func Test_syncAllEthTxResults(t *testing.T) {
 				},
 			},
 			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
 				mngr := NewEthTxMngrMock(t)
 				mngr.On("ResultsByStatus", mock.Anything, []ethtxmanager.MonitoredTxStatus(nil)).Return([]ethtxmanager.MonitoredTxResult{
 					{
@@ -465,6 +473,8 @@ func Test_syncAllEthTxResults(t *testing.T) {
 			name:            "successfully synced with missing tx",
 			ethTransactions: map[common.Hash]*ethTxData{},
 			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
 				mngr := NewEthTxMngrMock(t)
 				mngr.On("ResultsByStatus", mock.Anything, []ethtxmanager.MonitoredTxStatus(nil)).Return([]ethtxmanager.MonitoredTxResult{
 					{
@@ -534,13 +544,13 @@ func Test_copyTxData(t *testing.T) {
 				common.HexToHash("0x1"): {},
 			},
 			ethTxData: map[common.Hash][]byte{
-				common.HexToHash("0x1"): []byte{0, 2, 3},
+				common.HexToHash("0x1"): {0, 2, 3},
 			},
 			ethTransactions: map[common.Hash]*ethTxData{
 				common.HexToHash("0x1"): {},
 			},
 			expectedRthTxData: map[common.Hash][]byte{
-				common.HexToHash("0x1"): []byte{1, 2, 3},
+				common.HexToHash("0x1"): {1, 2, 3},
 			},
 			expectedEthTransactions: map[common.Hash]*ethTxData{
 				common.HexToHash("0x1"): {
@@ -736,6 +746,8 @@ func Test_addNewBatchL2Block(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			ss := SequenceSender{
 				wipBatch:     tt.wipBatch,
 				sequenceData: tt.sequenceData,
@@ -802,6 +814,8 @@ func Test_addInfoSequenceBatchStart(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			ss := SequenceSender{
 				sequenceData: tt.sequenceData,
 				wipBatch:     tt.wipBatch,
@@ -839,6 +853,8 @@ func Test_addNewSequenceBatch(t *testing.T) {
 				1: {},
 			},
 			getTxBuilder: func(t *testing.T) *TxBuilderMock {
+				t.Helper()
+
 				mngr := NewTxBuilderMock(t)
 				mngr.On("NewBatchFromL2Block", mock.Anything).Return(txbuilder.NewBananaBatch(&etherman.Batch{
 					BatchNumber: 2,
@@ -863,6 +879,8 @@ func Test_addNewSequenceBatch(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			ss := SequenceSender{
 				sequenceData: tt.sequenceData,
 				wipBatch:     tt.wipBatch,
@@ -991,6 +1009,8 @@ func Test_sendTx(t *testing.T) {
 				gas:       100500,
 			},
 			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
 				mngr := NewEthTxMngrMock(t)
 				nonce := uint64(10)
 				mngr.On("AddWithGas", mock.Anything, &addr, &nonce, big.NewInt(0), []byte("test"), uint64(0), mock.Anything, uint64(100500)).Return(hash, nil)
@@ -1073,6 +1093,8 @@ func Test_sendTx(t *testing.T) {
 }
 
 func Test_entryTypeToString(t *testing.T) {
+	t.Parallel()
+
 	type args struct {
 		entryType datastream.EntryType
 	}
@@ -1118,7 +1140,11 @@ func Test_entryTypeToString(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := entryTypeToString(tt.args.entryType)
 			require.Equal(t, tt.want, got)
 		})
@@ -1138,6 +1164,8 @@ func Test_updateLatestVirtualBatch(t *testing.T) {
 		{
 			name: "successfully updated",
 			getEtherman: func(t *testing.T) *EthermanMock {
+				t.Helper()
+
 				mngr := NewEthermanMock(t)
 				mngr.On("GetLatestBatchNumber").Return(uint64(3), nil)
 				return mngr
@@ -1147,6 +1175,8 @@ func Test_updateLatestVirtualBatch(t *testing.T) {
 		{
 			name: "etherman returns error",
 			getEtherman: func(t *testing.T) *EthermanMock {
+				t.Helper()
+
 				mngr := NewEthermanMock(t)
 				mngr.On("GetLatestBatchNumber").Return(uint64(0), errors.New("test error"))
 				return mngr
@@ -1159,6 +1189,8 @@ func Test_updateLatestVirtualBatch(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			ss := SequenceSender{
 				etherman:           tt.getEtherman(t),
 				latestVirtualBatch: tt.latestVirtualBatch,
@@ -1234,6 +1266,8 @@ func Test_addNewBlockTx(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			ss := SequenceSender{
 				wipBatch:     tt.wipBatch,
 				sequenceData: tt.sequenceData,
@@ -1420,6 +1454,8 @@ func Test_loadSentSequencesTransactions(t *testing.T) {
 		{
 			name: "successfully loaded",
 			getFilename: func(t *testing.T) string {
+				t.Helper()
+
 				tmpFile, err := os.CreateTemp(os.TempDir(), "test")
 				require.NoError(t, err)
 
@@ -1487,18 +1523,24 @@ func Test_Start(t *testing.T) {
 		{
 			name: "successfully started",
 			getEtherman: func(t *testing.T) *EthermanMock {
+				t.Helper()
+
 				mngr := NewEthermanMock(t)
 				mngr.On("CurrentNonce", mock.Anything, mock.Anything).Return(uint64(3), nil)
 				mngr.On("GetLatestBatchNumber").Return(uint64(1), nil)
 				return mngr
 			},
 			getEthTxManager: func(t *testing.T) *EthTxMngrMock {
+				t.Helper()
+
 				mngr := NewEthTxMngrMock(t)
 				mngr.On("Start").Return(nil)
 				mngr.On("ResultsByStatus", mock.Anything, []ethtxmanager.MonitoredTxStatus(nil)).Return(nil, nil)
 				return mngr
 			},
 			getStreamClient: func(t *testing.T) *StreamClientMock {
+				t.Helper()
+
 				mngr := NewStreamClientMock(t)
 				mngr.On("Start").Return(nil)
 				mngr.On("ExecCommandStartBookmark", mock.Anything).Return(nil)

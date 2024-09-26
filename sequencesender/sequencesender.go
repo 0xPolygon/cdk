@@ -33,7 +33,15 @@ var (
 // EthTxMngr represents the eth tx manager interface
 type EthTxMngr interface {
 	Start()
-	AddWithGas(ctx context.Context, to *common.Address, forcedNonce *uint64, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar, gas uint64) (common.Hash, error)
+	AddWithGas(
+		ctx context.Context,
+		to *common.Address,
+		forcedNonce *uint64,
+		value *big.Int,
+		data []byte,
+		gasOffset uint64,
+		sidecar *types.BlobTxSidecar,
+		gas uint64) (common.Hash, error)
 	Remove(ctx context.Context, hash common.Hash) error
 	ResultsByStatus(ctx context.Context, status []ethtxmanager.MonitoredTxStatus) ([]ethtxmanager.MonitoredTxResult, error)
 	Result(ctx context.Context, hash common.Hash) (ethtxmanager.MonitoredTxResult, error)
