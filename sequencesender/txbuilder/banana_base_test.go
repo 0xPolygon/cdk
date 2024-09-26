@@ -31,7 +31,7 @@ func TestBananaBaseNewSequenceEmpty(t *testing.T) {
 		Return(&l1infotreesync.L1InfoTreeLeaf{L1InfoTreeIndex: 69}, nil)
 	lastAcc := common.HexToHash("0x8aca9664752dbae36135fd0956c956fc4a370feeac67485b49bcd4b99608ae41")
 	testData.rollupContract.EXPECT().LastAccInputHash(mock.Anything).Return(lastAcc, nil)
-	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, l1infotreesync.ErrNotFound)
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, nil)
 	seq, err := testData.sut.NewSequence(context.TODO(), nil, common.Address{})
 	require.NotNil(t, seq)
 	require.NoError(t, err)
@@ -75,7 +75,7 @@ func TestBananaBaseNewSequenceBatch(t *testing.T) {
 		Coinbase:        []byte{1, 2, 3},
 		GlobalExitRoot:  []byte{4, 5, 6},
 	}
-	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, l1infotreesync.ErrNotFound).Once()
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, nil).Once()
 
 	batch := testData.sut.NewBatchFromL2Block(l2Block)
 	batches := []seqsendertypes.Batch{batch}
