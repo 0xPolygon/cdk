@@ -34,9 +34,24 @@ func (rd *ReorgDetector) Subscribe(id string) (*Subscription, error) {
 func (rd *ReorgDetector) notifySubscriber(id string, startingBlock header) {
 	// Notify subscriber about this particular reorg
 	rd.subscriptionsLock.RLock()
-	if sub, ok := rd.subscriptions[id]; ok {
+	sub, ok := rd.subscriptions[id]
+	rd.subscriptionsLock.RUnlock()
+
+	if ok {
 		sub.ReorgedBlock <- startingBlock.Num
 		<-sub.ReorgProcessed
 	}
-	rd.subscriptionsLock.RUnlock()
+}
+
+// getSubscriberIDs returns a list of subscriber IDs
+func (rd *ReorgDetector) getSubscriberIDs() []string {
+	rd.subscriptionsLock.RLock()
+	defer rd.subscriptionsLock.RUnlock()
+
+	ids := make([]string, 0, len(rd.subscriptions))
+	for id := range rd.subscriptions {
+		ids = append(ids, id)
+	}
+
+	return ids
 }

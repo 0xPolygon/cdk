@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/test/contracts/claimmock"
 	"github.com/0xPolygon/cdk/test/contracts/claimmockcaller"
+	tree "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -52,11 +53,11 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 
 	proofLocal := [32][32]byte{}
-	proofLocalH := [32]common.Hash{}
+	proofLocalH := tree.Proof{}
 	proofLocal[5] = common.HexToHash("beef")
 	proofLocalH[5] = common.HexToHash("beef")
 	proofRollup := [32][32]byte{}
-	proofRollupH := [32]common.Hash{}
+	proofRollupH := tree.Proof{}
 	proofRollup[4] = common.HexToHash("a1fa")
 	proofRollupH[4] = common.HexToHash("a1fa")
 	expectedClaim := Claim{

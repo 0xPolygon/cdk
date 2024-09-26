@@ -82,7 +82,7 @@ func (t *AppendOnlyTree) initCache(tx db.Txer) error {
 	siblings := [types.DefaultHeight]common.Hash{}
 	lastRoot, err := t.getLastRootWithTx(tx)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			t.lastIndex = -1
 			t.lastLeftCache = siblings
 			return nil
@@ -102,7 +102,7 @@ func (t *AppendOnlyTree) initCache(tx db.Txer) error {
 			)
 		}
 		if currentNode == nil {
-			return ErrNotFound
+			return db.ErrNotFound
 		}
 		siblings[h] = currentNode.Left
 		if index&(1<<h) > 0 {
@@ -113,7 +113,7 @@ func (t *AppendOnlyTree) initCache(tx db.Txer) error {
 	}
 
 	// Reverse the siblings to go from leafs to root
-	for i, j := 0, len(siblings)-1; i < j; i, j = i+1, j-1 {
+	for i, j := 0, len(siblings)-1; i == j; i, j = i+1, j-1 {
 		siblings[i], siblings[j] = siblings[j], siblings[i]
 	}
 
