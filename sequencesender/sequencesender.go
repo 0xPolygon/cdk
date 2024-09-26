@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
@@ -1261,13 +1262,15 @@ func (s *SequenceSender) updateLatestVirtualBatch() error {
 	// Get latest virtual state batch from L1
 	var err error
 
-	s.latestVirtualBatch, err = s.etherman.GetLatestBatchNumber()
+	latestVirtualBatch, err := s.etherman.GetLatestBatchNumber()
 	if err != nil {
 		s.logger.Errorf("error getting latest virtual batch, error: %v", err)
 		return errors.New("fail to get latest virtual batch")
-	} else {
-		s.logger.Infof("latest virtual batch is %d", s.latestVirtualBatch)
 	}
+
+	s.logger.Infof("latest virtual batch is %d", s.latestVirtualBatch)
+	atomic.StoreUint64(&s.latestVirtualBatch, latestVirtualBatch)
+
 	return nil
 }
 

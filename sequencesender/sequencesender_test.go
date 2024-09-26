@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1817,7 +1818,7 @@ func Test_Start(t *testing.T) {
 			time.Sleep(time.Second)
 
 			require.Equal(t, tt.expectNonce, s.currentNonce)
-			require.Equal(t, tt.expectLastVirtualBatch, s.latestVirtualBatch)
+			require.Equal(t, tt.expectLastVirtualBatch, atomic.LoadUint64(&s.latestVirtualBatch))
 			require.Equal(t, tt.expectFromStreamBatch, s.fromStreamBatch)
 			require.Equal(t, tt.expectWipBatch, s.wipBatch)
 			require.Equal(t, tt.expectLatestSentToL1Batch, s.latestSentToL1Batch)
