@@ -56,9 +56,11 @@ install-linter: check-go check-curl
 generate-code-from-proto: check-protoc
 
 .PHONY: build
-build: ## Builds the binaries locally into ./target
+build: build-rust build-go ## Builds the binaries locally into ./target
+
+.PHONY: build-go
+build-rust:
 	export BUILD_SCRIPT_DISABLED=1 && cargo build --release
-	$(MAKE) build-go
 
 .PHONY: build-go
 build-go:
