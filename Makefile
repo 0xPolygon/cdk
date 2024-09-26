@@ -56,7 +56,12 @@ install-linter: check-go check-curl
 generate-code-from-proto: check-protoc
 
 .PHONY: build
-build: ## Builds the binary locally into ./dist
+build: ## Builds the binaries locally into ./target
+	export BUILD_SCRIPT_DISABLED=1 && cargo build --release
+	$(MAKE) build-go
+
+.PHONY: build-go
+build-go:
 	$(GOENVVARS) go build -ldflags "all=$(LDFLAGS)" -o $(GOBIN)/$(GOBINARY) $(GOCMD)
 
 .PHONY: build-docker

@@ -33,19 +33,21 @@ Setup Kurtosis following this instructions https://github.com/0xPolygon/kurtosis
 
 ### Build locally
 
-You can locally build CDK CLI + cdk-node with:
+You can locally build a production release of CDK CLI + cdk-node with:
 
 ```
-cargo build
+make build
 ```
 
-Or build and run with:
+### Run locally
+
+You can build and run a debug release locally using:
 
 ```
 cargo run
 ```
 
-You will need to provide the necessary parameters.
+It will build and run both binaries. You will need to provide the necessary parameters.
 
 ## Contributing
 
