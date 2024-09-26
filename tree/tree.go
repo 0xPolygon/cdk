@@ -14,8 +14,7 @@ import (
 )
 
 var (
-	EmptyProof  = types.Proof{}
-	ErrNotFound = errors.New("not found")
+	EmptyProof = types.Proof{}
 )
 
 type Tree struct {
@@ -50,7 +49,7 @@ func newTree(db *sql.DB, tablePrefix string) *Tree {
 }
 
 func (t *Tree) getSiblings(tx db.Querier, index uint32, root common.Hash) (
-	siblings [32]common.Hash,
+	siblings types.Proof,
 	hasUsedZeroHashes bool,
 	err error,
 ) {
@@ -60,7 +59,7 @@ func (t *Tree) getSiblings(tx db.Querier, index uint32, root common.Hash) (
 		var currentNode *types.TreeNode
 		currentNode, err = t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
-			if errors.Is(err, ErrNotFound) {
+			if errors.Is(err, db.ErrNotFound) {
 				hasUsedZeroHashes = true
 				siblings[h] = t.zeroHashes[h]
 				err = nil
@@ -113,7 +112,7 @@ func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) (ty
 		return types.Proof{}, err
 	}
 	if isErrNotFound {
-		return types.Proof{}, ErrNotFound
+		return types.Proof{}, db.ErrNotFound
 	}
 	return siblings, nil
 }
@@ -127,7 +126,7 @@ func (t *Tree) getRHTNode(tx db.Querier, nodeHash common.Hash) (*types.TreeNode,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return node, ErrNotFound
+			return node, db.ErrNotFound
 		}
 		return node, err
 	}
@@ -185,7 +184,7 @@ func (t *Tree) getLastRootWithTx(tx db.Querier) (types.Root, error) {
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return root, ErrNotFound
+			return root, db.ErrNotFound
 		}
 		return root, err
 	}
@@ -201,7 +200,7 @@ func (t *Tree) GetRootByIndex(ctx context.Context, index uint32) (types.Root, er
 		index,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return root, ErrNotFound
+			return root, db.ErrNotFound
 		}
 		return root, err
 	}
@@ -209,17 +208,17 @@ func (t *Tree) GetRootByIndex(ctx context.Context, index uint32) (types.Root, er
 }
 
 // GetRootByHash returns the root associated to the hash
-func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (types.Root, error) {
-	var root types.Root
+func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (*types.Root, error) {
+	var root *types.Root
 	if err := meddler.QueryRow(
-		t.db, &root,
+		t.db, root,
 		fmt.Sprintf(`SELECT * FROM %s WHERE hash = $1;`, t.rootTable),
 		hash.Hex(),
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return root, ErrNotFound
+			return nil, db.ErrNotFound
 		}
-		return root, err
+		return nil, err
 	}
 	return root, nil
 }

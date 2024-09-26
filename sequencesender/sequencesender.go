@@ -220,6 +220,7 @@ func (s *SequenceSender) purgeSequences() {
 
 	// Purge the information of batches that are already virtualized
 	s.mutexSequence.Lock()
+	defer s.mutexSequence.Unlock()
 	truncateUntil := 0
 	toPurge := make([]uint64, 0)
 	for i := 0; i < len(s.sequenceList); i++ {
@@ -246,7 +247,6 @@ func (s *SequenceSender) purgeSequences() {
 		}
 		s.logger.Infof("batches purged count: %d, fromBatch: %d, toBatch: %d", len(toPurge), firstPurged, lastPurged)
 	}
-	s.mutexSequence.Unlock()
 }
 
 // tryToSendSequence checks if there is a sequence and it's worth it to send to L1

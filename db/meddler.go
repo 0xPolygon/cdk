@@ -19,6 +19,7 @@ func initMeddler() {
 	meddler.Register("bigint", BigIntMeddler{})
 	meddler.Register("merkleproof", MerkleProofMeddler{})
 	meddler.Register("hash", HashMeddler{})
+	meddler.Register("address", AddressMeddler{})
 }
 
 func SQLiteErr(err error) (*sqlite.Error, bool) {
@@ -173,6 +174,41 @@ func (b HashMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{}, err 
 	field, ok := fieldPtr.(common.Hash)
 	if !ok {
 		return nil, errors.New("fieldPtr is not common.Hash")
+	}
+	return field.Hex(), nil
+}
+
+// AddressMeddler encodes or decodes the field value to or from JSON
+type AddressMeddler struct{}
+
+// PreRead is called before a Scan operation for fields that have the ProofMeddler
+func (b AddressMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
+	// give a pointer to a byte buffer to grab the raw data
+	return new(string), nil
+}
+
+// PostRead is called after a Scan operation for fields that have the ProofMeddler
+func (b AddressMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
+	ptr, ok := scanTarget.(*string)
+	if !ok {
+		return errors.New("scanTarget is not *string")
+	}
+	if ptr == nil {
+		return errors.New("AddressMeddler.PostRead: nil pointer")
+	}
+	field, ok := fieldPtr.(*common.Address)
+	if !ok {
+		return errors.New("fieldPtr is not common.Address")
+	}
+	*field = common.HexToAddress(*ptr)
+	return nil
+}
+
+// PreWrite is called before an Insert or Update operation for fields that have the ProofMeddler
+func (b AddressMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{}, err error) {
+	field, ok := fieldPtr.(common.Address)
+	if !ok {
+		return nil, errors.New("fieldPtr is not common.Address")
 	}
 	return field.Hex(), nil
 }
