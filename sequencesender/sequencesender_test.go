@@ -12,10 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
-
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/datastream"
@@ -1664,6 +1663,8 @@ func Test_loadSentSequencesTransactions(t *testing.T) {
 		{
 			name: "file does not exist",
 			getFilename: func(t *testing.T) string {
+				t.Helper()
+
 				return "does not exist.tmp"
 			},
 			expectEthTransactions: map[common.Hash]*ethTxData{},
