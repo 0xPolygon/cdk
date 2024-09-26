@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
+
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
@@ -1659,6 +1661,13 @@ func Test_loadSentSequencesTransactions(t *testing.T) {
 				common.HexToHash("0x1"): tx,
 			},
 		},
+		{
+			name: "file does not exist",
+			getFilename: func(t *testing.T) string {
+				return "does not exist.tmp"
+			},
+			expectEthTransactions: map[common.Hash]*ethTxData{},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1998,6 +2007,207 @@ func Test_getResultAndUpdateEthTx(t *testing.T) {
 				require.Equal(t, tt.expectedErr, err)
 			} else {
 				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func Test_getSequencesToSend(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                   string
+		sequenceList           []uint64
+		latestVirtualBatch     uint64
+		latestSentToL1Batch    uint64
+		forkUpgradeBatchNumber uint64
+		sequenceData           map[uint64]*sequenceData
+		getTxBuilder           func(t *testing.T) *TxBuilderMock
+		expectedSequence       seqsendertypes.Sequence
+		expectedErr            error
+	}{
+		{
+			name:                "successfully get sequence",
+			sequenceList:        []uint64{2},
+			latestVirtualBatch:  1,
+			latestSentToL1Batch: 1,
+			sequenceData: map[uint64]*sequenceData{
+				2: {
+					batchClosed: true,
+					batch:       txbuilder.NewBananaBatch(&etherman.Batch{}),
+				},
+			},
+			getTxBuilder: func(t *testing.T) *TxBuilderMock {
+				t.Helper()
+
+				mngr := NewTxBuilderMock(t)
+				mngr.On("NewSequenceIfWorthToSend", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(txbuilder.NewBananaSequence(etherman.SequenceBanana{
+					Batches: []etherman.Batch{{
+						BatchNumber: 2,
+					}},
+				}), nil)
+				return mngr
+			},
+			expectedSequence: txbuilder.NewBananaSequence(etherman.SequenceBanana{
+				Batches: []etherman.Batch{{
+					BatchNumber: 2,
+				}},
+			}),
+			expectedErr: nil,
+		},
+		{
+			name:                "batch not closed",
+			sequenceList:        []uint64{2},
+			latestVirtualBatch:  1,
+			latestSentToL1Batch: 1,
+			sequenceData: map[uint64]*sequenceData{
+				2: {
+					batchClosed: false,
+					batch:       txbuilder.NewBananaBatch(&etherman.Batch{}),
+				},
+			},
+			getTxBuilder: func(t *testing.T) *TxBuilderMock {
+				t.Helper()
+
+				mngr := NewTxBuilderMock(t)
+				return mngr
+			},
+			expectedSequence: nil,
+			expectedErr:      nil,
+		},
+		{
+			name:                "different coinbase",
+			sequenceList:        []uint64{2, 3},
+			latestVirtualBatch:  1,
+			latestSentToL1Batch: 1,
+			sequenceData: map[uint64]*sequenceData{
+				2: {
+					batchClosed: true,
+					batch:       txbuilder.NewBananaBatch(&etherman.Batch{}),
+				},
+				3: {
+					batchClosed: true,
+					batch: txbuilder.NewBananaBatch(&etherman.Batch{
+						LastCoinbase: common.HexToAddress("0x2"),
+					}),
+				},
+			},
+			getTxBuilder: func(t *testing.T) *TxBuilderMock {
+				t.Helper()
+
+				mngr := NewTxBuilderMock(t)
+				mngr.On("NewSequenceIfWorthToSend", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+				mngr.On("NewSequence", mock.Anything, mock.Anything, mock.Anything).Return(txbuilder.NewBananaSequence(etherman.SequenceBanana{
+					Batches: []etherman.Batch{{
+						BatchNumber: 2,
+					}},
+				}), nil)
+				return mngr
+			},
+			expectedSequence: txbuilder.NewBananaSequence(etherman.SequenceBanana{
+				Batches: []etherman.Batch{{
+					BatchNumber: 2,
+				}},
+			}),
+			expectedErr: nil,
+		},
+		{
+			name:                "NewSequenceIfWorthToSend return error",
+			sequenceList:        []uint64{2},
+			latestVirtualBatch:  1,
+			latestSentToL1Batch: 1,
+			sequenceData: map[uint64]*sequenceData{
+				2: {
+					batchClosed: true,
+					batch:       txbuilder.NewBananaBatch(&etherman.Batch{}),
+				},
+			},
+			getTxBuilder: func(t *testing.T) *TxBuilderMock {
+				t.Helper()
+
+				mngr := NewTxBuilderMock(t)
+				mngr.On("NewSequenceIfWorthToSend", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("test error"))
+				return mngr
+			},
+			expectedErr: errors.New("test error"),
+		},
+		{
+			name:                   "fork upgrade",
+			sequenceList:           []uint64{2},
+			latestVirtualBatch:     1,
+			latestSentToL1Batch:    1,
+			forkUpgradeBatchNumber: 2,
+			sequenceData: map[uint64]*sequenceData{
+				2: {
+					batchClosed: true,
+					batch:       txbuilder.NewBananaBatch(&etherman.Batch{}),
+				},
+			},
+			getTxBuilder: func(t *testing.T) *TxBuilderMock {
+				t.Helper()
+
+				mngr := NewTxBuilderMock(t)
+				mngr.On("NewSequenceIfWorthToSend", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+				mngr.On("NewSequence", mock.Anything, mock.Anything, mock.Anything).Return(txbuilder.NewBananaSequence(etherman.SequenceBanana{
+					Batches: []etherman.Batch{{
+						BatchNumber: 2,
+					}},
+				}), nil)
+				return mngr
+			},
+			expectedSequence: txbuilder.NewBananaSequence(etherman.SequenceBanana{
+				Batches: []etherman.Batch{{
+					BatchNumber: 2,
+				}},
+			}),
+			expectedErr: nil,
+		},
+		{
+			name:                   "fork upgrade passed",
+			sequenceList:           []uint64{2},
+			latestVirtualBatch:     1,
+			latestSentToL1Batch:    1,
+			forkUpgradeBatchNumber: 1,
+			sequenceData: map[uint64]*sequenceData{
+				2: {
+					batchClosed: true,
+					batch:       txbuilder.NewBananaBatch(&etherman.Batch{}),
+				},
+			},
+			getTxBuilder: func(t *testing.T) *TxBuilderMock {
+				t.Helper()
+
+				mngr := NewTxBuilderMock(t)
+				return mngr
+			},
+			expectedErr: errors.New("aborting sequencing process as we reached the batch 2 where a new forkid is applied (upgrade)"),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ss := SequenceSender{
+				sequenceList:        tt.sequenceList,
+				latestVirtualBatch:  tt.latestVirtualBatch,
+				latestSentToL1Batch: tt.latestSentToL1Batch,
+				cfg: Config{
+					ForkUpgradeBatchNumber: tt.forkUpgradeBatchNumber,
+				},
+				sequenceData: tt.sequenceData,
+				TxBuilder:    tt.getTxBuilder(t),
+				logger:       log.GetDefaultLogger(),
+			}
+
+			sequence, err := ss.getSequencesToSend(context.Background())
+			if tt.expectedErr != nil {
+				require.Equal(t, tt.expectedErr, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedSequence, sequence)
 			}
 		})
 	}
