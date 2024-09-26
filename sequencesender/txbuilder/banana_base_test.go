@@ -75,6 +75,8 @@ func TestBananaBaseNewSequenceBatch(t *testing.T) {
 		Coinbase:        []byte{1, 2, 3},
 		GlobalExitRoot:  []byte{4, 5, 6},
 	}
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, l1infotreesync.ErrNotFound).Once()
+
 	batch := testData.sut.NewBatchFromL2Block(l2Block)
 	batches := []seqsendertypes.Batch{batch}
 	lastAcc := common.HexToHash("0x8aca9664752dbae36135fd0956c956fc4a370feeac67485b49bcd4b99608ae41")
