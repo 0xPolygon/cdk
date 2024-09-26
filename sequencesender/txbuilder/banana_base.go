@@ -124,6 +124,22 @@ func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL
 	)
 }
 
+func (t *TxBuilderBananaBase) CheckL1InfoTreeLeafCounterVsInitL1InfoMap(ctx context.Context, leafCounter uint32) error {
+	l1infotreeInitial, err := t.l1InfoTree.GetInitL1InfoRootMap(ctx)
+	if errors.Is(err, l1infotreesync.ErrNotFound) {
+		log.Warnf("No InitL1InfoRootMap found, skipping check")
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("l1InfoTree.GetInitL1InfoRootMap fails: %w", err)
+	}
+	if leafCounter < l1infotreeInitial.LeafCount {
+		return fmt.Errorf("cant use this leafCounter because is previous to first value on contract Map"+
+			"leafCounter(%d) < l1infotreeInitial.LeafCount(%d)", leafCounter, l1infotreeInitial.LeafCount)
+	}
+	return nil
+}
+
 func (t *TxBuilderBananaBase) NewSequence(
 	ctx context.Context, batches []seqsendertypes.Batch, coinbase common.Address,
 ) (seqsendertypes.Sequence, error) {
@@ -140,7 +156,10 @@ func (t *TxBuilderBananaBase) NewSequence(
 	if err != nil {
 		return nil, err
 	}
-
+	err = t.CheckL1InfoTreeLeafCounterVsInitL1InfoMap(ctx, sequence.CounterL1InfoRoot)
+	if err != nil {
+		return nil, err
+	}
 	sequence.L1InfoRoot = l1InfoRoot
 
 	accInputHash, err := t.rollupContract.LastAccInputHash(&bind.CallOpts{Pending: false})
