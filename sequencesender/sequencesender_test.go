@@ -1,6 +1,7 @@
 package sequencesender
 
 import (
+	"encoding/json"
 	"errors"
 	"math/big"
 	"net/http"
@@ -1260,11 +1261,16 @@ func Test_handleReceivedDataStream(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	l2Tx := &datastream.Transaction{
+	l2TxRaw, err := proto.Marshal(&datastream.Transaction{
 		Encoded:     hexutils.HexToBytes(txStreamEncoded1),
 		ImStateRoot: []byte{1, 2, 3, 5, 6, 7, 8, 9, 0},
-	}
-	l2TxRaw, err := proto.Marshal(l2Tx)
+	})
+	require.NoError(t, err)
+
+	batchEndRaw, err := proto.Marshal(&datastream.BatchEnd{
+		Number: 2,
+	})
+	require.NoError(t, err)
 
 	tests := []struct {
 		name              string
@@ -1326,6 +1332,44 @@ func Test_handleReceivedDataStream(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "successfully handled batch start",
+			entry: &datastreamer.FileEntry{
+				Type: 1,
+			},
+			prevStreamEntry: &datastreamer.FileEntry{
+				Type: 1,
+			},
+			fromStreamBatch:   1,
+			latestStreamBatch: 2,
+			validStream:       true,
+		},
+		{
+			name: "successfully handled batch end",
+			entry: &datastreamer.FileEntry{
+				Type: 4,
+				Data: batchEndRaw,
+			},
+			prevStreamEntry: &datastreamer.FileEntry{
+				Type: 2,
+			},
+			fromStreamBatch:   1,
+			latestStreamBatch: 2,
+			validStream:       true,
+			wipBatch:          2,
+			sequenceData: map[uint64]*sequenceData{
+				2: {
+					batch: txbuilder.NewBananaBatch(&etherman.Batch{
+						BatchNumber: 2,
+					}),
+					batchRaw: &state.BatchRawV2{
+						Blocks: []state.L2BlockRaw{{
+							BlockNumber: 1,
+						}},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1349,6 +1393,77 @@ func Test_handleReceivedDataStream(t *testing.T) {
 				require.Equal(t, tt.expectedErr, err)
 			} else {
 				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func Test_loadSentSequencesTransactions(t *testing.T) {
+	t.Parallel()
+
+	tx := &ethTxData{
+		FromBatch:    1,
+		ToBatch:      2,
+		OnMonitor:    true,
+		To:           common.BytesToAddress([]byte{1, 2, 3}),
+		Gas:          100500,
+		StateHistory: []string{"2021-09-01T15:04:05.000-07:00, *new, "},
+		Txs:          map[common.Hash]ethTxAdditionalData{},
+	}
+
+	tests := []struct {
+		name                  string
+		getFilename           func(t *testing.T) string
+		expectEthTransactions map[common.Hash]*ethTxData
+		expectErr             error
+	}{
+		{
+			name: "successfully loaded",
+			getFilename: func(t *testing.T) string {
+				tmpFile, err := os.CreateTemp(os.TempDir(), "test")
+				require.NoError(t, err)
+
+				ethTxDataBytes, err := json.Marshal(map[common.Hash]*ethTxData{
+					common.HexToHash("0x1"): tx,
+				})
+				require.NoError(t, err)
+
+				_, err = tmpFile.Write(ethTxDataBytes)
+				require.NoError(t, err)
+
+				t.Cleanup(func() {
+					err := os.Remove(tmpFile.Name())
+					require.NoError(t, err)
+				})
+
+				return tmpFile.Name()
+			},
+			expectEthTransactions: map[common.Hash]*ethTxData{
+				common.HexToHash("0x1"): tx,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := SequenceSender{
+				cfg: Config{
+					SequencesTxFileName: tt.getFilename(t),
+				},
+				ethTransactions: map[common.Hash]*ethTxData{},
+				logger:          log.GetDefaultLogger(),
+			}
+
+			err := s.loadSentSequencesTransactions()
+			if tt.expectErr != nil {
+				require.Equal(t, tt.expectErr, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectEthTransactions, s.ethTransactions)
 			}
 		})
 	}
