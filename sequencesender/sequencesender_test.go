@@ -4,7 +4,10 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
+	"github.com/0xPolygon/cdk/state/datastream"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
@@ -70,4 +73,45 @@ func TestStreamTx(t *testing.T) {
 	require.NoError(t, err)
 
 	printBatch(decodedBatch, true, true)
+}
+
+func TestAddNewBatchL2Block(t *testing.T) {
+	logger := log.GetDefaultLogger()
+	txBuilder := txbuilder.NewTxBuilderBananaZKEVM(logger, nil, nil, bind.TransactOpts{}, 100, nil, nil, nil)
+	sut := SequenceSender{
+		logger:            logger,
+		cfg:               Config{},
+		ethTransactions:   make(map[common.Hash]*ethTxData),
+		ethTxData:         make(map[common.Hash][]byte),
+		sequenceData:      make(map[uint64]*sequenceData),
+		validStream:       false,
+		latestStreamBatch: 0,
+		seqSendingStopped: false,
+		TxBuilder:         txBuilder,
+	}
+
+	l2Block := datastream.L2Block{
+		Number:          1,
+		BatchNumber:     1,
+		L1InfotreeIndex: 1,
+	}
+	sut.addNewSequenceBatch(&l2Block)
+	l2Block = datastream.L2Block{
+		Number:          2,
+		BatchNumber:     1,
+		L1InfotreeIndex: 0,
+	}
+	sut.addNewBatchL2Block(&l2Block)
+	data := sut.sequenceData[sut.wipBatch]
+	// L1InfotreeIndex 0 is ignored
+	require.Equal(t, uint32(1), data.batch.L1InfoTreeIndex(), "new block have index=0 and is ignored")
+
+	l2Block = datastream.L2Block{
+		Number:          2,
+		BatchNumber:     1,
+		L1InfotreeIndex: 5,
+	}
+	sut.addNewBatchL2Block(&l2Block)
+	data = sut.sequenceData[sut.wipBatch]
+	require.Equal(t, uint32(5), data.batch.L1InfoTreeIndex(), "new block have index=5 and is set")
 }

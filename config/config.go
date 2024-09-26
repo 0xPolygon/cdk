@@ -3,7 +3,6 @@ package config
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/common"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
-	"github.com/0xPolygon/cdk/l1bridge2infoindexsync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/log"
@@ -52,6 +50,22 @@ const (
 	FlagOutputFile = "output"
 	// FlagMaxAmount is the flag to avoid to use the flag FlagAmount
 	FlagMaxAmount = "max-amount"
+
+	deprecatedFieldSyncDB = "Aggregator.Synchronizer.DB is deprecated use Aggregator.Synchronizer.SQLDB instead"
+)
+
+type ForbiddenField struct {
+	FieldName string
+	Reason    string
+}
+
+var (
+	forbiddenFieldsOnConfig = []ForbiddenField{
+		{
+			FieldName: "aggregator.synchronizer.db.",
+			Reason:    deprecatedFieldSyncDB,
+		},
+	}
 )
 
 /*
@@ -96,10 +110,6 @@ type Config struct {
 	// ClaimSponsor is the config for the claim sponsor
 	ClaimSponsor claimsponsor.EVMClaimSponsorConfig
 
-	// L1Bridge2InfoIndexSync is the config for the synchronizers that maintains the relation of
-	// bridge from L1 --> L1 Info tree index. Needed for the bridge service (RPC)
-	L1Bridge2InfoIndexSync l1bridge2infoindexsync.Config
-
 	// BridgeL1Sync is the configuration for the synchronizer of the bridge of the L1
 	BridgeL1Sync bridgesync.Config
 
@@ -128,15 +138,18 @@ func Default() (*Config, error) {
 
 	return &cfg, nil
 }
+func Load(ctx *cli.Context) (*Config, error) {
+	configFilePath := ctx.String(FlagCfg)
+	return LoadFile(configFilePath)
+}
 
 // Load loads the configuration
-func Load(ctx *cli.Context) (*Config, error) {
+func LoadFile(configFilePath string) (*Config, error) {
 	cfg, err := Default()
 	if err != nil {
 		return nil, err
 	}
-
-	configFilePath := ctx.String(FlagCfg)
+	expectedKeys := viper.AllKeys()
 	if configFilePath != "" {
 		dirName, fileName := filepath.Split(configFilePath)
 
@@ -160,7 +173,6 @@ func Load(ctx *cli.Context) (*Config, error) {
 			log.Error("config file not found")
 		} else {
 			log.Errorf("error reading config file: ", err)
-
 			return nil, err
 		}
 	}
@@ -179,8 +191,45 @@ func Load(ctx *cli.Context) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println("cfg", cfg.NetworkConfig.L1Config)
-
+	if expectedKeys != nil {
+		configKeys := viper.AllKeys()
+		unexpectedFields := getUnexpectedFields(configKeys, expectedKeys)
+		for _, field := range unexpectedFields {
+			forbbidenInfo := getForbiddenField(field)
+			if forbbidenInfo != nil {
+				log.Warnf("forbidden field %s in config file: %s", field, forbbidenInfo.Reason)
+			} else {
+				log.Debugf("field %s in config file doesnt have a default value", field)
+			}
+		}
+	}
 	return cfg, nil
+}
+
+func getForbiddenField(fieldName string) *ForbiddenField {
+	for _, forbiddenField := range forbiddenFieldsOnConfig {
+		if forbiddenField.FieldName == fieldName || strings.HasPrefix(fieldName, forbiddenField.FieldName) {
+			return &forbiddenField
+		}
+	}
+	return nil
+}
+
+func getUnexpectedFields(keysOnFile, expectedConfigKeys []string) []string {
+	wrongFields := make([]string, 0)
+	for _, key := range keysOnFile {
+		if !contains(expectedConfigKeys, key) {
+			wrongFields = append(wrongFields, key)
+		}
+	}
+	return wrongFields
+}
+
+func contains(keys []string, key string) bool {
+	for _, k := range keys {
+		if k == key {
+			return true
+		}
+	}
+	return false
 }
