@@ -6,7 +6,7 @@ ForkUpgradeNewForkId = 0
 
 [Common]
 IsValidiumMode = ${zkevm_is_validium}
-ContractVersions = "elderberry"
+ContractVersions = "${zkevm_contract_versions}"
 [Common.Translator]
 		FullMatchRules = [
 						{Old="http://zkevm-dac-001:8484", New="http://127.0.0.1:${dac_port}"},

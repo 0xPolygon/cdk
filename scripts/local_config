@@ -76,7 +76,7 @@ export zkevm_l2_keystore_password=$(cat $DEST/cdk-node-config.toml  |grep -A1 L2
 export l1_chain_id=$(cat $DEST/cdk-node-config.toml | grep L1ChainID | cut -f 2 -d '=' | head -n 1)
 echo $l1_chain_id
 export zkevm_is_validium=$(cat $DEST/cdk-node-config.toml | grep IsValidiumMode | cut -f 2 -d '=')
-
+export zkevm_contract_versions=$(cat $DEST/cdk-node-config.toml | grep ContractVersions | cut -f 2 -d '=' | tr -d '"' | tr -d ' ')
 if [ "$zkevm_is_validium" == "true" ]; then
     echo "Validium mode detected... Retrieving the dac_port"
     dac_port=$(kurtosis port print $KURTOSIS_ENCLAVE zkevm-dac-001 dac | cut -f 3 -d ":")
