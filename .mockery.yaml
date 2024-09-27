@@ -4,22 +4,15 @@ mockname: "{{.InterfaceName}}Mock"
 packages:
   github.com/0xPolygon/cdk/sequencesender:
     config:
-      dir: ./sequencesender
+      dir: ./sequencesender/mocks
+      outpkg: mocks
     interfaces:
       EthTxMngr:
-        config:
-          filename: ethtxmngr_mock_test.go
       Etherman:
-        config:
-          filename: etherman_mock_test.go
       StreamClient:
-        config:
-          filename: streamclient_mock_test.go
   github.com/0xPolygon/cdk/sequencesender/txbuilder:
     config:
-      dir: ./sequencesender
+      dir: ./sequencesender/mocks
+      outpkg: mocks
     interfaces:
       TxBuilder:
-        config:
-          filename: txbuilder_mock_test.go
-          outpkg: sequencesender
