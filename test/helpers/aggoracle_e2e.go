@@ -117,7 +117,8 @@ func CommonSetup(t *testing.T) (
 	require.NoError(t, err)
 	// Syncer
 	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, common.Address{}, syncBlockChunkSize, etherman.LatestBlock, reorg, l1Client.Client(), time.Millisecond, 0, periodRetry, retries)
+	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerL1Addr, common.Address{}, syncBlockChunkSize, etherman.LatestBlock, reorg, l1Client.Client(), time.Millisecond, 0, periodRetry, retries,
+		l1infotreesync.FlagAllowWrongContractsAddrs)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
