@@ -24,13 +24,13 @@ func NewEthTxManMock(
 
 	const (
 		ArgToIndex   = 1
-		ArgDataIndex = 4
+		ArgDataIndex = 3
 		ZeroValue    = 0
 	)
 
 	ethTxMock := NewEthTxManagerMock(t)
 	ethTxMock.On(
-		"Add", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		"Add", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			ctx := context.Background()
 			nonce, err := client.Client().PendingNonceAt(ctx, auth.From)
