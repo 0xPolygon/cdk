@@ -1,0 +1,12 @@
+with-expecter: true
+filename: "{{.InterfaceName | lower }}.generated.go"
+mockname: "{{.InterfaceName}}Mock"
+packages:
+  github.com/0xPolygon/cdk/aggregator:
+    config:
+      dir: ./aggregator/mocks
+      outpkg: mocks
+    interfaces:
+      proverInterface:
+      etherman:
+      stateInterface:

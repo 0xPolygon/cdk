@@ -9,3 +9,5 @@ book/
 index.html
 tmp
 .vscode
+coverage.out
+coverage.html
