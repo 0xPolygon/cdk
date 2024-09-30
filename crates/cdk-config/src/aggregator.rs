@@ -54,8 +54,6 @@ pub struct Aggregator {
     pub witness_url: Url,
     #[serde(rename = "SenderAddress")]
     pub sender_address: Address,
-    // #[serde(rename = "SequencerPrivateKey")]
-    // pub sequencer_private_key: SequencerPrivateKey,
     #[serde(rename = "SettlementBackend")]
     pub settlement_backend: String,
     #[serde(rename = "AggLayerTxTimeout")]

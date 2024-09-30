@@ -38,7 +38,7 @@ pub fn render(
     let zkevm_address = res.wrapper.l1_config.zkevm_address;
     let rollup_address = res.wrapper.l1_config.rollup_manager_address;
     let ger_manager_address = res.wrapper.l1_config.zkevm_global_exit_root_address;
-    let matic_contract_address = res.wrapper.l1_config.pol_token_address;
+    let pol_token_address = res.wrapper.l1_config.pol_token_address;
 
     fs::write(
         tmp_dir
