@@ -14,7 +14,7 @@ import (
 
 // Consumer interfaces required by the package.
 
-type proverInterface interface {
+type ProverInterface interface {
 	Name() string
 	ID() string
 	Addr() string
@@ -26,8 +26,8 @@ type proverInterface interface {
 	WaitFinalProof(ctx context.Context, proofID string) (*prover.FinalProof, error)
 }
 
-// etherman contains the methods required to interact with ethereum
-type etherman interface {
+// Etherman contains the methods required to interact with ethereum
+type Etherman interface {
 	GetRollupId() uint32
 	GetLatestVerifiedBatchNum() (uint64, error)
 	BuildTrustedVerifyBatchesTxData(
@@ -43,8 +43,8 @@ type aggregatorTxProfitabilityChecker interface {
 	IsProfitable(context.Context, *big.Int) (bool, error)
 }
 
-// stateInterface gathers the methods to interact with the state.
-type stateInterface interface {
+// StateInterface gathers the methods to interact with the state.
+type StateInterface interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	CheckProofContainsCompleteSequences(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) (bool, error)
 	GetProofReadyToVerify(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Proof, error)

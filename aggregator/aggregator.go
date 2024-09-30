@@ -64,8 +64,8 @@ type Aggregator struct {
 	cfg    Config
 	logger *log.Logger
 
-	state        stateInterface
-	etherman     etherman
+	state        StateInterface
+	Etherman     Etherman
 	ethTxManager *ethtxmanager.Client
 	streamClient *datastreamer.StreamClient
 	l1Syncr      synchronizer.Synchronizer
@@ -103,18 +103,18 @@ func New(
 	ctx context.Context,
 	cfg Config,
 	logger *log.Logger,
-	stateInterface stateInterface,
-	etherman etherman) (*Aggregator, error) {
+	StateInterface StateInterface,
+	Etherman Etherman) (*Aggregator, error) {
 	var profitabilityChecker aggregatorTxProfitabilityChecker
 
 	switch cfg.TxProfitabilityCheckerType {
 	case ProfitabilityBase:
 		profitabilityChecker = NewTxProfitabilityCheckerBase(
-			stateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration, cfg.TxProfitabilityMinReward.Int,
+			StateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration, cfg.TxProfitabilityMinReward.Int,
 		)
 	case ProfitabilityAcceptAll:
 		profitabilityChecker = NewTxProfitabilityCheckerAcceptAll(
-			stateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration,
+			StateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration,
 		)
 	}
 
@@ -182,8 +182,8 @@ func New(
 		ctx:                     ctx,
 		cfg:                     cfg,
 		logger:                  logger,
-		state:                   stateInterface,
-		etherman:                etherman,
+		state:                   StateInterface,
+		Etherman:                Etherman,
 		ethTxManager:            ethTxManager,
 		streamClient:            streamClient,
 		streamClientMutex:       &sync.Mutex{},
@@ -309,7 +309,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 	// Get new last verified batch number from L1
 	var lastVerifiedBatchNumber uint64
 	if err == nil {
-		lastVerifiedBatchNumber, err = a.etherman.GetLatestVerifiedBatchNum()
+		lastVerifiedBatchNumber, err = a.Etherman.GetLatestVerifiedBatchNum()
 		if err != nil {
 			a.logger.Errorf("Error getting latest verified batch number: %v", err)
 		}
@@ -686,7 +686,7 @@ func (a *Aggregator) Start() error {
 		grpchealth.RegisterHealthServer(a.srv, healthService)
 
 		// Get last verified batch number to set the starting point for verifications
-		lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
+		lastVerifiedBatchNumber, err := a.Etherman.GetLatestVerifiedBatchNum()
 		if err != nil {
 			return err
 		}
@@ -927,7 +927,7 @@ func (a *Aggregator) settleWithAggLayer(
 			NewLocalExitRoot: common.BytesToHash(inputs.NewLocalExitRoot),
 			Proof:            cdkTypes.ArgBytes(proofBytes),
 		},
-		RollupID: a.etherman.GetRollupId(),
+		RollupID: a.Etherman.GetRollupId(),
 	}
 	signedTx, err := tx.Sign(a.sequencerPrivateKey)
 	if err != nil {
@@ -968,7 +968,7 @@ func (a *Aggregator) settleDirect(
 	inputs ethmanTypes.FinalProofInputs) bool {
 	// add batch verification to be monitored
 	sender := common.HexToAddress(a.cfg.SenderAddress)
-	to, data, err := a.etherman.BuildTrustedVerifyBatchesTxData(
+	to, data, err := a.Etherman.BuildTrustedVerifyBatchesTxData(
 		proof.BatchNumber-1, proof.BatchNumberFinal, &inputs, sender,
 	)
 	if err != nil {
@@ -1011,7 +1011,7 @@ func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx context.Cont
 
 // buildFinalProof builds and return the final proof for an aggregated/batch proof.
 func (a *Aggregator) buildFinalProof(
-	ctx context.Context, prover proverInterface, proof *state.Proof) (*prover.FinalProof, error) {
+	ctx context.Context, prover ProverInterface, proof *state.Proof) (*prover.FinalProof, error) {
 	tmpLogger := a.logger.WithFields(
 		"prover", prover.Name(),
 		"proverId", prover.ID(),
@@ -1057,7 +1057,7 @@ func (a *Aggregator) buildFinalProof(
 // build the final proof.  If no proof is provided it looks for a previously
 // generated proof.  If the proof is eligible, then the final proof generation
 // is triggered.
-func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (bool, error) {
+func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover ProverInterface, proof *state.Proof) (bool, error) {
 	proverName := prover.Name()
 	proverID := prover.ID()
 
@@ -1074,7 +1074,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 	}
 	tmpLogger.Debug("Send final proof time reached")
 
-	lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
+	lastVerifiedBatchNumber, err := a.Etherman.GetLatestVerifiedBatchNum()
 	if err != nil {
 		return false, err
 	}
@@ -1243,7 +1243,7 @@ func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.
 }
 
 func (a *Aggregator) getAndLockProofsToAggregate(
-	ctx context.Context, prover proverInterface) (*state.Proof, *state.Proof, error) {
+	ctx context.Context, prover ProverInterface) (*state.Proof, *state.Proof, error) {
 	tmpLogger := a.logger.WithFields(
 		"prover", prover.Name(),
 		"proverId", prover.ID(),
@@ -1291,7 +1291,7 @@ func (a *Aggregator) getAndLockProofsToAggregate(
 	return proof1, proof2, nil
 }
 
-func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterface) (bool, error) {
+func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover ProverInterface) (bool, error) {
 	proverName := prover.Name()
 	proverID := prover.ID()
 
@@ -1447,7 +1447,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 }
 
 func (a *Aggregator) getVerifiedBatchAccInputHash(ctx context.Context, batchNumber uint64) (*common.Hash, error) {
-	accInputHash, err := a.etherman.GetBatchAccInputHash(ctx, batchNumber)
+	accInputHash, err := a.Etherman.GetBatchAccInputHash(ctx, batchNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -1456,7 +1456,7 @@ func (a *Aggregator) getVerifiedBatchAccInputHash(ctx context.Context, batchNumb
 }
 
 func (a *Aggregator) getAndLockBatchToProve(
-	ctx context.Context, prover proverInterface,
+	ctx context.Context, prover ProverInterface,
 ) (*state.Batch, []byte, *state.Proof, error) {
 	proverID := prover.ID()
 	proverName := prover.Name()
@@ -1471,7 +1471,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	defer a.stateDBMutex.Unlock()
 
 	// Get last virtual batch number from L1
-	lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
+	lastVerifiedBatchNumber, err := a.Etherman.GetLatestVerifiedBatchNum()
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -1572,7 +1572,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	return &dbBatch.Batch, dbBatch.Witness, proof, nil
 }
 
-func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInterface) (bool, error) {
+func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInterface) (bool, error) {
 	tmpLogger := a.logger.WithFields(
 		"prover", prover.Name(),
 		"proverId", prover.ID(),
