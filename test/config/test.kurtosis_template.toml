@@ -1,9 +1,12 @@
 ForkUpgradeBatchNumber = 0
 ForkUpgradeNewForkId = 0
 
+[Etherman]
+	URL = "http://127.0.0.1:${l1_rpc_port}"
+
 [Common]
 IsValidiumMode = ${zkevm_is_validium}
-ContractVersions = "elderberry"
+ContractVersions = "${zkevm_contract_versions}"
 [Common.Translator]
 		FullMatchRules = [
 						{Old="http://zkevm-dac-001:8484", New="http://127.0.0.1:${dac_port}"},
@@ -11,7 +14,7 @@ ContractVersions = "elderberry"
 
 [Log]
 Environment = "development" # "production" or "development"
-Level = "info"
+Level = "debug"
 Outputs = ["stderr"]
 
 [SequenceSender]
@@ -125,3 +128,23 @@ SequencerPrivateKey = {}
 		[Aggregator.Synchronizer.Etherman]
 			[Aggregator.Synchronizer.Etherman.Validium]
 				Enabled = ${zkevm_is_validium}
+
+
+[L1InfoTreeSync]
+DBPath = "/tmp/L1InfoTreeSync.sqlite"
+GlobalExitRootAddr="${zkevm_global_exit_root_address}"
+RollupManagerAddr="${zkevm_rollup_manager_address}"
+SyncBlockChunkSize=100
+BlockFinality="LatestBlock"
+# http://el-1-geth-lighthouse:8545
+URLRPCL1="${l1_rpc_addr}"
+WaitForNewBlocksPeriod="100ms"
+InitialBlock=0
+
+
+[NetworkConfig.L1]
+L1ChainID = ${l1_chain_id}
+PolAddr = "${pol_token_address}"
+ZkEVMAddr = "${zkevm_rollup_address}"
+RollupManagerAddr = "${zkevm_rollup_manager_address}"
+GlobalExitRootManagerAddr = "${zkevm_global_exit_root_address}"
