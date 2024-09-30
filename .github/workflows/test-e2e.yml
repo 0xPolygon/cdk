@@ -67,6 +67,7 @@ jobs:
         repository: 0xPolygon/kurtosis-cdk
         ref: fix/missing_cdk_config_rollupmanager
         path: "kurtosis-cdk"
+        ref: "v0.2.11"
 
     - name: Setup Bats and bats libs
       uses: bats-core/bats-action@2.0.0
