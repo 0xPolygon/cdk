@@ -186,7 +186,7 @@ func (s *SequenceSender) populateSequenceData(rpcBatch *rpcbatch.RPCBatch, batch
 	// Decode batch to retrieve the l1 info tree index
 	batchRaw, err := state.DecodeBatchV2(rpcBatch.L2Data())
 	if err != nil {
-		s.logger.Errorf("Failed to decode batch data, err: %v", err)
+		s.logger.Errorf("Failed to decode batch data for batch %d, err: %v", batchNumber, err)
 		return err
 	}
 

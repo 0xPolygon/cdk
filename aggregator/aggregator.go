@@ -1875,13 +1875,7 @@ func (a *Aggregator) getWitness(batchNumber uint64, url string, fullWitness bool
 		return nil, err
 	}
 
-	witnessString := strings.TrimLeft(witness, "0x")
-	if len(witnessString)%2 != 0 {
-		witnessString = "0" + witnessString
-	}
-	bytes := common.Hex2Bytes(witnessString)
-
-	return bytes, nil
+	return common.FromHex(witness), nil
 }
 
 func printInputProver(logger *log.Logger, inputProver *prover.StatelessInputProver) {

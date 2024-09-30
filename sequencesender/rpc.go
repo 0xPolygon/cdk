@@ -47,7 +47,7 @@ func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (*rpcbatch.RPCBatch
 		return nil, fmt.Errorf("error unmarshalling the batch from the response calling zkevm_getBatchByNumber: %w", err)
 	}
 
-	rpcBatch, err := rpcbatch.New(batchNumber, zkEVMBatchData.Blocks, common.Hex2Bytes(zkEVMBatchData.BatchL2Data),
+	rpcBatch, err := rpcbatch.New(batchNumber, zkEVMBatchData.Blocks, common.FromHex(zkEVMBatchData.BatchL2Data),
 		common.HexToHash(zkEVMBatchData.GlobalExitRoot), common.HexToAddress(zkEVMBatchData.Coinbase), zkEVMBatchData.Closed)
 	if err != nil {
 		return nil, fmt.Errorf("error creating the rpc batch: %w", err)
