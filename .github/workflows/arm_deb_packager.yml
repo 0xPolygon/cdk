@@ -38,10 +38,10 @@ jobs:
       - name: go mod download
         run: go mod download
 
-      - name: build the binary
+      - name: Build the binary
         run: make build
 
-      - name: build the rust binary
+      - name: Build the rust binary
         run: cargo build --release --bin cdk
 
       - name: making directory structure
@@ -52,7 +52,7 @@ jobs:
         run: cp -rp target/release/cdk packaging/deb/cdk/usr/bin/cdk
 
       # Control file creation
-      - name: create control file
+      - name: Create control file
         run: |
           echo "Package: cdk" >> packaging/deb/cdk/DEBIAN/control
           echo "Version: ${{ env.VERSION }}" >> packaging/deb/cdk/DEBIAN/control

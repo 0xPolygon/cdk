@@ -77,7 +77,7 @@ jobs:
           echo "/usr/bin/cdk-node" >> packaging/rpm/SPECS/cdk.spec
 
 
-      - name: construct rpm package
+      - name: Construct rpm package
         run: |
           rpmbuild --define "_topdir /home/runner/work/cdk/cdk/packaging/rpm_build" \
                    --define "_builddir %{_topdir}/BUILD" \
@@ -86,10 +86,10 @@ jobs:
                    --define "__spec_install_post /bin/true" \
                    -bb packaging/rpm/SPECS/cdk.spec
 
-      - name: rename file for post rpm build and for checksum
+      - name: Rename file for post rpm build and for checksum
         run: mv /home/runner/work/cdk/cdk/packaging/rpm_build/RPMS/x86_64/cdk-${{ env.GIT_TAG1 }}-1.x86_64.rpm /home/runner/work/cdk/cdk/packaging/rpm_build/RPMS/x86_64/cdk-${{ env.GIT_TAG1 }}.x86_64.rpm
 
-      - name: checksum for the rpm package
+      - name: Checksum for the rpm package
         run: sha256sum /home/runner/work/cdk/cdk/packaging/rpm_build/RPMS/x86_64/cdk-${{ env.GIT_TAG1 }}.x86_64.rpm > /home/runner/work/cdk/cdk/packaging/rpm_build/RPMS/x86_64/cdk-${{ env.GIT_TAG1 }}.x86_64.rpm.checksum
 
       - name: Release cdk Packages
