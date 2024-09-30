@@ -7,7 +7,7 @@ require (
 	github.com/0xPolygon/cdk-data-availability v0.0.9
 	github.com/0xPolygon/cdk-rpc v0.0.0-20240905074455-431d3c271fe8
 	github.com/0xPolygonHermez/zkevm-data-streamer v0.2.6
-	github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.10-0.20240716105056-c051c96d0234
+	github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.10-0.20240930120324-65816dead447
 	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.1
 	github.com/ethereum/go-ethereum v1.14.8
 	github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3

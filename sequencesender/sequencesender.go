@@ -32,8 +32,6 @@ type SequenceSender struct {
 	logger                 *log.Logger
 	ethTxManager           *ethtxmanager.Client
 	etherman               *etherman.Client
-	currentNonce           uint64
-	nonceMutex             sync.Mutex
 	latestVirtualBatch     uint64                     // Latest virtualized batch obtained from L1
 	latestVirtualTime      time.Time                  // Latest virtual batch timestamp
 	latestSentToL1Batch    uint64                     // Latest batch sent to L1
@@ -141,14 +139,6 @@ func (s *SequenceSender) Start(ctx context.Context) {
 
 	// Get current nonce
 	var err error
-	s.nonceMutex.Lock()
-	s.currentNonce, err = s.etherman.CurrentNonce(ctx, s.cfg.L2Coinbase)
-	if err != nil {
-		s.logger.Fatalf("failed to get current nonce from %v, error: %v", s.cfg.L2Coinbase, err)
-	} else {
-		s.logger.Infof("current nonce for %v is %d", s.cfg.L2Coinbase, s.currentNonce)
-	}
-	s.nonceMutex.Unlock()
 
 	// Get latest virtual state batch from L1
 	err = s.updateLatestVirtualBatch()
@@ -601,18 +591,12 @@ func (s *SequenceSender) sendTx(
 ) error {
 	// Params if new tx to send or resend a previous tx
 	var paramTo *common.Address
-	var paramNonce *uint64
 	var paramData []byte
 	var valueFromBatch uint64
 	var valueToBatch uint64
 	var valueToAddress common.Address
 
 	if !resend {
-		s.nonceMutex.Lock()
-		nonce := s.currentNonce
-		s.currentNonce++
-		s.nonceMutex.Unlock()
-		paramNonce = &nonce
 		paramTo = to
 		paramData = data
 		valueFromBatch = fromBatch
@@ -623,7 +607,6 @@ func (s *SequenceSender) sendTx(
 			return errors.New("resend tx with nil hash monitor id")
 		}
 		paramTo = &s.ethTransactions[*txOldHash].To
-		paramNonce = &s.ethTransactions[*txOldHash].Nonce
 		paramData = s.ethTxData[*txOldHash]
 		valueFromBatch = s.ethTransactions[*txOldHash].FromBatch
 		valueToBatch = s.ethTransactions[*txOldHash].ToBatch
@@ -633,7 +616,7 @@ func (s *SequenceSender) sendTx(
 	}
 
 	// Add sequence tx
-	txHash, err := s.ethTxManager.AddWithGas(ctx, paramTo, paramNonce, big.NewInt(0), paramData, s.cfg.GasOffset, nil, gas)
+	txHash, err := s.ethTxManager.AddWithGas(ctx, paramTo, big.NewInt(0), paramData, s.cfg.GasOffset, nil, gas)
 	if err != nil {
 		s.logger.Errorf("error adding sequence to ethtxmanager: %v", err)
 		return err

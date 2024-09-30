@@ -978,7 +978,7 @@ func (a *Aggregator) settleDirect(
 		return false
 	}
 
-	monitoredTxID, err := a.ethTxManager.Add(ctx, to, nil, big.NewInt(0), data, a.cfg.GasOffset, nil)
+	monitoredTxID, err := a.ethTxManager.Add(ctx, to, big.NewInt(0), data, a.cfg.GasOffset, nil)
 	if err != nil {
 		a.logger.Errorf("Error Adding TX to ethTxManager: %v", err)
 		mTxLogger := ethtxmanager.CreateLogger(monitoredTxID, sender, to)
