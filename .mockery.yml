@@ -7,6 +7,9 @@ packages:
       dir: ./aggregator/mocks
       outpkg: mocks
     interfaces:
-      proverInterface:
-      etherman:
-      stateInterface:
+      ProverInterface:
+      Etherman:
+      StateInterface:
+      SynchronizerInterface:
+      StreamClient:
+      EthTxManagerClient:

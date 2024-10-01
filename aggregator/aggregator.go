@@ -66,8 +66,8 @@ type Aggregator struct {
 
 	state        StateInterface
 	Etherman     Etherman
-	ethTxManager *ethtxmanager.Client
-	streamClient *datastreamer.StreamClient
+	ethTxManager EthTxManagerClient
+	streamClient StreamClient
 	l1Syncr      synchronizer.Synchronizer
 	halted       atomic.Bool
 
