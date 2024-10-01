@@ -31,7 +31,6 @@ type EthTxManager interface {
 	Result(ctx context.Context, id common.Hash) (ethtxmanager.MonitoredTxResult, error)
 	Add(ctx context.Context,
 		to *common.Address,
-		forcedNonce *uint64,
 		value *big.Int,
 		data []byte,
 		gasOffset uint64,
@@ -103,7 +102,7 @@ func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger com
 	if err != nil {
 		return err
 	}
-	id, err := c.ethTxMan.Add(ctx, &c.gerAddr, nil, big.NewInt(0), data, c.gasOffset, nil)
+	id, err := c.ethTxMan.Add(ctx, &c.gerAddr, big.NewInt(0), data, c.gasOffset, nil)
 	if err != nil {
 		return err
 	}

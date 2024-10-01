@@ -1,43 +1,58 @@
+ForkUpgradeBatchNumber = 0
+ForkUpgradeNewForkId = 0
+
+[Etherman]
+	URL = "http://127.0.0.1:${l1_rpc_port}"
+
 [Common]
-IsValidiumMode = false
-ContractVersions = "banana"
+IsValidiumMode = ${zkevm_is_validium}
+ContractVersions = "${zkevm_contract_versions}"
+[Common.Translator]
+		FullMatchRules = [
+						{Old="http://zkevm-dac-001:8484", New="http://127.0.0.1:${dac_port}"},
+					]
+
+[Log]
+Environment = "development" # "production" or "development"
+Level = "debug"
+Outputs = ["stderr"]
 
 [SequenceSender]
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 L1BlockTimestampMargin = "30s"
 MaxTxSizeForL1 = 131072
-L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-PrivateKey = {Path = "./test/sequencer.keystore", Password = "testonly"}
+MaxBatchesForL1 = 2
+L2Coinbase = "${zkevm_l2_sequencer_address}"
+PrivateKey = {Path = "${sequencer_keystore_file}", Password = "${zkevm_l2_keystore_password}"}
+
 SequencesTxFileName = "sequencesender.json"
 GasOffset = 80000
-WaitPeriodPurgeTxFile = "60m"
+WaitPeriodPurgeTxFile = "15m"
 MaxPendingTx = 1
-RPCURL = "http://127.0.0.1:8123"
+RPCURL = "${l2_rpc_addr}"
 GetBatchWaitInterval = "10s"
 	[SequenceSender.StreamClient]
-		Server = "127.0.0.1:6900"
+		Server = "127.0.0.1:${zkevm_data_streamer_port}"
 	[SequenceSender.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2m"
 		GetReceiptMaxTime = "250ms"
 		GetReceiptWaitInterval = "1s"
 		PrivateKeys = [
-			{Path = "./test/sequencer.keystore", Password = "testonly"},
+			{Path = "${sequencer_keystore_file}", Password = "${zkevm_l2_keystore_password}"},
 		]
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
 		MaxGasPriceLimit = 0
 		PersistenceFilename = "ethtxmanager.json"
 		ReadPendingL1Txs = false
-		SafeStatusL1NumberOfBlocks = 5
-		FinalizedStatusL1NumberOfBlocks = 10
+		SafeStatusL1NumberOfBlocks = 0
+		FinalizedStatusL1NumberOfBlocks = 0
 			[SequenceSender.EthTxManager.Etherman]
-				URL = "http://127.0.0.1:8545"
+				URL = "http://127.0.0.1:${l1_rpc_port}"
 				MultiGasProvider = false
-				L1ChainID = 1337
-				HTTPHeaders = []
-
+				L1ChainID = ${l1_chain_id}
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
@@ -46,20 +61,20 @@ VerifyProofInterval = "10s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
-SenderAddress = "0x3f2963d678442c4af27a797453b64ef6ce9443e9"
+SenderAddress = ""
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 BatchProofSanityCheckEnabled = true
 ForkId = 9
 GasOffset = 0
-WitnessURL = "http://zkevm-erigon-seq:8123"
+WitnessURL = "localhost:8123"
 UseL1BatchData = true
+UseFullWitness = false
 SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
 AggLayerURL = ""
 MaxWitnessRetrievalWorkers = 2
 SyncModeOnlyEnabled = false
-UseFullWitness = false
 SequencerPrivateKey = {}
 	[Aggregator.DB]
 		Name = "aggregator_db"
@@ -74,7 +89,7 @@ SequencerPrivateKey = {}
 		Level = "info"
 		Outputs = ["stderr"]
 	[Aggregator.StreamClient]
-		Server = "zkevm-erigon-seq:6900"
+		Server = "localhost:6900"
 	[Aggregator.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2m"
@@ -92,7 +107,7 @@ SequencerPrivateKey = {}
 		FinalizedStatusL1NumberOfBlocks = 0
 			[Aggregator.EthTxManager.Etherman]
 				URL = ""
-				L1ChainID = 11155111
+				L1ChainID = ${l1_chain_id}
 				HTTPHeaders = []
 	[Aggregator.Synchronizer]
 		[Aggregator.Synchronizer.DB]
@@ -109,10 +124,27 @@ SequencerPrivateKey = {}
 			GenesisBlockNumber = 5511080
 			SyncUpToBlock = "finalized"
 			BlockFinality = "finalized"
+			OverrideStorageCheck = false
 		[Aggregator.Synchronizer.Etherman]
 			[Aggregator.Synchronizer.Etherman.Validium]
-				Enabled = false
-				TrustedSequencerURL = ""
-				DataSourcePriority = ["trusted", "external"]
-				[Aggregator.Synchronizer.Etherman.Validium.Translator]
-					FullMatchRules = []
+				Enabled = ${zkevm_is_validium}
+
+
+[L1InfoTreeSync]
+DBPath = "/tmp/L1InfoTreeSync.sqlite"
+GlobalExitRootAddr="${zkevm_global_exit_root_address}"
+RollupManagerAddr="${zkevm_rollup_manager_address}"
+SyncBlockChunkSize=100
+BlockFinality="LatestBlock"
+# http://el-1-geth-lighthouse:8545
+URLRPCL1="${l1_rpc_addr}"
+WaitForNewBlocksPeriod="100ms"
+InitialBlock=0
+
+
+[NetworkConfig.L1]
+L1ChainID = ${l1_chain_id}
+PolAddr = "${pol_token_address}"
+ZkEVMAddr = "${zkevm_rollup_address}"
+RollupManagerAddr = "${zkevm_rollup_manager_address}"
+GlobalExitRootManagerAddr = "${zkevm_global_exit_root_address}"
