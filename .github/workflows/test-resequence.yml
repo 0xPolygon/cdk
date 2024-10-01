@@ -3,7 +3,7 @@ on:
   push:
     branches:
       # Disable test for the moment as it takes too long
-      - "this-test-is-disabled"
+      - "test_disabled"
 
 
 concurrency:
@@ -34,7 +34,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 0xPolygon/kurtosis-cdk
-          ref: 3debe0a4dd000e02f7e6bde3247432211bf0336f
+          ref: a7a80b7b5d98a69a23415ab0018e556257a6dfb6
           path: kurtosis-cdk
 
       - name: Install Kurtosis CDK tools
@@ -72,8 +72,11 @@ jobs:
       - name: Configure Kurtosis CDK
         working-directory: ./kurtosis-cdk
         run: |
-          /usr/local/bin/yq -i '.args.cdk_erigon_node_image = "jerrycgh/cdk-erigon:d5d04906f723f3f1d8c43c9e6baf3e18c27ff348"' params.yml
           /usr/local/bin/yq -i '.args.cdk_node_image = "cdk:local"' params.yml
+          /usr/local/bin/yq -i '.args.zkevm_rollup_fork_id = "12"' params.yml
+          /usr/local/bin/yq -i '.args.zkevm_prover_image = "hermeznetwork/zkevm-prover:v8.0.0-RC5-fork.12"' params.yml
+          /usr/local/bin/yq -i '.args.cdk_erigon_node_image = "jerrycgh/cdk-erigon:d5d04906f723f3f1d8c43c9e6baf3e18c27ff348"' params.yml
+
 
       - name: Deploy Kurtosis CDK package
         working-directory: ./kurtosis-cdk

@@ -30,7 +30,8 @@ SequencesTxFileName = "sequencesender.json"
 GasOffset = 80000
 WaitPeriodPurgeTxFile = "15m"
 MaxPendingTx = 1
-SanityCheckRPCURL = "${l2_rpc_addr}"
+RPCURL = "${l2_rpc_addr}"
+GetBatchWaitInterval = "10s"
 	[SequenceSender.StreamClient]
 		Server = "127.0.0.1:${zkevm_data_streamer_port}"
 	[SequenceSender.EthTxManager]

@@ -54,9 +54,6 @@ type Config struct {
 	// MaxPendingTx is the maximum number of pending transactions (those that are not in a final state)
 	MaxPendingTx uint64
 
-	// StreamClient is the config for the stream client
-	StreamClient StreamClientCfg `mapstructure:"StreamClient"`
-
 	// EthTxManager is the config for the ethtxmanager
 	EthTxManager ethtxmanager.Config `mapstructure:"EthTxManager"`
 
@@ -68,8 +65,11 @@ type Config struct {
 	// BlockFinality indicates the status of the blocks that will be queried in order to sync
 	BlockFinality string `jsonschema:"enum=LatestBlock, enum=SafeBlock, enum=PendingBlock, enum=FinalizedBlock, enum=EarliestBlock" mapstructure:"BlockFinality"` //nolint:lll
 
-	// SanityCheckRPCURL is the URL of the RPC server to perform sanity check regarding the number of blocks in a batch
-	SanityCheckRPCURL string `mapstructure:"SanityCheckRPCURL"`
+	// RPCURL is the URL of the RPC server
+	RPCURL string `mapstructure:"RPCURL"`
+
+	// GetBatchWaitInterval is the time to wait to query for a new batch when there are no more batches available
+	GetBatchWaitInterval types.Duration `mapstructure:"GetBatchWaitInterval"`
 }
 
 // StreamClientCfg contains the data streamer's configuration properties
