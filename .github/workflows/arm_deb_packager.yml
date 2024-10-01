@@ -42,7 +42,9 @@ jobs:
         run: make build
 
       - name: Build the rust binary
-        run: cargo build --release --bin cdk
+        run: |
+          BUILD_SCRIPT_DISABLED=1
+          cargo build --release --bin cdk
 
       - name: making directory structure
         run: mkdir -p packaging/deb/cdk/usr/bin/
