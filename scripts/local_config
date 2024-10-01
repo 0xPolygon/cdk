@@ -1,30 +1,180 @@
 #!/bin/bash
 #Include common varaibles
 source $(dirname $0)/../test/scripts/env.sh
+###############################################################################
+function log_debug() {
+    echo -e "\033[0;30mDebug: $*" "\033[0m"
+}
+###############################################################################
+function log_error() {
+    echo -e "\033[0;31mError: $*" "\033[0m"
+}
+###############################################################################
+function log_fatal() {
+    log_error $*
+    exit 1
+}
+###############################################################################
+function ok_or_fatal(){
+    if [ $? -ne 0 ]; then
+        log_fatal $*
+    fi
+}
 
+###############################################################################
+function get_value_from_toml_file(){
+    local _FILE="$1"
+    # KEY  = <section1>.<section2>
+    local _SECTION="$2"
+    local _KEY="$3"
+    local _LINE
+    local _inside_section=0
+    while read -r _LINE; do
+        # Clean up line from spaces and tabs
+        _LINE=$(echo $_LINE | tr -d '[:space:]')
+        #echo $_LINE
+        if [ $_inside_section -eq 1 ]; then
+            if [[ "$_LINE" == [* ]]; then
+                return 1
+            fi
+            #local _key_splitted=(${_LINE//=/ })    
+            local _key_name=$(echo $_LINE | cut -f 1 -d "=")
+            local _key_value=$(echo $_LINE | cut -f 2- -d "=")
+            if [ "$_key_name" == "$_KEY" ]; then
+                echo $_key_value
+                return 0
+            fi
+        elif [ "$_LINE" == "[${_SECTION}]" ]; then
+            _inside_section=1
+        fi
+        
+    
+    done < "$_FILE"
+    return 2
+
+}
+###############################################################################
+function export_key_from_toml_file_or_fatal(){
+    local _EXPORTED_VAR_NAME="$1"
+    local _FILE="$2"
+    local _SECTION="$3"
+    local _KEY="$4"
+    local _VALUE=$(get_value_from_toml_file $_FILE $_SECTION $_KEY)
+    if [ -z "$_VALUE" ]; then
+       log_fatal  "$FUNCNAME: key $_KEY not found in section $_SECTION"
+    fi
+    export $_EXPORTED_VAR_NAME="$_VALUE"
+    log_debug "$_EXPORTED_VAR_NAME=${!_EXPORTED_VAR_NAME}  \t\t\t# file:$_FILE section:$_SECTION key:$_KEY"
+}
+
+###############################################################################
+function export_obj_key_from_toml_file_or_fatal(){
+    local _EXPORTED_VAR_NAME="$1"
+    local _FILE="$2"
+    local _SECTION="$3"
+    local _KEY="$4"
+    local _OBJ_KEY="$5"
+   local _VALUE=$(get_value_from_toml_file $_FILE $_SECTION $_KEY)
+    if [ -z "$_VALUE" ]; then
+       log_fatal  "$FUNCNAME: obj_key $_KEY not found in section $_SECTION"
+    fi
+    local _CLEAN_VALUE=$(echo $_VALUE | tr -d '{' | tr -d '}' | tr  ',' '\n')
+    while read -r _LINE; do
+        local _key_splitted=(${_LINE//=/ })    
+        if [ "${_key_splitted[0]}" == "$_OBJ_KEY" ]; then
+            export $_EXPORTED_VAR_NAME=${_key_splitted[1]}
+            log_debug "$_EXPORTED_VAR_NAME=${!_EXPORTED_VAR_NAME}  \t\t\t# file:$_FILE section:$_SECTION key:$_KEY obj_key:$_OBJ_KEY"
+            return 0
+        fi
+    done <<< "$_CLEAN_VALUE"
+    log_fatal  "obj_key $_OBJ_KEY not found in section $_SECTION/ $_KEY = $_VALUE"
+}
+
+###############################################################################
 function export_values_of_genesis(){
     local _GENESIS_FILE=$1
     if [ ! -f $_GENESIS_FILE ]; then
-        echo "Error: genesis file not found: $_GENESIS_FILE"
-        exit 1
+        log_fatal "Error: genesis file not found: $_GENESIS_FILE"
     fi
     export l1_chain_id=$(jq -r '.L1Config.chainId' $_GENESIS_FILE  | tr -d '"')
     export pol_token_address=$(jq -r '.L1Config.polTokenAddress' $_GENESIS_FILE)
     export zkevm_rollup_address=$(jq -r '.L1Config.polygonZkEVMAddress' $_GENESIS_FILE)
     export zkevm_rollup_manager_address=$(jq -r '.L1Config.polygonRollupManagerAddress' $_GENESIS_FILE)
     export zkevm_global_exit_root_address=$(jq -r '.L1Config.polygonZkEVMGlobalExitRootAddress' $_GENESIS_FILE)
+    export zkevm_rollup_manager_block_number=$(jq -r '.rollupManagerCreationBlockNumber' $_GENESIS_FILE)
 }
 
+###############################################################################
+function export_values_of_cdk_node_config(){
+    local _CDK_CONFIG_FILE=$1
+    export_key_from_toml_file_or_fatal      zkevm_l2_sequencer_address  $_CDK_CONFIG_FILE SequenceSender L2Coinbase
+    export_obj_key_from_toml_file_or_fatal  zkevm_l2_keystore_password  $_CDK_CONFIG_FILE SequenceSender PrivateKey Password
+    export_key_from_toml_file_or_fatal      l1_chain_id                 $_CDK_CONFIG_FILE SequenceSender.EthTxManager.Etherman L1ChainID
+    export_key_from_toml_file_or_fatal      zkevm_is_validium           $_CDK_CONFIG_FILE Common IsValidiumMode
+    export_key_from_toml_file_or_fatal      zkevm_contract_versions     $_CDK_CONFIG_FILE Common ContractVersions
+    export_key_from_toml_file_or_fatal      l2_chain_id                 $_CDK_CONFIG_FILE Aggregator ChainID
+    export_key_from_toml_file_or_fatal      zkevm_aggregator_port       $_CDK_CONFIG_FILE Aggregator Port
+    export_key_from_toml_file_or_fatal      zkevm_l2_agglayer_address   $_CDK_CONFIG_FILE Aggregator SenderAddress
+    export_key_from_toml_file_or_fatal      aggregator_db_name          $_CDK_CONFIG_FILE Aggregator.DB Name
+    export_key_from_toml_file_or_fatal      aggregator_db_user          $_CDK_CONFIG_FILE Aggregator.DB User
+    export_key_from_toml_file_or_fatal      aggregator_db_password      $_CDK_CONFIG_FILE Aggregator.DB Password
+    export_key_from_toml_file_or_fatal      zkevm_rollup_fork_id        $_CDK_CONFIG_FILE Aggregator ForkId
+    export is_cdk_validium=$zkevm_is_validium
+    export zkevm_rollup_chain_id=$l2_chain_id
 
+    if [ "$zkevm_is_validium" == "true" ]; then
+        log_debug "Validium mode detected... Retrieving the dac_port"
+        export_value_from_kurtosis_or_fail dac_port zkevm-dac-001 dac
+    fi
+}
+###############################################################################
+function export_value_from_kurtosis_or_fail(){
+    local _EXPORTED_VAR_NAME="$1"
+    local _SERVICE="$2"
+    local _END_POINT="$3"
+    export $_EXPORTED_VAR_NAME=$(kurtosis port print $KURTOSIS_ENCLAVE $_SERVICE $_END_POINT)
+    if [ -z $_EXPORTED_VAR_NAME ]; then
+        log_fatal "Error getting kurtosis port:  $KURTOSIS_ENCLAVE $_SERVICE $_END_POINT"
+    fi
+    log_debug "$_EXPORTED_VAR_NAME=${!_EXPORTED_VAR_NAME}  \t\t\t# Kurtosis $KURTOSIS_ENCLAVE $_SERVICE $_END_POINT"
+}
+###############################################################################
+function export_portnum_from_kurtosis_or_fail(){
+    local _EXPORTED_VAR_NAME="$1"
+    export_value_from_kurtosis_or_fail "$1" "$2" "$3" > /dev/null
+    local _VALUE
+    eval "_VALUE=\$$1"
+    local _PORT=$(echo "$_VALUE" | cut -f 3 -d ":")
+    if [ -z $_PORT ]; then
+        log_fatal "Error getting port number from kurtosis:  $2 $3 -> $_VALUE"
+    fi
+    export $_EXPORTED_VAR_NAME=$_PORT
+    log_debug "$_EXPORTED_VAR_NAME=${!_EXPORTED_VAR_NAME} \t\t\t# Kurtosis $KURTOSIS_ENCLAVE $2 $3"
+}
+###############################################################################
+function export_ports_from_kurtosis(){
+    export_portnum_from_kurtosis_or_fail    l1_rpc_port              el-1-geth-lighthouse rpc
+    export_value_from_kurtosis_or_fail      l1_rpc_url               el-1-geth-lighthouse rpc
+    export_value_from_kurtosis_or_fail      l2_rpc_url               cdk-erigon-node-001 http-rpc
+    export_portnum_from_kurtosis_or_fail    zkevm_rpc_http_port      cdk-erigon-node-001 http-rpc
+    export_portnum_from_kurtosis_or_fail    zkevm_data_streamer_port cdk-erigon-sequencer-001 data-streamer
+    export_portnum_from_kurtosis_or_fail    aggregator_db_port       postgres-001 postgres
+    export_portnum_from_kurtosis_or_fail    agglayer_port            agglayer agglayer
+    export aggregator_db_hostname="127.0.0.1"
+}
 
 ###############################################################################
-# MAIN
+function  export_forced_values(){
+    export global_log_level="debug"
+    export l2_rpc_name="localhost"
+    export sequencer_name="localhost"
+    export deployment_suffix=""
+}
 ###############################################################################
-set -o pipefail # enable strict command pipe error detection
-
-which kurtosis > /dev/null
-if [ $? -ne 0 ]; then
-    echo "kurtosis is not installed. Please install it:"
+function check_requirements(){
+    which kurtosis > /dev/null
+    if [ $? -ne 0 ]; then
+    log_error "kurtosis is not installed. Please install it:"
     cat << EOF
             echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
         echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
@@ -33,58 +183,78 @@ if [ $? -ne 0 ]; then
 EOF
         exit 1
     
-fi
+    fi
+    if [ -z $TMP_CDK_FOLDER -o -z $KURTOSIS_ENCLAVE ]; then
+        log_fatal "TMP_CDK_FOLDER or KURTOSIS_ENCLAVE is not set. Must be set on file env.sh"
+    fi
+    kurtosis enclave inspect $KURTOSIS_ENCLAVE > /dev/null
+    if [ $? -ne 0 ]; then
+        log_error  "Error inspecting enclave $KURTOSIS_ENCLAVE"
+        echo "You must start kurtosis environment before running this script"
+        echo "- start kurtosis:"
+        echo "    kurtosis clean --all; kurtosis run --enclave $KURTOSIS_ENCLAVE --args-file params.yml --image-download always ."
 
-if [ -z $TMP_CDK_FOLDER -o -z $KURTOSIS_ENCLAVE ]; then
-    echo "TMP_CDK_FOLDER or KURTOSIS_ENCLAVE is not set. Must be set on file env.sh"
-    exit 1
-fi
-kurtosis enclave inspect $KURTOSIS_ENCLAVE > /dev/null
-if [ $? -ne 0 ]; then
-    echo "Error inspecting enclave $KURTOSIS_ENCLAVE"
-    echo "You must start kurtosis environment before running this script"
-    echo "- start kurtosis:"
-    echo "    kurtosis clean --all; kurtosis run --enclave $KURTOSIS_ENCLAVE --args-file params.yml --image-download always ."
+        exit 1
+    fi
+}
+###############################################################################
+function create_dest_folder(){
+    export DEST=${TMP_CDK_FOLDER}/local_config
+    [ ! -d ${DEST} ] && mkdir -p ${DEST}
+    rm $DEST/*
+}
+###############################################################################
+function download_kurtosis_artifacts(){
+    kurtosis files download $KURTOSIS_ENCLAVE genesis $DEST
+    ok_or_fatal "Error downloading kurtosis artifact genesis  to $DEST"
+    export genesis_file=$DEST/genesis.json
+    
+    kurtosis files download $KURTOSIS_ENCLAVE sequencer-keystore $DEST
+    ok_or_fatal "Error downloading kurtosis artifact sequencer-keystore  to $DEST"
+    export sequencer_keystore_file=$DEST/sequencer.keystore
+    
+    kurtosis files download $KURTOSIS_ENCLAVE cdk-node-config-artifact $DEST
+    ok_or_fatal "Error downloading kurtosis artifact cdk-node-config-artifact  to $DEST"
+}
+###############################################################################
+function check_generated_config_file(){
+    grep "<no value>" $DEST_TEMPLATE_FILE > /dev/null
+    if [ $? -ne 1 ]; then
+        log_error "some values are not set, check $ORIG_TEMPLATE_FILE"
+        echo ""
+        echo "missing keys in rendered template: $DEST_TEMPLATE_FILE"
+        echo " "
+        grep "<no value>" $DEST_TEMPLATE_FILE
+        exit 1
+    fi
+}
+###############################################################################
+# MAIN
+###############################################################################
+set -o pipefail # enable strict command pipe error detection
+check_requirements
+create_dest_folder
 
-    exit 1
-fi
-DEST=${TMP_CDK_FOLDER}/local_config
+download_kurtosis_artifacts
 
-[ ! -d ${DEST} ] && mkdir -p ${DEST}
-rm $DEST/*
-kurtosis files download $KURTOSIS_ENCLAVE genesis $DEST
-[ $? -ne 0 ] && echo "Error downloading genesis" && exit 1
-export genesis_file=$DEST/genesis.json
 export_values_of_genesis $genesis_file
-kurtosis files download $KURTOSIS_ENCLAVE sequencer-keystore $DEST
-[ $? -ne 0 ] && echo "Error downloading sequencer-keystore" && exit 1
-export sequencer_keystore_file=$DEST/sequencer.keystore
+export_ports_from_kurtosis
+export_values_of_cdk_node_config $DEST/cdk-node-config.toml
+export_forced_values
 
-l1_rpc_port=$(kurtosis port print $KURTOSIS_ENCLAVE el-1-geth-lighthouse rpc | cut -f 3 -d ":")
-[ $? -ne 0 ] && echo "Error getting l1_rpc_port" && exit 1 || export l1_rpc_port && echo "l1_rpc_port=$l1_rpc_port"
-l1_rpc_addr=$(kurtosis port print $KURTOSIS_ENCLAVE el-1-geth-lighthouse rpc)
-[ $? -ne 0 ] && echo "Error getting l1_rpc_addr" && exit 1 || export l1_rpc_addr && echo "l1_rpc_addr=$l1_rpc_addr"
-l2_rpc_addr=$(kurtosis port print $KURTOSIS_ENCLAVE  cdk-erigon-node-001 http-rpc)
-[ $? -ne 0 ] && echo "Error getting l2_rpc_addr" && exit 1 || export l2_rpc_addr && echo "l2_rpc_addr=$l2_rpc_addr"
+ORIG_TEMPLATE_FILE=test/config/kurtosis-cdk-node-config.toml.template
+DEST_TEMPLATE_FILE=$DEST/test.kurtosis.toml
 
-zkevm_data_streamer_port=$(kurtosis port print $KURTOSIS_ENCLAVE cdk-erigon-sequencer-001  data-streamer | cut -f 3 -d ":")
-[ $? -ne 0 ] && echo "Error getting zkevm_data_streamer_port" && exit 1 || export zkevm_data_streamer_port && echo "zkevm_data_streamer_port=$zkevm_data_streamer_port"
+# Generate config file
+go run scripts/run_template.go $ORIG_TEMPLATE_FILE > $DEST_TEMPLATE_FILE
+ok_or_fatal "Error generating template"
 
-kurtosis files download $KURTOSIS_ENCLAVE cdk-node-config-artifact $DEST
-export zkevm_l2_sequencer_address=$(cat $DEST/cdk-node-config.toml  |grep L2Coinbase | cut -f 2 -d "="| tr -d '"'  | tr -d ' ')
-export zkevm_l2_keystore_password=$(cat $DEST/cdk-node-config.toml  |grep -A1 L2Coinbase  | tr ',' '\n' | grep Password | cut -f 2 -d '=' | tr -d '}' | tr -d '"' | tr -d ' ')
-export l1_chain_id=$(cat $DEST/cdk-node-config.toml | grep L1ChainID | cut -f 2 -d '=' | head -n 1)
-echo $l1_chain_id
-export zkevm_is_validium=$(cat $DEST/cdk-node-config.toml | grep IsValidiumMode | cut -f 2 -d '=')
-export zkevm_contract_versions=$(cat $DEST/cdk-node-config.toml | grep ContractVersions | cut -f 2 -d '=' | tr -d '"' | tr -d ' ')
-if [ "$zkevm_is_validium" == "true" ]; then
-    echo "Validium mode detected... Retrieving the dac_port"
-    dac_port=$(kurtosis port print $KURTOSIS_ENCLAVE zkevm-dac-001 dac | cut -f 3 -d ":")
-    [ $? -ne 0 ] && echo "Error getting dac_port" && exit 1 || export dac_port  && echo "dac_port=$dac_port"
-fi
+check_generated_config_file
 
-envsubst < test/config/test.kurtosis_template.toml > $DEST/test.kurtosis.toml
+
+echo " "
 echo "file generated at:" $DEST/test.kurtosis.toml
+
 echo "- to restart kurtosis:"
 echo "    kurtosis clean --all; kurtosis run --enclave cdk-v1 --args-file params.yml --image-download always ."
 echo " "
@@ -102,7 +272,7 @@ cat << EOF
             "cwd": "\${workspaceFolder}",
             "args":[
                 "run",
-                "-cfg", "$DEST/test.kurtosis.toml",
+                "-cfg", "$DEST_TEMPLATE_FILE",
                 "-components", "sequence-sender,aggregator",
             ]
         },
