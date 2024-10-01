@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree"
@@ -12,9 +13,18 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+type CreationFlags uint64
+
 const (
 	reorgDetectorID    = "l1infotreesync"
 	downloadBufferSize = 1000
+	// CreationFlags defitinion
+	FlagNone                     CreationFlags = 0
+	FlagAllowWrongContractsAddrs CreationFlags = 1 << iota // Allow to set wrong contracts addresses
+)
+
+var (
+	ErrNotFound = errors.New("l1infotreesync: not found")
 )
 
 type L1InfoTreeSync struct {
@@ -36,6 +46,7 @@ func New(
 	initialBlock uint64,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
+	flags CreationFlags,
 ) (*L1InfoTreeSync, error) {
 	processor, err := newProcessor(dbPath)
 	if err != nil {
@@ -59,7 +70,7 @@ func New(
 		MaxRetryAttemptsAfterError: maxRetryAttemptsAfterError,
 	}
 
-	appender, err := buildAppender(l1Client, globalExitRoot, rollupManager)
+	appender, err := buildAppender(l1Client, globalExitRoot, rollupManager, flags)
 	if err != nil {
 		return nil, err
 	}
@@ -111,10 +122,21 @@ func (s *L1InfoTreeSync) GetRollupExitTreeMerkleProof(
 	return s.processor.rollupExitTree.GetProof(ctx, networkID-1, root)
 }
 
+func translateError(err error) error {
+	if errors.Is(err, db.ErrNotFound) {
+		return ErrNotFound
+	}
+	return err
+}
+
 // GetLatestInfoUntilBlock returns the most recent L1InfoTreeLeaf that occurred before or at blockNum.
 // If the blockNum has not been processed yet the error ErrBlockNotProcessed will be returned
+// It can returns next errors:
+// - ErrBlockNotProcessed,
+// - ErrNotFound
 func (s *L1InfoTreeSync) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*L1InfoTreeLeaf, error) {
-	return s.processor.GetLatestInfoUntilBlock(ctx, blockNum)
+	leaf, err := s.processor.GetLatestInfoUntilBlock(ctx, blockNum)
+	return leaf, translateError(err)
 }
 
 // GetInfoByIndex returns the value of a leaf (not the hash) of the L1 info tree
@@ -129,12 +151,12 @@ func (s *L1InfoTreeSync) GetL1InfoTreeRootByIndex(ctx context.Context, index uin
 
 // GetLastRollupExitRoot return the last rollup exit root processed
 func (s *L1InfoTreeSync) GetLastRollupExitRoot(ctx context.Context) (types.Root, error) {
-	return s.processor.rollupExitTree.GetLastRoot(ctx)
+	return s.processor.rollupExitTree.GetLastRoot(nil)
 }
 
 // GetLastL1InfoTreeRoot return the last root and index processed from the L1 Info tree
 func (s *L1InfoTreeSync) GetLastL1InfoTreeRoot(ctx context.Context) (types.Root, error) {
-	return s.processor.l1InfoTree.GetLastRoot(ctx)
+	return s.processor.l1InfoTree.GetLastRoot(nil)
 }
 
 // GetLastProcessedBlock return the last processed block
@@ -149,7 +171,7 @@ func (s *L1InfoTreeSync) GetLocalExitRoot(
 		return common.Hash{}, errors.New("network 0 is not a rollup, and it's not part of the rollup exit tree")
 	}
 
-	return s.processor.rollupExitTree.GetLeaf(ctx, networkID-1, rollupExitRoot)
+	return s.processor.rollupExitTree.GetLeaf(nil, networkID-1, rollupExitRoot)
 }
 
 func (s *L1InfoTreeSync) GetLastVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
@@ -189,4 +211,9 @@ func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProofFromIndexToRoot(
 	ctx context.Context, index uint32, root common.Hash,
 ) (types.Proof, error) {
 	return s.processor.l1InfoTree.GetProof(ctx, index, root)
+}
+
+// GetInitL1InfoRootMap returns the initial L1 info root map, nil if no root map has been set
+func (s *L1InfoTreeSync) GetInitL1InfoRootMap(ctx context.Context) (*L1InfoTreeInitial, error) {
+	return s.processor.GetInitL1InfoRootMap(nil)
 }

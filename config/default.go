@@ -5,6 +5,18 @@ const DefaultValues = `
 ForkUpgradeBatchNumber = 0
 ForkUpgradeNewForkId = 0
 
+[Etherman]
+	URL="http://localhost:8545"
+	ForkIDChunkSize=100
+	[Etherman.EthermanConfig]
+		URL="http://localhost:8545"
+		MultiGasProvider=false
+		L1ChainID=1337
+		HTTPHeaders=[]
+		[Etherman.EthermanConfig.Etherscan]
+			ApiKey=""
+			Url="https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey="
+
 [Common]
 NetworkID = 1
 IsValidiumMode = false
@@ -28,8 +40,8 @@ WaitPeriodPurgeTxFile = "15m"
 MaxPendingTx = 1
 MaxBatchesForL1 = 300
 BlockFinality = "FinalizedBlock"
-	[SequenceSender.StreamClient]
-		Server = "127.0.0.1:6900"
+RPCURL = ""
+GetBatchWaitInterval = "10s"
 	[SequenceSender.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2m"
@@ -141,7 +153,7 @@ DBPath = "/tmp/reorgdetectorl1"
 DBPath = "/tmp/reorgdetectorl2"
 
 [L1InfoTreeSync]
-DBPath = "/tmp/L1InfoTreeSync"
+DBPath = "/tmp/L1InfoTreeSync.sqlite"
 GlobalExitRootAddr="0x8464135c8F25Da09e49BC8782676a84730C318bC"
 SyncBlockChunkSize=10
 BlockFinality="LatestBlock"
@@ -250,4 +262,12 @@ RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "1s"
 DownloadBufferSize = 100
+
+[NetworkConfig.L1]
+L1ChainID = 0
+PolAddr = "0x0000000000000000000000000000000000000000"
+ZkEVMAddr = "0x0000000000000000000000000000000000000000"
+RollupManagerAddr = "0x0000000000000000000000000000000000000000"
+GlobalExitRootManagerAddr = "0x0000000000000000000000000000000000000000"
+
 `

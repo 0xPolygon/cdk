@@ -1,5 +1,5 @@
 .PHONY: generate-mocks
-generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-mocks-sequencesender generate-mocks-da generate-mocks-l1infotreesync generate-mocks-helpers generate-mocks-sync
+generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-mocks-sequencesender generate-mocks-da generate-mocks-l1infotreesync generate-mocks-helpers generate-mocks-sync generate-mocks-l1infotreesync
 
 
 .PHONY: generate-mocks-bridgesync
@@ -29,6 +29,25 @@ generate-mocks-rpc: ## Generates mocks for rpc, using mockery tool
 	rm -Rf ../rpc/mocks
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../rpc --output ../rpc/mocks --outpkg mocks ${COMMON_MOCKERY_PARAMS}
 
+.PHONY: generate-mocks-l1infotreesync
+generate-mocks-l1infotreesync: ## Generates mocks for l1infotreesync, using mockery tool
+	rm -Rf ../l1infotreesync/mocks
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../l1infotreesync --output ../l1infotreesync/mocks --outpkg mocks_l1infotreesync ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../l1infotreesync --outpkg=l1infotreesync --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
+
+
+	
+.PHONY: generate-mocks-aggoracle
+generate-mocks-helpers: ## Generates mocks for helpers , using mockery tool
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager --dir=../aggoracle/chaingersender --output=./helpers --outpkg=helpers --structname=EthTxManagerMock --filename=mock_ethtxmanager.go
+
+.PHONY: generate-mocks-sync
+generate-mocks-sync: ## Generates mocks for sync, using mockery tool
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthClienter --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=L2Mock --filename=mock_l2_test.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=evmDownloaderFull --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=EVMDownloaderMock --filename=mock_downloader_test.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=processorInterface --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=ProcessorMock --filename=mock_processor_test.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
+
 
 .PHONY: test-e2e-elderberry-validium
 test-e2e-elderberry-validium: stop ## Runs e2e tests checking elderberry/validium
@@ -55,17 +74,3 @@ help: ## Prints this help
 		@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| sort \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
-.PHONY: generate-mocks-l1infotreesync
-generate-mocks-l1infotreesync: ## Generates mocks for l1infotreesync , using mockery tool
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../l1infotreesync --outpkg=l1infotreesync --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
-
-.PHONY: generate-mocks-aggoracle
-generate-mocks-helpers: ## Generates mocks for helpers , using mockery tool
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager --dir=../aggoracle/chaingersender --output=./helpers --outpkg=helpers --structname=EthTxManagerMock --filename=mock_ethtxmanager.go
-
-.PHONY: generate-mocks-sync
-generate-mocks-sync: ## Generates mocks for sync, using mockery tool
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthClienter --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=L2Mock --filename=mock_l2_test.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=evmDownloaderFull --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=EVMDownloaderMock --filename=mock_downloader_test.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=processorInterface --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=ProcessorMock --filename=mock_processor_test.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go

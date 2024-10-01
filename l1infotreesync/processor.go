@@ -53,9 +53,20 @@ type VerifyBatches struct {
 	RollupExitRoot common.Hash `meddler:"rollup_exit_root,hash"`
 }
 
+func (v *VerifyBatches) String() string {
+	return fmt.Sprintf("BlockNumber: %d, BlockPosition: %d, RollupID: %d, NumBatch: %d, StateRoot: %s, "+
+		"ExitRoot: %s, Aggregator: %s, RollupExitRoot: %s",
+		v.BlockNumber, v.BlockPosition, v.RollupID, v.NumBatch, v.StateRoot.String(),
+		v.ExitRoot.String(), v.Aggregator.String(), v.RollupExitRoot.String())
+}
+
 type InitL1InfoRootMap struct {
 	LeafCount         uint32
 	CurrentL1InfoRoot common.Hash
+}
+
+func (i *InitL1InfoRootMap) String() string {
+	return fmt.Sprintf("LeafCount: %d, CurrentL1InfoRoot: %s", i.LeafCount, i.CurrentL1InfoRoot.String())
 }
 
 type Event struct {
@@ -75,6 +86,24 @@ type L1InfoTreeLeaf struct {
 	RollupExitRoot    common.Hash `meddler:"rollup_exit_root,hash"`
 	GlobalExitRoot    common.Hash `meddler:"global_exit_root,hash"`
 	Hash              common.Hash `meddler:"hash,hash"`
+}
+
+func (l *L1InfoTreeLeaf) String() string {
+	return fmt.Sprintf("BlockNumber: %d, BlockPosition: %d, L1InfoTreeIndex: %d, PreviousBlockHash: %s, "+
+		"Timestamp: %d, MainnetExitRoot: %s, RollupExitRoot: %s, GlobalExitRoot: %s, Hash: %s",
+		l.BlockNumber, l.BlockPosition, l.L1InfoTreeIndex, l.PreviousBlockHash.String(),
+		l.Timestamp, l.MainnetExitRoot.String(), l.RollupExitRoot.String(), l.GlobalExitRoot.String(), l.Hash.String())
+}
+
+// L1InfoTreeInitial representation of the initial info of the L1 Info tree for this rollup
+type L1InfoTreeInitial struct {
+	BlockNumber uint64      `meddler:"block_num"`
+	LeafCount   uint32      `meddler:"leaf_count"`
+	L1InfoRoot  common.Hash `meddler:"l1_info_root,hash"`
+}
+
+func (l *L1InfoTreeInitial) String() string {
+	return fmt.Sprintf("BlockNumber: %d, LeafCount: %d, L1InfoRoot: %s", l.BlockNumber, l.LeafCount, l.L1InfoRoot.String())
 }
 
 // Hash as expected by the tree
@@ -227,7 +256,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 
 // ProcessBlock process the events of the block to build the rollup exit tree and the l1 info tree
 // and updates the last processed block (can be called without events for that purpose)
-func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
+func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
@@ -240,8 +269,8 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		}
 	}()
 
-	if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, b.Num); err != nil {
-		return fmt.Errorf("err: %w", err)
+	if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, block.Num); err != nil {
+		return fmt.Errorf("insert Block. err: %w", err)
 	}
 
 	var initialL1InfoIndex uint32
@@ -253,12 +282,12 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		initialL1InfoIndex = 0
 		err = nil
 	case err != nil:
-		return fmt.Errorf("err: %w", err)
+		return fmt.Errorf("getLastIndex err: %w", err)
 	default:
 		initialL1InfoIndex = lastIndex + 1
 	}
 
-	for _, e := range b.Events {
+	for _, e := range block.Events {
 		event, ok := e.(Event)
 		if !ok {
 			return errors.New("failed to convert from sync.Block.Event into Event")
@@ -266,7 +295,7 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 		if event.UpdateL1InfoTree != nil {
 			index := initialL1InfoIndex + l1InfoLeavesAdded
 			info := &L1InfoTreeLeaf{
-				BlockNumber:       b.Num,
+				BlockNumber:       block.Num,
 				BlockPosition:     event.UpdateL1InfoTree.BlockPosition,
 				L1InfoTreeIndex:   index,
 				PreviousBlockHash: event.UpdateL1InfoTree.ParentHash,
@@ -277,45 +306,44 @@ func (p *processor) ProcessBlock(ctx context.Context, b sync.Block) error {
 			info.GlobalExitRoot = info.globalExitRoot()
 			info.Hash = info.hash()
 			if err = meddler.Insert(tx, "l1info_leaf", info); err != nil {
-				return fmt.Errorf("err: %w", err)
+				return fmt.Errorf("insert l1info_leaf %s. err: %w", info.String(), err)
 			}
+
 			err = p.l1InfoTree.AddLeaf(tx, info.BlockNumber, info.BlockPosition, treeTypes.Leaf{
 				Index: info.L1InfoTreeIndex,
 				Hash:  info.Hash,
 			})
 			if err != nil {
-				return fmt.Errorf("err: %w", err)
+				return fmt.Errorf("AddLeaf(%s). err: %w", info.String(), err)
 			}
+			log.Infof("inserted L1InfoTreeLeaf %s", info.String())
 			l1InfoLeavesAdded++
 		}
-
 		if event.VerifyBatches != nil {
-			newRoot, err := p.rollupExitTree.UpsertLeaf(tx, b.Num, event.VerifyBatches.BlockPosition, treeTypes.Leaf{
-				Index: event.VerifyBatches.RollupID - 1,
-				Hash:  event.VerifyBatches.ExitRoot,
-			})
+			log.Debugf("handle VerifyBatches event %s", event.VerifyBatches.String())
+			err = p.processVerifyBatches(tx, block.Num, event.VerifyBatches)
 			if err != nil {
-				return fmt.Errorf("err: %w", err)
-			}
-			verifyBatches := event.VerifyBatches
-			verifyBatches.BlockNumber = b.Num
-			verifyBatches.RollupExitRoot = newRoot
-			if err = meddler.Insert(tx, "verify_batches", verifyBatches); err != nil {
-				return fmt.Errorf("err: %w", err)
+				err = fmt.Errorf("processVerifyBatches. err: %w", err)
+				log.Errorf("error processing VerifyBatches: %v", err)
+				return err
 			}
 		}
 
 		if event.InitL1InfoRootMap != nil {
-			// TODO: indicate that l1 Info tree indexes before the one on this
-			// event are not safe to use
-			log.Debugf("TODO: handle InitL1InfoRootMap event")
+			log.Debugf("handle InitL1InfoRootMap event %s", event.InitL1InfoRootMap.String())
+			err = processEventInitL1InfoRootMap(tx, block.Num, event.InitL1InfoRootMap)
+			if err != nil {
+				err = fmt.Errorf("initL1InfoRootMap. Err: %w", err)
+				log.Errorf("error processing InitL1InfoRootMap: %v", err)
+				return err
+			}
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("err: %w", err)
 	}
-	log.Infof("block %d processed with %d events", b.Num, len(b.Events))
+	log.Infof("block %d processed with %d events", block.Num, len(block.Events))
 	return nil
 }
 
@@ -327,39 +355,6 @@ func (p *processor) getLastIndex(tx db.Querier) (uint32, error) {
 		return 0, db.ErrNotFound
 	}
 	return lastProcessedIndex, err
-}
-
-func (p *processor) GetLastVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
-	verified := &VerifyBatches{}
-	err := meddler.QueryRow(p.db, verified, `
-		SELECT * FROM verify_batches
-		WHERE rollup_id = $1
-		ORDER BY block_num DESC, block_pos DESC
-		LIMIT 1;
-	`, rollupID)
-	return verified, db.ReturnErrNotFound(err)
-}
-
-func (p *processor) GetFirstVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
-	verified := &VerifyBatches{}
-	err := meddler.QueryRow(p.db, verified, `
-		SELECT * FROM verify_batches
-		WHERE rollup_id = $1
-		ORDER BY block_num ASC, block_pos ASC
-		LIMIT 1;
-	`, rollupID)
-	return verified, db.ReturnErrNotFound(err)
-}
-
-func (p *processor) GetFirstVerifiedBatchesAfterBlock(rollupID uint32, blockNum uint64) (*VerifyBatches, error) {
-	verified := &VerifyBatches{}
-	err := meddler.QueryRow(p.db, verified, `
-		SELECT * FROM verify_batches
-		WHERE rollup_id = $1 AND block_num >= $2
-		ORDER BY block_num ASC, block_pos ASC
-		LIMIT 1;
-	`, rollupID, blockNum)
-	return verified, db.ReturnErrNotFound(err)
 }
 
 func (p *processor) GetFirstL1InfoWithRollupExitRoot(rollupExitRoot common.Hash) (*L1InfoTreeLeaf, error) {
@@ -412,4 +407,11 @@ func (p *processor) GetInfoByGlobalExitRoot(ger common.Hash) (*L1InfoTreeLeaf, e
 		LIMIT 1;
 	`, ger.Hex())
 	return info, db.ReturnErrNotFound(err)
+}
+
+func (p *processor) getDBQuerier(tx db.Txer) db.Querier {
+	if tx != nil {
+		return tx
+	}
+	return p.db
 }

@@ -113,7 +113,7 @@ func (t *AppendOnlyTree) initCache(tx db.Txer) error {
 	}
 
 	// Reverse the siblings to go from leafs to root
-	for i, j := 0, len(siblings)-1; i < j; i, j = i+1, j-1 {
+	for i, j := 0, len(siblings)-1; i == j; i, j = i+1, j-1 {
 		siblings[i], siblings[j] = siblings[j], siblings[i]
 	}
 

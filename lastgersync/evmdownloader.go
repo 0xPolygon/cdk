@@ -105,7 +105,11 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 			break
 		}
 
-		blockHeader := d.GetBlockHeader(ctx, lastBlock)
+		blockHeader, isCanceled := d.GetBlockHeader(ctx, lastBlock)
+		if isCanceled {
+			return
+		}
+
 		block := &sync.EVMBlock{
 			EVMBlockHeader: sync.EVMBlockHeader{
 				Num:        blockHeader.Num,
