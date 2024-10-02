@@ -36,7 +36,7 @@ type EthTxManager interface {
 	ResultsByStatus(ctx context.Context, statuses []ethtxmanager.MonitoredTxStatus,
 	) ([]ethtxmanager.MonitoredTxResult, error)
 	Result(ctx context.Context, id common.Hash) (ethtxmanager.MonitoredTxResult, error)
-	Add(ctx context.Context, to *common.Address, forcedNonce *uint64, value *big.Int, data []byte,
+	Add(ctx context.Context, to *common.Address, value *big.Int, data []byte,
 		gasOffset uint64, sidecar *types.BlobTxSidecar) (common.Hash, error)
 }
 
@@ -152,7 +152,7 @@ func (c *EVMClaimSponsor) sendClaim(ctx context.Context, claim *Claim) (string, 
 	if err != nil {
 		return "", err
 	}
-	id, err := c.ethTxManager.Add(ctx, &c.bridgeAddr, nil, big.NewInt(0), data, c.gasOffest, nil)
+	id, err := c.ethTxManager.Add(ctx, &c.bridgeAddr, big.NewInt(0), data, c.gasOffest, nil)
 	if err != nil {
 		return "", err
 	}
