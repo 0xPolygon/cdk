@@ -33,9 +33,7 @@ var (
 )
 
 func TestMain(t *testing.M) {
-	//getNow = func() time.Time { return now }
 	t.Run()
-	//getNow = time.Now
 }
 
 func Test_encoding(t *testing.T) {
