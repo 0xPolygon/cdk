@@ -162,18 +162,6 @@ func Test_Start(t *testing.T) {
 	}
 }
 
-func Test_batchRetrieval(t *testing.T) {
-	// TODO: Implement
-}
-
-func Test_populateSequenceData(t *testing.T) {
-	// TODO: Implement
-}
-
-func Test_sequenceSending(t *testing.T) {
-	// TODO: Implement
-}
-
 func Test_purgeSequences(t *testing.T) {
 	t.Parallel()
 
