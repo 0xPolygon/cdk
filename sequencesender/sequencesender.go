@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygon/cdk/etherman"
@@ -65,7 +66,7 @@ type SequenceSender struct {
 	mutexEthTx               sync.Mutex                 // Mutex to access ethTransactions
 	sequencesTxFile          *os.File                   // Persistence of sent transactions
 	validStream              bool                       // Not valid while receiving data before the desired batch
-	seqSendingStopped        bool                       // If there is a critical error
+	seqSendingStopped        uint32                     // If there is a critical error
 	TxBuilder                txbuilder.TxBuilder
 	latestVirtualBatchLock   sync.Mutex
 }
@@ -81,15 +82,14 @@ func New(cfg Config, logger *log.Logger,
 	etherman *etherman.Client, txBuilder txbuilder.TxBuilder) (*SequenceSender, error) {
 	// Create sequencesender
 	s := SequenceSender{
-		cfg:               cfg,
-		logger:            logger,
-		etherman:          etherman,
-		ethTransactions:   make(map[common.Hash]*ethTxData),
-		ethTxData:         make(map[common.Hash][]byte),
-		sequenceData:      make(map[uint64]*sequenceData),
-		validStream:       false,
-		seqSendingStopped: false,
-		TxBuilder:         txBuilder,
+		cfg:             cfg,
+		logger:          logger,
+		etherman:        etherman,
+		ethTransactions: make(map[common.Hash]*ethTxData),
+		ethTxData:       make(map[common.Hash][]byte),
+		sequenceData:    make(map[uint64]*sequenceData),
+		validStream:     false,
+		TxBuilder:       txBuilder,
 	}
 
 	logger.Infof("TxBuilder configuration: %s", txBuilder.String())
@@ -231,7 +231,7 @@ func (s *SequenceSender) sequenceSending(ctx context.Context) {
 // purgeSequences purges batches from memory structures
 func (s *SequenceSender) purgeSequences() {
 	// If sequence sending is stopped, do not purge
-	if s.seqSendingStopped {
+	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
 		return
 	}
 
@@ -283,7 +283,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	}
 
 	// Check if the sequence sending is stopped
-	if s.seqSendingStopped {
+	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
 		s.logger.Warnf("sending is stopped!")
 		return
 	}
@@ -498,7 +498,7 @@ func (s *SequenceSender) getLatestVirtualBatch() error {
 
 // logFatalf logs error, activates flag to stop sequencing, and remains in an infinite loop
 func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
-	s.seqSendingStopped = true
+	atomic.StoreUint32(&s.seqSendingStopped, 1)
 	for {
 		s.logger.Errorf(template, args...)
 		s.logger.Errorf("sequence sending stopped.")

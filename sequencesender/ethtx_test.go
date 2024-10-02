@@ -268,7 +268,7 @@ func Test_purgeEthTx(t *testing.T) {
 
 	tests := []struct {
 		name                    string
-		seqSendingStopped       bool
+		seqSendingStopped       uint32
 		ethTransactions         map[common.Hash]*ethTxData
 		ethTxData               map[common.Hash][]byte
 		getEthTxManager         func(t *testing.T) *mocks.EthTxMngrMock
@@ -278,7 +278,7 @@ func Test_purgeEthTx(t *testing.T) {
 	}{
 		{
 			name:              "sequence sender stopped",
-			seqSendingStopped: true,
+			seqSendingStopped: 1,
 			ethTransactions: map[common.Hash]*ethTxData{
 				common.HexToHash("0x1"): {
 					StatusTimestamp: firstTimestamp,

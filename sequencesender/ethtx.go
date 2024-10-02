@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygon/cdk/log"
@@ -113,7 +114,7 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 // purgeEthTx purges transactions from memory structures
 func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 	// If sequence sending is stopped, do not purge
-	if s.seqSendingStopped {
+	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
 		return
 	}
 

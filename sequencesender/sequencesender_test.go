@@ -167,7 +167,7 @@ func Test_purgeSequences(t *testing.T) {
 
 	tests := []struct {
 		name                     string
-		seqSendingStopped        bool
+		seqSendingStopped        uint32
 		sequenceList             []uint64
 		sequenceData             map[uint64]*sequenceData
 		latestVirtualBatchNumber uint64
@@ -176,7 +176,7 @@ func Test_purgeSequences(t *testing.T) {
 	}{
 		{
 			name:              "sequences purged when seqSendingStopped",
-			seqSendingStopped: true,
+			seqSendingStopped: 1,
 			sequenceList:      []uint64{1, 2},
 			sequenceData: map[uint64]*sequenceData{
 				1: {},
@@ -190,7 +190,7 @@ func Test_purgeSequences(t *testing.T) {
 		},
 		{
 			name:              "no sequences purged",
-			seqSendingStopped: false,
+			seqSendingStopped: 0,
 			sequenceList:      []uint64{4, 5},
 			sequenceData: map[uint64]*sequenceData{
 				4: {},
@@ -204,7 +204,7 @@ func Test_purgeSequences(t *testing.T) {
 		},
 		{
 			name:              "sequences purged",
-			seqSendingStopped: false,
+			seqSendingStopped: 0,
 			sequenceList:      []uint64{4, 5, 6},
 			sequenceData: map[uint64]*sequenceData{
 				4: {},
