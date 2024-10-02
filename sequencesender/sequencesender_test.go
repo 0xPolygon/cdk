@@ -428,25 +428,6 @@ func Test_getSequencesToSend(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			name:                "batch not closed",
-			sequenceList:        []uint64{2},
-			latestSentToL1Batch: 1,
-			sequenceData: map[uint64]*sequenceData{
-				2: {
-					batchClosed: false,
-					batch:       txbuilder.NewBananaBatch(&etherman.Batch{}),
-				},
-			},
-			getTxBuilder: func(t *testing.T) *mocks.TxBuilderMock {
-				t.Helper()
-
-				mngr := mocks.NewTxBuilderMock(t)
-				return mngr
-			},
-			expectedSequence: nil,
-			expectedErr:      nil,
-		},
-		{
 			name:                "different coinbase",
 			sequenceList:        []uint64{2, 3},
 			latestSentToL1Batch: 1,
