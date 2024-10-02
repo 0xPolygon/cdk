@@ -14,8 +14,9 @@ import (
 	"time"
 	"unicode"
 
+	aggTypes "github.com/0xPolygon/agglayer/rpc/types"
+	aggTx "github.com/0xPolygon/agglayer/tx"
 	"github.com/0xPolygon/cdk-rpc/rpc"
-	cdkTypes "github.com/0xPolygon/cdk-rpc/types"
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	cdkcommon "github.com/0xPolygon/cdk/common"
@@ -919,13 +920,13 @@ func (a *Aggregator) settleWithAggLayer(
 	inputs ethmanTypes.FinalProofInputs) bool {
 	proofStrNo0x := strings.TrimPrefix(inputs.FinalProof.Proof, "0x")
 	proofBytes := common.Hex2Bytes(proofStrNo0x)
-	tx := Tx{
-		LastVerifiedBatch: cdkTypes.ArgUint64(proof.BatchNumber - 1),
-		NewVerifiedBatch:  cdkTypes.ArgUint64(proof.BatchNumberFinal),
-		ZKP: ZKP{
+	tx := aggTx.Tx{
+		LastVerifiedBatch: aggTypes.ArgUint64(proof.BatchNumber - 1),
+		NewVerifiedBatch:  aggTypes.ArgUint64(proof.BatchNumberFinal),
+		ZKP: aggTx.ZKP{
 			NewStateRoot:     common.BytesToHash(inputs.NewStateRoot),
 			NewLocalExitRoot: common.BytesToHash(inputs.NewLocalExitRoot),
-			Proof:            cdkTypes.ArgBytes(proofBytes),
+			Proof:            aggTypes.ArgBytes(proofBytes),
 		},
 		RollupID: a.Etherman.GetRollupId(),
 	}

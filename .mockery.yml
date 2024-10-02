@@ -13,3 +13,4 @@ packages:
       SynchronizerInterface:
       StreamClient:
       EthTxManagerClient:
+      AgglayerClientInterface:

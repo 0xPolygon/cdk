@@ -3,6 +3,7 @@ module github.com/0xPolygon/cdk
 go 1.22.4
 
 require (
+	github.com/0xPolygon/agglayer v0.1.4
 	github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240819092536-5a65d4761b2f
 	github.com/0xPolygon/cdk-data-availability v0.0.9
 	github.com/0xPolygon/cdk-rpc v0.0.0-20240905074455-431d3c271fe8
@@ -43,7 +44,7 @@ require (
 	github.com/VictoriaMetrics/metrics v1.23.1 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bits-and-blooms/bitset v1.10.0 // indirect
+	github.com/bits-and-blooms/bitset v1.12.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b // indirect
@@ -61,7 +62,7 @@ require (
 	github.com/crate-crypto/go-kzg-4844 v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/didip/tollbooth/v6 v6.1.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/erigontech/mdbx-go v0.27.14 // indirect
@@ -120,7 +121,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.19.1 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.48.0 // indirect
+	github.com/prometheus/common v0.49.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
