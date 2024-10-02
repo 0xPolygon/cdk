@@ -775,3 +775,102 @@ func Test_final_SettleDirect_Success(t *testing.T) {
 	agg.sendFinalProof()
 	assert.False(agg.verifyingProof)
 }
+
+func Test_buildFinalProof(t *testing.T) {
+	t.Parallel()
+
+	mockProver := new(mocks.ProverInterfaceMock)
+
+	batchNum := uint64(23)
+	batchNumFinal := uint64(42)
+	proofID := "proofId"
+	proverID := "proverID"
+	recursiveProof := &state.Proof{
+		ProverID:         &proverID,
+		Proof:            "test proof",
+		ProofID:          &proofID,
+		BatchNumber:      batchNum,
+		BatchNumberFinal: batchNumFinal,
+	}
+
+	agg := Aggregator{
+		logger: log.GetDefaultLogger(),
+		cfg: Config{
+			SenderAddress: "0x6278712b352Ef1dB57a5f74B79a7da78a369A9b3",
+		},
+	}
+
+	finalProofID := "finalProofID"
+	finalProof := prover.FinalProof{
+		Public: &prover.PublicInputsExtended{
+			NewStateRoot:     []byte("StateRoot"),
+			NewLocalExitRoot: []byte("LocalExitRoot"),
+		},
+	}
+
+	mockProver.On("Name").Return("name").Once()
+	mockProver.On("ID").Return("id").Once()
+	mockProver.On("Addr").Return("addr").Once()
+	mockProver.On("FinalProof", recursiveProof.Proof, agg.cfg.SenderAddress).Return(&finalProofID, nil).Once()
+	mockProver.On("WaitFinalProof", mock.Anything, finalProofID).Return(&finalProof, nil).Once()
+
+	fProof, err := agg.buildFinalProof(context.Background(), mockProver, recursiveProof)
+	assert.NoError(t, err)
+	assert.Equal(t, finalProof.Public.NewStateRoot, fProof.Public.NewStateRoot)
+	assert.Equal(t, finalProof.Public.NewLocalExitRoot, fProof.Public.NewLocalExitRoot)
+}
+
+func Test_buildFinalProof_MockProver(t *testing.T) {
+	t.Parallel()
+
+	mockProver := new(mocks.ProverInterfaceMock)
+	mockState := new(mocks.StateInterfaceMock)
+
+	batchNum := uint64(23)
+	batchNumFinal := uint64(42)
+	proofID := "proofId"
+	proverID := "proverID"
+	recursiveProof := &state.Proof{
+		ProverID:         &proverID,
+		Proof:            "test proof",
+		ProofID:          &proofID,
+		BatchNumber:      batchNum,
+		BatchNumberFinal: batchNumFinal,
+	}
+
+	agg := Aggregator{
+		state:  mockState,
+		logger: log.GetDefaultLogger(),
+		cfg: Config{
+			SenderAddress: "0x6278712b352Ef1dB57a5f74B79a7da78a369A9b3",
+		},
+	}
+
+	finalProofID := "finalProofID"
+	finalProof := prover.FinalProof{
+		Public: &prover.PublicInputsExtended{
+			NewStateRoot:     []byte(mockedStateRoot),
+			NewLocalExitRoot: []byte(mockedLocalExitRoot),
+		},
+	}
+
+	finalDBBatch := &state.DBBatch{
+		Batch: state.Batch{
+			StateRoot:     common.Hash{},
+			LocalExitRoot: common.Hash{},
+		},
+	}
+
+	mockProver.On("Name").Return("name").Once()
+	mockProver.On("ID").Return("id").Once()
+	mockProver.On("Addr").Return("addr").Once()
+	mockProver.On("FinalProof", recursiveProof.Proof, agg.cfg.SenderAddress).Return(&finalProofID, nil).Once()
+	mockProver.On("WaitFinalProof", mock.Anything, finalProofID).Return(&finalProof, nil).Once()
+
+	mockState.On("GetBatch", mock.Anything, batchNumFinal, nil).Return(finalDBBatch, nil)
+
+	fProof, err := agg.buildFinalProof(context.Background(), mockProver, recursiveProof)
+	assert.NoError(t, err)
+	assert.Equal(t, common.Hash{}.Bytes(), fProof.Public.NewStateRoot)
+	assert.Equal(t, common.Hash{}.Bytes(), fProof.Public.NewLocalExitRoot)
+}
