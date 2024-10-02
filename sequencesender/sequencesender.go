@@ -138,7 +138,7 @@ func (s *SequenceSender) Start(ctx context.Context) {
 	}
 
 	// Current batch to sequence
-	s.latestSentToL1Batch = s.latestVirtualBatchNumber
+	atomic.StoreUint64(&s.latestSentToL1Batch, atomic.LoadUint64(&s.latestVirtualBatchNumber))
 
 	// Start retrieving batches from RPC
 	go func() {
@@ -157,7 +157,7 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 	ticker := time.NewTicker(s.cfg.GetBatchWaitInterval.Duration)
 	defer ticker.Stop()
 
-	currentBatchNumber := s.latestVirtualBatchNumber + 1
+	currentBatchNumber := atomic.LoadUint64(&s.latestVirtualBatchNumber) + 1
 	for {
 		select {
 		case <-ctx.Done():
@@ -242,7 +242,7 @@ func (s *SequenceSender) purgeSequences() {
 	toPurge := make([]uint64, 0)
 	for i := 0; i < len(s.sequenceList); i++ {
 		batchNumber := s.sequenceList[i]
-		if batchNumber <= s.latestVirtualBatchNumber {
+		if batchNumber <= atomic.LoadUint64(&s.latestVirtualBatchNumber) {
 			truncateUntil = i + 1
 			toPurge = append(toPurge, batchNumber)
 		}
@@ -382,7 +382,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 		s.logger.Fatalf("error getting latest sequenced batch, error: %v", err)
 	}
 
-	sequence.SetLastVirtualBatchNumber(s.latestVirtualBatchNumber)
+	sequence.SetLastVirtualBatchNumber(atomic.LoadUint64(&s.latestVirtualBatchNumber))
 
 	txToEstimateGas, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, sequence)
 	if err != nil {
@@ -414,7 +414,8 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 	sequenceBatches := make([]seqsendertypes.Batch, 0)
 	for i := 0; i < len(s.sequenceList); i++ {
 		batchNumber := s.sequenceList[i]
-		if batchNumber <= s.latestVirtualBatchNumber || batchNumber <= s.latestSentToL1Batch {
+		if batchNumber <= atomic.LoadUint64(&s.latestVirtualBatchNumber) ||
+			batchNumber <= atomic.LoadUint64(&s.latestSentToL1Batch) {
 			continue
 		}
 
@@ -485,13 +486,15 @@ func (s *SequenceSender) getLatestVirtualBatch() error {
 	// Get latest virtual state batch from L1
 	var err error
 
-	s.latestVirtualBatchNumber, err = s.etherman.GetLatestBatchNumber()
+	latestVirtualBatchNumber, err := s.etherman.GetLatestBatchNumber()
 	if err != nil {
 		s.logger.Errorf("error getting latest virtual batch, error: %v", err)
 		return errors.New("fail to get latest virtual batch")
 	}
 
-	s.logger.Infof("latest virtual batch is %d", s.latestVirtualBatchNumber)
+	atomic.StoreUint64(&s.latestVirtualBatchNumber, latestVirtualBatchNumber)
+
+	s.logger.Infof("latest virtual batch is %d", latestVirtualBatchNumber)
 
 	return nil
 }

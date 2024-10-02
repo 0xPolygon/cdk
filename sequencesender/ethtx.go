@@ -97,7 +97,7 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 		log.Errorf("error getting result for tx %v: %v", txHash, err)
 	}
 	if !resend {
-		s.latestSentToL1Batch = valueToBatch
+		atomic.StoreUint64(&s.latestSentToL1Batch, valueToBatch)
 	} else {
 		s.ethTransactions[*txOldHash].Status = "*resent"
 	}
@@ -275,7 +275,7 @@ func (s *SequenceSender) updateEthTxResult(txData *ethTxData, txResult ethtxmana
 			txData.Status == ethtxmanager.MonitoredTxStatusFinalized.String()
 		if txData.Status == ethtxmanager.MonitoredTxStatusFailed.String() {
 			s.logFatalf("transaction %v result failed!")
-		} else if statusConsolidated && txData.ToBatch >= s.latestVirtualBatchNumber {
+		} else if statusConsolidated && txData.ToBatch >= atomic.LoadUint64(&s.latestVirtualBatchNumber) {
 			s.latestVirtualTime = txData.StatusTimestamp
 		}
 	}
