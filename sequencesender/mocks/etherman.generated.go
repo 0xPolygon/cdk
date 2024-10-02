@@ -18,14 +18,6 @@ type EthermanMock struct {
 	mock.Mock
 }
 
-type EthermanMock_Expecter struct {
-	mock *mock.Mock
-}
-
-func (_m *EthermanMock) EXPECT() *EthermanMock_Expecter {
-	return &EthermanMock_Expecter{mock: &_m.Mock}
-}
-
 // CurrentNonce provides a mock function with given fields: ctx, address
 func (_m *EthermanMock) CurrentNonce(ctx context.Context, address common.Address) (uint64, error) {
 	ret := _m.Called(ctx, address)
@@ -52,35 +44,6 @@ func (_m *EthermanMock) CurrentNonce(ctx context.Context, address common.Address
 	}
 
 	return r0, r1
-}
-
-// EthermanMock_CurrentNonce_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CurrentNonce'
-type EthermanMock_CurrentNonce_Call struct {
-	*mock.Call
-}
-
-// CurrentNonce is a helper method to define mock.On call
-//   - ctx context.Context
-//   - address common.Address
-func (_e *EthermanMock_Expecter) CurrentNonce(ctx interface{}, address interface{}) *EthermanMock_CurrentNonce_Call {
-	return &EthermanMock_CurrentNonce_Call{Call: _e.mock.On("CurrentNonce", ctx, address)}
-}
-
-func (_c *EthermanMock_CurrentNonce_Call) Run(run func(ctx context.Context, address common.Address)) *EthermanMock_CurrentNonce_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(common.Address))
-	})
-	return _c
-}
-
-func (_c *EthermanMock_CurrentNonce_Call) Return(_a0 uint64, _a1 error) *EthermanMock_CurrentNonce_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *EthermanMock_CurrentNonce_Call) RunAndReturn(run func(context.Context, common.Address) (uint64, error)) *EthermanMock_CurrentNonce_Call {
-	_c.Call.Return(run)
-	return _c
 }
 
 // EstimateGas provides a mock function with given fields: ctx, from, to, value, data
@@ -111,38 +74,6 @@ func (_m *EthermanMock) EstimateGas(ctx context.Context, from common.Address, to
 	return r0, r1
 }
 
-// EthermanMock_EstimateGas_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EstimateGas'
-type EthermanMock_EstimateGas_Call struct {
-	*mock.Call
-}
-
-// EstimateGas is a helper method to define mock.On call
-//   - ctx context.Context
-//   - from common.Address
-//   - to *common.Address
-//   - value *big.Int
-//   - data []byte
-func (_e *EthermanMock_Expecter) EstimateGas(ctx interface{}, from interface{}, to interface{}, value interface{}, data interface{}) *EthermanMock_EstimateGas_Call {
-	return &EthermanMock_EstimateGas_Call{Call: _e.mock.On("EstimateGas", ctx, from, to, value, data)}
-}
-
-func (_c *EthermanMock_EstimateGas_Call) Run(run func(ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte)) *EthermanMock_EstimateGas_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(common.Address), args[2].(*common.Address), args[3].(*big.Int), args[4].([]byte))
-	})
-	return _c
-}
-
-func (_c *EthermanMock_EstimateGas_Call) Return(_a0 uint64, _a1 error) *EthermanMock_EstimateGas_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *EthermanMock_EstimateGas_Call) RunAndReturn(run func(context.Context, common.Address, *common.Address, *big.Int, []byte) (uint64, error)) *EthermanMock_EstimateGas_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetLatestBatchNumber provides a mock function with given fields:
 func (_m *EthermanMock) GetLatestBatchNumber() (uint64, error) {
 	ret := _m.Called()
@@ -169,33 +100,6 @@ func (_m *EthermanMock) GetLatestBatchNumber() (uint64, error) {
 	}
 
 	return r0, r1
-}
-
-// EthermanMock_GetLatestBatchNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLatestBatchNumber'
-type EthermanMock_GetLatestBatchNumber_Call struct {
-	*mock.Call
-}
-
-// GetLatestBatchNumber is a helper method to define mock.On call
-func (_e *EthermanMock_Expecter) GetLatestBatchNumber() *EthermanMock_GetLatestBatchNumber_Call {
-	return &EthermanMock_GetLatestBatchNumber_Call{Call: _e.mock.On("GetLatestBatchNumber")}
-}
-
-func (_c *EthermanMock_GetLatestBatchNumber_Call) Run(run func()) *EthermanMock_GetLatestBatchNumber_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *EthermanMock_GetLatestBatchNumber_Call) Return(_a0 uint64, _a1 error) *EthermanMock_GetLatestBatchNumber_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *EthermanMock_GetLatestBatchNumber_Call) RunAndReturn(run func() (uint64, error)) *EthermanMock_GetLatestBatchNumber_Call {
-	_c.Call.Return(run)
-	return _c
 }
 
 // GetLatestBlockHeader provides a mock function with given fields: ctx
@@ -226,34 +130,6 @@ func (_m *EthermanMock) GetLatestBlockHeader(ctx context.Context) (*types.Header
 	}
 
 	return r0, r1
-}
-
-// EthermanMock_GetLatestBlockHeader_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLatestBlockHeader'
-type EthermanMock_GetLatestBlockHeader_Call struct {
-	*mock.Call
-}
-
-// GetLatestBlockHeader is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *EthermanMock_Expecter) GetLatestBlockHeader(ctx interface{}) *EthermanMock_GetLatestBlockHeader_Call {
-	return &EthermanMock_GetLatestBlockHeader_Call{Call: _e.mock.On("GetLatestBlockHeader", ctx)}
-}
-
-func (_c *EthermanMock_GetLatestBlockHeader_Call) Run(run func(ctx context.Context)) *EthermanMock_GetLatestBlockHeader_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
-	})
-	return _c
-}
-
-func (_c *EthermanMock_GetLatestBlockHeader_Call) Return(_a0 *types.Header, _a1 error) *EthermanMock_GetLatestBlockHeader_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *EthermanMock_GetLatestBlockHeader_Call) RunAndReturn(run func(context.Context) (*types.Header, error)) *EthermanMock_GetLatestBlockHeader_Call {
-	_c.Call.Return(run)
-	return _c
 }
 
 // NewEthermanMock creates a new instance of EthermanMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
