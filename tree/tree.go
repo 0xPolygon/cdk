@@ -172,8 +172,11 @@ func (t *Tree) storeRoot(tx db.Txer, root types.Root) error {
 }
 
 // GetLastRoot returns the last processed root
-func (t *Tree) GetLastRoot(ctx context.Context) (types.Root, error) {
-	return t.getLastRootWithTx(t.db)
+func (t *Tree) GetLastRoot(tx db.Querier) (types.Root, error) {
+	if tx == nil {
+		tx = t.db
+	}
+	return t.getLastRootWithTx(tx)
 }
 
 func (t *Tree) getLastRootWithTx(tx db.Querier) (types.Root, error) {
@@ -223,10 +226,10 @@ func (t *Tree) GetRootByHash(ctx context.Context, hash common.Hash) (*types.Root
 	return root, nil
 }
 
-func (t *Tree) GetLeaf(ctx context.Context, index uint32, root common.Hash) (common.Hash, error) {
+func (t *Tree) GetLeaf(tx db.Querier, index uint32, root common.Hash) (common.Hash, error) {
 	currentNodeHash := root
 	for h := int(types.DefaultHeight - 1); h >= 0; h-- {
-		currentNode, err := t.getRHTNode(t.db, currentNodeHash)
+		currentNode, err := t.getRHTNode(tx, currentNodeHash)
 		if err != nil {
 			return common.Hash{}, err
 		}

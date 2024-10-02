@@ -31,6 +31,7 @@ func TestBananaBaseNewSequenceEmpty(t *testing.T) {
 		Return(&l1infotreesync.L1InfoTreeLeaf{L1InfoTreeIndex: 69}, nil)
 	lastAcc := common.HexToHash("0x8aca9664752dbae36135fd0956c956fc4a370feeac67485b49bcd4b99608ae41")
 	testData.rollupContract.EXPECT().LastAccInputHash(mock.Anything).Return(lastAcc, nil)
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, nil)
 	seq, err := testData.sut.NewSequence(context.TODO(), nil, common.Address{})
 	require.NotNil(t, seq)
 	require.NoError(t, err)
@@ -74,6 +75,8 @@ func TestBananaBaseNewSequenceBatch(t *testing.T) {
 		Coinbase:        []byte{1, 2, 3},
 		GlobalExitRoot:  []byte{4, 5, 6},
 	}
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, nil).Once()
+
 	batch := testData.sut.NewBatchFromL2Block(l2Block)
 	batches := []seqsendertypes.Batch{batch}
 	lastAcc := common.HexToHash("0x8aca9664752dbae36135fd0956c956fc4a370feeac67485b49bcd4b99608ae41")
@@ -124,6 +127,41 @@ func TestBananaSanityCheckNilSeq(t *testing.T) {
 	require.Error(t, err, "nil sequence")
 }
 
+func TestBananaEmptyL1InfoTree(t *testing.T) {
+	testData := newBananaBaseTestData(t)
+
+	testData.l1Client.On("HeaderByNumber", mock.Anything, mock.Anything).
+		Return(&types.Header{Number: big.NewInt(69)}, nil)
+	testData.l1InfoTreeSync.EXPECT().GetLatestInfoUntilBlock(testData.ctx, uint64(69)).Return(nil, l1infotreesync.ErrNotFound)
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(testData.ctx).Return(&l1infotreesync.L1InfoTreeInitial{LeafCount: 10}, nil)
+
+	leafCounter, err := testData.sut.GetCounterL1InfoRoot(testData.ctx, 0)
+	require.NoError(t, err)
+	require.Equal(t, uint32(10), leafCounter)
+}
+
+func TestCheckL1InfoTreeLeafCounterVsInitL1InfoMap(t *testing.T) {
+	testData := newBananaBaseTestData(t)
+
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(testData.ctx).Return(&l1infotreesync.L1InfoTreeInitial{LeafCount: 10}, nil)
+	err := testData.sut.CheckL1InfoTreeLeafCounterVsInitL1InfoMap(testData.ctx, 10)
+	require.NoError(t, err, "10 == 10 so is accepted")
+
+	err = testData.sut.CheckL1InfoTreeLeafCounterVsInitL1InfoMap(testData.ctx, 9)
+	require.Error(t, err, "9 < 10 so is rejected")
+
+	err = testData.sut.CheckL1InfoTreeLeafCounterVsInitL1InfoMap(testData.ctx, 11)
+	require.NoError(t, err, "11 > 10 so is accepted")
+}
+
+func TestCheckL1InfoTreeLeafCounterVsInitL1InfoMapNotFound(t *testing.T) {
+	testData := newBananaBaseTestData(t)
+
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(testData.ctx).Return(nil, nil)
+	err := testData.sut.CheckL1InfoTreeLeafCounterVsInitL1InfoMap(testData.ctx, 10)
+	require.NoError(t, err, "10 == 10 so is accepted")
+}
+
 type testDataBananaBase struct {
 	rollupContract *mocks_txbuilder.RollupBananaBaseContractor
 	getContract    *mocks_txbuilder.GlobalExitRootBananaContractor
@@ -131,6 +169,7 @@ type testDataBananaBase struct {
 	sut            *txbuilder.TxBuilderBananaBase
 	l1InfoTreeSync *mocks_txbuilder.L1InfoSyncer
 	l1Client       *mocks_txbuilder.L1Client
+	ctx            context.Context
 }
 
 func newBananaBaseTestData(t *testing.T) *testDataBananaBase {
@@ -155,5 +194,6 @@ func newBananaBaseTestData(t *testing.T) *testDataBananaBase {
 		sut:            sut,
 		l1InfoTreeSync: l1InfoSyncer,
 		l1Client:       l1Client,
+		ctx:            context.TODO(),
 	}
 }

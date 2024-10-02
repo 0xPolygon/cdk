@@ -2,6 +2,7 @@ package txbuilder
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -27,6 +28,7 @@ type globalExitRootBananaContractor interface {
 
 type l1InfoSyncer interface {
 	GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*l1infotreesync.L1InfoTreeLeaf, error)
+	GetInitL1InfoRootMap(ctx context.Context) (*l1infotreesync.L1InfoTreeInitial, error)
 }
 
 type l1Client interface {
@@ -74,39 +76,90 @@ func (t *TxBuilderBananaBase) NewBatchFromL2Block(l2Block *datastream.L2Block) s
 	return NewBananaBatch(batch)
 }
 
+func getHighestL1InfoIndex(batches []etherman.Batch) uint32 {
+	var highestL1Index uint32
+	for _, b := range batches {
+		if highestL1Index < b.L1InfoTreeIndex {
+			highestL1Index = b.L1InfoTreeIndex
+		}
+	}
+	return highestL1Index
+}
+
+// Returns CounterL1InfoRoot to use for this batch
+func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL1IndexInBatch uint32) (uint32, error) {
+	header, err := t.ethClient.HeaderByNumber(ctx, t.blockFinality)
+	if err != nil {
+		return 0, fmt.Errorf("error calling HeaderByNumber, with block finality %d: %w", t.blockFinality.Int64(), err)
+	}
+	var resL1InfoCounter uint32
+
+	info, err := t.l1InfoTree.GetLatestInfoUntilBlock(ctx, header.Number.Uint64())
+	if err == nil {
+		resL1InfoCounter = info.L1InfoTreeIndex + 1
+	}
+	if errors.Is(err, l1infotreesync.ErrNotFound) {
+		// There are no L1 Info tree leaves yet, so we can try to use L1InfoRootMap event
+		l1infotreeInitial, err := t.l1InfoTree.GetInitL1InfoRootMap(ctx)
+		if l1infotreeInitial == nil || err != nil {
+			return 0, fmt.Errorf("error no leaves on L1InfoTree yet and GetInitL1InfoRootMap fails: %w", err)
+		}
+		// We use this leaf as first one
+		resL1InfoCounter = l1infotreeInitial.LeafCount
+	} else if err != nil {
+		return 0, fmt.Errorf("error calling GetLatestInfoUntilBlock with block num %d: %w", header.Number.Uint64(), err)
+	}
+	// special case: there are no leaves in L1InfoTree yet
+	if resL1InfoCounter == 0 && highestL1IndexInBatch == 0 {
+		log.Infof("No L1 Info tree leaves yet, batch use no leaf")
+		return resL1InfoCounter, nil
+	}
+	if resL1InfoCounter > highestL1IndexInBatch {
+		return resL1InfoCounter, nil
+	}
+
+	return 0, fmt.Errorf(
+		"sequence contained an L1 Info tree index (%d) that is greater than the one synced with the desired finality (%d)",
+		highestL1IndexInBatch, resL1InfoCounter,
+	)
+}
+
+func (t *TxBuilderBananaBase) CheckL1InfoTreeLeafCounterVsInitL1InfoMap(ctx context.Context, leafCounter uint32) error {
+	l1infotreeInitial, err := t.l1InfoTree.GetInitL1InfoRootMap(ctx)
+	if err != nil {
+		return fmt.Errorf("l1InfoTree.GetInitL1InfoRootMap fails: %w", err)
+	}
+	if l1infotreeInitial == nil {
+		log.Warnf("No InitL1InfoRootMap found, skipping check")
+		return nil
+	}
+	if leafCounter < l1infotreeInitial.LeafCount {
+		return fmt.Errorf("cant use this leafCounter because is previous to first value on contract Map"+
+			"leafCounter(%d) < l1infotreeInitial.LeafCount(%d)", leafCounter, l1infotreeInitial.LeafCount)
+	}
+	return nil
+}
+
 func (t *TxBuilderBananaBase) NewSequence(
 	ctx context.Context, batches []seqsendertypes.Batch, coinbase common.Address,
 ) (seqsendertypes.Sequence, error) {
 	ethBatches := toEthermanBatches(batches)
 	sequence := etherman.NewSequenceBanana(ethBatches, coinbase)
-	var greatestL1Index uint32
-	for _, b := range sequence.Batches {
-		if greatestL1Index < b.L1InfoTreeIndex {
-			greatestL1Index = b.L1InfoTreeIndex
-		}
-	}
-	header, err := t.ethClient.HeaderByNumber(ctx, t.blockFinality)
-	if err != nil {
-		return nil, fmt.Errorf("error calling HeaderByNumber, with block finality %d: %w", t.blockFinality.Int64(), err)
-	}
-	info, err := t.l1InfoTree.GetLatestInfoUntilBlock(ctx, header.Number.Uint64())
-	if err != nil {
-		return nil, fmt.Errorf("error calling GetLatestInfoUntilBlock with block num %d: %w", header.Number.Uint64(), err)
-	}
-	if info.L1InfoTreeIndex >= greatestL1Index {
-		sequence.CounterL1InfoRoot = info.L1InfoTreeIndex + 1
-	} else {
-		return nil, fmt.Errorf(
-			"sequence contained an L1 Info tree index (%d) that is greater than the one synced with the desired finality (%d)",
-			greatestL1Index, info.L1InfoTreeIndex,
-		)
-	}
+	greatestL1Index := getHighestL1InfoIndex(sequence.Batches)
 
+	counterL1InfoRoot, err := t.GetCounterL1InfoRoot(ctx, greatestL1Index)
+	if err != nil {
+		return nil, err
+	}
+	sequence.CounterL1InfoRoot = counterL1InfoRoot
 	l1InfoRoot, err := t.getL1InfoRoot(sequence.CounterL1InfoRoot)
 	if err != nil {
 		return nil, err
 	}
-
+	err = t.CheckL1InfoTreeLeafCounterVsInitL1InfoMap(ctx, sequence.CounterL1InfoRoot)
+	if err != nil {
+		return nil, err
+	}
 	sequence.L1InfoRoot = l1InfoRoot
 
 	accInputHash, err := t.rollupContract.LastAccInputHash(&bind.CallOpts{Pending: false})
