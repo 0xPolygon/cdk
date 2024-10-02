@@ -4,10 +4,6 @@ setup() {
     load 'helpers/common'
     load 'helpers/lxly-bridge-test'
 
-    readonly data_availability_mode=${DATA_AVAILABILITY_MODE:-"cdk-validium"}
-    $PROJECT_ROOT/test/scripts/kurtosis_prepare_params_yml.sh ../kurtosis-cdk $data_availability_mode
-    [ $? -ne 0 ] && echo "Error preparing params.yml" && exit 1
-
     if [ -z "$BRIDGE_ADDRESS" ]; then
         local combined_json_file="/opt/zkevm/combined.json"
         echo "BRIDGE_ADDRESS env variable is not provided, resolving the bridge address from the Kurtosis CDK '$combined_json_file'" >&3
