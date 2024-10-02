@@ -558,10 +558,6 @@ func Test_getSequencesToSend(t *testing.T) {
 	}
 }
 
-func Test_getLatestVirtualBatch(t *testing.T) {
-	// TODO: Implement
-}
-
 func Test_marginTimeElapsed(t *testing.T) {
 	t.Parallel()
 
