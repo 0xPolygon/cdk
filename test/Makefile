@@ -47,22 +47,22 @@ generate-mocks-sync: ## Generates mocks for sync, using mockery tool
 
 
 .PHONY: test-e2e-fork9-validium
-test-e2e-fork9-validium: stop ## Runs e2e tests checking elderberry/validium
+test-e2e-fork9-validium: stop
 	./run-e2e.sh fork9 cdk-validium
 	bats .
 
 .PHONY: test-e2e-fork9-rollup
-test-e2e-fork9-rollup: stop ## Runs e2e tests checking elderberry/rollup
+test-e2e-fork9-rollup: stop
 	./run-e2e.sh fork9 rollup
 	bats .
 
 .PHONY: test-e2e-fork12-validium
-test-e2e-fork12-validium: stop ## Runs e2e tests checking elderberry/validium
+test-e2e-fork12-validium: stop
 	./run-e2e.sh fork12 cdk-validium
 	bats .
 
 .PHONY: test-e2e-fork12-rollup
-test-e2e-fork12-rollup: stop ## Runs e2e tests checking elderberry/rollup
+test-e2e-fork12-rollup: stop
 	./run-e2e.sh fork12 rollup
 	bats .
 
