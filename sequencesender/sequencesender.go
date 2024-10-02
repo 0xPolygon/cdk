@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"sync"
 	"time"
@@ -17,16 +18,42 @@ import (
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 const ten = 10
+
+// EthTxMngr represents the eth tx manager interface
+type EthTxMngr interface {
+	Start()
+	AddWithGas(
+		ctx context.Context,
+		to *common.Address,
+		value *big.Int,
+		data []byte,
+		gasOffset uint64,
+		sidecar *types.BlobTxSidecar,
+		gas uint64,
+	) (common.Hash, error)
+	Remove(ctx context.Context, hash common.Hash) error
+	ResultsByStatus(ctx context.Context, status []ethtxmanager.MonitoredTxStatus) ([]ethtxmanager.MonitoredTxResult, error)
+	Result(ctx context.Context, hash common.Hash) (ethtxmanager.MonitoredTxResult, error)
+}
+
+// Etherman represents the etherman behaviour
+type Etherman interface {
+	CurrentNonce(ctx context.Context, address common.Address) (uint64, error)
+	GetLatestBlockHeader(ctx context.Context) (*types.Header, error)
+	EstimateGas(ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte) (uint64, error)
+	GetLatestBatchNumber() (uint64, error)
+}
 
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
 	cfg                      Config
 	logger                   *log.Logger
-	ethTxManager             *ethtxmanager.Client
-	etherman                 *etherman.Client
+	ethTxManager             EthTxMngr
+	etherman                 Etherman
 	latestVirtualBatchNumber uint64                     // Latest virtualized batch obtained from L1
 	latestVirtualTime        time.Time                  // Latest virtual batch timestamp
 	latestSentToL1Batch      uint64                     // Latest batch sent to L1
@@ -138,7 +165,7 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 			return ctx.Err()
 		default:
 			// Try to retrieve batch from RPC
-			rpcBatch, err := s.getBatchFromRPC(currentBatchNumber)
+			rpcBatch, err := getBatchFromRPC(s.cfg.RPCURL, currentBatchNumber)
 			if err != nil {
 				if errors.Is(err, ethtxmanager.ErrNotFound) {
 					s.logger.Infof("batch %d not found in RPC", currentBatchNumber)
@@ -296,7 +323,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 			return
 		}
 
-		elapsed, waitTime := s.marginTimeElapsed(lastL2BlockTimestamp, lastL1BlockHeader.Time, timeMargin)
+		elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, lastL1BlockHeader.Time, timeMargin)
 
 		if !elapsed {
 			s.logger.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block %d (ts: %d) "+
@@ -323,7 +350,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	for {
 		currentTime := uint64(time.Now().Unix())
 
-		elapsed, waitTime := s.marginTimeElapsed(lastL2BlockTimestamp, currentTime, timeMargin)
+		elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, currentTime, timeMargin)
 
 		// Wait if the time difference is less than L1BlockTimestampMargin
 		if !elapsed {
@@ -469,9 +496,19 @@ func (s *SequenceSender) getLatestVirtualBatch() error {
 	return nil
 }
 
+// logFatalf logs error, activates flag to stop sequencing, and remains in an infinite loop
+func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
+	s.seqSendingStopped = true
+	for {
+		s.logger.Errorf(template, args...)
+		s.logger.Errorf("sequence sending stopped.")
+		time.Sleep(ten * time.Second)
+	}
+}
+
 // marginTimeElapsed checks if the time between currentTime and l2BlockTimestamp is greater than timeMargin.
 // If it's greater returns true, otherwise it returns false and the waitTime needed to achieve this timeMargin
-func (s *SequenceSender) marginTimeElapsed(
+func marginTimeElapsed(
 	l2BlockTimestamp uint64, currentTime uint64, timeMargin int64,
 ) (bool, int64) {
 	// Check the time difference between L2 block and currentTime
@@ -492,17 +529,8 @@ func (s *SequenceSender) marginTimeElapsed(
 			waitTime = timeMargin - timeDiff
 		}
 		return false, waitTime
-	} else { // timeDiff is greater than timeMargin
-		return true, 0
 	}
-}
 
-// logFatalf logs error, activates flag to stop sequencing, and remains in an infinite loop
-func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
-	s.seqSendingStopped = true
-	for {
-		s.logger.Errorf(template, args...)
-		s.logger.Errorf("sequence sending stopped.")
-		time.Sleep(ten * time.Second)
-	}
+	// timeDiff is greater than timeMargin
+	return true, 0
 }
