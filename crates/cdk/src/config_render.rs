@@ -53,7 +53,7 @@ pub fn render(
             zkevm_address,
             rollup_address,
             ger_manager_address,
-            matic_contract_address,
+            pol_token_address,
         ),
     )?;
 
@@ -115,7 +115,7 @@ fn render_yaml(
     zkevm_address: String,
     rollup_address: String,
     ger_manager_address: String,
-    matic_contract_address: String,
+    pol_token_address: String,
 ) -> String {
     format!(
         r#"
@@ -135,7 +135,7 @@ zkevm.address-rollup: {rollup_address}
 zkevm.address-ger-manager: {ger_manager_address}
 
 zkevm.l1-rollup-id: 1
-zkevm.l1-matic-contract-address: {matic_contract_address}
+zkevm.l1-matic-contract-address: {pol_token_address}
 zkevm.l1-first-block: 23
 zkevm.rpc-ratelimit: 250
 txpool.disable: true
