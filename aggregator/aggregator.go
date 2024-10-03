@@ -24,10 +24,11 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/datastream"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	ethtxlog "github.com/0xPolygon/zkevm-ethtx-manager/log"
+	txManTypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	streamlog "github.com/0xPolygonHermez/zkevm-data-streamer/log"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
-	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
 	synclog "github.com/0xPolygonHermez/zkevm-synchronizer-l1/log"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/state/entities"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer"
@@ -989,7 +990,7 @@ func (a *Aggregator) settleDirect(
 	}
 
 	// process monitored batch verifications before starting a next cycle
-	a.ethTxManager.ProcessPendingMonitoredTxs(ctx, func(result ethtxmanager.MonitoredTxResult) {
+	a.ethTxManager.ProcessPendingMonitoredTxs(ctx, func(result txManTypes.MonitoredTxResult) {
 		a.handleMonitoredTxResult(result)
 	})
 
@@ -1928,9 +1929,9 @@ func (hc *healthChecker) Watch(req *grpchealth.HealthCheckRequest, server grpche
 	})
 }
 
-func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResult) {
+func (a *Aggregator) handleMonitoredTxResult(result txManTypes.MonitoredTxResult) {
 	mTxResultLogger := ethtxmanager.CreateMonitoredTxResultLogger(result)
-	if result.Status == ethtxmanager.MonitoredTxStatusFailed {
+	if result.Status == txManTypes.MonitoredTxStatusFailed {
 		mTxResultLogger.Fatal("failed to send batch verification, TODO: review this fatal and define what to do in this case")
 	}
 
