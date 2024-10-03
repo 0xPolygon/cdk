@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitroot"
+	gersc "github.com/0xPolygon/cdk-contracts-tooling/contracts/sovereign/globalexitrootmanagerl2sovereignchain"
 	cfgTypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
@@ -40,7 +40,7 @@ type EthTxManager interface {
 
 type EVMChainGERSender struct {
 	logger              *log.Logger
-	gerContract         *pessimisticglobalexitroot.Pessimisticglobalexitroot
+	gerContract         *gersc.Globalexitrootmanagerl2sovereignchain
 	gerAddr             common.Address
 	sender              common.Address
 	client              EthClienter
@@ -67,7 +67,7 @@ func NewEVMChainGERSender(
 	gasOffset uint64,
 	waitPeriodMonitorTx time.Duration,
 ) (*EVMChainGERSender, error) {
-	gerContract, err := pessimisticglobalexitroot.NewPessimisticglobalexitroot(l2GlobalExitRoot, l2Client)
+	gerContract, err := gersc.NewGlobalexitrootmanagerl2sovereignchain(l2GlobalExitRoot, l2Client)
 	if err != nil {
 		return nil, err
 	}
@@ -94,11 +94,11 @@ func (c *EVMChainGERSender) IsGERAlreadyInjected(ger common.Hash) (bool, error) 
 }
 
 func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger common.Hash) error {
-	abi, err := pessimisticglobalexitroot.PessimisticglobalexitrootMetaData.GetAbi()
+	abi, err := gersc.Globalexitrootmanagerl2sovereignchainMetaData.GetAbi()
 	if err != nil {
 		return err
 	}
-	data, err := abi.Pack("updateGlobalExitRoot", ger)
+	data, err := abi.Pack("insertGlobalExitRoot", ger)
 	if err != nil {
 		return err
 	}

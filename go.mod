@@ -3,7 +3,7 @@ module github.com/0xPolygon/cdk
 go 1.22.4
 
 require (
-	github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240819092536-5a65d4761b2f
+	github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20241003024835-ffbfc9fc5db2
 	github.com/0xPolygon/cdk-data-availability v0.0.9
 	github.com/0xPolygon/cdk-rpc v0.0.0-20240905074455-431d3c271fe8
 	github.com/0xPolygonHermez/zkevm-data-streamer v0.2.6
