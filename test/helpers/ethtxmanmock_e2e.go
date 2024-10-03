@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk/log"
-	txManTypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
+	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -97,7 +97,7 @@ func NewEthTxManMock(
 		Return(common.Hash{}, nil)
 	// res, err := c.ethTxMan.Result(ctx, id)
 	ethTxMock.On("Result", mock.Anything, mock.Anything).
-		Return(txManTypes.MonitoredTxResult{Status: txManTypes.MonitoredTxStatusMined}, nil)
+		Return(ethtxtypes.MonitoredTxResult{Status: ethtxtypes.MonitoredTxStatusMined}, nil)
 
 	return ethTxMock
 }
