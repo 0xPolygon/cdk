@@ -23,7 +23,7 @@ WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 MaxTxSizeForL1 = 131072
 L2Coinbase =  "{{.zkevm_l2_sequencer_address}}"
-PrivateKey = {Path = "/etc/cdk/sequencer.keystore", Password = "{{.zkevm_l2_keystore_password}}"}
+PrivateKey = {Path = "{{or .zkevm_l2_sequencer_keystore_file "/etc/cdk/sequencer.keystore"}}", Password = "{{.zkevm_l2_keystore_password}}"}
 SequencesTxFileName = "/data/sequencesender.json"
 GasOffset = 80000
 WaitPeriodPurgeTxFile = "15m"
