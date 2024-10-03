@@ -51,9 +51,14 @@ test-e2e-fork9-validium: stop
 	./run-e2e.sh fork9 cdk-validium
 	bats .
 
-.PHONY: test-e2e-fork9-rollup
+.PHONY: test-e2e-fork11-validium
+test-e2e-fork9-validium: stop
+	./run-e2e.sh fork11 cdk-validium
+	bats .
+
+.PHONY: test-e2e-fork11-rollup
 test-e2e-fork9-rollup: stop
-	./run-e2e.sh fork9 rollup
+	./run-e2e.sh fork11 rollup
 	bats .
 
 .PHONY: test-e2e-fork12-validium
