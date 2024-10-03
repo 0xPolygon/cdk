@@ -1,27 +1,21 @@
+use crate::allocs_render::Rendered;
 use anyhow::Error;
+use cdk_config::Config;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::{tempdir, TempDir};
 
-pub fn render(
-    chain_id: String,
-    l2_sequencer_rpc_url: String,
-    datastreamer_host: String,
-    l1_rpc_url: String,
-    l1_chain_id: String,
-    sequencer_address: String,
-    genesis_file: PathBuf,
-) -> Result<TempDir, Error> {
+pub fn render(config: Config, genesis_file: PathBuf) -> Result<TempDir, Error> {
     // Create a temporary directory
     let tmp_dir = tempdir()?;
-
+    let chain_id = config.aggregator.chain_id.clone();
     let res = crate::allocs_render::render_allocs(genesis_file.to_str().unwrap())?;
     // Write the three files to disk
     fs::write(
         tmp_dir
             .path()
             .join(format!("dynamic-{}-allocs.json", chain_id.clone())),
-        res.output,
+        res.output.clone(),
     )?;
     fs::write(
         tmp_dir
@@ -33,30 +27,15 @@ pub fn render(
         tmp_dir
             .path()
             .join(format!("dynamic-{}-conf.json", chain_id.clone())),
-        render_conf(res.wrapper.root, 1000000000000000000),
+        render_conf(res.wrapper.root.clone(), 1000000000000000000),
     )?;
 
-    let zkevm_address = res.wrapper.l1_config.zkevm_address;
-    let rollup_address = res.wrapper.l1_config.rollup_manager_address;
-    let ger_manager_address = res.wrapper.l1_config.zkevm_global_exit_root_address;
-    let pol_token_address = res.wrapper.l1_config.pol_token_address;
-
+    let contents = render_yaml(config, res);
     fs::write(
         tmp_dir
             .path()
             .join(format!("dynamic-{}.yaml", chain_id.clone())),
-        render_yaml(
-            chain_id,
-            l2_sequencer_rpc_url,
-            datastreamer_host,
-            l1_rpc_url,
-            l1_chain_id,
-            sequencer_address,
-            zkevm_address,
-            rollup_address,
-            ger_manager_address,
-            pol_token_address,
-        ),
+        contents,
     )?;
 
     Ok(tmp_dir)
@@ -108,18 +87,7 @@ fn render_conf(root: String, gas_limit: u64) -> String {
 }
 
 // render_config renders the configuration file for the Erigon node.
-fn render_yaml(
-    chain_id: String,
-    l2_sequencer_rpc_url: String,
-    datastreamer_host: String,
-    l1_rpc_url: String,
-    l1_chain_id: String,
-    sequencer_address: String,
-    zkevm_address: String,
-    rollup_address: String,
-    ger_manager_address: String,
-    pol_token_address: String,
-) -> String {
+fn render_yaml(config: Config, res: Rendered) -> String {
     format!(
         r#"
 chain: dynamic-{chain_id}
@@ -137,17 +105,37 @@ zkevm.address-ger-manager: {ger_manager_address}
 zkevm.l1-matic-contract-address: {pol_token_address}
 externalcl: true
 
-zkevm.l1-first-block: 23
+zkevm.l1-first-block: {l1_first_block}
 datadir: ./data/dynamic-{chain_id}
-http: true
-private.api.addr: localhost:9092
-zkevm.rpc-ratelimit: 250
-zkevm.datastream-version: 2
-http.api: [eth, debug, net, trace, web3, erigon, zkevm]
-http.addr: 0.0.0.0
-http.vhosts: any
-http.corsdomain: any
-ws: true
-"#
+http: {http}
+private.api.addr: {private_api_addr}
+zkevm.rpc-ratelimit: {zkevm_rate_limit}
+zkevm.datastream-version: {zkevm_datastream_version}
+http.api: [{http_api}]
+http.addr: {http_addr}
+http.vhosts: {http_vhosts}
+http.corsdomain: {http_cors_domain}
+ws: {ws}
+"#,
+        chain_id = config.aggregator.chain_id.clone(),
+        l2_sequencer_rpc_url = config.aggregator.witness_url.to_string(),
+        datastreamer_host = config.aggregator.stream_client.server,
+        l1_rpc_url = config.aggregator.eth_tx_manager.etherman.url,
+        l1_chain_id = config.network_config.l1.l1_chain_id,
+        sequencer_address = config.sequence_sender.l2_coinbase,
+        zkevm_address = res.wrapper.l1_config.zkevm_address,
+        rollup_address = res.wrapper.l1_config.rollup_manager_address,
+        ger_manager_address = res.wrapper.l1_config.zkevm_global_exit_root_address,
+        pol_token_address = res.wrapper.l1_config.pol_token_address,
+        l1_first_block = config.execution_engine.l1_first_block,
+        http = config.execution_engine.http,
+        private_api_addr = config.execution_engine.private_api_addr,
+        zkevm_rate_limit = config.execution_engine.zkevm_rpc_rate_limit,
+        zkevm_datastream_version = config.execution_engine.zkevm_datastream_version,
+        http_api = config.execution_engine.http_api.join(", "),
+        http_addr = config.execution_engine.http_addr,
+        http_vhosts = config.execution_engine.http_vhosts,
+        http_cors_domain = config.execution_engine.http_cors_domain,
+        ws = config.execution_engine.ws
     )
 }

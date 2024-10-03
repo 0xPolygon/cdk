@@ -117,15 +117,8 @@ pub fn node(config_path: PathBuf, components: Option<String>) -> anyhow::Result<
 /// This function starts everything needed to run an Erigon node.
 pub fn erigon(config: Config, genesis_file: PathBuf) -> anyhow::Result<()> {
     // Render configuration files
-    let erigon_config_path = config_render::render(
-        config.aggregator.chain_id.clone(),
-        config.aggregator.witness_url.to_string(),
-        config.aggregator.stream_client.server,
-        config.aggregator.eth_tx_manager.etherman.url,
-        config.network_config.l1.l1_chain_id,
-        config.sequence_sender.l2_coinbase,
-        genesis_file,
-    )?;
+    let chain_id = config.aggregator.chain_id.clone();
+    let erigon_config_path = config_render::render(config, genesis_file)?;
 
     debug!("Starting erigon with config: {:?}", erigon_config_path);
 
@@ -135,7 +128,7 @@ pub fn erigon(config: Config, genesis_file: PathBuf) -> anyhow::Result<()> {
             "--config",
             erigon_config_path
                 .path()
-                .join(format!("dynamic-{}.yaml", config.aggregator.chain_id))
+                .join(format!("dynamic-{}.yaml", chain_id))
                 .to_str()
                 .unwrap(),
         ])
