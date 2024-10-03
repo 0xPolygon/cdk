@@ -52,7 +52,7 @@ test-e2e-fork9-validium: stop
 	bats .
 
 .PHONY: test-e2e-fork11-rollup
-test-e2e-fork9-rollup: stop
+test-e2e-fork11-rollup: stop
 	./run-e2e.sh fork11 rollup
 	bats .
 
