@@ -34,7 +34,7 @@ impl Default for ExecutionEngine {
     fn default() -> Self {
         Self {
             type_: "ExecutionEngine".to_string(),
-            data_dir: PathBuf::from("./data/dynamic-1337"),
+            data_dir: PathBuf::from("./data/dynamic-cdk-erigon"),
             http: true,
             http_addr: "0.0.0.0".to_string(),
             http_api: vec![
@@ -51,7 +51,7 @@ impl Default for ExecutionEngine {
             ws: true,
             private_api_addr: "localhost:9092".to_string(),
             zkevm_rpc_rate_limit: 250,
-            zkevm_datastream_version: 2,
+            zkevm_datastream_version: 3,
             l1_first_block: 23,
         }
     }

@@ -95,7 +95,7 @@ zkevm.l2-chain-id: {chain_id}
 zkevm.l2-sequencer-rpc-url: {l2_sequencer_rpc_url}
 zkevm.l2-datastreamer-url: {datastreamer_host}
 zkevm.l1-chain-id: {l1_chain_id}
-zkevm.l1-rpc-url: http://{l1_rpc_url}
+zkevm.l1-rpc-url: {l1_rpc_url}
 
 zkevm.address-sequencer: {sequencer_address}
 zkevm.address-zkevm: {zkevm_address}

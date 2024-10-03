@@ -6,7 +6,7 @@ use execute::Execute;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
-use tracing::debug;
+use tracing::info;
 
 pub mod allocs_render;
 mod cli;
@@ -120,7 +120,7 @@ pub fn erigon(config: Config, genesis_file: PathBuf) -> anyhow::Result<()> {
     let chain_id = config.aggregator.chain_id.clone();
     let erigon_config_path = config_render::render(config, genesis_file)?;
 
-    debug!("Starting erigon with config: {:?}", erigon_config_path);
+    println!("Starting erigon with config: {:?}", erigon_config_path);
 
     // Run cdk-erigon in system path
     let output = Command::new(CDK_ERIGON_BIN)
