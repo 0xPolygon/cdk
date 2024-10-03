@@ -49,7 +49,7 @@ GetBatchWaitInterval = "10s"
                 WaitReceiptToBeGenerated = "8s"
                 {{end}}
                 PrivateKeys = [
-                        {Path = "/etc/cdk/sequencer.keystore", Password = "{{.zkevm_l2_keystore_password}}"},
+                        {Path = "{{or .zkevm_l2_sequencer_keystore_file "/etc/cdk/sequencer.keystore"}}", Password = "{{.zkevm_l2_keystore_password}}"},
                 ]
                 ForcedGas = 0
                 GasPriceMarginFactor = 1
@@ -121,9 +121,9 @@ GetBatchWaitInterval = "10s"
                 GetReceiptMaxTime = "250ms"
                 GetReceiptWaitInterval = "1s"
                 {{end}}
-
+        
                 PrivateKeys = [
-                        {Path = "/etc/cdk/aggregator.keystore", Password = "{{.zkevm_l2_keystore_password}}"},
+                        {Path = "{{or .zkevm_l2_aggregator_keystore_file "/etc/cdk/aggregator.keystore"}}", Password = "{{.zkevm_l2_keystore_password}}"},
                 ]
                 ForcedGas = 0
                 GasPriceMarginFactor = 1
