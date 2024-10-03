@@ -8,6 +8,7 @@ pub fn render(
     l2_sequencer_rpc_url: String,
     datastreamer_host: String,
     l1_rpc_url: String,
+    l1_chain_id: String,
     sequencer_address: String,
     genesis_file: PathBuf,
 ) -> Result<TempDir, Error> {
@@ -49,6 +50,7 @@ pub fn render(
             l2_sequencer_rpc_url,
             datastreamer_host,
             l1_rpc_url,
+            l1_chain_id,
             sequencer_address,
             zkevm_address,
             rollup_address,
@@ -111,6 +113,7 @@ fn render_yaml(
     l2_sequencer_rpc_url: String,
     datastreamer_host: String,
     l1_rpc_url: String,
+    l1_chain_id: String,
     sequencer_address: String,
     zkevm_address: String,
     rollup_address: String,
@@ -119,30 +122,27 @@ fn render_yaml(
 ) -> String {
     format!(
         r#"
-datadir: ./data/dynamic-{chain_id}
 chain: dynamic-{chain_id}
-http: true
-private.api.addr: localhost:9092
 zkevm.l2-chain-id: {chain_id}
 zkevm.l2-sequencer-rpc-url: {l2_sequencer_rpc_url}
 zkevm.l2-datastreamer-url: {datastreamer_host}
-zkevm.l1-chain-id: 271828
-zkevm.l1-rpc-url: {l1_rpc_url}
+zkevm.l1-chain-id: {l1_chain_id}
+zkevm.l1-rpc-url: http://{l1_rpc_url}
 
 zkevm.address-sequencer: {sequencer_address}
 zkevm.address-zkevm: {zkevm_address}
 zkevm.address-rollup: {rollup_address}
 zkevm.address-ger-manager: {ger_manager_address}
 
-zkevm.l1-rollup-id: 1
 zkevm.l1-matic-contract-address: {pol_token_address}
-zkevm.l1-first-block: 23
-zkevm.rpc-ratelimit: 250
-txpool.disable: true
-torrent.port: 42070
-zkevm.datastream-version: 2
-
 externalcl: true
+
+zkevm.l1-first-block: 23
+datadir: ./data/dynamic-{chain_id}
+http: true
+private.api.addr: localhost:9092
+zkevm.rpc-ratelimit: 250
+zkevm.datastream-version: 2
 http.api: [eth, debug, net, trace, web3, erigon, zkevm]
 http.addr: 0.0.0.0
 http.vhosts: any

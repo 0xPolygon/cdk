@@ -122,6 +122,7 @@ pub fn erigon(config: Config, genesis_file: PathBuf) -> anyhow::Result<()> {
         config.aggregator.witness_url.to_string(),
         config.aggregator.stream_client.server,
         config.aggregator.eth_tx_manager.etherman.url,
+        config.network_config.l1.l1_chain_id,
         config.sequence_sender.l2_coinbase,
         genesis_file,
     )?;
