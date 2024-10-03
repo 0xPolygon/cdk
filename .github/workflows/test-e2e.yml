@@ -15,7 +15,8 @@ jobs:
         goarch: [ "amd64" ]
         e2e-group:
           - "fork9-validium"
-          - "fork9-rollup"
+          - "fork11-validium"
+          - "fork11-rollup"
           - "fork12-validium"
           - "fork12-rollup"
     runs-on: ubuntu-latest
