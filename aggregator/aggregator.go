@@ -979,7 +979,7 @@ func (a *Aggregator) settleDirect(
 		return false
 	}
 
-	monitoredTxID, err := a.ethTxManager.Add(ctx, to, nil, big.NewInt(0), data, a.cfg.GasOffset, nil)
+	monitoredTxID, err := a.ethTxManager.Add(ctx, to, big.NewInt(0), data, a.cfg.GasOffset, nil)
 	if err != nil {
 		a.logger.Errorf("Error Adding TX to ethTxManager: %v", err)
 		mTxLogger := ethtxmanager.CreateLogger(monitoredTxID, sender, to)
@@ -1876,13 +1876,7 @@ func (a *Aggregator) getWitness(batchNumber uint64, url string, fullWitness bool
 		return nil, err
 	}
 
-	witnessString := strings.TrimLeft(witness, "0x")
-	if len(witnessString)%2 != 0 {
-		witnessString = "0" + witnessString
-	}
-	bytes := common.Hex2Bytes(witnessString)
-
-	return bytes, nil
+	return common.FromHex(witness), nil
 }
 
 func printInputProver(logger *log.Logger, inputProver *prover.StatelessInputProver) {

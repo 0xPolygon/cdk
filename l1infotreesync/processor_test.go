@@ -10,72 +10,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestGetVerifiedBatches(t *testing.T) {
-	dbPath := "file:TestGetVerifiedBatches?mode=memory&cache=shared"
-	p, err := newProcessor(dbPath)
-	require.NoError(t, err)
-	ctx := context.Background()
-
-	// Test ErrNotFound returned correctly on all methods
-	_, err = p.GetLastVerifiedBatches(0)
-	require.Equal(t, db.ErrNotFound, err)
-	_, err = p.GetFirstVerifiedBatches(0)
-	require.Equal(t, db.ErrNotFound, err)
-	_, err = p.GetFirstVerifiedBatchesAfterBlock(0, 0)
-	require.Equal(t, db.ErrNotFound, err)
-
-	// First insert
-	expected1 := &VerifyBatches{
-		RollupID:   420,
-		NumBatch:   69,
-		StateRoot:  common.HexToHash("5ca1e"),
-		ExitRoot:   common.HexToHash("b455"),
-		Aggregator: common.HexToAddress("beef"),
-	}
-	err = p.ProcessBlock(ctx, sync.Block{
-		Num: 1,
-		Events: []interface{}{
-			Event{VerifyBatches: expected1},
-		},
-	})
-	require.NoError(t, err)
-	_, err = p.GetLastVerifiedBatches(0)
-	require.Equal(t, db.ErrNotFound, err)
-	actual, err := p.GetLastVerifiedBatches(420)
-	require.NoError(t, err)
-	require.Equal(t, expected1, actual)
-	actual, err = p.GetFirstVerifiedBatches(420)
-	require.NoError(t, err)
-	require.Equal(t, expected1, actual)
-
-	// Second insert
-	expected2 := &VerifyBatches{
-		RollupID:   420,
-		NumBatch:   690,
-		StateRoot:  common.HexToHash("5ca1e3"),
-		ExitRoot:   common.HexToHash("ba55"),
-		Aggregator: common.HexToAddress("beef3"),
-	}
-	err = p.ProcessBlock(ctx, sync.Block{
-		Num: 2,
-		Events: []interface{}{
-			Event{VerifyBatches: expected2},
-		},
-	})
-	require.NoError(t, err)
-	_, err = p.GetLastVerifiedBatches(0)
-	require.Equal(t, db.ErrNotFound, err)
-	actual, err = p.GetLastVerifiedBatches(420)
-	require.NoError(t, err)
-	require.Equal(t, expected2, actual)
-	actual, err = p.GetFirstVerifiedBatches(420)
-	require.NoError(t, err)
-	require.Equal(t, expected1, actual)
-	actual, err = p.GetFirstVerifiedBatchesAfterBlock(420, 2)
-	require.NoError(t, err)
-	require.Equal(t, expected2, actual)
-}
-
 func TestGetInfo(t *testing.T) {
 	dbPath := "file:TestGetInfo?mode=memory&cache=shared"
 	p, err := newProcessor(dbPath)
@@ -173,4 +107,17 @@ func TestGetInfo(t *testing.T) {
 	actual, err = p.GetInfoByGlobalExitRoot(expected2.GlobalExitRoot)
 	require.NoError(t, err)
 	require.Equal(t, expected2, *actual)
+}
+
+func TestGetLatestInfoUntilBlockIfNotFoundReturnsErrNotFound(t *testing.T) {
+	dbPath := "file:TestGetLatestInfoUntilBlock?mode=memory&cache=shared"
+	sut, err := newProcessor(dbPath)
+	require.NoError(t, err)
+	ctx := context.Background()
+	// Fake block 1
+	_, err = sut.db.Exec(`INSERT INTO block (num) VALUES ($1)`, 1)
+	require.NoError(t, err)
+
+	_, err = sut.GetLatestInfoUntilBlock(ctx, 1)
+	require.Equal(t, db.ErrNotFound, err)
 }
