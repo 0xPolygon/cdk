@@ -32,6 +32,7 @@ import (
 	synclog "github.com/0xPolygonHermez/zkevm-synchronizer-l1/log"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/state/entities"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer"
+	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer/l1_check_block"
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
@@ -979,7 +980,7 @@ func (a *Aggregator) settleDirect(
 		return false
 	}
 
-	monitoredTxID, err := a.ethTxManager.Add(ctx, to, nil, big.NewInt(0), data, a.cfg.GasOffset, nil)
+	monitoredTxID, err := a.ethTxManager.Add(ctx, to, big.NewInt(0), data, a.cfg.GasOffset, nil)
 	if err != nil {
 		a.logger.Errorf("Error Adding TX to ethTxManager: %v", err)
 		mTxLogger := ethtxmanager.CreateLogger(monitoredTxID, sender, to)
@@ -991,7 +992,7 @@ func (a *Aggregator) settleDirect(
 
 	// process monitored batch verifications before starting a next cycle
 	a.ethTxManager.ProcessPendingMonitoredTxs(ctx, func(result ethtxmanager.MonitoredTxResult) {
-		a.handleMonitoredTxResult(result)
+		a.handleMonitoredTxResult(result, proof.BatchNumber, proof.BatchNumberFinal)
 	})
 
 	return true
@@ -1876,13 +1877,7 @@ func (a *Aggregator) getWitness(batchNumber uint64, url string, fullWitness bool
 		return nil, err
 	}
 
-	witnessString := strings.TrimLeft(witness, "0x")
-	if len(witnessString)%2 != 0 {
-		witnessString = "0" + witnessString
-	}
-	bytes := common.Hex2Bytes(witnessString)
-
-	return bytes, nil
+	return common.FromHex(witness), nil
 }
 
 func printInputProver(logger *log.Logger, inputProver *prover.StatelessInputProver) {
@@ -1935,57 +1930,39 @@ func (hc *healthChecker) Watch(req *grpchealth.HealthCheckRequest, server grpche
 	})
 }
 
-func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResult) {
+func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResult, firstBatch, lastBatch uint64) {
 	mTxResultLogger := ethtxmanager.CreateMonitoredTxResultLogger(result)
 	if result.Status == ethtxmanager.MonitoredTxStatusFailed {
 		mTxResultLogger.Fatal("failed to send batch verification, TODO: review this fatal and define what to do in this case")
 	}
 
-	// TODO: REVIEW THIS
+	// Wait for the transaction to be finalized, then we can safely delete all recursive
+	// proofs up to the last batch in this proof
 
-	/*
-	   // monitoredIDFormat: "proof-from-%v-to-%v"
-	   idSlice := strings.Split(result.ID, "-")
-	   proofBatchNumberStr := idSlice[2]
-	   proofBatchNumber, err := strconv.ParseUint(proofBatchNumberStr, encoding.Base10, 0)
+	finaLizedBlockNumber, err := l1_check_block.L1FinalizedFetch.BlockNumber(a.ctx, a.etherman)
+	if err != nil {
+		mTxResultLogger.Errorf("failed to get finalized block number: %v", err)
+	}
 
-	   	if err != nil {
-	   		mTxResultLogger.Errorf("failed to read final proof batch number from monitored tx: %v", err)
-	   	}
+	for result.MinedAtBlockNumber.Uint64() > finaLizedBlockNumber {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-time.After(a.cfg.RetryTime.Duration):
+			finaLizedBlockNumber, err = l1_check_block.L1FinalizedFetch.BlockNumber(a.ctx, a.etherman)
+			if err != nil {
+				mTxResultLogger.Errorf("failed to get finalized block number: %v", err)
+			}
+		}
+	}
 
-	   proofBatchNumberFinalStr := idSlice[4]
-	   proofBatchNumberFinal, err := strconv.ParseUint(proofBatchNumberFinalStr, encoding.Base10, 0)
+	err = a.state.DeleteGeneratedProofs(a.ctx, firstBatch, lastBatch, nil)
+	if err != nil {
+		mTxResultLogger.Errorf("failed to delete generated proofs, err: %v", err)
+	}
 
-	   	if err != nil {
-	   		mTxResultLogger.Errorf("failed to read final proof batch number final from monitored tx: %v", err)
-	   	}
-
-	   log := log.WithFields("txId", result.ID, "batches", fmt.Sprintf("%d-%d", proofBatchNumber, proofBatchNumberFinal))
-	   log.Info("Final proof verified")
-
-	   // wait for the synchronizer to catch up the verified batches
-	   log.Debug("A final proof has been sent, waiting for the network to be synced")
-
-	   	for !a.isSynced(a.ctx, &proofBatchNumberFinal) {
-	   		log.Info("Waiting for synchronizer to sync...")
-	   		time.Sleep(a.cfg.RetryTime.Duration)
-	   	}
-
-	   // network is synced with the final proof, we can safely delete all recursive
-	   // proofs up to the last synced batch
-	   err = a.State.CleanupGeneratedProofs(a.ctx, proofBatchNumberFinal, nil)
-
-	   	if err != nil {
-	   		log.Errorf("Failed to store proof aggregation result: %v", err)
-	   	}
-	*/
+	mTxResultLogger.Debugf("deleted generated proofs from %d to %d", firstBatch, lastBatch)
 }
-
-/*
-func buildMonitoredTxID(batchNumber, batchNumberFinal uint64) string {
-	return fmt.Sprintf(monitoredIDFormat, batchNumber, batchNumberFinal)
-}
-*/
 
 func (a *Aggregator) cleanupLockedProofs() {
 	for {

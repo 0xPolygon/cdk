@@ -22,6 +22,64 @@ func (_m *L1InfoSyncer) EXPECT() *L1InfoSyncer_Expecter {
 	return &L1InfoSyncer_Expecter{mock: &_m.Mock}
 }
 
+// GetInitL1InfoRootMap provides a mock function with given fields: ctx
+func (_m *L1InfoSyncer) GetInitL1InfoRootMap(ctx context.Context) (*l1infotreesync.L1InfoTreeInitial, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetInitL1InfoRootMap")
+	}
+
+	var r0 *l1infotreesync.L1InfoTreeInitial
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (*l1infotreesync.L1InfoTreeInitial, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) *l1infotreesync.L1InfoTreeInitial); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*l1infotreesync.L1InfoTreeInitial)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// L1InfoSyncer_GetInitL1InfoRootMap_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetInitL1InfoRootMap'
+type L1InfoSyncer_GetInitL1InfoRootMap_Call struct {
+	*mock.Call
+}
+
+// GetInitL1InfoRootMap is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *L1InfoSyncer_Expecter) GetInitL1InfoRootMap(ctx interface{}) *L1InfoSyncer_GetInitL1InfoRootMap_Call {
+	return &L1InfoSyncer_GetInitL1InfoRootMap_Call{Call: _e.mock.On("GetInitL1InfoRootMap", ctx)}
+}
+
+func (_c *L1InfoSyncer_GetInitL1InfoRootMap_Call) Run(run func(ctx context.Context)) *L1InfoSyncer_GetInitL1InfoRootMap_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *L1InfoSyncer_GetInitL1InfoRootMap_Call) Return(_a0 *l1infotreesync.L1InfoTreeInitial, _a1 error) *L1InfoSyncer_GetInitL1InfoRootMap_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *L1InfoSyncer_GetInitL1InfoRootMap_Call) RunAndReturn(run func(context.Context) (*l1infotreesync.L1InfoTreeInitial, error)) *L1InfoSyncer_GetInitL1InfoRootMap_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetLatestInfoUntilBlock provides a mock function with given fields: ctx, blockNum
 func (_m *L1InfoSyncer) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*l1infotreesync.L1InfoTreeLeaf, error) {
 	ret := _m.Called(ctx, blockNum)
