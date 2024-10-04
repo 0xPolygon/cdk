@@ -15,9 +15,9 @@ COMMON_MOCKERY_PARAMS=--disable-version-string --with-expecter --exported
 generate-mocks-sequencesender: ## Generates mocks for sequencesender, using mockery tool
 	rm -Rf ../sequencesender/txbuilder/mocks_txbuilder
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../sequencesender/txbuilder --output ../sequencesender/txbuilder/mocks_txbuilder --outpkg mocks_txbuilder ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxMngr --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=EthTxMngrMock --filename=ethtxmanager.generated.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Etherman --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=EthermanMock --filename=etherman.generated.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=StreamClient --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=StreamClientMock --filename=streamclient.generated.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxMngr --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=EthTxMngrMock --filename=mock_ethtxmanager.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Etherman --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=StreamClient --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=StreamClientMock --filename=mock_streamclient.go
 
 .PHONY: generate-mocks-da
 generate-mocks-da: ## Generates mocks for dataavailability, using mockery tool
