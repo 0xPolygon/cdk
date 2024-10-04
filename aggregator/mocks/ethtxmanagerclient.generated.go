@@ -30,9 +30,9 @@ func (_m *EthTxManagerClientMock) EXPECT() *EthTxManagerClientMock_Expecter {
 	return &EthTxManagerClientMock_Expecter{mock: &_m.Mock}
 }
 
-// Add provides a mock function with given fields: ctx, to, forcedNonce, value, data, gasOffset, sidecar
-func (_m *EthTxManagerClientMock) Add(ctx context.Context, to *common.Address, forcedNonce *uint64, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar) (common.Hash, error) {
-	ret := _m.Called(ctx, to, forcedNonce, value, data, gasOffset, sidecar)
+// Add provides a mock function with given fields: ctx, to, value, data, gasOffset, sidecar
+func (_m *EthTxManagerClientMock) Add(ctx context.Context, to *common.Address, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar) (common.Hash, error) {
+	ret := _m.Called(ctx, to, value, data, gasOffset, sidecar)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Add")
@@ -40,19 +40,19 @@ func (_m *EthTxManagerClientMock) Add(ctx context.Context, to *common.Address, f
 
 	var r0 common.Hash
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *common.Address, *uint64, *big.Int, []byte, uint64, *types.BlobTxSidecar) (common.Hash, error)); ok {
-		return rf(ctx, to, forcedNonce, value, data, gasOffset, sidecar)
+	if rf, ok := ret.Get(0).(func(context.Context, *common.Address, *big.Int, []byte, uint64, *types.BlobTxSidecar) (common.Hash, error)); ok {
+		return rf(ctx, to, value, data, gasOffset, sidecar)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *common.Address, *uint64, *big.Int, []byte, uint64, *types.BlobTxSidecar) common.Hash); ok {
-		r0 = rf(ctx, to, forcedNonce, value, data, gasOffset, sidecar)
+	if rf, ok := ret.Get(0).(func(context.Context, *common.Address, *big.Int, []byte, uint64, *types.BlobTxSidecar) common.Hash); ok {
+		r0 = rf(ctx, to, value, data, gasOffset, sidecar)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(common.Hash)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *common.Address, *uint64, *big.Int, []byte, uint64, *types.BlobTxSidecar) error); ok {
-		r1 = rf(ctx, to, forcedNonce, value, data, gasOffset, sidecar)
+	if rf, ok := ret.Get(1).(func(context.Context, *common.Address, *big.Int, []byte, uint64, *types.BlobTxSidecar) error); ok {
+		r1 = rf(ctx, to, value, data, gasOffset, sidecar)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -68,18 +68,17 @@ type EthTxManagerClientMock_Add_Call struct {
 // Add is a helper method to define mock.On call
 //   - ctx context.Context
 //   - to *common.Address
-//   - forcedNonce *uint64
 //   - value *big.Int
 //   - data []byte
 //   - gasOffset uint64
 //   - sidecar *types.BlobTxSidecar
-func (_e *EthTxManagerClientMock_Expecter) Add(ctx interface{}, to interface{}, forcedNonce interface{}, value interface{}, data interface{}, gasOffset interface{}, sidecar interface{}) *EthTxManagerClientMock_Add_Call {
-	return &EthTxManagerClientMock_Add_Call{Call: _e.mock.On("Add", ctx, to, forcedNonce, value, data, gasOffset, sidecar)}
+func (_e *EthTxManagerClientMock_Expecter) Add(ctx interface{}, to interface{}, value interface{}, data interface{}, gasOffset interface{}, sidecar interface{}) *EthTxManagerClientMock_Add_Call {
+	return &EthTxManagerClientMock_Add_Call{Call: _e.mock.On("Add", ctx, to, value, data, gasOffset, sidecar)}
 }
 
-func (_c *EthTxManagerClientMock_Add_Call) Run(run func(ctx context.Context, to *common.Address, forcedNonce *uint64, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar)) *EthTxManagerClientMock_Add_Call {
+func (_c *EthTxManagerClientMock_Add_Call) Run(run func(ctx context.Context, to *common.Address, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar)) *EthTxManagerClientMock_Add_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*common.Address), args[2].(*uint64), args[3].(*big.Int), args[4].([]byte), args[5].(uint64), args[6].(*types.BlobTxSidecar))
+		run(args[0].(context.Context), args[1].(*common.Address), args[2].(*big.Int), args[3].([]byte), args[4].(uint64), args[5].(*types.BlobTxSidecar))
 	})
 	return _c
 }
@@ -89,14 +88,14 @@ func (_c *EthTxManagerClientMock_Add_Call) Return(_a0 common.Hash, _a1 error) *E
 	return _c
 }
 
-func (_c *EthTxManagerClientMock_Add_Call) RunAndReturn(run func(context.Context, *common.Address, *uint64, *big.Int, []byte, uint64, *types.BlobTxSidecar) (common.Hash, error)) *EthTxManagerClientMock_Add_Call {
+func (_c *EthTxManagerClientMock_Add_Call) RunAndReturn(run func(context.Context, *common.Address, *big.Int, []byte, uint64, *types.BlobTxSidecar) (common.Hash, error)) *EthTxManagerClientMock_Add_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// AddWithGas provides a mock function with given fields: ctx, to, forcedNonce, value, data, gasOffset, sidecar, gas
-func (_m *EthTxManagerClientMock) AddWithGas(ctx context.Context, to *common.Address, forcedNonce *uint64, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar, gas uint64) (common.Hash, error) {
-	ret := _m.Called(ctx, to, forcedNonce, value, data, gasOffset, sidecar, gas)
+// AddWithGas provides a mock function with given fields: ctx, to, value, data, gasOffset, sidecar, gas
+func (_m *EthTxManagerClientMock) AddWithGas(ctx context.Context, to *common.Address, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar, gas uint64) (common.Hash, error) {
+	ret := _m.Called(ctx, to, value, data, gasOffset, sidecar, gas)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddWithGas")
@@ -104,19 +103,19 @@ func (_m *EthTxManagerClientMock) AddWithGas(ctx context.Context, to *common.Add
 
 	var r0 common.Hash
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *common.Address, *uint64, *big.Int, []byte, uint64, *types.BlobTxSidecar, uint64) (common.Hash, error)); ok {
-		return rf(ctx, to, forcedNonce, value, data, gasOffset, sidecar, gas)
+	if rf, ok := ret.Get(0).(func(context.Context, *common.Address, *big.Int, []byte, uint64, *types.BlobTxSidecar, uint64) (common.Hash, error)); ok {
+		return rf(ctx, to, value, data, gasOffset, sidecar, gas)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *common.Address, *uint64, *big.Int, []byte, uint64, *types.BlobTxSidecar, uint64) common.Hash); ok {
-		r0 = rf(ctx, to, forcedNonce, value, data, gasOffset, sidecar, gas)
+	if rf, ok := ret.Get(0).(func(context.Context, *common.Address, *big.Int, []byte, uint64, *types.BlobTxSidecar, uint64) common.Hash); ok {
+		r0 = rf(ctx, to, value, data, gasOffset, sidecar, gas)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(common.Hash)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *common.Address, *uint64, *big.Int, []byte, uint64, *types.BlobTxSidecar, uint64) error); ok {
-		r1 = rf(ctx, to, forcedNonce, value, data, gasOffset, sidecar, gas)
+	if rf, ok := ret.Get(1).(func(context.Context, *common.Address, *big.Int, []byte, uint64, *types.BlobTxSidecar, uint64) error); ok {
+		r1 = rf(ctx, to, value, data, gasOffset, sidecar, gas)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -132,19 +131,18 @@ type EthTxManagerClientMock_AddWithGas_Call struct {
 // AddWithGas is a helper method to define mock.On call
 //   - ctx context.Context
 //   - to *common.Address
-//   - forcedNonce *uint64
 //   - value *big.Int
 //   - data []byte
 //   - gasOffset uint64
 //   - sidecar *types.BlobTxSidecar
 //   - gas uint64
-func (_e *EthTxManagerClientMock_Expecter) AddWithGas(ctx interface{}, to interface{}, forcedNonce interface{}, value interface{}, data interface{}, gasOffset interface{}, sidecar interface{}, gas interface{}) *EthTxManagerClientMock_AddWithGas_Call {
-	return &EthTxManagerClientMock_AddWithGas_Call{Call: _e.mock.On("AddWithGas", ctx, to, forcedNonce, value, data, gasOffset, sidecar, gas)}
+func (_e *EthTxManagerClientMock_Expecter) AddWithGas(ctx interface{}, to interface{}, value interface{}, data interface{}, gasOffset interface{}, sidecar interface{}, gas interface{}) *EthTxManagerClientMock_AddWithGas_Call {
+	return &EthTxManagerClientMock_AddWithGas_Call{Call: _e.mock.On("AddWithGas", ctx, to, value, data, gasOffset, sidecar, gas)}
 }
 
-func (_c *EthTxManagerClientMock_AddWithGas_Call) Run(run func(ctx context.Context, to *common.Address, forcedNonce *uint64, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar, gas uint64)) *EthTxManagerClientMock_AddWithGas_Call {
+func (_c *EthTxManagerClientMock_AddWithGas_Call) Run(run func(ctx context.Context, to *common.Address, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar, gas uint64)) *EthTxManagerClientMock_AddWithGas_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*common.Address), args[2].(*uint64), args[3].(*big.Int), args[4].([]byte), args[5].(uint64), args[6].(*types.BlobTxSidecar), args[7].(uint64))
+		run(args[0].(context.Context), args[1].(*common.Address), args[2].(*big.Int), args[3].([]byte), args[4].(uint64), args[5].(*types.BlobTxSidecar), args[6].(uint64))
 	})
 	return _c
 }
@@ -154,7 +152,7 @@ func (_c *EthTxManagerClientMock_AddWithGas_Call) Return(_a0 common.Hash, _a1 er
 	return _c
 }
 
-func (_c *EthTxManagerClientMock_AddWithGas_Call) RunAndReturn(run func(context.Context, *common.Address, *uint64, *big.Int, []byte, uint64, *types.BlobTxSidecar, uint64) (common.Hash, error)) *EthTxManagerClientMock_AddWithGas_Call {
+func (_c *EthTxManagerClientMock_AddWithGas_Call) RunAndReturn(run func(context.Context, *common.Address, *big.Int, []byte, uint64, *types.BlobTxSidecar, uint64) (common.Hash, error)) *EthTxManagerClientMock_AddWithGas_Call {
 	_c.Call.Return(run)
 	return _c
 }

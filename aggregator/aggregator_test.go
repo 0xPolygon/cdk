@@ -124,7 +124,7 @@ func Test_handleRollbackBatches(t *testing.T) {
 	mockState.On("DeleteBatchesNewerThanBatchNumber", mock.Anything, rollbackData.LastBatchNumber, nil).Return(nil)
 	mockState.On("DeleteBatchesOlderThanBatchNumber", mock.Anything, rollbackData.LastBatchNumber, nil).Return(nil)
 	mockState.On("DeleteUngeneratedProofs", mock.Anything, nil).Return(nil)
-	mockState.On("DeleteGeneratedProofs", mock.Anything, rollbackData.LastBatchNumber+1, maxDBBigIntValue, nil).Return(nil)
+	mockState.On("DeleteGeneratedProofs", mock.Anything, rollbackData.LastBatchNumber+1, mock.AnythingOfType("uint64"), nil).Return(nil)
 
 	agg := Aggregator{
 		ctx:                    context.Background(),
