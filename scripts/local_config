@@ -176,8 +176,8 @@ function export_value_from_kurtosis_or_fail(){
     done
     export $_EXPORTED_VAR_NAME=$_RESULT
     if [ -z $_EXPORTED_VAR_NAME ]; then
-            log_fatal "Error getting kurtosis port:  $KURTOSIS_ENCLAVE $_SERVICE $_END_POINT"
-        fi
+        log_fatal "Error getting kurtosis port:  $KURTOSIS_ENCLAVE $_SERVICE $_END_POINT"
+    fi
     log_debug "$_EXPORTED_VAR_NAME=${!_EXPORTED_VAR_NAME}  \t\t\t# Kurtosis $KURTOSIS_ENCLAVE $_SERVICE $_END_POINT"
 }
 ###############################################################################
