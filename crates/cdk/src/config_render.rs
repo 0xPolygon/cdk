@@ -27,7 +27,7 @@ pub fn render(config: Config, genesis_file: PathBuf) -> Result<TempDir, Error> {
         tmp_dir
             .path()
             .join(format!("dynamic-{}-conf.json", chain_id.clone())),
-        render_conf(res.wrapper.root.clone(), 1000000000000000000),
+        render_conf(res.wrapper.root.clone(), 1727969954),
     )?;
 
     let contents = render_yaml(config, res);
@@ -72,17 +72,17 @@ fn render_chainspec(chain_id: String) -> String {
     )
 }
 
-fn render_conf(root: String, gas_limit: u64) -> String {
+fn render_conf(root: String, timestamp: u64) -> String {
     format!(
         r#"
 {{
   "root": {:?},
-  "timestamp": 0,
-  "gasLimit": {:?},
+  "timestamp": {:?},
+  "gasLimit": 0,
   "difficulty": 0
 }}
     "#,
-        root, gas_limit
+        root, timestamp
     )
 }
 

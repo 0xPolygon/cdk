@@ -1,4 +1,6 @@
 //! Command line interface.
+use alloy_rpc_client::ReqwestClient;
+use alloy_rpc_client::{ClientBuilder, RpcCall};
 use cdk_config::Config;
 use clap::Parser;
 use cli::Cli;
@@ -6,7 +8,7 @@ use execute::Execute;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
-use tracing::info;
+use url::Url;
 
 pub mod allocs_render;
 mod cli;
@@ -120,6 +122,7 @@ pub fn erigon(config: Config, genesis_file: PathBuf) -> anyhow::Result<()> {
     let chain_id = config.aggregator.chain_id.clone();
     let erigon_config_path = config_render::render(config, genesis_file)?;
 
+    // let timestamp = get_timestamp(config.aggregator.rpc_url.clone()).unwrap();
     println!("Starting erigon with config: {:?}", erigon_config_path);
 
     // Run cdk-erigon in system path
@@ -149,3 +152,31 @@ pub fn erigon(config: Config, genesis_file: PathBuf) -> anyhow::Result<()> {
 
     Ok(())
 }
+
+// Call the rpc server to retrieve the first batch timestamp
+// fn get_timestamp(url: Url) -> Option<String> {
+//     // Instantiate a new client over a transport.
+//     let client: ReqwestClient = ClientBuilder::default().http(url);
+//     let runtime = tokio::runtime::Builder::new_current_thread()
+//         .enable_all()
+//         .build()
+//         .unwrap();
+
+//     // Prepare a request to the server.
+//     let request: RpcCall<
+//         alloy_transport_http::Http<reqwest::async_impl::client::Client>,
+//         [(); 0],
+//         Resp,
+//     > = client.request("zkevm_getBatchByNumber", 0);
+
+//     let block_number = runtime
+//         .block_on(async { request.await })
+//         .unwrap()
+//         .json()
+//         .unwrap();
+
+//     // Poll the request to completion.
+//     let timestamp = block_number["timestamp"].as_str().unwrap().to_string();
+
+//     Ok(timestamp)
+// }
