@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygon/cdk/etherman"
@@ -14,19 +16,46 @@ import (
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes/rpcbatch"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
-	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	ethtxlog "github.com/0xPolygon/zkevm-ethtx-manager/log"
+	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 const ten = 10
+
+// EthTxManager represents the eth tx manager interface
+type EthTxManager interface {
+	Start()
+	AddWithGas(
+		ctx context.Context,
+		to *common.Address,
+		value *big.Int,
+		data []byte,
+		gasOffset uint64,
+		sidecar *types.BlobTxSidecar,
+		gas uint64,
+	) (common.Hash, error)
+	Remove(ctx context.Context, hash common.Hash) error
+	ResultsByStatus(ctx context.Context, status []ethtxtypes.MonitoredTxStatus) ([]ethtxtypes.MonitoredTxResult, error)
+	Result(ctx context.Context, hash common.Hash) (ethtxtypes.MonitoredTxResult, error)
+}
+
+// Etherman represents the etherman behaviour
+type Etherman interface {
+	CurrentNonce(ctx context.Context, address common.Address) (uint64, error)
+	GetLatestBlockHeader(ctx context.Context) (*types.Header, error)
+	EstimateGas(ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte) (uint64, error)
+	GetLatestBatchNumber() (uint64, error)
+}
 
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
 	cfg                      Config
 	logger                   *log.Logger
-	ethTxManager             *ethtxmanager.Client
-	etherman                 *etherman.Client
+	ethTxManager             EthTxManager
+	etherman                 Etherman
 	latestVirtualBatchNumber uint64                     // Latest virtualized batch obtained from L1
 	latestVirtualTime        time.Time                  // Latest virtual batch timestamp
 	latestSentToL1Batch      uint64                     // Latest batch sent to L1
@@ -38,7 +67,7 @@ type SequenceSender struct {
 	mutexEthTx               sync.Mutex                 // Mutex to access ethTransactions
 	sequencesTxFile          *os.File                   // Persistence of sent transactions
 	validStream              bool                       // Not valid while receiving data before the desired batch
-	seqSendingStopped        bool                       // If there is a critical error
+	seqSendingStopped        uint32                     // If there is a critical error
 	TxBuilder                txbuilder.TxBuilder
 	latestVirtualBatchLock   sync.Mutex
 }
@@ -54,15 +83,14 @@ func New(cfg Config, logger *log.Logger,
 	etherman *etherman.Client, txBuilder txbuilder.TxBuilder) (*SequenceSender, error) {
 	// Create sequencesender
 	s := SequenceSender{
-		cfg:               cfg,
-		logger:            logger,
-		etherman:          etherman,
-		ethTransactions:   make(map[common.Hash]*ethTxData),
-		ethTxData:         make(map[common.Hash][]byte),
-		sequenceData:      make(map[uint64]*sequenceData),
-		validStream:       false,
-		seqSendingStopped: false,
-		TxBuilder:         txBuilder,
+		cfg:             cfg,
+		logger:          logger,
+		etherman:        etherman,
+		ethTransactions: make(map[common.Hash]*ethTxData),
+		ethTxData:       make(map[common.Hash][]byte),
+		sequenceData:    make(map[uint64]*sequenceData),
+		validStream:     false,
+		TxBuilder:       txBuilder,
 	}
 
 	logger.Infof("TxBuilder configuration: %s", txBuilder.String())
@@ -95,11 +123,8 @@ func (s *SequenceSender) Start(ctx context.Context) {
 	// Start ethtxmanager client
 	go s.ethTxManager.Start()
 
-	// Get current nonce
-	var err error
-
 	// Get latest virtual state batch from L1
-	err = s.getLatestVirtualBatch()
+	err := s.getLatestVirtualBatch()
 	if err != nil {
 		s.logger.Fatalf("error getting latest sequenced batch, error: %v", err)
 	}
@@ -111,7 +136,7 @@ func (s *SequenceSender) Start(ctx context.Context) {
 	}
 
 	// Current batch to sequence
-	s.latestSentToL1Batch = s.latestVirtualBatchNumber
+	atomic.StoreUint64(&s.latestSentToL1Batch, atomic.LoadUint64(&s.latestVirtualBatchNumber))
 
 	// Start retrieving batches from RPC
 	go func() {
@@ -130,7 +155,7 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 	ticker := time.NewTicker(s.cfg.GetBatchWaitInterval.Duration)
 	defer ticker.Stop()
 
-	currentBatchNumber := s.latestVirtualBatchNumber + 1
+	currentBatchNumber := atomic.LoadUint64(&s.latestVirtualBatchNumber) + 1
 	for {
 		select {
 		case <-ctx.Done():
@@ -138,7 +163,7 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 			return ctx.Err()
 		default:
 			// Try to retrieve batch from RPC
-			rpcBatch, err := s.getBatchFromRPC(currentBatchNumber)
+			rpcBatch, err := getBatchFromRPC(s.cfg.RPCURL, currentBatchNumber)
 			if err != nil {
 				if errors.Is(err, ethtxmanager.ErrNotFound) {
 					s.logger.Infof("batch %d not found in RPC", currentBatchNumber)
@@ -204,7 +229,7 @@ func (s *SequenceSender) sequenceSending(ctx context.Context) {
 // purgeSequences purges batches from memory structures
 func (s *SequenceSender) purgeSequences() {
 	// If sequence sending is stopped, do not purge
-	if s.seqSendingStopped {
+	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
 		return
 	}
 
@@ -215,7 +240,7 @@ func (s *SequenceSender) purgeSequences() {
 	toPurge := make([]uint64, 0)
 	for i := 0; i < len(s.sequenceList); i++ {
 		batchNumber := s.sequenceList[i]
-		if batchNumber <= s.latestVirtualBatchNumber {
+		if batchNumber <= atomic.LoadUint64(&s.latestVirtualBatchNumber) {
 			truncateUntil = i + 1
 			toPurge = append(toPurge, batchNumber)
 		}
@@ -256,7 +281,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	}
 
 	// Check if the sequence sending is stopped
-	if s.seqSendingStopped {
+	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
 		s.logger.Warnf("sending is stopped!")
 		return
 	}
@@ -296,7 +321,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 			return
 		}
 
-		elapsed, waitTime := s.marginTimeElapsed(lastL2BlockTimestamp, lastL1BlockHeader.Time, timeMargin)
+		elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, lastL1BlockHeader.Time, timeMargin)
 
 		if !elapsed {
 			s.logger.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block %d (ts: %d) "+
@@ -323,7 +348,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	for {
 		currentTime := uint64(time.Now().Unix())
 
-		elapsed, waitTime := s.marginTimeElapsed(lastL2BlockTimestamp, currentTime, timeMargin)
+		elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, currentTime, timeMargin)
 
 		// Wait if the time difference is less than L1BlockTimestampMargin
 		if !elapsed {
@@ -355,7 +380,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 		s.logger.Fatalf("error getting latest sequenced batch, error: %v", err)
 	}
 
-	sequence.SetLastVirtualBatchNumber(s.latestVirtualBatchNumber)
+	sequence.SetLastVirtualBatchNumber(atomic.LoadUint64(&s.latestVirtualBatchNumber))
 
 	txToEstimateGas, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, sequence)
 	if err != nil {
@@ -387,7 +412,8 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 	sequenceBatches := make([]seqsendertypes.Batch, 0)
 	for i := 0; i < len(s.sequenceList); i++ {
 		batchNumber := s.sequenceList[i]
-		if batchNumber <= s.latestVirtualBatchNumber || batchNumber <= s.latestSentToL1Batch {
+		if batchNumber <= atomic.LoadUint64(&s.latestVirtualBatchNumber) ||
+			batchNumber <= atomic.LoadUint64(&s.latestSentToL1Batch) {
 			continue
 		}
 
@@ -458,20 +484,32 @@ func (s *SequenceSender) getLatestVirtualBatch() error {
 	// Get latest virtual state batch from L1
 	var err error
 
-	s.latestVirtualBatchNumber, err = s.etherman.GetLatestBatchNumber()
+	latestVirtualBatchNumber, err := s.etherman.GetLatestBatchNumber()
 	if err != nil {
 		s.logger.Errorf("error getting latest virtual batch, error: %v", err)
 		return errors.New("fail to get latest virtual batch")
 	}
 
-	s.logger.Infof("latest virtual batch is %d", s.latestVirtualBatchNumber)
+	atomic.StoreUint64(&s.latestVirtualBatchNumber, latestVirtualBatchNumber)
+
+	s.logger.Infof("latest virtual batch is %d", latestVirtualBatchNumber)
 
 	return nil
 }
 
+// logFatalf logs error, activates flag to stop sequencing, and remains in an infinite loop
+func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
+	atomic.StoreUint32(&s.seqSendingStopped, 1)
+	for {
+		s.logger.Errorf(template, args...)
+		s.logger.Errorf("sequence sending stopped.")
+		time.Sleep(ten * time.Second)
+	}
+}
+
 // marginTimeElapsed checks if the time between currentTime and l2BlockTimestamp is greater than timeMargin.
 // If it's greater returns true, otherwise it returns false and the waitTime needed to achieve this timeMargin
-func (s *SequenceSender) marginTimeElapsed(
+func marginTimeElapsed(
 	l2BlockTimestamp uint64, currentTime uint64, timeMargin int64,
 ) (bool, int64) {
 	// Check the time difference between L2 block and currentTime
@@ -492,17 +530,8 @@ func (s *SequenceSender) marginTimeElapsed(
 			waitTime = timeMargin - timeDiff
 		}
 		return false, waitTime
-	} else { // timeDiff is greater than timeMargin
-		return true, 0
 	}
-}
 
-// logFatalf logs error, activates flag to stop sequencing, and remains in an infinite loop
-func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
-	s.seqSendingStopped = true
-	for {
-		s.logger.Errorf(template, args...)
-		s.logger.Errorf("sequence sending stopped.")
-		time.Sleep(ten * time.Second)
-	}
+	// timeDiff is greater than timeMargin
+	return true, 0
 }
