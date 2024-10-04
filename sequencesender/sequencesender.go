@@ -16,8 +16,8 @@ import (
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes/rpcbatch"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
-	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	ethtxlog "github.com/0xPolygon/zkevm-ethtx-manager/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -122,11 +122,8 @@ func (s *SequenceSender) Start(ctx context.Context) {
 	// Start ethtxmanager client
 	go s.ethTxManager.Start()
 
-	// Get current nonce
-	var err error
-
 	// Get latest virtual state batch from L1
-	err = s.getLatestVirtualBatch()
+	err := s.getLatestVirtualBatch()
 	if err != nil {
 		s.logger.Fatalf("error getting latest sequenced batch, error: %v", err)
 	}

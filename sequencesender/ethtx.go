@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk/log"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	"github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -90,7 +91,7 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 	// Add tx to internal structure
 	s.mutexEthTx.Lock()
 	s.ethTransactions[txHash] = &txData
-	txResults := make(map[common.Hash]ethtxmanager.TxResult, 0)
+	txResults := make(map[common.Hash]types.TxResult, 0)
 	s.copyTxData(txHash, paramData, txResults)
 	err = s.getResultAndUpdateEthTx(ctx, txHash)
 	if err != nil {
@@ -127,7 +128,7 @@ func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 			continue
 		}
 
-		if !data.OnMonitor || data.Status == ethtxmanager.MonitoredTxStatusFinalized.String() {
+		if !data.OnMonitor || data.Status == types.MonitoredTxStatusFinalized.String() {
 			toPurge = append(toPurge, hash)
 
 			// Remove from tx monitor
@@ -168,7 +169,7 @@ func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) {
 		txSync    uint64
 	)
 	for hash, data := range s.ethTransactions {
-		if data.Status == ethtxmanager.MonitoredTxStatusFinalized.String() {
+		if data.Status == types.MonitoredTxStatusFinalized.String() {
 			continue
 		}
 
@@ -180,9 +181,9 @@ func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) {
 		txStatus := s.ethTransactions[hash].Status
 		// Count if it is not in a final state
 		if s.ethTransactions[hash].OnMonitor &&
-			txStatus != ethtxmanager.MonitoredTxStatusFailed.String() &&
-			txStatus != ethtxmanager.MonitoredTxStatusSafe.String() &&
-			txStatus != ethtxmanager.MonitoredTxStatusFinalized.String() {
+			txStatus != types.MonitoredTxStatusFailed.String() &&
+			txStatus != types.MonitoredTxStatusSafe.String() &&
+			txStatus != types.MonitoredTxStatusFinalized.String() {
 			txPending++
 		}
 	}
@@ -240,7 +241,7 @@ func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) error {
 
 // copyTxData copies tx data in the internal structure
 func (s *SequenceSender) copyTxData(
-	txHash common.Hash, txData []byte, txsResults map[common.Hash]ethtxmanager.TxResult,
+	txHash common.Hash, txData []byte, txsResults map[common.Hash]types.TxResult,
 ) {
 	s.ethTxData[txHash] = make([]byte, len(txData))
 	copy(s.ethTxData[txHash], txData)
@@ -261,7 +262,7 @@ func (s *SequenceSender) copyTxData(
 }
 
 // updateEthTxResult handles updating transaction state
-func (s *SequenceSender) updateEthTxResult(txData *ethTxData, txResult ethtxmanager.MonitoredTxResult) {
+func (s *SequenceSender) updateEthTxResult(txData *ethTxData, txResult types.MonitoredTxResult) {
 	if txData.Status != txResult.Status.String() {
 		log.Infof("update transaction %v to state %s", txResult.ID, txResult.Status.String())
 		txData.StatusTimestamp = time.Now()
@@ -271,9 +272,9 @@ func (s *SequenceSender) updateEthTxResult(txData *ethTxData, txResult ethtxmana
 		txData.StateHistory = append(txData.StateHistory, stTrans)
 
 		// Manage according to the state
-		statusConsolidated := txData.Status == ethtxmanager.MonitoredTxStatusSafe.String() ||
-			txData.Status == ethtxmanager.MonitoredTxStatusFinalized.String()
-		if txData.Status == ethtxmanager.MonitoredTxStatusFailed.String() {
+		statusConsolidated := txData.Status == types.MonitoredTxStatusSafe.String() ||
+			txData.Status == types.MonitoredTxStatusFinalized.String()
+		if txData.Status == types.MonitoredTxStatusFailed.String() {
 			s.logFatalf("transaction %v result failed!")
 		} else if statusConsolidated && txData.ToBatch >= atomic.LoadUint64(&s.latestVirtualBatchNumber) {
 			s.latestVirtualTime = txData.StatusTimestamp

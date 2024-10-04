@@ -18,7 +18,7 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/sequencesender"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
@@ -51,7 +51,10 @@ const (
 	// FlagMaxAmount is the flag to avoid to use the flag FlagAmount
 	FlagMaxAmount = "max-amount"
 
-	deprecatedFieldSyncDB = "Aggregator.Synchronizer.DB is deprecated use Aggregator.Synchronizer.SQLDB instead"
+	deprecatedFieldSyncDB = "Aggregator.Synchronizer.DB is deprecated. Use Aggregator.Synchronizer.SQLDB instead."
+
+	deprecatedFieldPersistenceFilename = "EthTxManager.PersistenceFilename is deprecated." +
+		" Use EthTxManager.StoragePath instead."
 )
 
 type ForbiddenField struct {
@@ -64,6 +67,14 @@ var (
 		{
 			FieldName: "aggregator.synchronizer.db.",
 			Reason:    deprecatedFieldSyncDB,
+		},
+		{
+			FieldName: "sequencesender.ethtxmanager.persistencefilename",
+			Reason:    deprecatedFieldPersistenceFilename,
+		},
+		{
+			FieldName: "aggregator.ethtxmanager.persistencefilename",
+			Reason:    deprecatedFieldPersistenceFilename,
 		},
 	}
 )

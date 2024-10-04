@@ -9,7 +9,7 @@ import (
 
 	context "context"
 
-	ethtxmanager "github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 
 	mock "github.com/stretchr/testify/mock"
 
@@ -70,22 +70,22 @@ func (_m *EthTxManagerMock) Remove(ctx context.Context, id common.Hash) error {
 }
 
 // Result provides a mock function with given fields: ctx, id
-func (_m *EthTxManagerMock) Result(ctx context.Context, id common.Hash) (ethtxmanager.MonitoredTxResult, error) {
+func (_m *EthTxManagerMock) Result(ctx context.Context, id common.Hash) (ethtxtypes.MonitoredTxResult, error) {
 	ret := _m.Called(ctx, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Result")
 	}
 
-	var r0 ethtxmanager.MonitoredTxResult
+	var r0 ethtxtypes.MonitoredTxResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (ethtxmanager.MonitoredTxResult, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (ethtxtypes.MonitoredTxResult, error)); ok {
 		return rf(ctx, id)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) ethtxmanager.MonitoredTxResult); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) ethtxtypes.MonitoredTxResult); ok {
 		r0 = rf(ctx, id)
 	} else {
-		r0 = ret.Get(0).(ethtxmanager.MonitoredTxResult)
+		r0 = ret.Get(0).(ethtxtypes.MonitoredTxResult)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
@@ -98,27 +98,27 @@ func (_m *EthTxManagerMock) Result(ctx context.Context, id common.Hash) (ethtxma
 }
 
 // ResultsByStatus provides a mock function with given fields: ctx, statuses
-func (_m *EthTxManagerMock) ResultsByStatus(ctx context.Context, statuses []ethtxmanager.MonitoredTxStatus) ([]ethtxmanager.MonitoredTxResult, error) {
+func (_m *EthTxManagerMock) ResultsByStatus(ctx context.Context, statuses []ethtxtypes.MonitoredTxStatus) ([]ethtxtypes.MonitoredTxResult, error) {
 	ret := _m.Called(ctx, statuses)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ResultsByStatus")
 	}
 
-	var r0 []ethtxmanager.MonitoredTxResult
+	var r0 []ethtxtypes.MonitoredTxResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, []ethtxmanager.MonitoredTxStatus) ([]ethtxmanager.MonitoredTxResult, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []ethtxtypes.MonitoredTxStatus) ([]ethtxtypes.MonitoredTxResult, error)); ok {
 		return rf(ctx, statuses)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, []ethtxmanager.MonitoredTxStatus) []ethtxmanager.MonitoredTxResult); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []ethtxtypes.MonitoredTxStatus) []ethtxtypes.MonitoredTxResult); ok {
 		r0 = rf(ctx, statuses)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]ethtxmanager.MonitoredTxResult)
+			r0 = ret.Get(0).([]ethtxtypes.MonitoredTxResult)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, []ethtxmanager.MonitoredTxStatus) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, []ethtxtypes.MonitoredTxStatus) error); ok {
 		r1 = rf(ctx, statuses)
 	} else {
 		r1 = ret.Error(1)
