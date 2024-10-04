@@ -38,7 +38,7 @@ func SliceToSlicePtrs(slice interface{}) interface{} {
 	v := reflect.ValueOf(slice)
 	vLen := v.Len()
 	typ := v.Type().Elem()
-	res := reflect.MakeSlice(reflect.SliceOf(reflect.PtrTo(typ)), vLen, vLen)
+	res := reflect.MakeSlice(reflect.SliceOf(reflect.PointerTo(typ)), vLen, vLen)
 	for i := 0; i < vLen; i++ {
 		res.Index(i).Set(v.Index(i).Addr())
 	}
@@ -57,7 +57,7 @@ func SlicePtrsToSlice(slice interface{}) interface{} {
 	return res.Interface()
 }
 
-// BigIntMeddler encodes or decodes the field value to or from JSON
+// BigIntMeddler encodes or decodes the field value to or from string
 type BigIntMeddler struct{}
 
 // PreRead is called before a Scan operation for fields that have the BigIntMeddler
@@ -97,16 +97,16 @@ func (b BigIntMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{}, er
 	return field.String(), nil
 }
 
-// MerkleProofMeddler encodes or decodes the field value to or from JSON
+// MerkleProofMeddler encodes or decodes the field value to or from string
 type MerkleProofMeddler struct{}
 
-// PreRead is called before a Scan operation for fields that have the ProofMeddler
+// PreRead is called before a Scan operation for fields that have the MerkleProofMeddler
 func (b MerkleProofMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
 	// give a pointer to a byte buffer to grab the raw data
 	return new(string), nil
 }
 
-// PostRead is called after a Scan operation for fields that have the ProofMeddler
+// PostRead is called after a Scan operation for fields that have the MerkleProofMeddler
 func (b MerkleProofMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 	ptr, ok := scanTarget.(*string)
 	if !ok {
@@ -129,7 +129,7 @@ func (b MerkleProofMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 	return nil
 }
 
-// PreWrite is called before an Insert or Update operation for fields that have the ProofMeddler
+// PreWrite is called before an Insert or Update operation for fields that have the MerkleProofMeddler
 func (b MerkleProofMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{}, err error) {
 	field, ok := fieldPtr.(tree.Proof)
 	if !ok {
@@ -143,16 +143,16 @@ func (b MerkleProofMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{
 	return s, nil
 }
 
-// HashMeddler encodes or decodes the field value to or from JSON
+// HashMeddler encodes or decodes the field value to or from string
 type HashMeddler struct{}
 
-// PreRead is called before a Scan operation for fields that have the ProofMeddler
+// PreRead is called before a Scan operation for fields that have the HashMeddler
 func (b HashMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
 	// give a pointer to a byte buffer to grab the raw data
 	return new(string), nil
 }
 
-// PostRead is called after a Scan operation for fields that have the ProofMeddler
+// PostRead is called after a Scan operation for fields that have the HashMeddler
 func (b HashMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 	ptr, ok := scanTarget.(*string)
 	if !ok {
@@ -169,7 +169,7 @@ func (b HashMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 	return nil
 }
 
-// PreWrite is called before an Insert or Update operation for fields that have the ProofMeddler
+// PreWrite is called before an Insert or Update operation for fields that have the HashMeddler
 func (b HashMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{}, err error) {
 	field, ok := fieldPtr.(common.Hash)
 	if !ok {
@@ -178,16 +178,16 @@ func (b HashMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{}, err 
 	return field.Hex(), nil
 }
 
-// AddressMeddler encodes or decodes the field value to or from JSON
+// AddressMeddler encodes or decodes the field value to or from string
 type AddressMeddler struct{}
 
-// PreRead is called before a Scan operation for fields that have the ProofMeddler
+// PreRead is called before a Scan operation for fields that have the AddressMeddler
 func (b AddressMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err error) {
 	// give a pointer to a byte buffer to grab the raw data
 	return new(string), nil
 }
 
-// PostRead is called after a Scan operation for fields that have the ProofMeddler
+// PostRead is called after a Scan operation for fields that have the AddressMeddler
 func (b AddressMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 	ptr, ok := scanTarget.(*string)
 	if !ok {
@@ -204,7 +204,7 @@ func (b AddressMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 	return nil
 }
 
-// PreWrite is called before an Insert or Update operation for fields that have the ProofMeddler
+// PreWrite is called before an Insert or Update operation for fields that have the AddressMeddler
 func (b AddressMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{}, err error) {
 	field, ok := fieldPtr.(common.Address)
 	if !ok {
