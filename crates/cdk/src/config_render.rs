@@ -96,26 +96,24 @@ zkevm.l2-sequencer-rpc-url: {l2_sequencer_rpc_url}
 zkevm.l2-datastreamer-url: {datastreamer_host}
 zkevm.l1-chain-id: {l1_chain_id}
 zkevm.l1-rpc-url: {l1_rpc_url}
-
 zkevm.address-sequencer: {sequencer_address}
 zkevm.address-zkevm: {zkevm_address}
 zkevm.address-rollup: {rollup_address}
 zkevm.address-ger-manager: {ger_manager_address}
-
 zkevm.l1-matic-contract-address: {pol_token_address}
-externalcl: true
-
 zkevm.l1-first-block: {l1_first_block}
 datadir: ./data/dynamic-{chain_id}
-http: {http}
-private.api.addr: {private_api_addr}
-zkevm.rpc-ratelimit: {zkevm_rate_limit}
-zkevm.datastream-version: {zkevm_datastream_version}
-http.api: [{http_api}]
-http.addr: {http_addr}
-http.vhosts: {http_vhosts}
-http.corsdomain: {http_cors_domain}
-ws: {ws}
+
+externalcl: true
+http: true
+private.api.addr: "localhost:9092"
+zkevm.rpc-ratelimit: 250
+zkevm.datastream-version: 3
+http.api: [eth, debug,net,trace,web3,erigon,zkevm]
+http.addr: "0.0.0.0"
+http.vhosts: any
+http.corsdomain: any
+ws: true
 "#,
         chain_id = config.aggregator.chain_id.clone(),
         l2_sequencer_rpc_url = config.aggregator.witness_url.to_string(),
@@ -127,15 +125,6 @@ ws: {ws}
         rollup_address = res.wrapper.l1_config.rollup_manager_address,
         ger_manager_address = res.wrapper.l1_config.zkevm_global_exit_root_address,
         pol_token_address = res.wrapper.l1_config.pol_token_address,
-        l1_first_block = config.execution_engine.l1_first_block,
-        http = config.execution_engine.http,
-        private_api_addr = config.execution_engine.private_api_addr,
-        zkevm_rate_limit = config.execution_engine.zkevm_rpc_rate_limit,
-        zkevm_datastream_version = config.execution_engine.zkevm_datastream_version,
-        http_api = config.execution_engine.http_api.join(", "),
-        http_addr = config.execution_engine.http_addr,
-        http_vhosts = config.execution_engine.http_vhosts,
-        http_cors_domain = config.execution_engine.http_cors_domain,
-        ws = config.execution_engine.ws
+        l1_first_block = res.wrapper.rollup_creation_block_number
     )
 }

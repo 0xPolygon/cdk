@@ -27,6 +27,8 @@ pub struct Wrapper {
     #[serde(rename = "L1Config")]
     pub l1_config: L1Config,
     genesis: Vec<Input>,
+    #[serde(rename = "rollupCreationBlockNumber")]
+    pub rollup_creation_block_number: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

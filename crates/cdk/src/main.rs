@@ -1,11 +1,10 @@
 //! Command line interface.
+use alloy_rpc_client::ClientBuilder;
 use alloy_rpc_client::ReqwestClient;
-use alloy_rpc_client::{ClientBuilder, RpcCall};
 use cdk_config::Config;
 use clap::Parser;
 use cli::Cli;
 use execute::Execute;
-use serde_json::Value;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;

@@ -7,7 +7,6 @@ use serde::Deserialize;
 pub(crate) const DEFAULT_IP: std::net::Ipv4Addr = std::net::Ipv4Addr::new(0, 0, 0, 0);
 
 pub(crate) mod aggregator;
-pub(crate) mod execution_engine;
 pub(crate) mod l1;
 pub mod log;
 pub(crate) mod network_config;
@@ -36,7 +35,4 @@ pub struct Config {
 
     #[serde(rename = "SequenceSender")]
     pub sequence_sender: SequenceSender,
-
-    #[serde(rename = "ExecutionEngine", default)]
-    pub execution_engine: execution_engine::ExecutionEngine,
 }
