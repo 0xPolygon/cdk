@@ -1957,7 +1957,7 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResu
 
 	err = a.state.DeleteGeneratedProofs(a.ctx, firstBatch, lastBatch, nil)
 	if err != nil {
-		mTxResultLogger.Errorf("failed to delete generated proofs, err: %v", err)
+		mTxResultLogger.Errorf("failed to delete generated proofs from %d to %d: %v", firstBatch, lastBatch, err)
 	}
 
 	mTxResultLogger.Debugf("deleted generated proofs from %d to %d", firstBatch, lastBatch)
