@@ -25,8 +25,8 @@ import (
 
 const ten = 10
 
-// EthTxMngr represents the eth tx manager interface
-type EthTxMngr interface {
+// EthTxManager represents the eth tx manager interface
+type EthTxManager interface {
 	Start()
 	AddWithGas(
 		ctx context.Context,
@@ -54,7 +54,7 @@ type Etherman interface {
 type SequenceSender struct {
 	cfg                      Config
 	logger                   *log.Logger
-	ethTxManager             EthTxMngr
+	ethTxManager             EthTxManager
 	etherman                 Etherman
 	latestVirtualBatchNumber uint64                     // Latest virtualized batch obtained from L1
 	latestVirtualTime        time.Time                  // Latest virtual batch timestamp

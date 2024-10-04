@@ -46,7 +46,7 @@ func Test_sendTx(t *testing.T) {
 		name            string
 		args            args
 		state           state
-		getEthTxManager func(t *testing.T) *mocks.EthTxMngrMock
+		getEthTxManager func(t *testing.T) *mocks.EthTxManagerMock
 		expectedState   state
 		expectedErr     error
 	}{
@@ -61,10 +61,10 @@ func Test_sendTx(t *testing.T) {
 				data:      []byte("test"),
 				gas:       100500,
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				mngr.On("AddWithGas", mock.Anything, &addr, big.NewInt(0), []byte("test"), uint64(0), mock.Anything, uint64(100500)).Return(hash, nil)
 				mngr.On("Result", mock.Anything, hash).Return(ethtxtypes.MonitoredTxResult{
 					ID:   hash,
@@ -111,10 +111,10 @@ func Test_sendTx(t *testing.T) {
 				txOldHash: &oldHash,
 				gas:       100500,
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				mngr.On("AddWithGas", mock.Anything, &addr, big.NewInt(0), []byte(nil), uint64(0), mock.Anything, uint64(100500)).Return(hash, nil)
 				mngr.On("Result", mock.Anything, hash).Return(ethtxtypes.MonitoredTxResult{
 					ID:   hash,
@@ -165,10 +165,10 @@ func Test_sendTx(t *testing.T) {
 				txOldHash: &oldHash,
 				gas:       100500,
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				mngr.On("AddWithGas", mock.Anything, &addr, big.NewInt(0), []byte(nil), uint64(0), mock.Anything, uint64(100500)).Return(nil, errors.New("failed to add with gas"))
 				return mngr
 			},
@@ -194,10 +194,10 @@ func Test_sendTx(t *testing.T) {
 				resend: true,
 				gas:    100500,
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				return mngr
 			},
 			state: state{
@@ -272,7 +272,7 @@ func Test_purgeEthTx(t *testing.T) {
 		seqSendingStopped       uint32
 		ethTransactions         map[common.Hash]*ethTxData
 		ethTxData               map[common.Hash][]byte
-		getEthTxManager         func(t *testing.T) *mocks.EthTxMngrMock
+		getEthTxManager         func(t *testing.T) *mocks.EthTxManagerMock
 		sequenceList            []uint64
 		expectedEthTransactions map[common.Hash]*ethTxData
 		expectedEthTxData       map[common.Hash][]byte
@@ -290,10 +290,10 @@ func Test_purgeEthTx(t *testing.T) {
 			ethTxData: map[common.Hash][]byte{
 				common.HexToHash("0x1"): {1, 2, 3},
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				return mocks.NewEthTxMngrMock(t)
+				return mocks.NewEthTxManagerMock(t)
 			},
 			sequenceList: []uint64{1, 2},
 			expectedEthTransactions: map[common.Hash]*ethTxData{
@@ -323,10 +323,10 @@ func Test_purgeEthTx(t *testing.T) {
 				common.HexToHash("0x1"): {1, 2, 3},
 				common.HexToHash("0x2"): {4, 5, 6},
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				mngr.On("Remove", mock.Anything, common.HexToHash("0x1")).Return(nil)
 				return mngr
 			},
@@ -356,10 +356,10 @@ func Test_purgeEthTx(t *testing.T) {
 				common.HexToHash("0x1"): {1, 2, 3},
 				common.HexToHash("0x2"): {4, 5, 6},
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				mngr.On("Remove", mock.Anything, common.HexToHash("0x1")).Return(errors.New("test err"))
 				return mngr
 			},
@@ -405,7 +405,7 @@ func Test_syncEthTxResults(t *testing.T) {
 	tests := []struct {
 		name            string
 		ethTransactions map[common.Hash]*ethTxData
-		getEthTxManager func(t *testing.T) *mocks.EthTxMngrMock
+		getEthTxManager func(t *testing.T) *mocks.EthTxManagerMock
 
 		expectErr        error
 		expectPendingTxs uint64
@@ -419,10 +419,10 @@ func Test_syncEthTxResults(t *testing.T) {
 					Status:          ethtxtypes.MonitoredTxStatusCreated.String(),
 				},
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxtypes.MonitoredTxResult{
 					ID:   common.HexToHash("0x1"),
 					Data: []byte{1, 2, 3},
@@ -475,7 +475,7 @@ func Test_syncAllEthTxResults(t *testing.T) {
 	tests := []struct {
 		name            string
 		ethTransactions map[common.Hash]*ethTxData
-		getEthTxManager func(t *testing.T) *mocks.EthTxMngrMock
+		getEthTxManager func(t *testing.T) *mocks.EthTxManagerMock
 
 		expectErr        error
 		expectPendingTxs uint64
@@ -489,10 +489,10 @@ func Test_syncAllEthTxResults(t *testing.T) {
 					Status:          ethtxtypes.MonitoredTxStatusCreated.String(),
 				},
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				mngr.On("ResultsByStatus", mock.Anything, []ethtxtypes.MonitoredTxStatus(nil)).Return([]ethtxtypes.MonitoredTxResult{
 					{
 						ID:   common.HexToHash("0x1"),
@@ -506,10 +506,10 @@ func Test_syncAllEthTxResults(t *testing.T) {
 		{
 			name:            "successfully synced with missing tx",
 			ethTransactions: map[common.Hash]*ethTxData{},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				mngr.On("ResultsByStatus", mock.Anything, []ethtxtypes.MonitoredTxStatus(nil)).Return([]ethtxtypes.MonitoredTxResult{
 					{
 						ID:   common.HexToHash("0x1"),
@@ -622,7 +622,7 @@ func Test_getResultAndUpdateEthTx(t *testing.T) {
 		hash            common.Hash
 		ethTransactions map[common.Hash]*ethTxData
 		ethTxData       map[common.Hash][]byte
-		getEthTxManager func(t *testing.T) *mocks.EthTxMngrMock
+		getEthTxManager func(t *testing.T) *mocks.EthTxManagerMock
 		expectedErr     error
 	}{
 		{
@@ -634,10 +634,10 @@ func Test_getResultAndUpdateEthTx(t *testing.T) {
 			ethTxData: map[common.Hash][]byte{
 				common.HexToHash("0x1"): {},
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxtypes.MonitoredTxResult{
 					ID:   common.HexToHash("0x1"),
 					Data: []byte{1, 2, 3},
@@ -657,10 +657,10 @@ func Test_getResultAndUpdateEthTx(t *testing.T) {
 			ethTxData: map[common.Hash][]byte{
 				common.HexToHash("0x1"): {},
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxtypes.MonitoredTxResult{}, ethtxmanager.ErrNotFound)
 				mngr.On("AddWithGas", mock.Anything, mock.Anything, big.NewInt(0), mock.Anything, mock.Anything, mock.Anything, uint64(100500)).Return(common.Hash{}, nil)
 				mngr.On("Result", mock.Anything, common.Hash{}).Return(ethtxtypes.MonitoredTxResult{

@@ -96,7 +96,7 @@ func Test_Start(t *testing.T) {
 
 	tests := []struct {
 		name                      string
-		getEthTxManager           func(t *testing.T) *mocks.EthTxMngrMock
+		getEthTxManager           func(t *testing.T) *mocks.EthTxManagerMock
 		getEtherman               func(t *testing.T) *mocks.EthermanMock
 		batchWaitDuration         types2.Duration
 		expectNonce               uint64
@@ -114,10 +114,10 @@ func Test_Start(t *testing.T) {
 				mngr.On("GetLatestBatchNumber").Return(uint64(1), nil)
 				return mngr
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				mngr.On("Start").Return(nil)
 				mngr.On("ResultsByStatus", mock.Anything, []ethtxtypes.MonitoredTxStatus(nil)).Return(nil, nil)
 				return mngr
@@ -246,7 +246,7 @@ func Test_tryToSendSequence(t *testing.T) {
 
 	tests := []struct {
 		name                string
-		getEthTxManager     func(t *testing.T) *mocks.EthTxMngrMock
+		getEthTxManager     func(t *testing.T) *mocks.EthTxManagerMock
 		getEtherman         func(t *testing.T) *mocks.EthermanMock
 		getTxBuilder        func(t *testing.T) *mocks.TxBuilderMock
 		maxPendingTxn       uint64
@@ -267,10 +267,10 @@ func Test_tryToSendSequence(t *testing.T) {
 				mngr.On("GetLatestBatchNumber").Return(uint64(1), nil)
 				return mngr
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				return mngr
 			},
 			getTxBuilder: func(t *testing.T) *mocks.TxBuilderMock {
@@ -303,10 +303,10 @@ func Test_tryToSendSequence(t *testing.T) {
 				mngr.On("EstimateGas", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(uint64(100500), nil)
 				return mngr
 			},
-			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
+			getEthTxManager: func(t *testing.T) *mocks.EthTxManagerMock {
 				t.Helper()
 
-				mngr := mocks.NewEthTxMngrMock(t)
+				mngr := mocks.NewEthTxManagerMock(t)
 				mngr.On("AddWithGas", mock.Anything, mock.Anything, big.NewInt(0), mock.Anything, mock.Anything, mock.Anything, uint64(100500)).Return(common.Hash{}, nil)
 				mngr.On("Result", mock.Anything, common.Hash{}).Return(ethtxtypes.MonitoredTxResult{
 					ID:   common.Hash{},
