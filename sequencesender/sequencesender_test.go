@@ -14,7 +14,7 @@ import (
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/mock"
@@ -119,7 +119,7 @@ func Test_Start(t *testing.T) {
 
 				mngr := mocks.NewEthTxMngrMock(t)
 				mngr.On("Start").Return(nil)
-				mngr.On("ResultsByStatus", mock.Anything, []ethtxmanager.MonitoredTxStatus(nil)).Return(nil, nil)
+				mngr.On("ResultsByStatus", mock.Anything, []ethtxtypes.MonitoredTxStatus(nil)).Return(nil, nil)
 				return mngr
 			},
 			batchWaitDuration:         types2.NewDuration(time.Millisecond),
@@ -308,7 +308,7 @@ func Test_tryToSendSequence(t *testing.T) {
 
 				mngr := mocks.NewEthTxMngrMock(t)
 				mngr.On("AddWithGas", mock.Anything, mock.Anything, big.NewInt(0), mock.Anything, mock.Anything, mock.Anything, uint64(100500)).Return(common.Hash{}, nil)
-				mngr.On("Result", mock.Anything, common.Hash{}).Return(ethtxmanager.MonitoredTxResult{
+				mngr.On("Result", mock.Anything, common.Hash{}).Return(ethtxtypes.MonitoredTxResult{
 					ID:   common.Hash{},
 					Data: []byte{1, 2, 3},
 				}, nil)

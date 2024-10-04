@@ -18,6 +18,7 @@ import (
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	ethtxlog "github.com/0xPolygon/zkevm-ethtx-manager/log"
+	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -37,8 +38,8 @@ type EthTxMngr interface {
 		gas uint64,
 	) (common.Hash, error)
 	Remove(ctx context.Context, hash common.Hash) error
-	ResultsByStatus(ctx context.Context, status []ethtxmanager.MonitoredTxStatus) ([]ethtxmanager.MonitoredTxResult, error)
-	Result(ctx context.Context, hash common.Hash) (ethtxmanager.MonitoredTxResult, error)
+	ResultsByStatus(ctx context.Context, status []ethtxtypes.MonitoredTxStatus) ([]ethtxtypes.MonitoredTxResult, error)
+	Result(ctx context.Context, hash common.Hash) (ethtxtypes.MonitoredTxResult, error)
 }
 
 // Etherman represents the etherman behaviour

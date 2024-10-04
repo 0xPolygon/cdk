@@ -11,7 +11,8 @@ import (
 
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/mocks"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -65,7 +66,7 @@ func Test_sendTx(t *testing.T) {
 
 				mngr := mocks.NewEthTxMngrMock(t)
 				mngr.On("AddWithGas", mock.Anything, &addr, big.NewInt(0), []byte("test"), uint64(0), mock.Anything, uint64(100500)).Return(hash, nil)
-				mngr.On("Result", mock.Anything, hash).Return(ethtxmanager.MonitoredTxResult{
+				mngr.On("Result", mock.Anything, hash).Return(ethtxtypes.MonitoredTxResult{
 					ID:   hash,
 					Data: []byte{1, 2, 3},
 				}, nil)
@@ -115,7 +116,7 @@ func Test_sendTx(t *testing.T) {
 
 				mngr := mocks.NewEthTxMngrMock(t)
 				mngr.On("AddWithGas", mock.Anything, &addr, big.NewInt(0), []byte(nil), uint64(0), mock.Anything, uint64(100500)).Return(hash, nil)
-				mngr.On("Result", mock.Anything, hash).Return(ethtxmanager.MonitoredTxResult{
+				mngr.On("Result", mock.Anything, hash).Return(ethtxtypes.MonitoredTxResult{
 					ID:   hash,
 					Data: []byte{1, 2, 3},
 				}, nil)
@@ -283,7 +284,7 @@ func Test_purgeEthTx(t *testing.T) {
 				common.HexToHash("0x1"): {
 					StatusTimestamp: firstTimestamp,
 					OnMonitor:       true,
-					Status:          ethtxmanager.MonitoredTxStatusFinalized.String(),
+					Status:          ethtxtypes.MonitoredTxStatusFinalized.String(),
 				},
 			},
 			ethTxData: map[common.Hash][]byte{
@@ -299,7 +300,7 @@ func Test_purgeEthTx(t *testing.T) {
 				common.HexToHash("0x1"): {
 					StatusTimestamp: firstTimestamp,
 					OnMonitor:       true,
-					Status:          ethtxmanager.MonitoredTxStatusFinalized.String(),
+					Status:          ethtxtypes.MonitoredTxStatusFinalized.String(),
 				},
 			},
 			expectedEthTxData: map[common.Hash][]byte{
@@ -312,7 +313,7 @@ func Test_purgeEthTx(t *testing.T) {
 				common.HexToHash("0x1"): {
 					StatusTimestamp: firstTimestamp,
 					OnMonitor:       true,
-					Status:          ethtxmanager.MonitoredTxStatusFinalized.String(),
+					Status:          ethtxtypes.MonitoredTxStatusFinalized.String(),
 				},
 				common.HexToHash("0x2"): {
 					StatusTimestamp: secondTimestamp,
@@ -345,7 +346,7 @@ func Test_purgeEthTx(t *testing.T) {
 				common.HexToHash("0x1"): {
 					StatusTimestamp: firstTimestamp,
 					OnMonitor:       true,
-					Status:          ethtxmanager.MonitoredTxStatusFinalized.String(),
+					Status:          ethtxtypes.MonitoredTxStatusFinalized.String(),
 				},
 				common.HexToHash("0x2"): {
 					StatusTimestamp: secondTimestamp,
@@ -415,14 +416,14 @@ func Test_syncEthTxResults(t *testing.T) {
 				common.HexToHash("0x1"): {
 					StatusTimestamp: time.Now(),
 					OnMonitor:       true,
-					Status:          ethtxmanager.MonitoredTxStatusCreated.String(),
+					Status:          ethtxtypes.MonitoredTxStatusCreated.String(),
 				},
 			},
 			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
 				t.Helper()
 
 				mngr := mocks.NewEthTxMngrMock(t)
-				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxmanager.MonitoredTxResult{
+				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxtypes.MonitoredTxResult{
 					ID:   common.HexToHash("0x1"),
 					Data: []byte{1, 2, 3},
 				}, nil)
@@ -485,14 +486,14 @@ func Test_syncAllEthTxResults(t *testing.T) {
 				common.HexToHash("0x1"): {
 					StatusTimestamp: time.Now(),
 					OnMonitor:       true,
-					Status:          ethtxmanager.MonitoredTxStatusCreated.String(),
+					Status:          ethtxtypes.MonitoredTxStatusCreated.String(),
 				},
 			},
 			getEthTxManager: func(t *testing.T) *mocks.EthTxMngrMock {
 				t.Helper()
 
 				mngr := mocks.NewEthTxMngrMock(t)
-				mngr.On("ResultsByStatus", mock.Anything, []ethtxmanager.MonitoredTxStatus(nil)).Return([]ethtxmanager.MonitoredTxResult{
+				mngr.On("ResultsByStatus", mock.Anything, []ethtxtypes.MonitoredTxStatus(nil)).Return([]ethtxtypes.MonitoredTxResult{
 					{
 						ID:   common.HexToHash("0x1"),
 						Data: []byte{1, 2, 3},
@@ -509,7 +510,7 @@ func Test_syncAllEthTxResults(t *testing.T) {
 				t.Helper()
 
 				mngr := mocks.NewEthTxMngrMock(t)
-				mngr.On("ResultsByStatus", mock.Anything, []ethtxmanager.MonitoredTxStatus(nil)).Return([]ethtxmanager.MonitoredTxResult{
+				mngr.On("ResultsByStatus", mock.Anything, []ethtxtypes.MonitoredTxStatus(nil)).Return([]ethtxtypes.MonitoredTxResult{
 					{
 						ID:   common.HexToHash("0x1"),
 						Data: []byte{1, 2, 3},
@@ -563,7 +564,7 @@ func Test_copyTxData(t *testing.T) {
 		name                    string
 		txHash                  common.Hash
 		txData                  []byte
-		txsResults              map[common.Hash]ethtxmanager.TxResult
+		txsResults              map[common.Hash]ethtxtypes.TxResult
 		ethTxData               map[common.Hash][]byte
 		ethTransactions         map[common.Hash]*ethTxData
 		expectedRthTxData       map[common.Hash][]byte
@@ -573,7 +574,7 @@ func Test_copyTxData(t *testing.T) {
 			name:   "successfully copied",
 			txHash: common.HexToHash("0x1"),
 			txData: []byte{1, 2, 3},
-			txsResults: map[common.Hash]ethtxmanager.TxResult{
+			txsResults: map[common.Hash]ethtxtypes.TxResult{
 				common.HexToHash("0x1"): {},
 			},
 			ethTxData: map[common.Hash][]byte{
@@ -613,10 +614,6 @@ func Test_copyTxData(t *testing.T) {
 	}
 }
 
-func Test_updateEthTxResult(t *testing.T) {
-	// TODO: Implement
-}
-
 func Test_getResultAndUpdateEthTx(t *testing.T) {
 	t.Parallel()
 
@@ -641,7 +638,7 @@ func Test_getResultAndUpdateEthTx(t *testing.T) {
 				t.Helper()
 
 				mngr := mocks.NewEthTxMngrMock(t)
-				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxmanager.MonitoredTxResult{
+				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxtypes.MonitoredTxResult{
 					ID:   common.HexToHash("0x1"),
 					Data: []byte{1, 2, 3},
 				}, nil)
@@ -664,9 +661,9 @@ func Test_getResultAndUpdateEthTx(t *testing.T) {
 				t.Helper()
 
 				mngr := mocks.NewEthTxMngrMock(t)
-				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxmanager.MonitoredTxResult{}, ethtxmanager.ErrNotFound)
+				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxtypes.MonitoredTxResult{}, ethtxmanager.ErrNotFound)
 				mngr.On("AddWithGas", mock.Anything, mock.Anything, big.NewInt(0), mock.Anything, mock.Anything, mock.Anything, uint64(100500)).Return(common.Hash{}, nil)
-				mngr.On("Result", mock.Anything, common.Hash{}).Return(ethtxmanager.MonitoredTxResult{
+				mngr.On("Result", mock.Anything, common.Hash{}).Return(ethtxtypes.MonitoredTxResult{
 					ID:   common.HexToHash("0x1"),
 					Data: []byte{1, 2, 3},
 				}, nil)
