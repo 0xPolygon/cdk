@@ -9,7 +9,6 @@ import (
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
-	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
@@ -65,38 +64,6 @@ type StateInterface interface {
 	GetBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.DBBatch, error)
 	DeleteBatchesOlderThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	DeleteBatchesNewerThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
-}
-
-// SynchronizerInterface defines all the methods that are part of the Synchronizer interface
-type SynchronizerInterface interface {
-	// Methods from SynchronizerBlockQuerier
-	GetL1BlockByNumber(ctx context.Context, blockNumber uint64) (*synchronizer.L1Block, error)
-	GetLastL1Block(ctx context.Context) (*synchronizer.L1Block, error)
-
-	// Methods from SynchronizerL1InfoTreeQuerier
-	GetL1InfoRootPerIndex(ctx context.Context, L1InfoTreeIndex uint32) (common.Hash, error)
-	GetL1InfoTreeLeaves(ctx context.Context, indexLeaves []uint32) (map[uint32]synchronizer.L1InfoTreeLeaf, error)
-	GetLeafsByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash) ([]synchronizer.L1InfoTreeLeaf, error)
-
-	// Methods from SynchronizerVirtualBatchesQuerier
-	GetLastestVirtualBatchNumber(ctx context.Context) (uint64, error)
-	GetVirtualBatchByBatchNumber(ctx context.Context, batchNumber uint64) (*synchronizer.VirtualBatch, error)
-
-	// Methods from SynchronizerSequencedBatchesQuerier
-	GetSequenceByBatchNumber(ctx context.Context, batchNumber uint64) (*synchronizer.SequencedBatches, error)
-
-	// Methods from SynchornizerStatusQuerier
-	IsSynced() bool
-
-	// Methods from SynchronizerReorgSupporter
-	SetCallbackOnReorgDone(callback func(reorgData synchronizer.ReorgExecutionResult))
-
-	// Methods from SynchronizerRollbackBatchesSupporter
-	SetCallbackOnRollbackBatches(callback func(data synchronizer.RollbackBatchesData))
-
-	// Methods from SynchronizerRunner
-	Stop()
-	Sync(returnOnSync bool) error
 }
 
 // StreamClient represents the stream client behaviour
