@@ -165,9 +165,15 @@ async fn get_timestamp(url: Url) -> Result<u64, anyhow::Error> {
     let request = client.request("zkevm_getBatchByNumber", vec!["0"]);
 
     // Poll the request to completion.
-    let batch_json: serde_json::Map = request.await.unwrap();
-    // Parse the string of data into serde_json::Value.
-    let v: Value = serde_json::from_str(batch_json.as_str())?;
+    let batch_json: Batch = request.await.unwrap();
 
-    Ok(v["timestamp"].as_u64().unwrap())
+    // Parse the timestamp hex string into u64.
+    let ts = u64::from_str_radix(batch_json.timestamp.trim_start_matches("0x"), 16)?;
+
+    Ok(ts)
+}
+
+#[derive(serde::Deserialize, Debug, Clone)]
+struct Batch {
+    timestamp: String,
 }
