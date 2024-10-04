@@ -5,6 +5,7 @@ use cdk_config::Config;
 use clap::Parser;
 use cli::Cli;
 use execute::Execute;
+use serde_json::Value;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
@@ -18,7 +19,8 @@ mod logging;
 const CDK_CLIENT_BIN: &str = "cdk-node";
 const CDK_ERIGON_BIN: &str = "cdk-erigon";
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
 
     let cli = Cli::parse();
@@ -44,7 +46,7 @@ fn main() -> anyhow::Result<()> {
 
     match cli.cmd {
         cli::Commands::Node { components } => node(cli.config, components)?,
-        cli::Commands::Erigon {} => erigon(config, cli.chain)?,
+        cli::Commands::Erigon {} => erigon(config, cli.chain).await?,
         // _ => forward()?,
     }
 
@@ -117,12 +119,13 @@ pub fn node(config_path: PathBuf, components: Option<String>) -> anyhow::Result<
 
 /// This is the main erigon entrypoint.
 /// This function starts everything needed to run an Erigon node.
-pub fn erigon(config: Config, genesis_file: PathBuf) -> anyhow::Result<()> {
+pub async fn erigon(config: Config, genesis_file: PathBuf) -> anyhow::Result<()> {
     // Render configuration files
     let chain_id = config.aggregator.chain_id.clone();
-    let erigon_config_path = config_render::render(config, genesis_file)?;
+    let rpc_url = Url::parse(&config.sequence_sender.rpc_url).unwrap();
+    let timestamp = get_timestamp(rpc_url).await.unwrap();
+    let erigon_config_path = config_render::render(&config, genesis_file, timestamp)?;
 
-    // let timestamp = get_timestamp(config.aggregator.rpc_url.clone()).unwrap();
     println!("Starting erigon with config: {:?}", erigon_config_path);
 
     // Run cdk-erigon in system path
@@ -153,30 +156,18 @@ pub fn erigon(config: Config, genesis_file: PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-// Call the rpc server to retrieve the first batch timestamp
-// fn get_timestamp(url: Url) -> Option<String> {
-//     // Instantiate a new client over a transport.
-//     let client: ReqwestClient = ClientBuilder::default().http(url);
-//     let runtime = tokio::runtime::Builder::new_current_thread()
-//         .enable_all()
-//         .build()
-//         .unwrap();
+/// Call the rpc server to retrieve the first batch timestamp
+async fn get_timestamp(url: Url) -> Result<u64, anyhow::Error> {
+    // Instantiate a new client over a transport.
+    let client: ReqwestClient = ClientBuilder::default().http(url);
 
-//     // Prepare a request to the server.
-//     let request: RpcCall<
-//         alloy_transport_http::Http<reqwest::async_impl::client::Client>,
-//         [(); 0],
-//         Resp,
-//     > = client.request("zkevm_getBatchByNumber", 0);
+    // Prepare a request to the server.
+    let request = client.request("zkevm_getBatchByNumber", vec!["0"]);
 
-//     let block_number = runtime
-//         .block_on(async { request.await })
-//         .unwrap()
-//         .json()
-//         .unwrap();
+    // Poll the request to completion.
+    let batch_json: serde_json::Map = request.await.unwrap();
+    // Parse the string of data into serde_json::Value.
+    let v: Value = serde_json::from_str(batch_json.as_str())?;
 
-//     // Poll the request to completion.
-//     let timestamp = block_number["timestamp"].as_str().unwrap().to_string();
-
-//     Ok(timestamp)
-// }
+    Ok(v["timestamp"].as_u64().unwrap())
+}

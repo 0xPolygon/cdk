@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 use tempfile::{tempdir, TempDir};
 
-pub fn render(config: Config, genesis_file: PathBuf) -> Result<TempDir, Error> {
+pub fn render(config: &Config, genesis_file: PathBuf, timestamp: u64) -> Result<TempDir, Error> {
     // Create a temporary directory
     let tmp_dir = tempdir()?;
     let chain_id = config.aggregator.chain_id.clone();
@@ -27,7 +27,7 @@ pub fn render(config: Config, genesis_file: PathBuf) -> Result<TempDir, Error> {
         tmp_dir
             .path()
             .join(format!("dynamic-{}-conf.json", chain_id.clone())),
-        render_conf(res.wrapper.root.clone(), 1727969954),
+        render_conf(res.wrapper.root.clone(), timestamp),
     )?;
 
     let contents = render_yaml(config, res);
@@ -87,7 +87,7 @@ fn render_conf(root: String, timestamp: u64) -> String {
 }
 
 // render_config renders the configuration file for the Erigon node.
-fn render_yaml(config: Config, res: Rendered) -> String {
+fn render_yaml(config: &Config, res: Rendered) -> String {
     format!(
         r#"
 chain: dynamic-{chain_id}
