@@ -40,7 +40,7 @@ function get_value_from_toml_file(){
             fi
             if [ $_return_next_line -eq 1 ]; then
                # sed sentence remove quotes
-               echo $_LINE |  sed 's/^[[:space:]]*"//;s/"$//'
+               echo $_LINE | sed 's/^[[:space:]]*"//;s/"$//'
                 
                 return 0
             fi
