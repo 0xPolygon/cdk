@@ -49,14 +49,24 @@ generate-mocks-sync: ## Generates mocks for sync, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
 
 
-.PHONY: test-e2e-elderberry-validium
-test-e2e-elderberry-validium: stop ## Runs e2e tests checking elderberry/validium
-	./run-e2e.sh cdk-validium
+.PHONY: test-e2e-fork9-validium
+test-e2e-fork9-validium: stop
+	./run-e2e.sh fork9 cdk-validium
 	bats .
 
-.PHONY: test-e2e-elderberry-rollup
-test-e2e-elderberry-rollup: stop ## Runs e2e tests checking elderberry/rollup
-	./run-e2e.sh rollup
+.PHONY: test-e2e-fork9-rollup
+test-e2e-fork9-rollup: stop
+	./run-e2e.sh fork9 rollup
+	bats .
+
+.PHONY: test-e2e-fork12-validium
+test-e2e-fork12-validium: stop
+	./run-e2e.sh fork12 cdk-validium
+	bats .
+
+.PHONY: test-e2e-fork12-rollup
+test-e2e-fork12-rollup: stop
+	./run-e2e.sh fork12 rollup
 	bats .
 
 .PHONY: stop
