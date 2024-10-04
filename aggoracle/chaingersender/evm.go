@@ -122,6 +122,7 @@ func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger com
 		case ethtxmanager.MonitoredTxStatusMined,
 			ethtxmanager.MonitoredTxStatusSafe,
 			ethtxmanager.MonitoredTxStatusFinalized:
+			c.logger.Debugf("tx %s was successfully mined at block %d", id.Hex(), res.MinedAtBlockNumber)
 			return nil
 		default:
 			c.logger.Error("unexpected tx status: ", res.Status)
