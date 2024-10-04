@@ -784,7 +784,3 @@ func Test_loadSentSequencesTransactions(t *testing.T) {
 		})
 	}
 }
-
-func Test_saveSentSequencesTransactions(t *testing.T) {
-	// TODO: Implement
-}
