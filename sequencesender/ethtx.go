@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygon/cdk/log"
@@ -97,7 +98,7 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 		log.Errorf("error getting result for tx %v: %v", txHash, err)
 	}
 	if !resend {
-		s.latestSentToL1Batch = valueToBatch
+		atomic.StoreUint64(&s.latestSentToL1Batch, valueToBatch)
 	} else {
 		s.ethTransactions[*txOldHash].Status = "*resent"
 	}
@@ -114,7 +115,7 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 // purgeEthTx purges transactions from memory structures
 func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 	// If sequence sending is stopped, do not purge
-	if s.seqSendingStopped {
+	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
 		return
 	}
 
@@ -275,7 +276,7 @@ func (s *SequenceSender) updateEthTxResult(txData *ethTxData, txResult types.Mon
 			txData.Status == types.MonitoredTxStatusFinalized.String()
 		if txData.Status == types.MonitoredTxStatusFailed.String() {
 			s.logFatalf("transaction %v result failed!")
-		} else if statusConsolidated && txData.ToBatch >= s.latestVirtualBatchNumber {
+		} else if statusConsolidated && txData.ToBatch >= atomic.LoadUint64(&s.latestVirtualBatchNumber) {
 			s.latestVirtualTime = txData.StatusTimestamp
 		}
 	}
