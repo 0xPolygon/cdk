@@ -6,8 +6,6 @@ github.com/0xPolygon/cdk-rpc v0.0.0-20240905074455-431d3c271fe8 h1:Jri+ydl8Puddd
 github.com/0xPolygon/cdk-rpc v0.0.0-20240905074455-431d3c271fe8/go.mod h1:2scWqMMufrQXu7TikDgQ3BsyaKoX8qP26D6E262vSOg=
 github.com/0xPolygonHermez/zkevm-data-streamer v0.2.6 h1:BSO1uu6dmLQ5kKb3uyDvsUxbnIoyumKvlwr0OtpTYMo=
 github.com/0xPolygonHermez/zkevm-data-streamer v0.2.6/go.mod h1:RC6ouyNsUtJrv5aGPcM6Dm5xhXN209tRSzcsJsaOtZI=
-github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.10-0.20240716105056-c051c96d0234 h1:QElCysO7f2xaknY/RDjxcs7IVmcgORfsCX2g+YD0Ko4=
-github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.10-0.20240716105056-c051c96d0234/go.mod h1:zBZWxwOHKlw+ghd9roQLgIkDZWA7e7qO3EsfQQT/+oQ=
 github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.10-0.20240930120324-65816dead447 h1:8nZjZrHZo+P9hTkhwtQ4J6eh9v4MTMtVb9jRDra8h0s=
 github.com/0xPolygonHermez/zkevm-ethtx-manager v0.1.10-0.20240930120324-65816dead447/go.mod h1:4iWpcwMOZJPapUzFB/HjTAM0X/gltHSEzQHE0lOt+eY=
 github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.1 h1:8GbJBNsYO4zrqiBX++et8eQrJDEWEZuo3Ch3M416YnI=
