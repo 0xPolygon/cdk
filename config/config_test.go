@@ -34,18 +34,33 @@ func TestLoadConfigWithUnexpectedFields(t *testing.T) {
 	require.NotNil(t, cfg)
 }
 
-const configWithForbiddenFields = `
-[aggregator.synchronizer.db]
-name = "value"
-`
-
 func TestLoadConfigWithForbiddenFields(t *testing.T) {
-	tmpFile, err := os.CreateTemp("", "ut_config")
-	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
-	_, err = tmpFile.Write([]byte(configWithForbiddenFields))
-	require.NoError(t, err)
-	cfg, err := LoadFile(tmpFile.Name())
-	require.NoError(t, err)
-	require.NotNil(t, cfg)
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "[Aggregator.Synchronizer] DB",
+			input: `[aggregator.synchronizer.db]
+						name = "value"`,
+		},
+		{
+			name: "[SequenceSender.EthTxManager] PersistenceFilename",
+			input: `[SequenceSender.EthTxManager]
+						PersistenceFilename = "foo.json"`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			tmpFile, err := os.CreateTemp("", "ut_config")
+			require.NoError(t, err)
+			defer os.Remove(tmpFile.Name())
+			_, err = tmpFile.Write([]byte(c.input))
+			require.NoError(t, err)
+			cfg, err := LoadFile(tmpFile.Name())
+			require.NoError(t, err)
+			require.NotNil(t, cfg)
+		})
+	}
 }

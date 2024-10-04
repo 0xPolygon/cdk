@@ -9,7 +9,8 @@ import (
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
 	configTypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -33,9 +34,8 @@ type EthClienter interface {
 
 type EthTxManager interface {
 	Remove(ctx context.Context, id common.Hash) error
-	ResultsByStatus(ctx context.Context, statuses []ethtxmanager.MonitoredTxStatus,
-	) ([]ethtxmanager.MonitoredTxResult, error)
-	Result(ctx context.Context, id common.Hash) (ethtxmanager.MonitoredTxResult, error)
+	ResultsByStatus(ctx context.Context, statuses []ethtxtypes.MonitoredTxStatus) ([]ethtxtypes.MonitoredTxResult, error)
+	Result(ctx context.Context, id common.Hash) (ethtxtypes.MonitoredTxResult, error)
 	Add(ctx context.Context, to *common.Address, value *big.Int, data []byte,
 		gasOffset uint64, sidecar *types.BlobTxSidecar) (common.Hash, error)
 }
@@ -166,14 +166,14 @@ func (c *EVMClaimSponsor) claimStatus(ctx context.Context, id string) (ClaimStat
 		return "", err
 	}
 	switch res.Status {
-	case ethtxmanager.MonitoredTxStatusCreated,
-		ethtxmanager.MonitoredTxStatusSent:
+	case ethtxtypes.MonitoredTxStatusCreated,
+		ethtxtypes.MonitoredTxStatusSent:
 		return WIPStatus, nil
-	case ethtxmanager.MonitoredTxStatusFailed:
+	case ethtxtypes.MonitoredTxStatusFailed:
 		return FailedClaimStatus, nil
-	case ethtxmanager.MonitoredTxStatusMined,
-		ethtxmanager.MonitoredTxStatusSafe,
-		ethtxmanager.MonitoredTxStatusFinalized:
+	case ethtxtypes.MonitoredTxStatusMined,
+		ethtxtypes.MonitoredTxStatusSafe,
+		ethtxtypes.MonitoredTxStatusFinalized:
 		return SuccessClaimStatus, nil
 	default:
 		return "", fmt.Errorf("unexpected tx status: %v", res.Status)
