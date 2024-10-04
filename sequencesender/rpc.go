@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (*rpcbatch.RPCBatch, error) {
+func getBatchFromRPC(addr string, batchNumber uint64) (*rpcbatch.RPCBatch, error) {
 	type zkEVMBatch struct {
 		Blocks         []string `json:"blocks"`
 		BatchL2Data    string   `json:"batchL2Data"`
@@ -26,7 +26,7 @@ func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (*rpcbatch.RPCBatch
 
 	log.Infof("Getting batch %d from RPC", batchNumber)
 
-	response, err := rpc.JSONRPCCall(s.cfg.RPCURL, "zkevm_getBatchByNumber", batchNumber)
+	response, err := rpc.JSONRPCCall(addr, "zkevm_getBatchByNumber", batchNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (*rpcbatch.RPCBatch
 	}
 
 	if len(zkEVMBatchData.Blocks) > 0 {
-		lastL2BlockTimestamp, err := s.getL2BlockTimestampFromRPC(zkEVMBatchData.Blocks[len(zkEVMBatchData.Blocks)-1])
+		lastL2BlockTimestamp, err := getL2BlockTimestampFromRPC(addr, zkEVMBatchData.Blocks[len(zkEVMBatchData.Blocks)-1])
 		if err != nil {
 			return nil, fmt.Errorf("error getting the last l2 block timestamp from the rpc: %w", err)
 		}
@@ -67,14 +67,14 @@ func (s *SequenceSender) getBatchFromRPC(batchNumber uint64) (*rpcbatch.RPCBatch
 	return rpcBatch, nil
 }
 
-func (s *SequenceSender) getL2BlockTimestampFromRPC(blockHash string) (uint64, error) {
+func getL2BlockTimestampFromRPC(addr, blockHash string) (uint64, error) {
 	type zkeEVML2Block struct {
 		Timestamp string `json:"timestamp"`
 	}
 
 	log.Infof("Getting l2 block timestamp from RPC. Block hash: %s", blockHash)
 
-	response, err := rpc.JSONRPCCall(s.cfg.RPCURL, "eth_getBlockByHash", blockHash, false)
+	response, err := rpc.JSONRPCCall(addr, "eth_getBlockByHash", blockHash, false)
 	if err != nil {
 		return 0, err
 	}

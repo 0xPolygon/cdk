@@ -9,7 +9,8 @@ import (
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitroot"
 	cfgTypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,9 +27,9 @@ type EthClienter interface {
 type EthTxManager interface {
 	Remove(ctx context.Context, id common.Hash) error
 	ResultsByStatus(ctx context.Context,
-		statuses []ethtxmanager.MonitoredTxStatus,
-	) ([]ethtxmanager.MonitoredTxResult, error)
-	Result(ctx context.Context, id common.Hash) (ethtxmanager.MonitoredTxResult, error)
+		statuses []ethtxtypes.MonitoredTxStatus,
+	) ([]ethtxtypes.MonitoredTxResult, error)
+	Result(ctx context.Context, id common.Hash) (ethtxtypes.MonitoredTxResult, error)
 	Add(ctx context.Context,
 		to *common.Address,
 		value *big.Int,
@@ -114,14 +115,14 @@ func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger com
 			c.logger.Error("error calling ethTxMan.Result: ", err)
 		}
 		switch res.Status {
-		case ethtxmanager.MonitoredTxStatusCreated,
-			ethtxmanager.MonitoredTxStatusSent:
+		case ethtxtypes.MonitoredTxStatusCreated,
+			ethtxtypes.MonitoredTxStatusSent:
 			continue
-		case ethtxmanager.MonitoredTxStatusFailed:
+		case ethtxtypes.MonitoredTxStatusFailed:
 			return fmt.Errorf("tx %s failed", res.ID)
-		case ethtxmanager.MonitoredTxStatusMined,
-			ethtxmanager.MonitoredTxStatusSafe,
-			ethtxmanager.MonitoredTxStatusFinalized:
+		case ethtxtypes.MonitoredTxStatusMined,
+			ethtxtypes.MonitoredTxStatusSafe,
+			ethtxtypes.MonitoredTxStatusFinalized:
 			return nil
 		default:
 			c.logger.Error("unexpected tx status: ", res.Status)
