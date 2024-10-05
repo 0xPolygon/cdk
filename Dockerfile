@@ -14,6 +14,7 @@ RUN make build-go
 # BUILD RUST BIN
 FROM --platform=${BUILDPLATFORM} rust:slim-bullseye AS chef
 USER root
+RUN apt-get update && apt-get install -y openssl pkg-config libssl-dev
 RUN cargo install cargo-chef
 WORKDIR /app
 
