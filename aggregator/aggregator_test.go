@@ -31,8 +31,18 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type mox struct {
+	stateMock          *mocks.StateInterfaceMock
+	ethTxManager       *mocks.EthTxManagerClientMock
+	etherman           *mocks.EthermanMock
+	proverMock         *mocks.ProverInterfaceMock
+	aggLayerClientMock *mocks.AgglayerClientInterfaceMock
+}
+
 func Test_resetCurrentBatchData(t *testing.T) {
-	agg := Aggregator{
+	t.Parallel()
+
+	a := Aggregator{
 		currentBatchStreamData: []byte("test"),
 		currentStreamBatchRaw: state.BatchRawV2{
 			Blocks: []state.L2BlockRaw{
@@ -46,38 +56,12 @@ func Test_resetCurrentBatchData(t *testing.T) {
 		currentStreamL2Block: state.L2BlockRaw{},
 	}
 
-	agg.resetCurrentBatchData()
+	a.resetCurrentBatchData()
 
-	assert.Equal(t, []byte{}, agg.currentBatchStreamData)
-	assert.Equal(t, state.BatchRawV2{Blocks: make([]state.L2BlockRaw, 0)}, agg.currentStreamBatchRaw)
-	assert.Equal(t, state.L2BlockRaw{}, agg.currentStreamL2Block)
+	assert.Equal(t, []byte{}, a.currentBatchStreamData)
+	assert.Equal(t, state.BatchRawV2{Blocks: make([]state.L2BlockRaw, 0)}, a.currentStreamBatchRaw)
+	assert.Equal(t, state.L2BlockRaw{}, a.currentStreamL2Block)
 }
-
-// func Test_retrieveWitnesst(t *testing.T) {
-// 	mockState := new(mocks.StateInterfaceMock)
-
-// 	witnessChan := make(chan state.DBBatch)
-// 	agg := Aggregator{
-// 		witnessRetrievalChan: witnessChan,
-// 		state:                mockState,
-// 		cfg: Config{
-// 			RetryTime: types.Duration{Duration: 1 * time.Second},
-// 		},
-// 	}
-
-// 	mockState.On("AddBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-// 	// .On("getWitness", mock.Anything, mock.Anything, mock.Anything).Return([]byte("witness data"), nil)
-
-// 	// Send a mock DBatch to the witness retrieval channel
-// 	witnessChan <- state.DBBatch{
-// 		Batch: state.Batch{BatchNumber: 1},
-// 	}
-
-// 	go agg.retrieveWitness()
-// 	time.Sleep(100 * time.Millisecond)
-
-// 	mockState.AssertExpectations(t)
-// }
 
 func Test_handleReorg(t *testing.T) {
 	t.Parallel()
@@ -86,7 +70,7 @@ func Test_handleReorg(t *testing.T) {
 	mockState := new(mocks.StateInterfaceMock)
 	reorgData := synchronizer.ReorgExecutionResult{}
 
-	agg := &Aggregator{
+	a := &Aggregator{
 		l1Syncr: mockL1Syncr,
 		state:   mockState,
 		logger:  log.GetDefaultLogger(),
@@ -94,12 +78,13 @@ func Test_handleReorg(t *testing.T) {
 		ctx:     context.Background(),
 	}
 
-	mockL1Syncr.On("GetLastestVirtualBatchNumber", mock.Anything).Return(uint64(100), nil)
-	mockState.On("DeleteBatchesNewerThanBatchNumber", mock.Anything, uint64(100), mock.Anything).Return(nil)
+	mockL1Syncr.On("GetLastestVirtualBatchNumber", mock.Anything).Return(uint64(100), nil).Once()
+	mockState.On("DeleteBatchesNewerThanBatchNumber", mock.Anything, uint64(100), mock.Anything).Return(nil).Once()
 
-	go agg.handleReorg(reorgData)
-	time.Sleep(11 * time.Second)
+	go a.handleReorg(reorgData)
+	time.Sleep(3 * time.Second)
 
+	assert.True(t, a.halted.Load())
 	mockState.AssertExpectations(t)
 	mockL1Syncr.AssertExpectations(t)
 }
@@ -116,19 +101,19 @@ func Test_handleRollbackBatches(t *testing.T) {
 		LastBatchNumber: 100,
 	}
 
-	mockStreamClient.On("IsStarted").Return(true)
-	mockStreamClient.On("ResetProcessEntryFunc").Return()
-	mockStreamClient.On("SetProcessEntryFunc", mock.Anything).Return()
-	mockStreamClient.On("ExecCommandStop").Return(nil)
-	mockStreamClient.On("Start").Return(nil)
-	mockStreamClient.On("ExecCommandStartBookmark", mock.Anything).Return(nil)
-	mockEtherman.On("GetLatestVerifiedBatchNum").Return(uint64(90), nil)
-	mockState.On("DeleteBatchesNewerThanBatchNumber", mock.Anything, rollbackData.LastBatchNumber, nil).Return(nil)
-	mockState.On("DeleteBatchesOlderThanBatchNumber", mock.Anything, rollbackData.LastBatchNumber, nil).Return(nil)
-	mockState.On("DeleteUngeneratedProofs", mock.Anything, nil).Return(nil)
-	mockState.On("DeleteGeneratedProofs", mock.Anything, rollbackData.LastBatchNumber+1, mock.AnythingOfType("uint64"), nil).Return(nil)
+	mockStreamClient.On("IsStarted").Return(true).Once()
+	mockStreamClient.On("ResetProcessEntryFunc").Return().Once()
+	mockStreamClient.On("SetProcessEntryFunc", mock.Anything).Return().Once()
+	mockStreamClient.On("ExecCommandStop").Return(nil).Once()
+	mockStreamClient.On("Start").Return(nil).Once()
+	mockStreamClient.On("ExecCommandStartBookmark", mock.Anything).Return(nil).Once()
+	mockEtherman.On("GetLatestVerifiedBatchNum").Return(uint64(90), nil).Once()
+	mockState.On("DeleteBatchesNewerThanBatchNumber", mock.Anything, rollbackData.LastBatchNumber, nil).Return(nil).Once()
+	mockState.On("DeleteBatchesOlderThanBatchNumber", mock.Anything, rollbackData.LastBatchNumber, nil).Return(nil).Once()
+	mockState.On("DeleteUngeneratedProofs", mock.Anything, nil).Return(nil).Once()
+	mockState.On("DeleteGeneratedProofs", mock.Anything, rollbackData.LastBatchNumber+1, mock.AnythingOfType("uint64"), nil).Return(nil).Once()
 
-	agg := Aggregator{
+	a := Aggregator{
 		ctx:                    context.Background(),
 		streamClient:           mockStreamClient,
 		Etherman:               mockEtherman,
@@ -141,14 +126,18 @@ func Test_handleRollbackBatches(t *testing.T) {
 		currentStreamL2Block:   state.L2BlockRaw{},
 	}
 
-	agg.handleRollbackBatches(rollbackData)
+	a.halted.Store(false)
+	a.handleRollbackBatches(rollbackData)
 
+	assert.False(t, a.halted.Load())
 	mockStreamClient.AssertExpectations(t)
 	mockEtherman.AssertExpectations(t)
 	mockState.AssertExpectations(t)
 }
 
 func Test_handleReceivedDataStream_BATCH_START(t *testing.T) {
+	t.Parallel()
+
 	mockState := new(mocks.StateInterfaceMock)
 	mockL1Syncr := new(mocks.SynchronizerInterfaceMock)
 	agg := Aggregator{
@@ -183,10 +172,12 @@ func Test_handleReceivedDataStream_BATCH_START(t *testing.T) {
 	assert.Equal(t, agg.currentStreamBatch.Type, datastream.BatchType_BATCH_TYPE_REGULAR)
 }
 
-func Test_handleReceivedDataStream_BATCH_END(t *testing.T) {
+func Test_handleReceivedDataStreamBatchEnd(t *testing.T) {
+	t.Parallel()
+
 	mockState := new(mocks.StateInterfaceMock)
 	mockL1Syncr := new(mocks.SynchronizerInterfaceMock)
-	agg := Aggregator{
+	a := Aggregator{
 		state:   mockState,
 		l1Syncr: mockL1Syncr,
 		logger:  log.GetDefaultLogger(),
@@ -226,40 +217,40 @@ func Test_handleReceivedDataStream_BATCH_END(t *testing.T) {
 		Data: batchEndData,
 	}
 
-	mockState.On("GetBatch", mock.Anything, agg.currentStreamBatch.BatchNumber-1, nil).
+	mockState.On("GetBatch", mock.Anything, a.currentStreamBatch.BatchNumber-1, nil).
 		Return(&state.DBBatch{
 			Batch: state.Batch{
 				AccInputHash: common.Hash{},
 			},
 		}, nil).Once()
-	mockState.On("GetBatch", mock.Anything, agg.currentStreamBatch.BatchNumber, nil).
+	mockState.On("GetBatch", mock.Anything, a.currentStreamBatch.BatchNumber, nil).
 		Return(&state.DBBatch{
 			Witness: []byte("test_witness"),
 		}, nil).Once()
 	mockState.On("AddBatch", mock.Anything, mock.Anything, nil).Return(nil).Once()
-	mockL1Syncr.On("GetVirtualBatchByBatchNumber", mock.Anything, agg.currentStreamBatch.BatchNumber).Return(&synchronizer.VirtualBatch{BatchL2Data: []byte{1, 2, 3}}, nil).Once()
-	mockL1Syncr.On("GetSequenceByBatchNumber", mock.Anything, agg.currentStreamBatch.BatchNumber).
+	mockL1Syncr.On("GetVirtualBatchByBatchNumber", mock.Anything, a.currentStreamBatch.BatchNumber).
+		Return(&synchronizer.VirtualBatch{BatchL2Data: []byte{1, 2, 3}}, nil).Once()
+	mockL1Syncr.On("GetSequenceByBatchNumber", mock.Anything, a.currentStreamBatch.BatchNumber).
 		Return(&synchronizer.SequencedBatches{
 			L1InfoRoot: common.Hash{},
 			Timestamp:  time.Now(),
 		}, nil).Once()
 
-	err = agg.handleReceivedDataStream(batchEndEntry, nil, nil)
+	err = a.handleReceivedDataStream(batchEndEntry, nil, nil)
 	assert.NoError(t, err)
 
-	assert.Equal(t, agg.currentBatchStreamData, []byte{})
-	assert.Equal(t, agg.currentStreamBatchRaw, state.BatchRawV2{Blocks: make([]state.L2BlockRaw, 0)})
-	assert.Equal(t, agg.currentStreamL2Block, state.L2BlockRaw{})
+	assert.Equal(t, a.currentBatchStreamData, []byte{})
+	assert.Equal(t, a.currentStreamBatchRaw, state.BatchRawV2{Blocks: make([]state.L2BlockRaw, 0)})
+	assert.Equal(t, a.currentStreamL2Block, state.L2BlockRaw{})
 
-	// Verify the mock expectations
 	mockState.AssertExpectations(t)
 	mockL1Syncr.AssertExpectations(t)
 }
 
-func Test_handleReceivedDataStream_L2_BLOCK(t *testing.T) {
+func Test_handleReceivedDataStreamL2Block(t *testing.T) {
 	t.Parallel()
 
-	agg := Aggregator{
+	a := Aggregator{
 		currentStreamL2Block: state.L2BlockRaw{
 			BlockNumber: uint64(9),
 		},
@@ -286,22 +277,22 @@ func Test_handleReceivedDataStream_L2_BLOCK(t *testing.T) {
 		Data: l2BlockData,
 	}
 
-	err = agg.handleReceivedDataStream(l2BlockEntry, nil, nil)
+	err = a.handleReceivedDataStream(l2BlockEntry, nil, nil)
 	assert.NoError(t, err)
 
-	assert.Equal(t, uint64(10), agg.currentStreamL2Block.BlockNumber)
-	assert.Equal(t, uint32(5), agg.currentStreamL2Block.ChangeL2BlockHeader.DeltaTimestamp)
-	assert.Equal(t, uint32(1), agg.currentStreamL2Block.ChangeL2BlockHeader.IndexL1InfoTree)
-	assert.Equal(t, 0, len(agg.currentStreamL2Block.Transactions))
-	assert.Equal(t, uint32(1), agg.currentStreamBatch.L1InfoTreeIndex)
-	assert.Equal(t, common.BytesToAddress([]byte{0x01}), agg.currentStreamBatch.Coinbase)
-	assert.Equal(t, common.BytesToHash([]byte{0x02}), agg.currentStreamBatch.GlobalExitRoot)
+	assert.Equal(t, uint64(10), a.currentStreamL2Block.BlockNumber)
+	assert.Equal(t, uint32(5), a.currentStreamL2Block.ChangeL2BlockHeader.DeltaTimestamp)
+	assert.Equal(t, uint32(1), a.currentStreamL2Block.ChangeL2BlockHeader.IndexL1InfoTree)
+	assert.Equal(t, 0, len(a.currentStreamL2Block.Transactions))
+	assert.Equal(t, uint32(1), a.currentStreamBatch.L1InfoTreeIndex)
+	assert.Equal(t, common.BytesToAddress([]byte{0x01}), a.currentStreamBatch.Coinbase)
+	assert.Equal(t, common.BytesToHash([]byte{0x02}), a.currentStreamBatch.GlobalExitRoot)
 }
 
-func Test_handleReceivedDataStream_TRANSACTION(t *testing.T) {
+func Test_handleReceivedDataStreamTransaction(t *testing.T) {
 	t.Parallel()
 
-	agg := Aggregator{
+	a := Aggregator{
 		currentStreamL2Block: state.L2BlockRaw{
 			Transactions: []state.L2TxRaw{},
 		},
@@ -339,18 +330,19 @@ func Test_handleReceivedDataStream_TRANSACTION(t *testing.T) {
 		Data: transactionData,
 	}
 
-	err = agg.handleReceivedDataStream(transactionEntry, nil, nil)
+	err = a.handleReceivedDataStream(transactionEntry, nil, nil)
 	assert.NoError(t, err)
 
-	assert.Len(t, agg.currentStreamL2Block.Transactions, 1)
-	assert.Equal(t, uint8(90), agg.currentStreamL2Block.Transactions[0].EfficiencyPercentage)
-	assert.False(t, agg.currentStreamL2Block.Transactions[0].TxAlreadyEncoded)
-	assert.NotNil(t, agg.currentStreamL2Block.Transactions[0].Tx)
+	assert.Len(t, a.currentStreamL2Block.Transactions, 1)
+	assert.Equal(t, uint8(90), a.currentStreamL2Block.Transactions[0].EfficiencyPercentage)
+	assert.False(t, a.currentStreamL2Block.Transactions[0].TxAlreadyEncoded)
+	assert.NotNil(t, a.currentStreamL2Block.Transactions[0].Tx)
 }
 
-func Test_final_GetBatchError(t *testing.T) {
+func Test_sendFinalProofSuccess(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
-	errTest := errors.New("test error")
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
 
@@ -366,46 +358,134 @@ func Test_final_GetBatchError(t *testing.T) {
 	}
 	finalProof := &prover.FinalProof{}
 
-	mockState := new(mocks.StateInterfaceMock)
-	mockEtherman := new(mocks.EthermanMock)
-	mockEthTxManager := new(mocks.EthTxManagerClientMock)
+	testCases := []struct {
+		name    string
+		setup   func(m mox, a *Aggregator)
+		asserts func(a *Aggregator)
+	}{
+		{
+			name: "Successfully settled on Agglayer",
+			setup: func(m mox, a *Aggregator) {
+				cfg := Config{
+					SettlementBackend: AggLayer,
+					AggLayerTxTimeout: types.Duration{Duration: time.Millisecond * 1},
+				}
+				a.cfg = cfg
 
-	agg := Aggregator{
-		state:                   mockState,
-		Etherman:                mockEtherman,
-		ethTxManager:            mockEthTxManager,
-		finalProof:              make(chan finalProofMsg),
-		logger:                  log.GetDefaultLogger(),
-		verifyingProof:          false,
-		stateDBMutex:            &sync.Mutex{},
-		timeSendFinalProofMutex: &sync.RWMutex{},
+				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
+				}).Return(&state.DBBatch{
+					Batch: state.Batch{
+						LocalExitRoot: common.Hash{},
+						StateRoot:     common.Hash{},
+					},
+				}, nil).Once()
+
+				m.etherman.On("GetRollupId").Return(uint32(1)).Once()
+				testHash := common.BytesToHash([]byte("test hash"))
+				m.aggLayerClientMock.On("SendTx", mock.Anything).Return(testHash, nil).Once()
+				m.aggLayerClientMock.On("WaitTxToBeMined", testHash, mock.Anything).Return(nil).Once()
+
+			},
+			asserts: func(a *Aggregator) {
+				assert.False(a.verifyingProof)
+			},
+		},
+		{
+			name: "Successfully settled on L1 (Direct)",
+			setup: func(m mox, a *Aggregator) {
+				senderAddr := common.BytesToAddress([]byte("sender address")).Hex()
+				toAddr := common.BytesToAddress([]byte("to address"))
+				data := []byte("data")
+				cfg := Config{
+					SettlementBackend: L1,
+					SenderAddress:     senderAddr,
+					GasOffset:         uint64(10),
+				}
+				a.cfg = cfg
+
+				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
+				}).Return(&state.DBBatch{
+					Batch: state.Batch{
+						LocalExitRoot: common.Hash{},
+						StateRoot:     common.Hash{},
+					},
+				}, nil).Once()
+
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, mock.Anything, common.HexToAddress(senderAddr)).Return(&toAddr, data, nil).Once()
+				m.ethTxManager.On("Add", mock.Anything, &toAddr, big.NewInt(0), data, a.cfg.GasOffset, (*ethTypes.BlobTxSidecar)(nil)).Return(nil, nil).Once()
+				m.ethTxManager.On("ProcessPendingMonitoredTxs", mock.Anything, mock.Anything).Once()
+			},
+			asserts: func(a *Aggregator) {
+				assert.False(a.verifyingProof)
+			},
+		},
 	}
 
-	agg.ctx, agg.exit = context.WithCancel(context.Background())
-	mockState.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-		// test is done, stop the sendFinalProof method
-		fmt.Println("Stopping sendFinalProof")
-		agg.exit()
-	}).Return(nil, errTest).Once()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stateMock := mocks.NewStateInterfaceMock(t)
+			ethTxManager := mocks.NewEthTxManagerClientMock(t)
+			etherman := mocks.NewEthermanMock(t)
+			aggLayerClient := mocks.NewAgglayerClientInterfaceMock(t)
 
-	go func() {
-		finalMsg := finalProofMsg{
-			proverID:       proverID,
-			recursiveProof: recursiveProof,
-			finalProof:     finalProof,
-		}
-		agg.finalProof <- finalMsg
-	}()
+			curve := elliptic.P256()
+			privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
+			if err != nil {
+				t.Fatal("Error generating key")
+			}
 
-	agg.sendFinalProof()
-	assert.False(agg.verifyingProof)
+			a := Aggregator{
+				state:                   stateMock,
+				Etherman:                etherman,
+				ethTxManager:            ethTxManager,
+				aggLayerClient:          aggLayerClient,
+				finalProof:              make(chan finalProofMsg),
+				logger:                  log.GetDefaultLogger(),
+				verifyingProof:          false,
+				stateDBMutex:            &sync.Mutex{},
+				timeSendFinalProofMutex: &sync.RWMutex{},
+				sequencerPrivateKey:     privateKey,
+			}
+			a.ctx, a.exit = context.WithCancel(context.Background())
+
+			m := mox{
+				stateMock:          stateMock,
+				ethTxManager:       ethTxManager,
+				etherman:           etherman,
+				aggLayerClientMock: aggLayerClient,
+			}
+			if tc.setup != nil {
+				tc.setup(m, &a)
+			}
+			// send a final proof over the channel
+			go func() {
+				finalMsg := finalProofMsg{
+					proverID:       proverID,
+					recursiveProof: recursiveProof,
+					finalProof:     finalProof,
+				}
+				a.finalProof <- finalMsg
+				time.Sleep(1 * time.Second)
+				a.exit()
+			}()
+
+			a.sendFinalProof()
+			if tc.asserts != nil {
+				tc.asserts(&a)
+			}
+		})
+	}
 }
 
-func Test_final_SettleAgglayerErrorSendTx(t *testing.T) {
+func Test_sendFinalProofError(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	errTest := errors.New("test error")
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
+	sender := common.BytesToAddress([]byte("SenderAddress"))
+	senderAddr := sender.Hex()
 
 	proofID := "proofId"
 	proverName := "proverName"
@@ -417,372 +497,201 @@ func Test_final_SettleAgglayerErrorSendTx(t *testing.T) {
 		BatchNumber:      batchNum,
 		BatchNumberFinal: batchNumFinal,
 	}
-	finalProof := &prover.FinalProof{
-		Proof: "test proof",
-	}
+	finalProof := &prover.FinalProof{}
 
-	mockState := new(mocks.StateInterfaceMock)
-	mockEtherman := new(mocks.EthermanMock)
-	mockEthTxManager := new(mocks.EthTxManagerClientMock)
-	mockAgglayerClientInterface := new(mocks.AgglayerClientInterfaceMock)
-
-	cfg := Config{
-		SettlementBackend: AggLayer,
-	}
-
-	curve := elliptic.P256()
-	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
-	if err != nil {
-		t.Fatal("Error generating key")
-	}
-
-	agg := Aggregator{
-		state:                   mockState,
-		Etherman:                mockEtherman,
-		ethTxManager:            mockEthTxManager,
-		aggLayerClient:          mockAgglayerClientInterface,
-		finalProof:              make(chan finalProofMsg),
-		logger:                  log.GetDefaultLogger(),
-		verifyingProof:          false,
-		stateDBMutex:            &sync.Mutex{},
-		timeSendFinalProofMutex: &sync.RWMutex{},
-		cfg:                     cfg,
-		sequencerPrivateKey:     privateKey,
-	}
-
-	agg.ctx, agg.exit = context.WithCancel(context.Background())
-	mockState.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-	}).Return(&state.DBBatch{
-		Batch: state.Batch{
-			LocalExitRoot: common.Hash{},
-			StateRoot:     common.Hash{},
+	testCases := []struct {
+		name    string
+		setup   func(mox, *Aggregator)
+		asserts func(*Aggregator)
+	}{
+		{
+			name: "Failed to settle on Agglayer: GetBatch error",
+			setup: func(m mox, a *Aggregator) {
+				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
+					// test is done, stop the sendFinalProof method
+					fmt.Println("Stopping sendFinalProof")
+					a.exit()
+				}).Return(nil, errTest).Once()
+			},
+			asserts: func(a *Aggregator) {
+				assert.False(a.verifyingProof)
+			},
 		},
-	}, nil).Once()
+		{
+			name: "Failed to settle on Agglayer: SendTx error",
+			setup: func(m mox, a *Aggregator) {
+				cfg := Config{
+					SettlementBackend: AggLayer,
+				}
+				a.cfg = cfg
 
-	mockEtherman.On("GetRollupId").Return(uint32(1)).Once()
-	mockAgglayerClientInterface.On("SendTx", mock.Anything).Run(func(args mock.Arguments) {
-		// test is done, stop the sendFinalProof method
-		fmt.Println("Stopping sendFinalProof")
-		agg.exit()
-	}).Return(nil, errTest).Once()
-	mockState.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
+				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
+				}).Return(&state.DBBatch{
+					Batch: state.Batch{
+						LocalExitRoot: common.Hash{},
+						StateRoot:     common.Hash{},
+					},
+				}, nil).Once()
 
-	go func() {
-		finalMsg := finalProofMsg{
-			proverID:       proverID,
-			recursiveProof: recursiveProof,
-			finalProof:     finalProof,
-		}
-		agg.finalProof <- finalMsg
-	}()
+				m.etherman.On("GetRollupId").Return(uint32(1)).Once()
+				m.aggLayerClientMock.On("SendTx", mock.Anything).Run(func(args mock.Arguments) {
+					// test is done, stop the sendFinalProof method
+					fmt.Println("Stopping sendFinalProof")
+					a.exit()
+				}).Return(nil, errTest).Once()
+				m.stateMock.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
 
-	agg.sendFinalProof()
-	assert.False(agg.verifyingProof)
-}
-
-func Test_final_SettleAgglayerErrorWaitTxToBeMined(t *testing.T) {
-	assert := assert.New(t)
-	errTest := errors.New("test error")
-	batchNum := uint64(23)
-	batchNumFinal := uint64(42)
-
-	proofID := "proofId"
-	proverName := "proverName"
-	proverID := "proverID"
-	recursiveProof := &state.Proof{
-		Prover:           &proverName,
-		ProverID:         &proverID,
-		ProofID:          &proofID,
-		BatchNumber:      batchNum,
-		BatchNumberFinal: batchNumFinal,
-	}
-	finalProof := &prover.FinalProof{
-		Proof: "test proof",
-	}
-
-	mockState := new(mocks.StateInterfaceMock)
-	mockEtherman := new(mocks.EthermanMock)
-	mockEthTxManager := new(mocks.EthTxManagerClientMock)
-	mockAgglayerClientInterface := new(mocks.AgglayerClientInterfaceMock)
-
-	cfg := Config{
-		SettlementBackend: AggLayer,
-		AggLayerTxTimeout: types.Duration{Duration: time.Millisecond * 1},
-	}
-
-	curve := elliptic.P256()
-	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
-	if err != nil {
-		t.Fatal("Error generating key")
-	}
-
-	agg := Aggregator{
-		state:                   mockState,
-		Etherman:                mockEtherman,
-		ethTxManager:            mockEthTxManager,
-		aggLayerClient:          mockAgglayerClientInterface,
-		finalProof:              make(chan finalProofMsg),
-		logger:                  log.GetDefaultLogger(),
-		verifyingProof:          false,
-		stateDBMutex:            &sync.Mutex{},
-		timeSendFinalProofMutex: &sync.RWMutex{},
-		cfg:                     cfg,
-		sequencerPrivateKey:     privateKey,
-	}
-
-	agg.ctx, agg.exit = context.WithCancel(context.Background())
-	mockState.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-	}).Return(&state.DBBatch{
-		Batch: state.Batch{
-			LocalExitRoot: common.Hash{},
-			StateRoot:     common.Hash{},
+			},
+			asserts: func(a *Aggregator) {
+				assert.False(a.verifyingProof)
+			},
 		},
-	}, nil).Once()
+		{
+			name: "Failed to settle on Agglayer: WaitTxToBeMined error",
+			setup: func(m mox, a *Aggregator) {
+				cfg := Config{
+					SettlementBackend: AggLayer,
+					AggLayerTxTimeout: types.Duration{Duration: time.Millisecond * 1},
+				}
+				a.cfg = cfg
 
-	mockEtherman.On("GetRollupId").Return(uint32(1)).Once()
-	mockAgglayerClientInterface.On("SendTx", mock.Anything).Return(common.Hash{}, nil).Once()
-	mockAgglayerClientInterface.On("WaitTxToBeMined", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		fmt.Println("Stopping sendFinalProof")
-		agg.exit()
-	}).Return(errTest)
-	mockState.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
+				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
+				}).Return(&state.DBBatch{
+					Batch: state.Batch{
+						LocalExitRoot: common.Hash{},
+						StateRoot:     common.Hash{},
+					},
+				}, nil).Once()
 
-	go func() {
-		finalMsg := finalProofMsg{
-			proverID:       proverID,
-			recursiveProof: recursiveProof,
-			finalProof:     finalProof,
-		}
-		agg.finalProof <- finalMsg
-	}()
+				m.etherman.On("GetRollupId").Return(uint32(1)).Once()
+				m.aggLayerClientMock.On("SendTx", mock.Anything).Return(common.Hash{}, nil).Once()
+				m.aggLayerClientMock.On("WaitTxToBeMined", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+					fmt.Println("Stopping sendFinalProof")
+					a.exit()
+				}).Return(errTest)
+				m.stateMock.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
 
-	agg.sendFinalProof()
-	assert.False(agg.verifyingProof)
-}
-
-func Test_final_SettleAgglayerErrorSuccess(t *testing.T) {
-	assert := assert.New(t)
-	// errTest := errors.New("test error")
-	batchNum := uint64(23)
-	batchNumFinal := uint64(42)
-
-	proofID := "proofId"
-	proverName := "proverName"
-	proverID := "proverID"
-	recursiveProof := &state.Proof{
-		Prover:           &proverName,
-		ProverID:         &proverID,
-		ProofID:          &proofID,
-		BatchNumber:      batchNum,
-		BatchNumberFinal: batchNumFinal,
-	}
-	finalProof := &prover.FinalProof{
-		Proof: "test proof",
-	}
-
-	mockState := new(mocks.StateInterfaceMock)
-	mockEtherman := new(mocks.EthermanMock)
-	mockEthTxManager := new(mocks.EthTxManagerClientMock)
-	mockAgglayerClientInterface := new(mocks.AgglayerClientInterfaceMock)
-
-	cfg := Config{
-		SettlementBackend: AggLayer,
-		AggLayerTxTimeout: types.Duration{Duration: time.Millisecond * 1},
-	}
-
-	curve := elliptic.P256()
-	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
-	if err != nil {
-		t.Fatal("Error generating key")
-	}
-
-	agg := Aggregator{
-		state:                   mockState,
-		Etherman:                mockEtherman,
-		ethTxManager:            mockEthTxManager,
-		aggLayerClient:          mockAgglayerClientInterface,
-		finalProof:              make(chan finalProofMsg),
-		logger:                  log.GetDefaultLogger(),
-		verifyingProof:          false,
-		stateDBMutex:            &sync.Mutex{},
-		timeSendFinalProofMutex: &sync.RWMutex{},
-		cfg:                     cfg,
-		sequencerPrivateKey:     privateKey,
-	}
-
-	agg.ctx, agg.exit = context.WithCancel(context.Background())
-	mockState.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-	}).Return(&state.DBBatch{
-		Batch: state.Batch{
-			LocalExitRoot: common.Hash{},
-			StateRoot:     common.Hash{},
+			},
+			asserts: func(a *Aggregator) {
+				assert.False(a.verifyingProof)
+			},
 		},
-	}, nil).Once()
+		{
+			name: "Failed to settle on L1 (Direct): BuildTrustedVerifyBatchesTxData error",
+			setup: func(m mox, a *Aggregator) {
+				cfg := Config{
+					SettlementBackend: L1,
+					SenderAddress:     senderAddr,
+				}
+				a.cfg = cfg
 
-	mockEtherman.On("GetRollupId").Return(uint32(1)).Once()
-	mockAgglayerClientInterface.On("SendTx", mock.Anything).Return(common.Hash{}, nil).Once()
-	mockAgglayerClientInterface.On("WaitTxToBeMined", mock.Anything, mock.Anything).Return(nil)
-	mockState.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
+				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
+				}).Return(&state.DBBatch{
+					Batch: state.Batch{
+						LocalExitRoot: common.Hash{},
+						StateRoot:     common.Hash{},
+					},
+				}, nil).Once()
 
-	go func() {
-		finalMsg := finalProofMsg{
-			proverID:       proverID,
-			recursiveProof: recursiveProof,
-			finalProof:     finalProof,
-		}
-		agg.finalProof <- finalMsg
-		time.Sleep(1 * time.Second)
-		agg.exit()
-	}()
-
-	agg.sendFinalProof()
-	assert.False(agg.verifyingProof)
-}
-
-func Test_final_SettleDirect_ErrorBuildTrustedVerifyBatchesTxData(t *testing.T) {
-	assert := assert.New(t)
-	errTest := errors.New("test error")
-	batchNum := uint64(23)
-	batchNumFinal := uint64(42)
-
-	proofID := "proofId"
-	proverName := "proverName"
-	proverID := "proverID"
-	recursiveProof := &state.Proof{
-		Prover:           &proverName,
-		ProverID:         &proverID,
-		ProofID:          &proofID,
-		BatchNumber:      batchNum,
-		BatchNumberFinal: batchNumFinal,
-	}
-	finalProof := &prover.FinalProof{
-		Proof: "test proof",
-	}
-
-	mockState := new(mocks.StateInterfaceMock)
-	mockEtherman := new(mocks.EthermanMock)
-
-	cfg := Config{
-		SettlementBackend: L1,
-		SenderAddress:     "0x6278712b352Ef1dB57a5f74B79a7da78a369A9b3",
-	}
-
-	agg := Aggregator{
-		state:                   mockState,
-		Etherman:                mockEtherman,
-		finalProof:              make(chan finalProofMsg),
-		logger:                  log.GetDefaultLogger(),
-		verifyingProof:          false,
-		stateDBMutex:            &sync.Mutex{},
-		timeSendFinalProofMutex: &sync.RWMutex{},
-		cfg:                     cfg,
-	}
-
-	agg.ctx, agg.exit = context.WithCancel(context.Background())
-	mockState.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-	}).Return(&state.DBBatch{
-		Batch: state.Batch{
-			LocalExitRoot: common.Hash{},
-			StateRoot:     common.Hash{},
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, mock.Anything, sender).Run(func(args mock.Arguments) {
+					fmt.Println("Stopping sendFinalProof")
+					a.exit()
+				}).Return(nil, nil, errTest)
+				m.stateMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Return(nil).Once()
+			},
+			asserts: func(a *Aggregator) {
+				assert.False(a.verifyingProof)
+			},
 		},
-	}, nil).Once()
+		{
+			name: "Failed to settle on L1 (Direct): Error Adding TX to ethTxManager",
+			setup: func(m mox, a *Aggregator) {
+				cfg := Config{
+					SettlementBackend: L1,
+					SenderAddress:     senderAddr,
+					GasOffset:         uint64(10),
+				}
+				a.cfg = cfg
 
-	mockEtherman.On("GetRollupId").Return(uint32(1)).Once()
-	mockEtherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		fmt.Println("Stopping sendFinalProof")
-		agg.exit()
-	}).Return(nil, nil, errTest)
-	mockState.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
+				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
+				}).Return(&state.DBBatch{
+					Batch: state.Batch{
+						LocalExitRoot: common.Hash{},
+						StateRoot:     common.Hash{},
+					},
+				}, nil).Once()
 
-	go func() {
-		finalMsg := finalProofMsg{
-			proverID:       proverID,
-			recursiveProof: recursiveProof,
-			finalProof:     finalProof,
-		}
-		agg.finalProof <- finalMsg
-	}()
-
-	agg.sendFinalProof()
-	assert.False(agg.verifyingProof)
-}
-
-func Test_final_SettleDirect_Success(t *testing.T) {
-	assert := assert.New(t)
-	errTest := errors.New("test error")
-	batchNum := uint64(23)
-	batchNumFinal := uint64(42)
-
-	proofID := "proofId"
-	proverName := "proverName"
-	proverID := "proverID"
-	recursiveProof := &state.Proof{
-		Prover:           &proverName,
-		ProverID:         &proverID,
-		ProofID:          &proofID,
-		BatchNumber:      batchNum,
-		BatchNumberFinal: batchNumFinal,
-	}
-	finalProof := &prover.FinalProof{
-		Proof: "test proof",
-	}
-
-	mockState := new(mocks.StateInterfaceMock)
-	mockEtherman := new(mocks.EthermanMock)
-	mockEthTxManager := new(mocks.EthTxManagerClientMock)
-
-	cfg := Config{
-		SettlementBackend: L1,
-		SenderAddress:     "0x6278712b352Ef1dB57a5f74B79a7da78a369A9b3",
-	}
-
-	agg := Aggregator{
-		state:                   mockState,
-		Etherman:                mockEtherman,
-		ethTxManager:            mockEthTxManager,
-		finalProof:              make(chan finalProofMsg),
-		logger:                  log.GetDefaultLogger(),
-		verifyingProof:          false,
-		stateDBMutex:            &sync.Mutex{},
-		timeSendFinalProofMutex: &sync.RWMutex{},
-		cfg:                     cfg,
-	}
-
-	agg.ctx, agg.exit = context.WithCancel(context.Background())
-	mockState.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-	}).Return(&state.DBBatch{
-		Batch: state.Batch{
-			LocalExitRoot: common.Hash{},
-			StateRoot:     common.Hash{},
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, mock.Anything, sender).Return(nil, nil, nil).Once()
+				m.ethTxManager.On("Add", mock.Anything, mock.Anything, big.NewInt(0), mock.Anything, a.cfg.GasOffset, (*ethTypes.BlobTxSidecar)(nil)).Run(func(args mock.Arguments) {
+					fmt.Println("Stopping sendFinalProof")
+					a.exit()
+				}).Return(nil, errTest).Once()
+				m.stateMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Return(nil).Once()
+			},
+			asserts: func(a *Aggregator) {
+				assert.False(a.verifyingProof)
+			},
 		},
-	}, nil).Once()
+	}
 
-	mockEtherman.On("GetRollupId").Return(uint32(1)).Once()
-	mockEtherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, mock.Anything, mock.Anything).Return(nil, nil, errTest).Once()
-	mockEthTxManager.On("Add", mock.Anything, mock.Anything, nil, big.NewInt(0), mock.Anything, agg.cfg.GasOffset, nil).Return(nil, errTest).Once()
-	mockState.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stateMock := mocks.NewStateInterfaceMock(t)
+			ethTxManager := mocks.NewEthTxManagerClientMock(t)
+			etherman := mocks.NewEthermanMock(t)
+			aggLayerClient := mocks.NewAgglayerClientInterfaceMock(t)
 
-	go func() {
-		finalMsg := finalProofMsg{
-			proverID:       proverID,
-			recursiveProof: recursiveProof,
-			finalProof:     finalProof,
-		}
-		agg.finalProof <- finalMsg
+			curve := elliptic.P256()
+			privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
+			if err != nil {
+				t.Fatal("Error generating key")
+			}
 
-		time.Sleep(time.Second)
-		agg.exit()
-	}()
+			a := Aggregator{
+				state:                   stateMock,
+				Etherman:                etherman,
+				ethTxManager:            ethTxManager,
+				aggLayerClient:          aggLayerClient,
+				finalProof:              make(chan finalProofMsg),
+				logger:                  log.GetDefaultLogger(),
+				verifyingProof:          false,
+				stateDBMutex:            &sync.Mutex{},
+				timeSendFinalProofMutex: &sync.RWMutex{},
+				sequencerPrivateKey:     privateKey,
+			}
+			a.ctx, a.exit = context.WithCancel(context.Background())
 
-	agg.sendFinalProof()
-	assert.False(agg.verifyingProof)
+			m := mox{
+				stateMock:          stateMock,
+				ethTxManager:       ethTxManager,
+				etherman:           etherman,
+				aggLayerClientMock: aggLayerClient,
+			}
+			if tc.setup != nil {
+				tc.setup(m, &a)
+			}
+			// send a final proof over the channel
+			go func() {
+				finalMsg := finalProofMsg{
+					proverID:       proverID,
+					recursiveProof: recursiveProof,
+					finalProof:     finalProof,
+				}
+				a.finalProof <- finalMsg
+			}()
+
+			a.sendFinalProof()
+			if tc.asserts != nil {
+				tc.asserts(&a)
+			}
+		})
+	}
 }
 
 func Test_buildFinalProof(t *testing.T) {
 	t.Parallel()
 
-	mockProver := new(mocks.ProverInterfaceMock)
-
+	assert := assert.New(t)
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
 	proofID := "proofId"
@@ -794,98 +703,95 @@ func Test_buildFinalProof(t *testing.T) {
 		BatchNumber:      batchNum,
 		BatchNumberFinal: batchNumFinal,
 	}
-
-	agg := Aggregator{
-		logger: log.GetDefaultLogger(),
-		cfg: Config{
-			SenderAddress: "0x6278712b352Ef1dB57a5f74B79a7da78a369A9b3",
-		},
-	}
-
 	finalProofID := "finalProofID"
-	finalProof := prover.FinalProof{
-		Public: &prover.PublicInputsExtended{
-			NewStateRoot:     []byte("StateRoot"),
-			NewLocalExitRoot: []byte("LocalExitRoot"),
+
+	testCases := []struct {
+		name    string
+		setup   func(mox, *Aggregator)
+		asserts func(err error, fProof *prover.FinalProof)
+	}{
+		{
+			name: "using real prover",
+			setup: func(m mox, a *Aggregator) {
+				finalProof := prover.FinalProof{
+					Public: &prover.PublicInputsExtended{
+						NewStateRoot:     []byte("StateRoot"),
+						NewLocalExitRoot: []byte("LocalExitRoot"),
+					},
+				}
+
+				m.proverMock.On("Name").Return("name").Once()
+				m.proverMock.On("ID").Return("id").Once()
+				m.proverMock.On("Addr").Return("addr").Once()
+				m.proverMock.On("FinalProof", recursiveProof.Proof, a.cfg.SenderAddress).Return(&finalProofID, nil).Once()
+				m.proverMock.On("WaitFinalProof", mock.Anything, finalProofID).Return(&finalProof, nil).Once()
+			},
+			asserts: func(err error, fProof *prover.FinalProof) {
+				assert.NoError(err)
+				assert.True(bytes.Equal([]byte("StateRoot"), fProof.Public.NewStateRoot), "State roots should be equal")
+				assert.True(bytes.Equal([]byte("LocalExitRoot"), fProof.Public.NewLocalExitRoot), "LocalExit roots should be equal")
+			},
+		},
+		{
+			name: "using mock prover",
+			setup: func(m mox, a *Aggregator) {
+				finalProof := prover.FinalProof{
+					Public: &prover.PublicInputsExtended{
+						NewStateRoot:     []byte(mockedStateRoot),
+						NewLocalExitRoot: []byte(mockedLocalExitRoot),
+					},
+				}
+
+				finalDBBatch := &state.DBBatch{
+					Batch: state.Batch{
+						StateRoot:     common.BytesToHash([]byte("mock StateRoot")),
+						LocalExitRoot: common.BytesToHash([]byte("mock LocalExitRoot")),
+					},
+				}
+
+				m.proverMock.On("Name").Return("name").Once()
+				m.proverMock.On("ID").Return("id").Once()
+				m.proverMock.On("Addr").Return("addr").Once()
+				m.proverMock.On("FinalProof", recursiveProof.Proof, a.cfg.SenderAddress).Return(&finalProofID, nil).Once()
+				m.proverMock.On("WaitFinalProof", mock.Anything, finalProofID).Return(&finalProof, nil).Once()
+				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Return(finalDBBatch, nil).Once()
+			},
+			asserts: func(err error, fProof *prover.FinalProof) {
+				assert.NoError(err)
+				expStateRoot := common.BytesToHash([]byte("mock StateRoot"))
+				expLocalExitRoot := common.BytesToHash([]byte("mock LocalExitRoot"))
+				assert.True(bytes.Equal(expStateRoot.Bytes(), fProof.Public.NewStateRoot), "State roots should be equal")
+				assert.True(bytes.Equal(expLocalExitRoot.Bytes(), fProof.Public.NewLocalExitRoot), "LocalExit roots should be equal")
+			},
 		},
 	}
 
-	mockProver.On("Name").Return("name").Once()
-	mockProver.On("ID").Return("id").Once()
-	mockProver.On("Addr").Return("addr").Once()
-	mockProver.On("FinalProof", recursiveProof.Proof, agg.cfg.SenderAddress).Return(&finalProofID, nil).Once()
-	mockProver.On("WaitFinalProof", mock.Anything, finalProofID).Return(&finalProof, nil).Once()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			proverMock := mocks.NewProverInterfaceMock(t)
+			stateMock := mocks.NewStateInterfaceMock(t)
+			m := mox{
+				proverMock: proverMock,
+				stateMock:  stateMock,
+			}
+			a := Aggregator{
+				state:  stateMock,
+				logger: log.GetDefaultLogger(),
+				cfg: Config{
+					SenderAddress: common.BytesToAddress([]byte("from")).Hex(),
+				},
+			}
 
-	fProof, err := agg.buildFinalProof(context.Background(), mockProver, recursiveProof)
-	assert.NoError(t, err)
-	assert.Equal(t, finalProof.Public.NewStateRoot, fProof.Public.NewStateRoot)
-	assert.Equal(t, finalProof.Public.NewLocalExitRoot, fProof.Public.NewLocalExitRoot)
-}
-
-func Test_buildFinalProof_MockProver(t *testing.T) {
-	t.Parallel()
-
-	mockProver := new(mocks.ProverInterfaceMock)
-	mockState := new(mocks.StateInterfaceMock)
-
-	batchNum := uint64(23)
-	batchNumFinal := uint64(42)
-	proofID := "proofId"
-	proverID := "proverID"
-	recursiveProof := &state.Proof{
-		ProverID:         &proverID,
-		Proof:            "test proof",
-		ProofID:          &proofID,
-		BatchNumber:      batchNum,
-		BatchNumberFinal: batchNumFinal,
+			tc.setup(m, &a)
+			fProof, err := a.buildFinalProof(context.Background(), proverMock, recursiveProof)
+			tc.asserts(err, fProof)
+		})
 	}
-
-	agg := Aggregator{
-		state:  mockState,
-		logger: log.GetDefaultLogger(),
-		cfg: Config{
-			SenderAddress: "0x6278712b352Ef1dB57a5f74B79a7da78a369A9b3",
-		},
-	}
-
-	finalProofID := "finalProofID"
-	finalProof := prover.FinalProof{
-		Public: &prover.PublicInputsExtended{
-			NewStateRoot:     []byte(mockedStateRoot),
-			NewLocalExitRoot: []byte(mockedLocalExitRoot),
-		},
-	}
-
-	finalDBBatch := &state.DBBatch{
-		Batch: state.Batch{
-			StateRoot:     common.Hash{},
-			LocalExitRoot: common.Hash{},
-		},
-	}
-
-	mockProver.On("Name").Return("name").Once()
-	mockProver.On("ID").Return("id").Once()
-	mockProver.On("Addr").Return("addr").Once()
-	mockProver.On("FinalProof", recursiveProof.Proof, agg.cfg.SenderAddress).Return(&finalProofID, nil).Once()
-	mockProver.On("WaitFinalProof", mock.Anything, finalProofID).Return(&finalProof, nil).Once()
-
-	mockState.On("GetBatch", mock.Anything, batchNumFinal, nil).Return(finalDBBatch, nil)
-
-	fProof, err := agg.buildFinalProof(context.Background(), mockProver, recursiveProof)
-	assert.NoError(t, err)
-	assert.Equal(t, common.Hash{}.Bytes(), fProof.Public.NewStateRoot)
-	assert.Equal(t, common.Hash{}.Bytes(), fProof.Public.NewLocalExitRoot)
-}
-
-type mox struct {
-	stateMock        *mocks.StateInterfaceMock
-	ethTxManager     *mocks.EthTxManagerClientMock
-	etherman         *mocks.EthermanMock
-	proverMock       *mocks.ProverInterfaceMock
-	synchronizerMock *mocks.SynchronizerInterfaceMock
 }
 
 func Test_tryBuildFinalProof(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	errTest := errors.New("test error")
 	from := common.BytesToAddress([]byte("from"))
