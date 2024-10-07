@@ -348,8 +348,6 @@ func Test_handleReceivedDataStreamTransaction(t *testing.T) {
 }
 
 func Test_sendFinalProofSuccess(t *testing.T) {
-	t.Parallel()
-
 	assert := assert.New(t)
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
@@ -428,8 +426,6 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			stateMock := mocks.NewStateInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
@@ -485,8 +481,6 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 }
 
 func Test_sendFinalProofError(t *testing.T) {
-	t.Parallel()
-
 	assert := assert.New(t)
 	errTest := errors.New("test error")
 	batchNum := uint64(23)
@@ -639,8 +633,6 @@ func Test_sendFinalProofError(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			stateMock := mocks.NewStateInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
@@ -694,8 +686,6 @@ func Test_sendFinalProofError(t *testing.T) {
 }
 
 func Test_buildFinalProof(t *testing.T) {
-	t.Parallel()
-
 	assert := assert.New(t)
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
@@ -771,8 +761,6 @@ func Test_buildFinalProof(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			proverMock := mocks.NewProverInterfaceMock(t)
 			stateMock := mocks.NewStateInterfaceMock(t)
 			m := mox{
@@ -795,8 +783,6 @@ func Test_buildFinalProof(t *testing.T) {
 }
 
 func Test_tryBuildFinalProof(t *testing.T) {
-	t.Parallel()
-
 	assert := assert.New(t)
 	errTest := errors.New("test error")
 	from := common.BytesToAddress([]byte("from"))
@@ -1029,8 +1015,6 @@ func Test_tryBuildFinalProof(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			stateMock := mocks.NewStateInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
