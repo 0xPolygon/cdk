@@ -98,7 +98,7 @@ func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger com
 	if err != nil {
 		return err
 	}
-	data, err := abi.Pack("insertGlobalExitRoot", ger)
+	data, err := abi.Pack("insertGlobalExitRoot_cheat", ger)
 	if err != nil {
 		return err
 	}
