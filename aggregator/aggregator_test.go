@@ -116,7 +116,7 @@ func Test_handleRollbackBatches(t *testing.T) {
 	a := Aggregator{
 		ctx:                    context.Background(),
 		streamClient:           mockStreamClient,
-		Etherman:               mockEtherman,
+		etherman:               mockEtherman,
 		state:                  mockState,
 		logger:                 log.GetDefaultLogger(),
 		halted:                 atomic.Bool{},
@@ -436,7 +436,7 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 
 			a := Aggregator{
 				state:                   stateMock,
-				Etherman:                etherman,
+				etherman:                etherman,
 				ethTxManager:            ethTxManager,
 				aggLayerClient:          aggLayerClient,
 				finalProof:              make(chan finalProofMsg),
@@ -649,7 +649,7 @@ func Test_sendFinalProofError(t *testing.T) {
 
 			a := Aggregator{
 				state:                   stateMock,
-				Etherman:                etherman,
+				etherman:                etherman,
 				ethTxManager:            ethTxManager,
 				aggLayerClient:          aggLayerClient,
 				finalProof:              make(chan finalProofMsg),
@@ -1036,7 +1036,7 @@ func Test_tryBuildFinalProof(t *testing.T) {
 			a := Aggregator{
 				cfg:                     cfg,
 				state:                   stateMock,
-				Etherman:                etherman,
+				etherman:                etherman,
 				ethTxManager:            ethTxManager,
 				logger:                  log.GetDefaultLogger(),
 				stateDBMutex:            &sync.Mutex{},
@@ -1556,7 +1556,7 @@ func Test_tryAggregateProofs(t *testing.T) {
 			a := Aggregator{
 				cfg:                     cfg,
 				state:                   stateMock,
-				Etherman:                etherman,
+				etherman:                etherman,
 				ethTxManager:            ethTxManager,
 				logger:                  log.GetDefaultLogger(),
 				stateDBMutex:            &sync.Mutex{},

@@ -7,8 +7,9 @@ import (
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	"github.com/0xPolygon/cdk/state"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
@@ -38,6 +39,7 @@ type Etherman interface {
 	) (to *common.Address, data []byte, err error)
 	GetLatestBlockHeader(ctx context.Context) (*types.Header, error)
 	GetBatchAccInputHash(ctx context.Context, batchNumber uint64) (common.Hash, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 }
 
 // aggregatorTxProfitabilityChecker interface for different profitability
@@ -91,8 +93,8 @@ type EthTxManagerClient interface {
 	ProcessPendingMonitoredTxs(ctx context.Context, resultHandler ethtxmanager.ResultHandler)
 	Remove(ctx context.Context, id common.Hash) error
 	RemoveAll(ctx context.Context) error
-	Result(ctx context.Context, id common.Hash) (ethtxmanager.MonitoredTxResult, error)
-	ResultsByStatus(ctx context.Context, statuses []ethtxmanager.MonitoredTxStatus) ([]ethtxmanager.MonitoredTxResult, error)
+	Result(ctx context.Context, id common.Hash) (ethtxtypes.MonitoredTxResult, error)
+	ResultsByStatus(ctx context.Context, statuses []ethtxtypes.MonitoredTxStatus) ([]ethtxtypes.MonitoredTxResult, error)
 	Start()
 	Stop()
 }

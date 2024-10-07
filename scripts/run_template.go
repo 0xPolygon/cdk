@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -43,12 +42,7 @@ func environmentToMap() map[string]any {
 	envVars := make(map[string]any)
 	for _, e := range os.Environ() {
 		pair := splitAtFirst(e, '=')
-		fmt.Printf("zzzz env=%s pair=%v\n", e, pair)
 		envVars[pair[0]] = pair[1]
-	}
-	envVars["aggregator_db"] = map[string]string{
-		"user": "user",
-		"name": "Name",
 	}
 	return envVars
 }
