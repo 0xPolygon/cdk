@@ -31,6 +31,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var (
+	proofID      = "proofId"
+	proof        = "proof"
+	finalProofID = "finalProofID"
+	proverName   = "proverName"
+	proverID     = "proverID"
+)
+
 type mox struct {
 	stateMock          *mocks.StateInterfaceMock
 	ethTxManager       *mocks.EthTxManagerClientMock
@@ -346,9 +354,6 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
 
-	proofID := "proofId"
-	proverName := "proverName"
-	proverID := "proverID"
 	recursiveProof := &state.Proof{
 		Prover:           &proverName,
 		ProverID:         &proverID,
@@ -384,7 +389,6 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 				testHash := common.BytesToHash([]byte("test hash"))
 				m.aggLayerClientMock.On("SendTx", mock.Anything).Return(testHash, nil).Once()
 				m.aggLayerClientMock.On("WaitTxToBeMined", testHash, mock.Anything).Return(nil).Once()
-
 			},
 			asserts: func(a *Aggregator) {
 				assert.False(a.verifyingProof)
@@ -422,7 +426,10 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			stateMock := mocks.NewStateInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
@@ -487,9 +494,6 @@ func Test_sendFinalProofError(t *testing.T) {
 	sender := common.BytesToAddress([]byte("SenderAddress"))
 	senderAddr := sender.Hex()
 
-	proofID := "proofId"
-	proverName := "proverName"
-	proverID := "proverID"
 	recursiveProof := &state.Proof{
 		Prover:           &proverName,
 		ProverID:         &proverID,
@@ -540,7 +544,6 @@ func Test_sendFinalProofError(t *testing.T) {
 					a.exit()
 				}).Return(nil, errTest).Once()
 				m.stateMock.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
-
 			},
 			asserts: func(a *Aggregator) {
 				assert.False(a.verifyingProof)
@@ -570,7 +573,6 @@ func Test_sendFinalProofError(t *testing.T) {
 					a.exit()
 				}).Return(errTest)
 				m.stateMock.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
-
 			},
 			asserts: func(a *Aggregator) {
 				assert.False(a.verifyingProof)
@@ -635,7 +637,10 @@ func Test_sendFinalProofError(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			stateMock := mocks.NewStateInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
@@ -694,8 +699,6 @@ func Test_buildFinalProof(t *testing.T) {
 	assert := assert.New(t)
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
-	proofID := "proofId"
-	proverID := "proverID"
 	recursiveProof := &state.Proof{
 		ProverID:         &proverID,
 		Proof:            "test proof",
@@ -703,7 +706,6 @@ func Test_buildFinalProof(t *testing.T) {
 		BatchNumber:      batchNum,
 		BatchNumberFinal: batchNumFinal,
 	}
-	finalProofID := "finalProofID"
 
 	testCases := []struct {
 		name    string
@@ -767,7 +769,10 @@ func Test_buildFinalProof(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			proverMock := mocks.NewProverInterfaceMock(t)
 			stateMock := mocks.NewStateInterfaceMock(t)
 			m := mox{
@@ -803,11 +808,6 @@ func Test_tryBuildFinalProof(t *testing.T) {
 	latestVerifiedBatchNum := uint64(22)
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
-	proofID := "proofID"
-	proof := "proof"
-	proverName := "proverName"
-	proverID := "proverID"
-	finalProofID := "finalProofID"
 	finalProof := prover.FinalProof{
 		Proof: "",
 		Public: &prover.PublicInputsExtended{
@@ -1027,7 +1027,10 @@ func Test_tryBuildFinalProof(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			stateMock := mocks.NewStateInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
@@ -1098,9 +1101,6 @@ func Test_tryAggregateProofs(t *testing.T) {
 		VerifyProofInterval: types.Duration{Duration: time.Millisecond * 1},
 	}
 
-	proofID := "proofId"
-	proverName := "proverName"
-	proverID := "proverID"
 	recursiveProof := "recursiveProof"
 	proverCtx := context.WithValue(context.Background(), "owner", "prover") //nolint:staticcheck
 	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "prover" }
@@ -1159,7 +1159,9 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.NotNil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(errTest).
 					Once()
@@ -1182,14 +1184,21 @@ func Test_tryAggregateProofs(t *testing.T) {
 				proof1GeneratingTrueCall := m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.NotNil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once()
 				proof2GeneratingTrueCall := m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						// Use a type assertion with a check
+						proofArg, ok := args[1].(*state.Proof)
+						if !ok {
+							assert.Fail("Expected argument of type *state.Proof")
+						}
+						assert.NotNil(proofArg.GeneratingSince)
 					}).
 					Return(nil).
 					Once()
@@ -1198,7 +1207,11 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.Nil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						if !ok {
+							assert.Fail("Expected argument of type *state.Proof")
+						}
+						assert.Nil(proofArg.GeneratingSince)
 					}).
 					Return(nil).
 					Once().
@@ -1206,7 +1219,11 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.Nil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						if !ok {
+							assert.Fail("Expected argument of type *state.Proof")
+						}
+						assert.Nil(proofArg.GeneratingSince, "Expected GeneratingSince to be nil")
 					}).
 					Return(nil).
 					Once().
@@ -1231,14 +1248,20 @@ func Test_tryAggregateProofs(t *testing.T) {
 				proof1GeneratingTrueCall := m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						if !ok {
+							assert.Fail("Expected argument of type *state.Proof")
+						}
+						assert.NotNil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once()
 				proof2GeneratingTrueCall := m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.NotNil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once()
@@ -1248,7 +1271,9 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.Nil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.Nil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once().
@@ -1256,7 +1281,9 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.Nil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.Nil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once().
@@ -1281,14 +1308,18 @@ func Test_tryAggregateProofs(t *testing.T) {
 				proof1GeneratingTrueCall := m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.NotNil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once()
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.NotNil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once()
@@ -1298,7 +1329,9 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.Nil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.Nil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(errTest).
 					Once().
@@ -1323,14 +1356,18 @@ func Test_tryAggregateProofs(t *testing.T) {
 				proof1GeneratingTrueCall := m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.NotNil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once()
 				proof2GeneratingTrueCall := m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.NotNil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once()
@@ -1342,7 +1379,9 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.Nil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.Nil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once().
@@ -1350,7 +1389,9 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.Nil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.Nil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once().
@@ -1375,14 +1416,18 @@ func Test_tryAggregateProofs(t *testing.T) {
 				proof1GeneratingTrueCall := m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.NotNil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once()
 				proof2GeneratingTrueCall := m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.NotNil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once()
@@ -1395,7 +1440,9 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.Nil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.Nil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once().
@@ -1403,7 +1450,9 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.Nil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.Nil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once().
@@ -1413,69 +1462,6 @@ func Test_tryAggregateProofs(t *testing.T) {
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errTest)
-			},
-		},
-		{
-			name: "not time to send final ok",
-			setup: func(m mox, a *Aggregator) {
-				m.proverMock.On("Name").Return(proverName).Times(3)
-				m.proverMock.On("ID").Return(proverID).Times(3)
-				m.proverMock.On("Addr").Return("addr")
-				dbTx := &mocks.DbTxMock{}
-				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
-				dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Twice()
-				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
-					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
-					}).
-					Return(nil).
-					Once()
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
-					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
-					}).
-					Return(nil).
-					Once()
-				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
-				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, common.Hash{}, nil).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchProverCtxFn), proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(nil).Once()
-				expectedInputProver := map[string]interface{}{
-					"recursive_proof_1": proof1.Proof,
-					"recursive_proof_2": proof2.Proof,
-				}
-				b, err := json.Marshal(expectedInputProver)
-				require.NoError(err)
-				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, dbTx).Run(
-					func(args mock.Arguments) {
-						proof := args[1].(*state.Proof)
-						assert.Equal(proof1.BatchNumber, proof.BatchNumber)
-						assert.Equal(proof2.BatchNumberFinal, proof.BatchNumberFinal)
-						assert.Equal(&proverName, proof.Prover)
-						assert.Equal(&proverID, proof.ProverID)
-						assert.Equal(string(b), proof.InputProver)
-						assert.Equal(recursiveProof, proof.Proof)
-						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
-					},
-				).Return(nil).Once()
-				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
-					func(args mock.Arguments) {
-						proof := args[1].(*state.Proof)
-						assert.Equal(proof1.BatchNumber, proof.BatchNumber)
-						assert.Equal(proof2.BatchNumberFinal, proof.BatchNumberFinal)
-						assert.Equal(&proverName, proof.Prover)
-						assert.Equal(&proverID, proof.ProverID)
-						assert.Equal(string(b), proof.InputProver)
-						assert.Equal(recursiveProof, proof.Proof)
-						assert.Nil(proof.GeneratingSince)
-					},
-				).Return(nil).Once()
-			},
-			asserts: func(result bool, a *Aggregator, err error) {
-				assert.True(result)
-				assert.NoError(err)
 			},
 		},
 		{
@@ -1492,14 +1478,18 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.NotNil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once()
 				m.stateMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
 					Run(func(args mock.Arguments) {
-						assert.NotNil(args[1].(*state.Proof).GeneratingSince)
+						proofArg, ok := args[1].(*state.Proof)
+						assert.True(ok, "Expected argument of type *state.Proof")
+						assert.NotNil(proofArg.GeneratingSince, "Expected GeneratingSince to be not nil")
 					}).
 					Return(nil).
 					Once()
@@ -1515,7 +1505,10 @@ func Test_tryAggregateProofs(t *testing.T) {
 				require.NoError(err)
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, dbTx).Run(
 					func(args mock.Arguments) {
-						proof := args[1].(*state.Proof)
+						proof, ok := args[1].(*state.Proof)
+						if !ok {
+							t.Fatalf("expected args[1] to be of type *state.Proof, got %T", args[1])
+						}
 						assert.Equal(proof1.BatchNumber, proof.BatchNumber)
 						assert.Equal(proof2.BatchNumberFinal, proof.BatchNumberFinal)
 						assert.Equal(&proverName, proof.Prover)
@@ -1529,7 +1522,10 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(uint64(42), errTest).Once()
 				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
-						proof := args[1].(*state.Proof)
+						proof, ok := args[1].(*state.Proof)
+						if !ok {
+							t.Fatalf("expected args[1] to be of type *state.Proof, got %T", args[1])
+						}
 						assert.Equal(proof1.BatchNumber, proof.BatchNumber)
 						assert.Equal(proof2.BatchNumberFinal, proof.BatchNumberFinal)
 						assert.Equal(&proverName, proof.Prover)

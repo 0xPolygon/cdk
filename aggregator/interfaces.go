@@ -86,8 +86,23 @@ type StreamClient interface {
 
 // EthTxManagerClient represents the eth tx manager interface
 type EthTxManagerClient interface {
-	Add(ctx context.Context, to *common.Address, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar) (common.Hash, error)
-	AddWithGas(ctx context.Context, to *common.Address, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar, gas uint64) (common.Hash, error)
+	Add(
+		ctx context.Context,
+		to *common.Address,
+		value *big.Int,
+		data []byte,
+		gasOffset uint64,
+		sidecar *types.BlobTxSidecar,
+	) (common.Hash, error)
+	AddWithGas(
+		ctx context.Context,
+		to *common.Address,
+		value *big.Int,
+		data []byte,
+		gasOffset uint64,
+		sidecar *types.BlobTxSidecar,
+		gas uint64,
+	) (common.Hash, error)
 	EncodeBlobData(data []byte) (kzg4844.Blob, error)
 	MakeBlobSidecar(blobs []kzg4844.Blob) *types.BlobTxSidecar
 	ProcessPendingMonitoredTxs(ctx context.Context, resultHandler ethtxmanager.ResultHandler)

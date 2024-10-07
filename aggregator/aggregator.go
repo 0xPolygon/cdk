@@ -107,18 +107,18 @@ func New(
 	ctx context.Context,
 	cfg Config,
 	logger *log.Logger,
-	StateInterface StateInterface,
-	Etherman Etherman) (*Aggregator, error) {
+	stateInterface StateInterface,
+	etherman Etherman) (*Aggregator, error) {
 	var profitabilityChecker aggregatorTxProfitabilityChecker
 
 	switch cfg.TxProfitabilityCheckerType {
 	case ProfitabilityBase:
 		profitabilityChecker = NewTxProfitabilityCheckerBase(
-			StateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration, cfg.TxProfitabilityMinReward.Int,
+			stateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration, cfg.TxProfitabilityMinReward.Int,
 		)
 	case ProfitabilityAcceptAll:
 		profitabilityChecker = NewTxProfitabilityCheckerAcceptAll(
-			StateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration,
+			stateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration,
 		)
 	}
 
@@ -186,8 +186,8 @@ func New(
 		ctx:                     ctx,
 		cfg:                     cfg,
 		logger:                  logger,
-		state:                   StateInterface,
-		etherman:                Etherman,
+		state:                   stateInterface,
+		etherman:                etherman,
 		ethTxManager:            ethTxManager,
 		streamClient:            streamClient,
 		streamClientMutex:       &sync.Mutex{},
