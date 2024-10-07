@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 #[allow(dead_code)]
 pub struct TelemetryConfig {
     #[serde(rename = "PrometheusAddr", default = "default_metrics_api_addr")]
-    pub addr: SocketAddr, //
+    pub addr: SocketAddr,
 }
 
 impl Default for TelemetryConfig {
