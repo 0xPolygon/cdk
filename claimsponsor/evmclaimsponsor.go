@@ -174,6 +174,7 @@ func (c *EVMClaimSponsor) claimStatus(ctx context.Context, id string) (ClaimStat
 	case ethtxmanager.MonitoredTxStatusMined,
 		ethtxmanager.MonitoredTxStatusSafe,
 		ethtxmanager.MonitoredTxStatusFinalized:
+		log.Infof("claim tx with id %s mined at block %d", id, res.MinedAtBlockNumber)
 		return SuccessClaimStatus, nil
 	default:
 		return "", fmt.Errorf("unexpected tx status: %v", res.Status)
