@@ -40,7 +40,7 @@ WaitPeriodPurgeTxFile = "15m"
 MaxPendingTx = 1
 MaxBatchesForL1 = 300
 BlockFinality = "FinalizedBlock"
-RPCURL = ""
+RPCURL = "localhost:8123"
 GetBatchWaitInterval = "10s"
 	[SequenceSender.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
