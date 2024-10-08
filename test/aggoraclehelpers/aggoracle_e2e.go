@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry-paris/polygonzkevmbridgev2"
 	gerContractL1 "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/globalexitrootnopush0"
 	gerContractEVMChain "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitrootnopush0"
@@ -20,7 +22,6 @@ import (
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/stretchr/testify/require"
@@ -106,16 +107,15 @@ func CommonSetup(t *testing.T) (
 
 	// Config and spin up
 	ctx := context.Background()
+
 	// Simulated L1
-	privateKeyL1, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	authL1, err := bind.NewKeyedTransactorWithChainID(privateKeyL1, big.NewInt(chainID))
-	require.NoError(t, err)
-	l1Client, gerL1Addr, gerL1Contract, bridgeL1Addr, bridgeL1Contract := newSimulatedL1(t, authL1)
+	l1Client, authL1, gerL1Addr, gerL1Contract, bridgeL1Addr, bridgeL1Contract := newSimulatedL1(t)
+
 	// Reorg detector
 	dbPathReorgDetector := t.TempDir()
 	reorg, err := reorgdetector.New(l1Client.Client(), reorgdetector.Config{DBPath: dbPathReorgDetector})
 	require.NoError(t, err)
+
 	// Syncer
 	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	syncer, err := l1infotreesync.New(ctx, dbPathSyncer,
@@ -141,11 +141,7 @@ func EVMSetup(t *testing.T) (
 ) {
 	t.Helper()
 
-	privateKeyL2, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	authL2, err := bind.NewKeyedTransactorWithChainID(privateKeyL2, big.NewInt(chainID))
-	require.NoError(t, err)
-	l2Client, gerL2Addr, gerL2Sc, bridgeL2Addr, bridgeL2Sc := newSimulatedEVMAggSovereignChain(t, authL2)
+	l2Client, authL2, gerL2Addr, gerL2Sc, bridgeL2Addr, bridgeL2Sc := newSimulatedEVMAggSovereignChain(t)
 	ethTxManMock := helpers.NewEthTxManMock(t, l2Client, authL2)
 	sender, err := chaingersender.NewEVMChainGERSender(log.GetDefaultLogger(),
 		gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50) //nolint:mnd
@@ -154,35 +150,19 @@ func EVMSetup(t *testing.T) (
 	return sender, l2Client, gerL2Sc, gerL2Addr, bridgeL2Sc, bridgeL2Addr, authL2, ethTxManMock
 }
 
-func newSimulatedL1(t *testing.T, auth *bind.TransactOpts) (
-	client *simulated.Backend,
-	gerAddr common.Address,
-	gerContract *gerContractL1.Globalexitrootnopush0,
-	bridgeAddr common.Address,
-	bridgeContract *polygonzkevmbridgev2.Polygonzkevmbridgev2,
+func newSimulatedL1(t *testing.T) (
+	*simulated.Backend,
+	*bind.TransactOpts,
+	common.Address,
+	*gerContractL1.Globalexitrootnopush0,
+	common.Address,
+	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
 ) {
 	t.Helper()
 
 	ctx := context.Background()
 
-	privateKeyL1, err := crypto.GenerateKey()
-	require.NoError(t, err)
-
-	authDeployer, err := bind.NewKeyedTransactorWithChainID(privateKeyL1, big.NewInt(chainID))
-	require.NoError(t, err)
-
-	balance, _ := new(big.Int).SetString(initialBalance, 10) //nolint:mnd
-	address := auth.From
-	genesisAlloc := map[common.Address]types.Account{
-		address: {
-			Balance: balance,
-		},
-		authDeployer.From: {
-			Balance: balance,
-		},
-	}
-
-	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
+	client, auth, authDeployer := helpers.SimulatedBackend(t, nil)
 
 	bridgeImplementationAddr, _, _, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(authDeployer, client.Client())
 	require.NoError(t, err)
@@ -205,7 +185,7 @@ func newSimulatedL1(t *testing.T, auth *bind.TransactOpts) (
 	)
 	require.NoError(t, err)
 
-	bridgeAddr, _, _, err = transparentupgradableproxy.DeployTransparentupgradableproxy(
+	bridgeAddr, _, _, err := transparentupgradableproxy.DeployTransparentupgradableproxy(
 		authDeployer,
 		client.Client(),
 		bridgeImplementationAddr,
@@ -215,56 +195,44 @@ func newSimulatedL1(t *testing.T, auth *bind.TransactOpts) (
 	require.NoError(t, err)
 	client.Commit()
 
-	bridgeContract, err = polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeAddr, client.Client())
+	bridgeContract, err := polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeAddr, client.Client())
 	require.NoError(t, err)
 
 	checkGERAddr, err := bridgeContract.GlobalExitRootManager(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	require.Equal(t, precalculatedAddr, checkGERAddr)
 
-	gerAddr, _, gerContract, err = gerContractL1.DeployGlobalexitrootnopush0(authDeployer, client.Client(),
+	gerAddr, _, gerContract, err := gerContractL1.DeployGlobalexitrootnopush0(authDeployer, client.Client(),
 		auth.From, bridgeAddr)
 	require.NoError(t, err)
 	client.Commit()
 
 	require.Equal(t, precalculatedAddr, gerAddr)
 
-	return client, gerAddr, gerContract, bridgeAddr, bridgeContract
+	return client, auth, gerAddr, gerContract, bridgeAddr, bridgeContract
 }
 
-func newSimulatedEVMAggSovereignChain(t *testing.T, auth *bind.TransactOpts) (
-	client *simulated.Backend,
-	gerAddr common.Address,
-	gerContract *gerContractEVMChain.Pessimisticglobalexitrootnopush0,
-	bridgeAddr common.Address,
-	bridgeContract *polygonzkevmbridgev2.Polygonzkevmbridgev2,
+func newSimulatedEVMAggSovereignChain(t *testing.T) (
+	*simulated.Backend,
+	*bind.TransactOpts,
+	common.Address,
+	*gerContractEVMChain.Pessimisticglobalexitrootnopush0,
+	common.Address,
+	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
 ) {
 	ctx := context.Background()
 
-	privateKeyL1, err := crypto.GenerateKey()
+	// Create deployer
+	deployerPK, err := crypto.GenerateKey()
 	require.NoError(t, err)
-
-	authDeployer, err := bind.NewKeyedTransactorWithChainID(privateKeyL1, big.NewInt(chainID))
+	authDeployer, err := bind.NewKeyedTransactorWithChainID(deployerPK, big.NewInt(chainID))
 	require.NoError(t, err)
-
-	balance, _ := new(big.Int).SetString(initialBalance, 10) //nolint:mnd
-	address := auth.From
+	balance, _ := new(big.Int).SetString(initialBalance, 10)
 	precalculatedBridgeAddr := crypto.CreateAddress(authDeployer.From, 1)
-
-	genesisAlloc := map[common.Address]types.Account{
-		address: {
-			Balance: balance,
-		},
-		authDeployer.From: {
-			Balance: balance,
-		},
-		precalculatedBridgeAddr: {
-			Balance: balance,
-		},
-	}
-
-	const blockGasLimit = uint64(999999999999999999)
-	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
+	client, auth, _ := helpers.SimulatedBackend(t, map[common.Address]types.Account{
+		authDeployer.From:       {Balance: balance},
+		precalculatedBridgeAddr: {Balance: balance},
+	})
 
 	bridgeImplementationAddr, _, _, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(authDeployer, client.Client())
 	require.NoError(t, err)
@@ -288,7 +256,7 @@ func newSimulatedEVMAggSovereignChain(t *testing.T, auth *bind.TransactOpts) (
 	)
 	require.NoError(t, err)
 
-	bridgeAddr, _, _, err = transparentupgradableproxy.DeployTransparentupgradableproxy(
+	bridgeAddr, _, _, err := transparentupgradableproxy.DeployTransparentupgradableproxy(
 		authDeployer,
 		client.Client(),
 		bridgeImplementationAddr,
@@ -299,14 +267,14 @@ func newSimulatedEVMAggSovereignChain(t *testing.T, auth *bind.TransactOpts) (
 	require.Equal(t, precalculatedBridgeAddr, bridgeAddr)
 	client.Commit()
 
-	bridgeContract, err = polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeAddr, client.Client())
+	bridgeContract, err := polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeAddr, client.Client())
 	require.NoError(t, err)
 
 	checkGERAddr, err := bridgeContract.GlobalExitRootManager(&bind.CallOpts{})
 	require.NoError(t, err)
 	require.Equal(t, precalculatedAddr, checkGERAddr)
 
-	gerAddr, _, gerContract, err = gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(
+	gerAddr, _, gerContract, err := gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(
 		authDeployer, client.Client(), auth.From)
 	require.NoError(t, err)
 	client.Commit()
@@ -320,5 +288,5 @@ func newSimulatedEVMAggSovereignChain(t *testing.T, auth *bind.TransactOpts) (
 	require.True(t, hasRole)
 	require.Equal(t, precalculatedAddr, gerAddr)
 
-	return client, gerAddr, gerContract, bridgeAddr, bridgeContract
+	return client, auth, gerAddr, gerContract, bridgeAddr, bridgeContract
 }
