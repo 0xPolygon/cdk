@@ -64,8 +64,9 @@ func Test_ReorgDetector(t *testing.T) {
 
 	reorgDetector.trackedBlocksLock.Lock()
 	headersList, ok := reorgDetector.trackedBlocks[subID]
-	reorgDetector.trackedBlocksLock.Unlock()
 	require.True(t, ok)
-	require.Equal(t, 1, headersList.len()) // Only block 2 left
-	require.Equal(t, remainingHeader.Hash(), headersList.get(2).Hash)
+	require.NotNil(t, headersList)
+	reorgDetector.trackedBlocksLock.Unlock()
+	require.Equal(t, 1, headersList.len()) // Only block 9 left
+	require.Equal(t, remainingHeader.Hash(), headersList.get(9).Hash)
 }

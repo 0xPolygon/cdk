@@ -18,7 +18,6 @@ import (
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,8 +29,8 @@ const (
 )
 
 type AggoracleWithEVMChainEnv struct {
-	L1Client         *simulated.Backend
-	L2Client         *simulated.Backend
+	L1Client         *helpers.TestClient
+	L2Client         *helpers.TestClient
 	L1InfoTreeSync   *l1infotreesync.L1InfoTreeSync
 	GERL1Contract    *gerContractL1.Globalexitrootnopush0
 	GERL1Addr        common.Address
@@ -64,7 +63,7 @@ func SetupAggoracleWithEVMChain(t *testing.T) *AggoracleWithEVMChainEnv {
 	go oracle.Start(ctx)
 
 	return &AggoracleWithEVMChainEnv{
-		L1Client:         l1Client.Backend,
+		L1Client:         l1Client,
 		L2Client:         l2Client,
 		L1InfoTreeSync:   syncer,
 		GERL1Contract:    gerL1Contract,
@@ -100,7 +99,7 @@ func CommonSetup(t *testing.T) (
 	// Config and spin up
 	ctx := context.Background()
 
-	l1Client := helpers.NewTestClient(t, NetworkIDL2)
+	l1Client := helpers.NewTestClient(t, 0)
 	authL1 := l1Client.UserAuth()
 	bridgeL1Addr, bridgeL1Contract := l1Client.Polygonzkevmbridgev2()
 	gerL1Addr, gerL1Contract := l1Client.Globalexitrootnopush0()
@@ -125,7 +124,7 @@ func CommonSetup(t *testing.T) (
 
 func EVMSetup(t *testing.T) (
 	aggoracle.ChainSender,
-	*simulated.Backend,
+	*helpers.TestClient,
 	*gerContractEVMChain.Pessimisticglobalexitrootnopush0,
 	common.Address,
 	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
@@ -145,5 +144,5 @@ func EVMSetup(t *testing.T) (
 		gerL2Addr, authL2.From, l2Client.SClient, ethTxManMock, 0, time.Millisecond*50) //nolint:mnd
 	require.NoError(t, err)
 
-	return sender, l2Client.Backend, gerL2Sc, gerL2Addr, bridgeL2Sc, bridgeL2Addr, authL2, ethTxManMock
+	return sender, l2Client, gerL2Sc, gerL2Addr, bridgeL2Sc, bridgeL2Addr, authL2, ethTxManMock
 }

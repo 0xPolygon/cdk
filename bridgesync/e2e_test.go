@@ -41,7 +41,7 @@ func TestBridgeEventE2E(t *testing.T) {
 
 	for i := 0; i < 100; i++ {
 		bridge := bridgesync.Bridge{
-			BlockNum:           uint64(2 + i),
+			BlockNum:           uint64(9 + i),
 			Amount:             big.NewInt(0),
 			DepositCount:       uint32(i),
 			DestinationNetwork: 3,

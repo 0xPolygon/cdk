@@ -23,7 +23,7 @@ func TestE2E(t *testing.T) {
 		ctx,
 		dbPathSyncer,
 		env.ReorgDetector,
-		env.L2Client.Client(),
+		env.L2Client.SClient,
 		env.GERL2Addr,
 		env.L1InfoTreeSync,
 		0,
@@ -53,7 +53,7 @@ func TestE2E(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			lpb, err := syncer.GetLastProcessedBlock(ctx)
 			require.NoError(t, err)
-			lb, err := env.L2Client.Client().BlockNumber(ctx)
+			lb, err := env.L2Client.SClient.BlockNumber(ctx)
 			require.NoError(t, err)
 			if lpb == lb {
 				syncerUpToDate = true

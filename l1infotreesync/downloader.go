@@ -59,7 +59,7 @@ func sanityCheckContracts(globalExitRoot, rollupManager common.Address,
 	errGER := checkSMCIsGlobalExitRoot(globalExitRoot, gerContract)
 	errRollup := checkSMCIsRollupManager(rollupManager, rollupManagerContract)
 	if errGER != nil || errRollup != nil {
-		err := fmt.Errorf("sanityCheckContracts: fails sanity check contracts. ErrGER: %w, ErrRollup: %w", errGER, errRollup)
+		err := fmt.Errorf("sanityCheckContracts: fails sanity check contracts. ErrGER: %s, ErrRollup: %s", errGER, errRollup)
 		log.Error(err)
 		return err
 	}
@@ -90,6 +90,7 @@ func buildAppender(client EthClienter, globalExitRoot,
 		log.Error(err)
 		return nil, err
 	}
+	fmt.Println("rollupManager", rollupManager)
 	err = sanityCheckContracts(globalExitRoot, rollupManager, ger, rm)
 	if err != nil && flags&FlagAllowWrongContractsAddrs == 0 {
 		return nil, fmt.Errorf("buildAppender: fails sanity check contracts. Err:%w", err)

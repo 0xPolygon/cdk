@@ -17,7 +17,7 @@ import (
 
 func TestEVM(t *testing.T) {
 	env := aggoraclehelpers.SetupAggoracleWithEVMChain(t)
-	runTest(t, env.GERL1Contract, env.AggOracleSender, env.L1Client, env.AuthL1)
+	runTest(t, env.GERL1Contract, env.AggOracleSender, env.L1Client.Backend, env.AuthL1)
 }
 
 func runTest(
