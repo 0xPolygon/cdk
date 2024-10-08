@@ -16,45 +16,32 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/stretchr/testify/require"
 )
 
-func newSimulatedClient(t *testing.T, auth *bind.TransactOpts) (
-	client *simulated.Backend,
-	bridgeAddr common.Address,
-	bridgeContract *polygonzkevmbridgev2.Polygonzkevmbridgev2,
+func newSimulatedClient(t *testing.T) (
+	*simulated.Backend,
+	*bind.TransactOpts,
+	common.Address,
+	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
 ) {
 	t.Helper()
 
-	var err error
-	balance, _ := big.NewInt(0).SetString("10000000000000000000000000", 10)
-	address := auth.From
-	genesisAlloc := map[common.Address]types.Account{
-		address: {
-			Balance: balance,
-		},
-	}
-	blockGasLimit := uint64(999999999999999999)
-	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
-
-	bridgeAddr, _, bridgeContract, err = polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(auth, client.Client())
+	client, userAuth, deployerAuth := helpers.SimulatedBackend(t, nil)
+	bridgeAddr, _, bridgeContract, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(deployerAuth, client.Client())
 	require.NoError(t, err)
 	client.Commit()
 
-	return
+	return client, userAuth, bridgeAddr, bridgeContract
 }
 
 func TestBridgeEventE2E(t *testing.T) {
 	ctx := context.Background()
 	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	dbPathReorg := t.TempDir()
-	privateKey, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
-	require.NoError(t, err)
-	client, bridgeAddr, bridgeSc := newSimulatedClient(t, auth)
+
+	client, auth, bridgeAddr, bridgeSc := newSimulatedClient(t)
 	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg})
 	require.NoError(t, err)
 
