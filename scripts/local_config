@@ -29,6 +29,7 @@ function get_value_from_toml_file(){
     local _KEY="$3"
     local _LINE
     local _inside_section=0
+    local _return_next_line=0
     while read -r _LINE; do
         # Clean up line from spaces and tabs
         _LINE=$(echo $_LINE | tr -d '[:space:]')
@@ -37,12 +38,23 @@ function get_value_from_toml_file(){
             if [[ "$_LINE" == [* ]]; then
                 return 1
             fi
+            if [ $_return_next_line -eq 1 ]; then
+               # sed sentence remove quotes
+               echo $_LINE | sed 's/^[[:space:]]*"//;s/"$//'
+                
+                return 0
+            fi
             #local _key_splitted=(${_LINE//=/ })    
             local _key_name=$(echo $_LINE | cut -f 1 -d "=")
             local _key_value=$(echo $_LINE | cut -f 2- -d "=")
             if [ "$_key_name" == "$_KEY" ]; then
-                echo $_key_value
+                if [ $_key_value == "[" ]; then
+                    _return_next_line=1
+                else
+                # sed sentence remove quotes
+                echo $_key_value |  sed 's/^[[:space:]]*"//;s/"$//'
                 return 0
+                fi
             fi
         elif [ "$_LINE" == "[${_SECTION}]" ]; then
             _inside_section=1
@@ -74,20 +86,29 @@ function export_obj_key_from_toml_file_or_fatal(){
     local _SECTION="$3"
     local _KEY="$4"
     local _OBJ_KEY="$5"
+    log_debug "export_obj_key_from_toml_file_or_fatal: $_EXPORTED_VAR_NAME $_FILE $_SECTION $_KEY $_OBJ_KEY"
    local _VALUE=$(get_value_from_toml_file $_FILE $_SECTION $_KEY)
     if [ -z "$_VALUE" ]; then
-       log_fatal  "$FUNCNAME: obj_key $_KEY not found in section $_SECTION"
+       log_fatal  "export_obj_key_from_toml_file_or_fatal: obj_key $_KEY not found in section [$_SECTION]"
     fi
     local _CLEAN_VALUE=$(echo $_VALUE | tr -d '{' | tr -d '}' | tr  ',' '\n')
     while read -r _LINE; do
         local _key_splitted=(${_LINE//=/ })    
+       
         if [ "${_key_splitted[0]}" == "$_OBJ_KEY" ]; then
-            export $_EXPORTED_VAR_NAME=${_key_splitted[1]}
+            local _KEY_VALUE=${_key_splitted[1]}
+             if [ "$_KEY_VALUE" == "[" ]; then
+                read -r _LINE
+                _KEY_VALUE=$LINE 
+                echo "zzz $_KEY_VALUE"
+            fi
+            local _RES=$(echo $_KEY_VALUE |  sed 's/^[[:space:]]*"//;s/"$//')
+            export $_EXPORTED_VAR_NAME="${_RES}"
             log_debug "$_EXPORTED_VAR_NAME=${!_EXPORTED_VAR_NAME}  \t\t\t# file:$_FILE section:$_SECTION key:$_KEY obj_key:$_OBJ_KEY"
             return 0
         fi
     done <<< "$_CLEAN_VALUE"
-    log_fatal  "obj_key $_OBJ_KEY not found in section $_SECTION/ $_KEY = $_VALUE"
+    log_fatal  "export_obj_key_from_toml_file_or_fatal: obj_key $_OBJ_KEY not found in section $_SECTION/ $_KEY = $_VALUE"
 }
 
 ###############################################################################
@@ -107,17 +128,19 @@ function export_values_of_genesis(){
 ###############################################################################
 function export_values_of_cdk_node_config(){
     local _CDK_CONFIG_FILE=$1
-    export_key_from_toml_file_or_fatal      zkevm_l2_sequencer_address  $_CDK_CONFIG_FILE SequenceSender L2Coinbase
-    export_obj_key_from_toml_file_or_fatal  zkevm_l2_keystore_password  $_CDK_CONFIG_FILE SequenceSender PrivateKey Password
-    export_key_from_toml_file_or_fatal      l1_chain_id                 $_CDK_CONFIG_FILE SequenceSender.EthTxManager.Etherman L1ChainID
-    export_key_from_toml_file_or_fatal      zkevm_is_validium           $_CDK_CONFIG_FILE Common IsValidiumMode
-    export_key_from_toml_file_or_fatal      zkevm_contract_versions     $_CDK_CONFIG_FILE Common ContractVersions
-    export_key_from_toml_file_or_fatal      l2_chain_id                 $_CDK_CONFIG_FILE Aggregator ChainID
-    export_key_from_toml_file_or_fatal      zkevm_aggregator_port       $_CDK_CONFIG_FILE Aggregator Port
-    export_key_from_toml_file_or_fatal      zkevm_l2_agglayer_address   $_CDK_CONFIG_FILE Aggregator SenderAddress
-    export_key_from_toml_file_or_fatal      aggregator_db_name          $_CDK_CONFIG_FILE Aggregator.DB Name
-    export_key_from_toml_file_or_fatal      aggregator_db_user          $_CDK_CONFIG_FILE Aggregator.DB User
-    export_key_from_toml_file_or_fatal      aggregator_db_password      $_CDK_CONFIG_FILE Aggregator.DB Password
+    export_key_from_toml_file_or_fatal      zkevm_l2_sequencer_address              $_CDK_CONFIG_FILE SequenceSender L2Coinbase
+    export_obj_key_from_toml_file_or_fatal  zkevm_l2_sequencer_keystore_password              $_CDK_CONFIG_FILE SequenceSender PrivateKey Password
+    export_key_from_toml_file_or_fatal      l1_chain_id                             $_CDK_CONFIG_FILE SequenceSender.EthTxManager.Etherman L1ChainID
+    export_key_from_toml_file_or_fatal      zkevm_is_validium                       $_CDK_CONFIG_FILE Common IsValidiumMode
+    export_key_from_toml_file_or_fatal      zkevm_contract_versions                 $_CDK_CONFIG_FILE Common ContractVersions
+    export_key_from_toml_file_or_fatal      l2_chain_id                             $_CDK_CONFIG_FILE Aggregator ChainID
+    export_key_from_toml_file_or_fatal      zkevm_aggregator_port                   $_CDK_CONFIG_FILE Aggregator Port
+    export_key_from_toml_file_or_fatal      zkevm_l2_agglayer_address               $_CDK_CONFIG_FILE Aggregator SenderAddress
+    export_key_from_toml_file_or_fatal      aggregator_db_name                      $_CDK_CONFIG_FILE Aggregator.DB Name
+    export_key_from_toml_file_or_fatal      aggregator_db_user                      $_CDK_CONFIG_FILE Aggregator.DB User
+    export_key_from_toml_file_or_fatal      aggregator_db_password                  $_CDK_CONFIG_FILE Aggregator.DB           Password
+    export_obj_key_from_toml_file_or_fatal  zkevm_l2_aggregator_keystore_password   $_CDK_CONFIG_FILE Aggregator.EthTxManager PrivateKeys Password
+    
     export_key_from_toml_file_or_fatal      zkevm_rollup_fork_id        $_CDK_CONFIG_FILE Aggregator ForkId
     export is_cdk_validium=$zkevm_is_validium
     export zkevm_rollup_chain_id=$l2_chain_id
@@ -126,13 +149,32 @@ function export_values_of_cdk_node_config(){
         log_debug "Validium mode detected... Retrieving the dac_port"
         export_value_from_kurtosis_or_fail dac_port zkevm-dac-001 dac
     fi
+    export zkevm_l2_keystore_password=$zkevm_l2_sequencer_keystore_password
 }
+###############################################################################
+# params: 
+# $1 -> exported variable name
+# $2 -> service name
+# $3...$n -> endpoint names (will try all of them until one is found)
 ###############################################################################
 function export_value_from_kurtosis_or_fail(){
     local _EXPORTED_VAR_NAME="$1"
-    local _SERVICE="$2"
-    local _END_POINT="$3"
-    export $_EXPORTED_VAR_NAME=$(kurtosis port print $KURTOSIS_ENCLAVE $_SERVICE $_END_POINT)
+    shift
+    local _SERVICE="$1"
+    shift
+    local _END_POINT
+    local _RESULT
+    log_debug "Trying to get kurtosis value:$_EXPORTED_VAR_NAME =   $KURTOSIS_ENCLAVE $_SERVICE $*"
+    while [ ! -z $1 ]; do
+        _END_POINT=$1
+        shift
+        log_debug "---  kurtosis value:  $KURTOSIS_ENCLAVE $_SERVICE $_END_POINT"
+        _RESULT=$(kurtosis port print $KURTOSIS_ENCLAVE $_SERVICE $_END_POINT 2>/dev/null)
+        if [ ! -z $_RESULT ]; then
+            break
+        fi
+    done
+    export $_EXPORTED_VAR_NAME=$_RESULT
     if [ -z $_EXPORTED_VAR_NAME ]; then
         log_fatal "Error getting kurtosis port:  $KURTOSIS_ENCLAVE $_SERVICE $_END_POINT"
     fi
@@ -141,10 +183,12 @@ function export_value_from_kurtosis_or_fail(){
 ###############################################################################
 function export_portnum_from_kurtosis_or_fail(){
     local _EXPORTED_VAR_NAME="$1"
-    export_value_from_kurtosis_or_fail "$1" "$2" "$3" > /dev/null
+    export_value_from_kurtosis_or_fail $* > /dev/null
     local _VALUE
     eval "_VALUE=\$$1"
-    local _PORT=$(echo "$_VALUE" | cut -f 3 -d ":")
+    # sed sentece eliminate protocol (xyz://) is have it
+    # kurtosis sometimes include protocol but not always  
+    local _PORT=$(echo "$_VALUE" |  sed -E 's|^[a-zA-Z]+://||' | cut -f 2 -d ":")
     if [ -z $_PORT ]; then
         log_fatal "Error getting port number from kurtosis:  $2 $3 -> $_VALUE"
     fi
@@ -154,13 +198,13 @@ function export_portnum_from_kurtosis_or_fail(){
 ###############################################################################
 function export_ports_from_kurtosis(){
     export_portnum_from_kurtosis_or_fail    l1_rpc_port              el-1-geth-lighthouse rpc
-    export_value_from_kurtosis_or_fail      l1_rpc_url               el-1-geth-lighthouse rpc
-    export_value_from_kurtosis_or_fail      l2_rpc_url               cdk-erigon-node-001 http-rpc
-    export_portnum_from_kurtosis_or_fail    zkevm_rpc_http_port      cdk-erigon-node-001 http-rpc
+    export_portnum_from_kurtosis_or_fail    zkevm_rpc_http_port      cdk-erigon-node-001 http-rpc rpc
     export_portnum_from_kurtosis_or_fail    zkevm_data_streamer_port cdk-erigon-sequencer-001 data-streamer
     export_portnum_from_kurtosis_or_fail    aggregator_db_port       postgres-001 postgres
     export_portnum_from_kurtosis_or_fail    agglayer_port            agglayer agglayer
     export aggregator_db_hostname="127.0.0.1"
+    export l1_rpc_url="http://localhost:${l1_rpc_port}"
+    export l2_rpc_url="http://localhost:${zkevm_rpc_http_port}"
 }
 
 ###############################################################################
@@ -211,10 +255,15 @@ function download_kurtosis_artifacts(){
     
     kurtosis files download $KURTOSIS_ENCLAVE sequencer-keystore $DEST
     ok_or_fatal "Error downloading kurtosis artifact sequencer-keystore  to $DEST"
-    export sequencer_keystore_file=$DEST/sequencer.keystore
+    export zkevm_l2_sequencer_keystore_file=$DEST/sequencer.keystore
     
     kurtosis files download $KURTOSIS_ENCLAVE cdk-node-config-artifact $DEST
     ok_or_fatal "Error downloading kurtosis artifact cdk-node-config-artifact  to $DEST"
+
+    kurtosis files download $KURTOSIS_ENCLAVE aggregator-keystore $DEST
+    ok_or_fatal "Error downloading kurtosis artifact cdk-node-config-artifact  to $DEST"
+    export zkevm_l2_aggregator_keystore_file=$DEST/aggregator.keystore
+    
 }
 ###############################################################################
 function check_generated_config_file(){

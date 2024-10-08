@@ -35,10 +35,10 @@ import (
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/pgstatestorage"
 	"github.com/0xPolygon/cdk/translator"
-	ethtxman "github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman/etherscan"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
-	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
+	ethtxman "github.com/0xPolygon/zkevm-ethtx-manager/etherman"
+	"github.com/0xPolygon/zkevm-ethtx-manager/etherman/etherscan"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	ethtxlog "github.com/0xPolygon/zkevm-ethtx-manager/log"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
@@ -179,6 +179,12 @@ func createSequenceSender(
 	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
 ) *sequencesender.SequenceSender {
 	logger := log.WithFields("module", cdkcommon.SEQUENCE_SENDER)
+
+	// Check config
+	if cfg.SequenceSender.RPCURL == "" {
+		logger.Fatal("Required field RPCURL is empty in sequence sender config")
+	}
+
 	ethman, err := etherman.NewClient(ethermanconfig.Config{
 		EthermanConfig: ethtxman.Config{
 			URL:              cfg.SequenceSender.EthTxManager.Etherman.URL,
@@ -200,9 +206,9 @@ func createSequenceSender(
 		logger.Fatal(err)
 	}
 	cfg.SequenceSender.SenderAddress = auth.From
-	blockFialityType := etherman.BlockNumberFinality(cfg.SequenceSender.BlockFinality)
+	blockFinalityType := etherman.BlockNumberFinality(cfg.SequenceSender.BlockFinality)
 
-	blockFinality, err := blockFialityType.ToBlockNum()
+	blockFinality, err := blockFinalityType.ToBlockNum()
 	if err != nil {
 		logger.Fatalf("Failed to create block finality. Err: %w, ", err)
 	}
