@@ -31,6 +31,30 @@ Setup Kurtosis following this instructions https://github.com/0xPolygon/kurtosis
 
 - You can run locally against kurtosis-cdk environment using: [docs/local_debug.md](docs/local_debug.md)
 
+### Build locally
+
+You can locally build a production release of CDK CLI + cdk-node with:
+
+```
+make build
+```
+
+### Run locally
+
+You can build and run a debug release locally using:
+
+```
+cargo run
+```
+
+It will build and run both binaries.
+### Running with Kurtosis
+
+1. Run your kurtosis environment
+2. build `cdk-erigon` and make it available in your system's PATH
+3. Run `scripts/local_config`
+4. cargo run -- --config ./tmp/cdk/local_config/test.kurtosis.toml --chain ./tmp/cdk/local_config/genesis.json erigon
+
 ## Contributing
 
 Contributions are very welcomed, the guidelines are currently not available (WIP)
