@@ -2,34 +2,13 @@ package reorgdetector
 
 import (
 	"context"
-	big "math/big"
 	"testing"
 	"time"
 
 	cdktypes "github.com/0xPolygon/cdk/config/types"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient/simulated"
+	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/stretchr/testify/require"
 )
-
-func newSimulatedL1(t *testing.T, auth *bind.TransactOpts) *simulated.Backend {
-	t.Helper()
-
-	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10)
-
-	blockGasLimit := uint64(999999999999999999)
-	client := simulated.NewBackend(map[common.Address]types.Account{
-		auth.From: {
-			Balance: balance,
-		},
-	}, simulated.WithBlockGasLimit(blockGasLimit))
-	client.Commit()
-
-	return client
-}
 
 func Test_ReorgDetector(t *testing.T) {
 	const subID = "test"
@@ -37,17 +16,12 @@ func Test_ReorgDetector(t *testing.T) {
 	ctx := context.Background()
 
 	// Simulated L1
-	privateKeyL1, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	authL1, err := bind.NewKeyedTransactorWithChainID(privateKeyL1, big.NewInt(1337))
-	require.NoError(t, err)
-	clientL1 := newSimulatedL1(t, authL1)
-	require.NoError(t, err)
+	clientL1 := helpers.NewTestClient(t)
 
 	// Create test DB dir
 	testDir := t.TempDir()
 
-	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
+	reorgDetector, err := New(clientL1.SClient, Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
 	require.NoError(t, err)
 
 	err = reorgDetector.Start(ctx)
@@ -56,21 +30,21 @@ func Test_ReorgDetector(t *testing.T) {
 	reorgSub, err := reorgDetector.Subscribe(subID)
 	require.NoError(t, err)
 
-	remainingHeader, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit()) // Block 2
+	remainingHeader, err := clientL1.SClient.HeaderByHash(ctx, clientL1.Commit()) // Block 2
 	require.NoError(t, err)
 	err = reorgDetector.AddBlockToTrack(ctx, subID, remainingHeader.Number.Uint64(), remainingHeader.Hash()) // Adding block 2
 	require.NoError(t, err)
-	reorgHeader, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit()) // Block 3
+	reorgHeader, err := clientL1.SClient.HeaderByHash(ctx, clientL1.Commit()) // Block 3
 	require.NoError(t, err)
-	firstHeaderAfterReorg, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit()) // Block 4
+	firstHeaderAfterReorg, err := clientL1.SClient.HeaderByHash(ctx, clientL1.Commit()) // Block 4
 	require.NoError(t, err)
 	err = reorgDetector.AddBlockToTrack(ctx, subID, firstHeaderAfterReorg.Number.Uint64(), firstHeaderAfterReorg.Hash()) // Adding block 4
 	require.NoError(t, err)
-	header, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit()) // Block 5
+	header, err := clientL1.SClient.HeaderByHash(ctx, clientL1.Commit()) // Block 5
 	require.NoError(t, err)
 	err = reorgDetector.AddBlockToTrack(ctx, subID, header.Number.Uint64(), header.Hash()) // Adding block 5
 	require.NoError(t, err)
-	err = clientL1.Fork(reorgHeader.Hash()) // Reorg on block 3
+	err = clientL1.Backend.Fork(reorgHeader.Hash()) // Reorg on block 3
 	require.NoError(t, err)
 	clientL1.Commit() // Next block 4 after reorg on block 3
 	clientL1.Commit() // Block 5

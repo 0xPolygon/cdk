@@ -5,15 +5,15 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/0xPolygon/cdk/test/helpers"
+
 	smcparis "github.com/0xPolygon/cdk-contracts-tooling/contracts/banana-paris/polygondatacommittee"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygondatacommittee"
 	"github.com/0xPolygon/cdk/log"
 	erc1967proxy "github.com/0xPolygon/cdk/test/contracts/erc1967proxy"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -66,7 +66,7 @@ func init() {
 // This function prepare the blockchain, the wallet with funds and deploy the smc
 func newTestingEnv(t *testing.T) (
 	dac *Backend,
-	ethBackend *simulated.Backend,
+	ethBackend *helpers.TestClient,
 	auth *bind.TransactOpts,
 	da *polygondatacommittee.Polygondatacommittee,
 ) {
@@ -91,7 +91,7 @@ func newTestingEnv(t *testing.T) (
 // must be 1337. The address that holds the auth will have an initial balance of 10 ETH
 func newSimulatedDacman(t *testing.T, auth *bind.TransactOpts) (
 	dacman *Backend,
-	ethBackend *simulated.Backend,
+	ethBackend *helpers.TestClient,
 	da *polygondatacommittee.Polygondatacommittee,
 	err error,
 ) {
@@ -100,30 +100,22 @@ func newSimulatedDacman(t *testing.T, auth *bind.TransactOpts) (
 		// read only client
 		return &Backend{}, nil, nil, nil
 	}
-	// 10000000 ETH in wei
-	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10)
-	address := auth.From
-	genesisAlloc := map[common.Address]types.Account{
-		address: {
-			Balance: balance,
-		},
-	}
-	blockGasLimit := uint64(999999999999999999)
-	client := simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
+
+	client := helpers.NewTestClient(t)
 
 	// DAC Setup
-	addr, _, _, err := smcparis.DeployPolygondatacommittee(auth, client.Client())
+	addr, _, _, err := smcparis.DeployPolygondatacommittee(auth, client.SClient)
 	if err != nil {
 		return &Backend{}, nil, nil, err
 	}
 	client.Commit()
-	proxyAddr, err := deployDACProxy(auth, client.Client(), addr)
+	proxyAddr, err := deployDACProxy(auth, client.SClient, addr)
 	if err != nil {
 		return &Backend{}, nil, nil, err
 	}
 
 	client.Commit()
-	da, err = polygondatacommittee.NewPolygondatacommittee(proxyAddr, client.Client())
+	da, err = polygondatacommittee.NewPolygondatacommittee(proxyAddr, client.SClient)
 	if err != nil {
 		return &Backend{}, nil, nil, err
 	}
