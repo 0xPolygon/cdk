@@ -66,28 +66,28 @@ func init() {
 // NewSimulatedEtherman creates an etherman that uses a simulated blockchain. It's important to notice that the ChainID of the auth
 // must be 1337. The address that holds the auth will have an initial balance of 10 ETH
 func newSimulatedDacman(t *testing.T) (
-	dacman *Backend,
-	ethBackend *simulated.Backend,
-	da *polygondatacommittee.Polygondatacommittee,
-	auth *bind.TransactOpts,
+	*Backend,
+	*simulated.Backend,
+	*polygondatacommittee.Polygondatacommittee,
+	*bind.TransactOpts,
 ) {
 	t.Helper()
 
-	ethBackend, auth, _ = helpers.SimulatedBackend(t, nil)
+	ethBackend, setup := helpers.SimulatedBackend(t, nil)
 
 	// DAC Setup
-	addr, _, _, err := smcparis.DeployPolygondatacommittee(auth, ethBackend.Client())
+	addr, _, _, err := smcparis.DeployPolygondatacommittee(setup.UserAuth, ethBackend.Client())
 	require.NoError(t, err)
 	ethBackend.Commit()
 
-	proxyAddr, err := deployDACProxy(auth, ethBackend.Client(), addr)
+	proxyAddr, err := deployDACProxy(setup.UserAuth, ethBackend.Client(), addr)
 	require.NoError(t, err)
 	ethBackend.Commit()
 
-	da, err = polygondatacommittee.NewPolygondatacommittee(proxyAddr, ethBackend.Client())
+	da, err := polygondatacommittee.NewPolygondatacommittee(proxyAddr, ethBackend.Client())
 	require.NoError(t, err)
 
-	_, err = da.SetupCommittee(auth, big.NewInt(0), []string{}, []byte{})
+	_, err = da.SetupCommittee(setup.UserAuth, big.NewInt(0), []string{}, []byte{})
 	require.NoError(t, err)
 	ethBackend.Commit()
 
@@ -95,7 +95,7 @@ func newSimulatedDacman(t *testing.T) (
 		dataCommitteeContract: da,
 	}
 
-	return c, ethBackend, da, auth
+	return c, ethBackend, da, setup.UserAuth
 }
 
 func deployDACProxy(auth *bind.TransactOpts, client bind.ContractBackend, dacImpl common.Address) (common.Address, error) {

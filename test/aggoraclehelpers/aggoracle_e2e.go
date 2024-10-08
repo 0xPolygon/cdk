@@ -161,15 +161,15 @@ func newSimulatedL1(t *testing.T) (
 
 	ctx := context.Background()
 
-	client, auth, authDeployer := helpers.SimulatedBackend(t, nil)
+	client, setup := helpers.SimulatedBackend(t, nil)
 
-	bridgeImplementationAddr, _, _, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(authDeployer, client.Client())
+	bridgeImplementationAddr, _, _, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(setup.DeployerAuth, client.Client())
 	require.NoError(t, err)
 	client.Commit()
 
-	nonce, err := client.Client().PendingNonceAt(ctx, authDeployer.From)
+	nonce, err := client.Client().PendingNonceAt(ctx, setup.DeployerAuth.From)
 	require.NoError(t, err)
-	precalculatedAddr := crypto.CreateAddress(authDeployer.From, nonce+1)
+	precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, nonce+1)
 	bridgeABI, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
 	require.NoError(t, err)
 	require.NotNil(t, bridgeABI)
@@ -185,10 +185,10 @@ func newSimulatedL1(t *testing.T) (
 	require.NoError(t, err)
 
 	bridgeAddr, _, _, err := transparentupgradableproxy.DeployTransparentupgradableproxy(
-		authDeployer,
+		setup.DeployerAuth,
 		client.Client(),
 		bridgeImplementationAddr,
-		authDeployer.From,
+		setup.DeployerAuth.From,
 		dataCallProxy,
 	)
 	require.NoError(t, err)
@@ -201,14 +201,14 @@ func newSimulatedL1(t *testing.T) (
 	require.NoError(t, err)
 	require.Equal(t, precalculatedAddr, checkGERAddr)
 
-	gerAddr, _, gerContract, err := gerContractL1.DeployGlobalexitrootnopush0(authDeployer, client.Client(),
-		auth.From, bridgeAddr)
+	gerAddr, _, gerContract, err := gerContractL1.DeployGlobalexitrootnopush0(setup.DeployerAuth, client.Client(),
+		setup.UserAuth.From, bridgeAddr)
 	require.NoError(t, err)
 	client.Commit()
 
 	require.Equal(t, precalculatedAddr, gerAddr)
 
-	return client, auth, gerAddr, gerContract, bridgeAddr, bridgeContract
+	return client, setup.UserAuth, gerAddr, gerContract, bridgeAddr, bridgeContract
 }
 
 func newSimulatedEVMAggSovereignChain(t *testing.T) (
@@ -230,7 +230,7 @@ func newSimulatedEVMAggSovereignChain(t *testing.T) (
 	require.NoError(t, err)
 	balance, _ := new(big.Int).SetString(initialBalance, 10) //nolint:mnd
 	precalculatedBridgeAddr := crypto.CreateAddress(authDeployer.From, 1)
-	client, auth, _ := helpers.SimulatedBackend(t, map[common.Address]types.Account{
+	client, setup := helpers.SimulatedBackend(t, map[common.Address]types.Account{
 		authDeployer.From:       {Balance: balance},
 		precalculatedBridgeAddr: {Balance: balance},
 	})
@@ -276,18 +276,18 @@ func newSimulatedEVMAggSovereignChain(t *testing.T) (
 	require.Equal(t, precalculatedAddr, checkGERAddr)
 
 	gerAddr, _, gerContract, err := gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(
-		authDeployer, client.Client(), auth.From)
+		authDeployer, client.Client(), setup.UserAuth.From)
 	require.NoError(t, err)
 	client.Commit()
 
 	globalExitRootSetterRole := common.HexToHash("0x7b95520991dfda409891be0afa2635b63540f92ee996fda0bf695a166e5c5176")
-	_, err = gerContract.GrantRole(authDeployer, globalExitRootSetterRole, auth.From)
+	_, err = gerContract.GrantRole(authDeployer, globalExitRootSetterRole, setup.UserAuth.From)
 	require.NoError(t, err)
 	client.Commit()
 
-	hasRole, _ := gerContract.HasRole(&bind.CallOpts{Pending: false}, globalExitRootSetterRole, auth.From)
+	hasRole, _ := gerContract.HasRole(&bind.CallOpts{Pending: false}, globalExitRootSetterRole, setup.UserAuth.From)
 	require.True(t, hasRole)
 	require.Equal(t, precalculatedAddr, gerAddr)
 
-	return client, auth, gerAddr, gerContract, bridgeAddr, bridgeContract
+	return client, setup.UserAuth, gerAddr, gerContract, bridgeAddr, bridgeContract
 }

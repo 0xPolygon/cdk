@@ -36,23 +36,23 @@ func newSimulatedClient(t *testing.T) (
 	t.Helper()
 
 	ctx := context.Background()
-	client, auth, _ := helpers.SimulatedBackend(t, nil)
+	client, setup := helpers.SimulatedBackend(t, nil)
 
-	nonce, err := client.Client().PendingNonceAt(ctx, auth.From)
+	nonce, err := client.Client().PendingNonceAt(ctx, setup.UserAuth.From)
 	require.NoError(t, err)
 
-	precalculatedAddr := crypto.CreateAddress(auth.From, nonce+1)
-	verifyAddr, _, verifyContract, err := verifybatchesmock.DeployVerifybatchesmock(auth, client.Client(), precalculatedAddr)
+	precalculatedAddr := crypto.CreateAddress(setup.UserAuth.From, nonce+1)
+	verifyAddr, _, verifyContract, err := verifybatchesmock.DeployVerifybatchesmock(setup.UserAuth, client.Client(), precalculatedAddr)
 	require.NoError(t, err)
 	client.Commit()
 
-	gerAddr, _, gerContract, err := polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(auth, client.Client(), verifyAddr, auth.From)
+	gerAddr, _, gerContract, err := polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(setup.UserAuth, client.Client(), verifyAddr, setup.UserAuth.From)
 	require.NoError(t, err)
 	client.Commit()
 
 	require.Equal(t, precalculatedAddr, gerAddr)
 
-	return client, auth, gerAddr, verifyAddr, gerContract, verifyContract
+	return client, setup.UserAuth, gerAddr, verifyAddr, gerContract, verifyContract
 }
 
 func TestE2E(t *testing.T) {

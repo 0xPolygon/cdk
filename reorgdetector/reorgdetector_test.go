@@ -16,7 +16,7 @@ func Test_ReorgDetector(t *testing.T) {
 	ctx := context.Background()
 
 	// Simulated L1
-	clientL1, _, _ := helpers.SimulatedBackend(t, nil)
+	clientL1, _ := helpers.SimulatedBackend(t, nil)
 
 	// Create test DB dir
 	testDir := t.TempDir()
@@ -66,6 +66,6 @@ func Test_ReorgDetector(t *testing.T) {
 	headersList, ok := reorgDetector.trackedBlocks[subID]
 	reorgDetector.trackedBlocksLock.Unlock()
 	require.True(t, ok)
-	require.Equal(t, 1, headersList.len()) // Only block 1 left
-	require.Equal(t, remainingHeader.Hash(), headersList.get(1).Hash)
+	require.Equal(t, 1, headersList.len()) // Only block 3 left
+	require.Equal(t, remainingHeader.Hash(), headersList.get(3).Hash)
 }

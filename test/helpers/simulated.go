@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry-paris/polygonzkevmbridgev2"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -29,11 +30,19 @@ func (tc TestClient) Client() *rpc.Client {
 	return nil
 }
 
+// SimulatedBackendSetup defines the setup for a simulated backend.
+type SimulatedBackendSetup struct {
+	UserAuth              *bind.TransactOpts
+	DeployerAuth          *bind.TransactOpts
+	EBZkevmBridgeAddr     common.Address
+	EBZkevmBridgeContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
+}
+
 // SimulatedBackend creates a simulated backend with two accounts: user and deployer.
 func SimulatedBackend(
 	t *testing.T,
 	balances map[common.Address]types.Account,
-) (*simulated.Backend, *bind.TransactOpts, *bind.TransactOpts) {
+) (*simulated.Backend, *SimulatedBackendSetup) {
 	t.Helper()
 
 	// Define default balance
@@ -61,5 +70,18 @@ func SimulatedBackend(
 
 	client := simulated.NewBackend(balances, simulated.WithBlockGasLimit(defaultBlockGasLimit))
 
-	return client, userAuth, deployerAuth
+	// Mine the first block
+	client.Commit()
+
+	// Deploy zkevm bridge contract
+	ebZkevmBridgeAddr, _, ebZkevmBridgeContract, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(deployerAuth, client.Client())
+	require.NoError(t, err)
+	client.Commit()
+
+	return client, &SimulatedBackendSetup{
+		UserAuth:              userAuth,
+		DeployerAuth:          deployerAuth,
+		EBZkevmBridgeAddr:     ebZkevmBridgeAddr,
+		EBZkevmBridgeContract: ebZkevmBridgeContract,
+	}
 }
