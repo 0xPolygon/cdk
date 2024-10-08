@@ -73,7 +73,7 @@ func newSimulatedDacman(t *testing.T) (
 ) {
 	t.Helper()
 
-	ethBackend, setup := helpers.SimulatedBackend(t, nil)
+	ethBackend, setup := helpers.SimulatedBackend(t, nil, 0)
 
 	// DAC Setup
 	addr, _, _, err := smcparis.DeployPolygondatacommittee(setup.UserAuth, ethBackend.Client())

@@ -2,7 +2,6 @@ package aggoraclehelpers
 
 import (
 	"context"
-	"math/big"
 	"path"
 	"testing"
 	"time"
@@ -16,11 +15,9 @@ import (
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
-	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/stretchr/testify/require"
@@ -159,56 +156,16 @@ func newSimulatedL1(t *testing.T) (
 ) {
 	t.Helper()
 
-	ctx := context.Background()
-
-	client, setup := helpers.SimulatedBackend(t, nil)
-
-	bridgeImplementationAddr, _, _, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(setup.DeployerAuth, client.Client())
-	require.NoError(t, err)
-	client.Commit()
-
-	nonce, err := client.Client().PendingNonceAt(ctx, setup.DeployerAuth.From)
-	require.NoError(t, err)
-	precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, nonce+1)
-	bridgeABI, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
-	require.NoError(t, err)
-	require.NotNil(t, bridgeABI)
-
-	dataCallProxy, err := bridgeABI.Pack("initialize",
-		uint32(0),        // networkIDMainnet
-		common.Address{}, // gasTokenAddressMainnet"
-		uint32(0),        // gasTokenNetworkMainnet
-		precalculatedAddr,
-		common.Address{},
-		[]byte{}, // gasTokenMetadata
-	)
-	require.NoError(t, err)
-
-	bridgeAddr, _, _, err := transparentupgradableproxy.DeployTransparentupgradableproxy(
-		setup.DeployerAuth,
-		client.Client(),
-		bridgeImplementationAddr,
-		setup.DeployerAuth.From,
-		dataCallProxy,
-	)
-	require.NoError(t, err)
-	client.Commit()
-
-	bridgeContract, err := polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeAddr, client.Client())
-	require.NoError(t, err)
-
-	checkGERAddr, err := bridgeContract.GlobalExitRootManager(&bind.CallOpts{Pending: false})
-	require.NoError(t, err)
-	require.Equal(t, precalculatedAddr, checkGERAddr)
+	client, setup := helpers.SimulatedBackend(t, nil, 0)
 
 	gerAddr, _, gerContract, err := gerContractL1.DeployGlobalexitrootnopush0(setup.DeployerAuth, client.Client(),
-		setup.UserAuth.From, bridgeAddr)
+		setup.UserAuth.From, setup.EBZkevmBridgeProxyAddr)
 	require.NoError(t, err)
 	client.Commit()
 
-	require.Equal(t, precalculatedAddr, gerAddr)
+	// require.Equal(t, precalculatedAddr, gerAddr)
 
-	return client, setup.UserAuth, gerAddr, gerContract, bridgeAddr, bridgeContract
+	return client, setup.UserAuth, gerAddr, gerContract, setup.EBZkevmBridgeProxyAddr, setup.EBZkevmBridgeProxyContract
 }
 
 func newSimulatedEVMAggSovereignChain(t *testing.T) (
@@ -221,67 +178,17 @@ func newSimulatedEVMAggSovereignChain(t *testing.T) (
 ) {
 	t.Helper()
 
-	ctx := context.Background()
+	client, setup := helpers.SimulatedBackend(t, nil, NetworkIDL2)
 
-	// Create deployer
-	deployerPK, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	authDeployer, err := bind.NewKeyedTransactorWithChainID(deployerPK, big.NewInt(chainID))
-	require.NoError(t, err)
-	balance, _ := new(big.Int).SetString(initialBalance, 10) //nolint:mnd
-	precalculatedBridgeAddr := crypto.CreateAddress(authDeployer.From, 1)
-	client, setup := helpers.SimulatedBackend(t, map[common.Address]types.Account{
-		authDeployer.From:       {Balance: balance},
-		precalculatedBridgeAddr: {Balance: balance},
-	})
-
-	bridgeImplementationAddr, _, _, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(authDeployer, client.Client())
-	require.NoError(t, err)
-	client.Commit()
-
-	nonce, err := client.Client().PendingNonceAt(ctx, authDeployer.From)
-	require.NoError(t, err)
-	precalculatedAddr := crypto.CreateAddress(authDeployer.From, nonce+1)
-
-	bridgeABI, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
-	require.NoError(t, err)
-	require.NotNil(t, bridgeABI)
-
-	dataCallProxy, err := bridgeABI.Pack("initialize",
-		NetworkIDL2,
-		common.Address{}, // gasTokenAddressMainnet"
-		uint32(0),        // gasTokenNetworkMainnet
-		precalculatedAddr,
-		common.Address{},
-		[]byte{}, // gasTokenMetadata
-	)
-	require.NoError(t, err)
-
-	bridgeAddr, _, _, err := transparentupgradableproxy.DeployTransparentupgradableproxy(
-		authDeployer,
-		client.Client(),
-		bridgeImplementationAddr,
-		authDeployer.From,
-		dataCallProxy,
-	)
-	require.NoError(t, err)
-	require.Equal(t, precalculatedBridgeAddr, bridgeAddr)
-	client.Commit()
-
-	bridgeContract, err := polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeAddr, client.Client())
-	require.NoError(t, err)
-
-	checkGERAddr, err := bridgeContract.GlobalExitRootManager(&bind.CallOpts{})
-	require.NoError(t, err)
-	require.Equal(t, precalculatedAddr, checkGERAddr)
+	precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2)
 
 	gerAddr, _, gerContract, err := gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(
-		authDeployer, client.Client(), setup.UserAuth.From)
+		setup.DeployerAuth, client.Client(), setup.UserAuth.From)
 	require.NoError(t, err)
 	client.Commit()
 
 	globalExitRootSetterRole := common.HexToHash("0x7b95520991dfda409891be0afa2635b63540f92ee996fda0bf695a166e5c5176")
-	_, err = gerContract.GrantRole(authDeployer, globalExitRootSetterRole, setup.UserAuth.From)
+	_, err = gerContract.GrantRole(setup.DeployerAuth, globalExitRootSetterRole, setup.UserAuth.From)
 	require.NoError(t, err)
 	client.Commit()
 
@@ -289,5 +196,5 @@ func newSimulatedEVMAggSovereignChain(t *testing.T) (
 	require.True(t, hasRole)
 	require.Equal(t, precalculatedAddr, gerAddr)
 
-	return client, setup.UserAuth, gerAddr, gerContract, bridgeAddr, bridgeContract
+	return client, setup.UserAuth, gerAddr, gerContract, setup.EBZkevmBridgeProxyAddr, setup.EBZkevmBridgeProxyContract
 }

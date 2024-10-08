@@ -22,7 +22,7 @@ func TestBridgeEventE2E(t *testing.T) {
 	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	dbPathReorg := t.TempDir()
 
-	client, setup := helpers.SimulatedBackend(t, nil)
+	client, setup := helpers.SimulatedBackend(t, nil, 0)
 	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg})
 	require.NoError(t, err)
 

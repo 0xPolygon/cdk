@@ -36,7 +36,7 @@ func newSimulatedClient(t *testing.T) (
 	t.Helper()
 
 	ctx := context.Background()
-	client, setup := helpers.SimulatedBackend(t, nil)
+	client, setup := helpers.SimulatedBackend(t, nil, 0)
 
 	nonce, err := client.Client().PendingNonceAt(ctx, setup.UserAuth.From)
 	require.NoError(t, err)
