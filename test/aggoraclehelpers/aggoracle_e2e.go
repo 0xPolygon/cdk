@@ -155,7 +155,7 @@ func newSimulatedL1(t *testing.T) (
 
 	client, setup := helpers.SimulatedBackend(t, nil, 0)
 
-	precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2)
+	precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2) //nolint:mnd
 
 	gerAddr, _, gerContract, err := gerContractL1.DeployGlobalexitrootnopush0(setup.DeployerAuth, client.Client(),
 		setup.UserAuth.From, setup.EBZkevmBridgeProxyAddr)
@@ -179,7 +179,7 @@ func newSimulatedEVMAggSovereignChain(t *testing.T) (
 
 	client, setup := helpers.SimulatedBackend(t, nil, NetworkIDL2)
 
-	precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2)
+	precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2) //nolint:mnd
 
 	gerAddr, _, gerContract, err := gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(
 		setup.DeployerAuth, client.Client(), setup.UserAuth.From)

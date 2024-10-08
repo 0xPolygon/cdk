@@ -4,9 +4,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
-
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry-paris/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -90,7 +89,7 @@ func SimulatedBackend(
 	var ebZkevmBridgeProxyAddr common.Address
 	var ebZkevmBridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
 	{
-		precalculatedAddr := crypto.CreateAddress(deployerAuth.From, 2)
+		precalculatedAddr := crypto.CreateAddress(deployerAuth.From, 2) //nolint:mnd
 
 		bridgeABI, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
 		require.NoError(t, err)
