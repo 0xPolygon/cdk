@@ -25,9 +25,6 @@ import (
 
 const (
 	NetworkIDL2        = uint32(1)
-	chainID            = 1337
-	initialBalance     = "10000000000000000000000000"
-	blockGasLimit      = uint64(999999999999999999)
 	syncBlockChunkSize = 10
 	retries            = 3
 	periodRetry        = time.Millisecond * 100
