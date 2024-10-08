@@ -16,7 +16,7 @@ func Test_ReorgDetector(t *testing.T) {
 	ctx := context.Background()
 
 	// Simulated L1
-	clientL1 := helpers.NewTestClient(t)
+	clientL1 := helpers.NewTestClient(t, 0)
 
 	// Create test DB dir
 	testDir := t.TempDir()

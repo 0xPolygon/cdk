@@ -22,7 +22,7 @@ func TestBridgeEventE2E(t *testing.T) {
 	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	dbPathReorg := t.TempDir()
 
-	client := helpers.NewTestClient(t)
+	client := helpers.NewTestClient(t, 0)
 	auth := client.UserAuth()
 	bridgeAddr, bridgeSc := client.Polygonzkevmbridgev2()
 

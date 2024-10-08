@@ -9,12 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana-paris/polygonzkevmglobalexitrootv2"
 	cdktypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/reorgdetector"
-	"github.com/0xPolygon/cdk/test/contracts/verifybatchesmock"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -24,20 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newSimulatedClient(t *testing.T) (
-	client *helpers.TestClient,
-	gerAddr common.Address,
-	verifyAddr common.Address,
-	gerContract *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
-	verifyContract *verifybatchesmock.Verifybatchesmock,
-) {
-	client = helpers.NewTestClient(t)
-	verifyAddr, verifyContract = client.Verifybatchesmock()
-	gerAddr, gerContract = client.Polygonzkevmglobalexitrootv2()
-
-	return
-}
-
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
 	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
@@ -46,8 +30,10 @@ func TestE2E(t *testing.T) {
 	rdm.On("Subscribe", mock.Anything).Return(&reorgdetector.Subscription{}, nil)
 	rdm.On("AddBlockToTrack", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	client, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
+	client := helpers.NewTestClient(t, 0)
 	auth := client.UserAuth()
+	verifyAddr, verifySC := client.Verifybatchesmock()
+	gerAddr, gerSc := client.Polygonzkevmglobalexitrootv2()
 
 	syncer, err := l1infotreesync.New(ctx, dbPath, gerAddr, verifyAddr, 10, etherman.LatestBlock, rdm, client.SClient, time.Millisecond, 0, 100*time.Millisecond, 3,
 		l1infotreesync.FlagAllowWrongContractsAddrs)
@@ -136,8 +122,10 @@ func TestWithReorgs(t *testing.T) {
 	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	dbPathReorg := t.TempDir()
 
-	client, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
+	client := helpers.NewTestClient(t, 0)
 	auth := client.UserAuth()
+	verifyAddr, verifySC := client.Verifybatchesmock()
+	gerAddr, gerSc := client.Polygonzkevmglobalexitrootv2()
 
 	rd, err := reorgdetector.New(client.SClient, reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 30)})
 	require.NoError(t, err)
@@ -255,8 +243,10 @@ func TestStressAndReorgs(t *testing.T) {
 	dbPathSyncer := path.Join(t.TempDir(), "file:TestStressAndReorgs:memory:?cache=shared")
 	dbPathReorg := t.TempDir()
 
-	client, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
+	client := helpers.NewTestClient(t, 0)
 	auth := client.UserAuth()
+	verifyAddr, verifySC := client.Verifybatchesmock()
+	gerAddr, gerSc := client.Polygonzkevmglobalexitrootv2()
 
 	rd, err := reorgdetector.New(client.SClient, reorgdetector.Config{DBPath: dbPathReorg, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
 	require.NoError(t, err)

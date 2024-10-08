@@ -36,7 +36,6 @@ generate-mocks-l1infotreesync: ## Generates mocks for l1infotreesync, using mock
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../l1infotreesync --outpkg=l1infotreesync --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
 
 
-	
 .PHONY: generate-mocks-aggoracle
 generate-mocks-helpers: ## Generates mocks for helpers , using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager --dir=../aggoracle/chaingersender --output=./helpers --outpkg=helpers --structname=EthTxManagerMock --filename=mock_ethtxmanager.go

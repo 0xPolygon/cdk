@@ -5,12 +5,11 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygon/cdk/test/helpers"
-
 	smcparis "github.com/0xPolygon/cdk-contracts-tooling/contracts/banana-paris/polygondatacommittee"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygondatacommittee"
 	"github.com/0xPolygon/cdk/log"
 	erc1967proxy "github.com/0xPolygon/cdk/test/contracts/erc1967proxy"
+	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -101,7 +100,7 @@ func newSimulatedDacman(t *testing.T, auth *bind.TransactOpts) (
 		return &Backend{}, nil, nil, nil
 	}
 
-	client := helpers.NewTestClient(t)
+	client := helpers.NewTestClient(t, 0)
 
 	// DAC Setup
 	addr, _, _, err := smcparis.DeployPolygondatacommittee(auth, client.SClient)
