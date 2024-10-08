@@ -158,12 +158,14 @@ func newSimulatedL1(t *testing.T) (
 
 	client, setup := helpers.SimulatedBackend(t, nil, 0)
 
+	precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2)
+
 	gerAddr, _, gerContract, err := gerContractL1.DeployGlobalexitrootnopush0(setup.DeployerAuth, client.Client(),
 		setup.UserAuth.From, setup.EBZkevmBridgeProxyAddr)
 	require.NoError(t, err)
 	client.Commit()
 
-	// require.Equal(t, precalculatedAddr, gerAddr)
+	require.Equal(t, precalculatedAddr, gerAddr)
 
 	return client, setup.UserAuth, gerAddr, gerContract, setup.EBZkevmBridgeProxyAddr, setup.EBZkevmBridgeProxyContract
 }
