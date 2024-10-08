@@ -35,6 +35,7 @@ func NewL1(
 	waitForNewBlocksPeriod time.Duration,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
+	syncFullClaims bool,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -49,7 +50,7 @@ func NewL1(
 		waitForNewBlocksPeriod,
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
-		false,
+		syncFullClaims,
 	)
 }
 
@@ -66,6 +67,7 @@ func NewL2(
 	waitForNewBlocksPeriod time.Duration,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
+	syncFullClaims bool,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -80,7 +82,7 @@ func NewL2(
 		waitForNewBlocksPeriod,
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
-		true,
+		syncFullClaims,
 	)
 }
 

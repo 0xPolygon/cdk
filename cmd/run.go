@@ -672,6 +672,7 @@ func runBridgeSyncL1IfNeeded(
 		cfg.WaitForNewBlocksPeriod.Duration,
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
+		cfg.SyncFullClaims,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL1: %s", err)
@@ -704,6 +705,7 @@ func runBridgeSyncL2IfNeeded(
 		cfg.WaitForNewBlocksPeriod.Duration,
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
+		cfg.SyncFullClaims,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL2: %s", err)
