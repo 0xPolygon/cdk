@@ -32,11 +32,10 @@ import (
 )
 
 var (
-	proofID      = "proofId"
-	proof        = "proof"
-	finalProofID = "finalProofID"
-	proverName   = "proverName"
-	proverID     = "proverID"
+	proofID    = "proofId"
+	proof      = "proof"
+	proverName = "proverName"
+	proverID   = "proverID"
 )
 
 type mox struct {
@@ -45,6 +44,22 @@ type mox struct {
 	etherman           *mocks.EthermanMock
 	proverMock         *mocks.ProverInterfaceMock
 	aggLayerClientMock *mocks.AgglayerClientInterfaceMock
+}
+
+func WaitUntil(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
+	t.Helper()
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(timeout):
+		t.Fatalf("WaitGroup not done, test time expired after %s", timeout)
+	}
 }
 
 func Test_resetCurrentBatchData(t *testing.T) {
@@ -696,6 +711,7 @@ func Test_buildFinalProof(t *testing.T) {
 		BatchNumber:      batchNum,
 		BatchNumberFinal: batchNumFinal,
 	}
+	finalProofID := "finalProofID"
 
 	testCases := []struct {
 		name    string
@@ -794,6 +810,7 @@ func Test_tryBuildFinalProof(t *testing.T) {
 	latestVerifiedBatchNum := uint64(22)
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
+	finalProofID := "finalProofID"
 	finalProof := prover.FinalProof{
 		Proof: "",
 		Public: &prover.PublicInputsExtended{
@@ -989,7 +1006,7 @@ func Test_tryBuildFinalProof(t *testing.T) {
 			},
 		},
 		{
-			name:  "valid proof ok",
+			name:  "valid proof",
 			proof: &proofToVerify,
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("Name").Return(proverName).Twice()
@@ -1044,14 +1061,15 @@ func Test_tryBuildFinalProof(t *testing.T) {
 				tc.setup(m, &a)
 			}
 
-			var finalProofReceived bool
+			var wg sync.WaitGroup
 			if tc.assertFinalMsg != nil {
-				// Start a goroutine to listen for the final proof and trigger the assertion
-				finalProofReceived = false
+				// wait for the final proof over the channel
+				wg := sync.WaitGroup{}
+				wg.Add(1)
 				go func() {
+					defer wg.Done()
 					msg := <-a.finalProof
 					tc.assertFinalMsg(&msg)
-					finalProofReceived = true
 				}()
 			}
 
@@ -1062,16 +1080,7 @@ func Test_tryBuildFinalProof(t *testing.T) {
 			}
 
 			if tc.assertFinalMsg != nil {
-				// Wait for final proof to be received with a timeout
-				timeout := time.After(time.Second)
-				for !finalProofReceived {
-					select {
-					case <-timeout:
-						t.Fatal("Final proof not received before timeout")
-					default:
-						time.Sleep(10 * time.Millisecond) // Sleep briefly to prevent busy waiting
-					}
-				}
+				WaitUntil(t, &wg, time.Second)
 			}
 		})
 	}
