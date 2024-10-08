@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry-paris/polygonzkevmbridgev2"
 	gerContractL1 "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/globalexitrootnopush0"
 	gerContractEVMChain "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitrootnopush0"
@@ -22,6 +20,7 @@ import (
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/stretchr/testify/require"
@@ -220,6 +219,8 @@ func newSimulatedEVMAggSovereignChain(t *testing.T) (
 	common.Address,
 	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
 ) {
+	t.Helper()
+
 	ctx := context.Background()
 
 	// Create deployer
@@ -227,7 +228,7 @@ func newSimulatedEVMAggSovereignChain(t *testing.T) (
 	require.NoError(t, err)
 	authDeployer, err := bind.NewKeyedTransactorWithChainID(deployerPK, big.NewInt(chainID))
 	require.NoError(t, err)
-	balance, _ := new(big.Int).SetString(initialBalance, 10)
+	balance, _ := new(big.Int).SetString(initialBalance, 10) //nolint:mnd
 	precalculatedBridgeAddr := crypto.CreateAddress(authDeployer.From, 1)
 	client, auth, _ := helpers.SimulatedBackend(t, map[common.Address]types.Account{
 		authDeployer.From:       {Balance: balance},

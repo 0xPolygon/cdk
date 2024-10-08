@@ -4,14 +4,13 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/stretchr/testify/require"
-
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -38,7 +37,7 @@ func SimulatedBackend(
 	t.Helper()
 
 	// Define default balance
-	balance, ok := new(big.Int).SetString(defaultBalance, 10)
+	balance, ok := new(big.Int).SetString(defaultBalance, 10) //nolint:mnd
 	require.Truef(t, ok, "failed to set balance")
 
 	// Create user

@@ -5,9 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk/test/helpers"
-
 	cdktypes "github.com/0xPolygon/cdk/config/types"
+	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/stretchr/testify/require"
 )
 
