@@ -147,8 +147,7 @@ func EVMSetup(t *testing.T) (
 	require.NoError(t, err)
 	authL2, err := bind.NewKeyedTransactorWithChainID(privateKeyL2, big.NewInt(chainID))
 	require.NoError(t, err)
-	l2Client, gerL2Addr, gerL2Sc, bridgeL2Addr, bridgeL2Sc, err := newSimulatedEVMAggSovereignChain(authL2)
-	require.NoError(t, err)
+	l2Client, gerL2Addr, gerL2Sc, bridgeL2Addr, bridgeL2Sc := newSimulatedEVMAggSovereignChain(t, authL2)
 	ethTxManMock := NewEthTxManMock(t, l2Client, authL2)
 	sender, err := chaingersender.NewEVMChainGERSender(log.GetDefaultLogger(),
 		gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50) //nolint:mnd
@@ -231,25 +230,22 @@ func newSimulatedL1(t *testing.T) (
 	return client, gerAddr, gerContract, bridgeAddr, bridgeContract, nil
 }
 
-func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
+func newSimulatedEVMAggSovereignChain(t *testing.T, auth *bind.TransactOpts) (
 	client *simulated.Backend,
 	gerAddr common.Address,
 	gerContract *gerContractEVMChain.Pessimisticglobalexitrootnopush0,
 	bridgeAddr common.Address,
 	bridgeContract *polygonzkevmbridgev2.Polygonzkevmbridgev2,
-	err error,
 ) {
+	t.Helper()
+
 	ctx := context.Background()
 
 	privateKeyL1, err := crypto.GenerateKey()
-	if err != nil {
-		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf("failed to generate private key: %w", err)
-	}
+	require.NoError(t, err)
 
 	authDeployer, err := bind.NewKeyedTransactorWithChainID(privateKeyL1, big.NewInt(chainID))
-	if err != nil {
-		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf("failed to create transactor: %w", err)
-	}
+	require.NoError(t, err)
 
 	balance, _ := new(big.Int).SetString(initialBalance, 10) //nolint:mnd
 	address := auth.From
@@ -271,27 +267,16 @@ func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
 	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
 
 	bridgeImplementationAddr, _, _, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(authDeployer, client.Client())
-	if err != nil {
-		return nil, common.Address{}, nil,
-			common.Address{}, nil,
-			fmt.Errorf("failed to deploy bridge implementation: %w", err)
-	}
+	require.NoError(t, err)
 	client.Commit()
 
 	nonce, err := client.Client().PendingNonceAt(ctx, authDeployer.From)
-	if err != nil {
-		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf("failed to get pending nonce: %w", err)
-	}
+	require.NoError(t, err)
 	precalculatedAddr := crypto.CreateAddress(authDeployer.From, nonce+1)
 
 	bridgeABI, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
-	if err != nil {
-		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf("failed to get bridge ABI: %w", err)
-	}
-	if bridgeABI == nil {
-		err = errors.New("GetABI returned nil")
-		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf("failed to get bridge ABI: %w", err)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, bridgeABI)
 
 	dataCallProxy, err := bridgeABI.Pack("initialize",
 		NetworkIDL2,
@@ -301,11 +286,7 @@ func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
 		common.Address{},
 		[]byte{}, // gasTokenMetadata
 	)
-	if err != nil {
-		return nil, common.Address{}, nil,
-			common.Address{}, nil,
-			fmt.Errorf("failed to pack data for proxy initialization: %w", err)
-	}
+	require.NoError(t, err)
 
 	bridgeAddr, _, _, err = transparentupgradableproxy.DeployTransparentupgradableproxy(
 		authDeployer,
@@ -314,60 +295,30 @@ func newSimulatedEVMAggSovereignChain(auth *bind.TransactOpts) (
 		authDeployer.From,
 		dataCallProxy,
 	)
-	if err != nil {
-		return nil, common.Address{}, nil,
-			common.Address{}, nil,
-			fmt.Errorf("failed to deploy transparent upgradable proxy: %w", err)
-	}
-	if bridgeAddr != precalculatedBridgeAddr {
-		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf(
-			"error calculating bridge addr. Expected: %s. Actual: %s",
-			precalculatedBridgeAddr, bridgeAddr,
-		)
-	}
+	require.NoError(t, err)
+	require.Equal(t, precalculatedBridgeAddr, bridgeAddr)
 	client.Commit()
 
 	bridgeContract, err = polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeAddr, client.Client())
-	if err != nil {
-		return nil, common.Address{}, nil,
-			common.Address{}, nil,
-			fmt.Errorf("failed to create bridge contract instance: %w", err)
-	}
+	require.NoError(t, err)
 
 	checkGERAddr, err := bridgeContract.GlobalExitRootManager(&bind.CallOpts{})
-	if err != nil {
-		return nil, common.Address{}, nil,
-			common.Address{}, nil,
-			fmt.Errorf("failed to get Global Exit Root Manager: %w", err)
-	}
-	if precalculatedAddr != checkGERAddr {
-		return nil, common.Address{}, nil, common.Address{}, nil, errors.New(
-			"error deploying bridge, unexpected GER Manager address",
-		)
-	}
+	require.NoError(t, err)
+	require.Equal(t, precalculatedAddr, checkGERAddr)
 
 	gerAddr, _, gerContract, err = gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(
 		authDeployer, client.Client(), auth.From)
-	if err != nil {
-		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf("failed to deploy GER contract: %w", err)
-	}
+	require.NoError(t, err)
 	client.Commit()
 
 	globalExitRootSetterRole := common.HexToHash("0x7b95520991dfda409891be0afa2635b63540f92ee996fda0bf695a166e5c5176")
 	_, err = gerContract.GrantRole(authDeployer, globalExitRootSetterRole, auth.From)
-	if err != nil {
-		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf("failed to grant role to GER contract: %w", err)
-	}
+	require.NoError(t, err)
 	client.Commit()
 
 	hasRole, _ := gerContract.HasRole(&bind.CallOpts{Pending: false}, globalExitRootSetterRole, auth.From)
-	if !hasRole {
-		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf("failed to set role for GER contract")
-	}
+	require.True(t, hasRole)
+	require.Equal(t, precalculatedAddr, gerAddr)
 
-	if precalculatedAddr != gerAddr {
-		return nil, common.Address{}, nil, common.Address{}, nil, fmt.Errorf("error calculating GER address")
-	}
-
-	return client, gerAddr, gerContract, bridgeAddr, bridgeContract, nil
+	return client, gerAddr, gerContract, bridgeAddr, bridgeContract
 }
