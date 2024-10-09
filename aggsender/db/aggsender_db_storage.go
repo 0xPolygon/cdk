@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
+	"github.com/0xPolygon/cdk/agglayer"
 	"github.com/0xPolygon/cdk/aggsender/db/migrations"
 	"github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/db"
@@ -25,6 +27,10 @@ type AggSenderStorage interface {
 	SaveLastSentCertificate(ctx context.Context, certificate types.CertificateInfo) error
 	// DeleteCertificate deletes a certificate from the storage
 	DeleteCertificate(ctx context.Context, certificateID common.Hash) error
+	// GetCertificatesByStatus returns a list of certificates by their status
+	GetCertificatesByStatus(ctx context.Context, status []agglayer.CertificateStatus) ([]*types.CertificateInfo, error)
+	// UpdateCertificateStatus updates the status of a certificate
+	UpdateCertificateStatus(ctx context.Context, certificate types.CertificateInfo) error
 }
 
 var _ AggSenderStorage = (*AggSenderSQLStorage)(nil)
@@ -50,6 +56,45 @@ func NewAggSenderSQLStorage(logger *log.Logger, dbPath string) (*AggSenderSQLSto
 		db:     db,
 		logger: logger,
 	}, nil
+}
+
+func (a *AggSenderSQLStorage) GetCertificatesByStatus(ctx context.Context,
+	statuses []agglayer.CertificateStatus) ([]*types.CertificateInfo, error) {
+	tx, err := a.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			a.logger.Warnf("error rolling back tx: %w", err)
+		}
+	}()
+
+	query := "SELECT * FROM certificate_info"
+	args := make([]interface{}, len(statuses))
+
+	if len(statuses) > 0 {
+		placeholders := make([]string, len(statuses))
+		// Build the WHERE clause for status filtering
+		for i := range statuses {
+			placeholders[i] = fmt.Sprintf("$%d", i+1)
+			args[i] = statuses[i]
+		}
+
+		// Build the WHERE clause with the joined placeholders
+		query += " WHERE status IN (" + strings.Join(placeholders, ", ") + ")"
+	}
+
+	// Add ordering by creation date (oldest first)
+	query += " ORDER BY height ASC"
+
+	var certificates []*types.CertificateInfo
+	if err = meddler.QueryAll(a.db, &certificates, query, args...); err != nil {
+		return nil, err
+	}
+
+	return certificates, nil
 }
 
 // GetCertificateByHeight returns a certificate by its height
@@ -79,7 +124,7 @@ func (a *AggSenderSQLStorage) GetCertificateByHeight(ctx context.Context,
 	return certificateInfo, nil
 }
 
-// GetLastSentCertificate returns the last certificate sent to the aggLayer
+// GetLastSentCertificate returns the last certificate sent to the aggLayer that is still Pending
 func (a *AggSenderSQLStorage) GetLastSentCertificate(ctx context.Context) (types.CertificateInfo, error) {
 	tx, err := a.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
@@ -92,7 +137,8 @@ func (a *AggSenderSQLStorage) GetLastSentCertificate(ctx context.Context) (types
 		}
 	}()
 
-	rows, err := tx.Query(`SELECT * FROM certificate_info ORDER BY height DESC LIMIT 1;`)
+	rows, err := tx.Query(`SELECT * FROM certificate_info WHERE status = $1 ORDER BY height DESC LIMIT 1;`,
+		agglayer.Pending)
 	if err != nil {
 		return types.CertificateInfo{}, getSelectQueryError(math.MaxUint64, err) // force checking err not found
 	}
@@ -153,6 +199,33 @@ func (a *AggSenderSQLStorage) DeleteCertificate(ctx context.Context, certificate
 	}
 
 	a.logger.Debugf("deleted certificate - CertificateID: %s", certificateID)
+
+	return nil
+}
+
+// UpdateCertificateStatus updates the status of a certificate
+func (a *AggSenderSQLStorage) UpdateCertificateStatus(ctx context.Context, certificate types.CertificateInfo) error {
+	tx, err := db.NewTx(ctx, a.db)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			if errRllbck := tx.Rollback(); errRllbck != nil {
+				a.logger.Errorf("error while rolling back tx %w", errRllbck)
+			}
+		}
+	}()
+
+	if _, err := tx.Exec(`UPDATE certificate_info SET status = $1 WHERE certificate_id = $2;`,
+		certificate.Status, certificate.CertificateID); err != nil {
+		return fmt.Errorf("error updating certificate info: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	a.logger.Debugf("updated certificate status - CertificateID: %s", certificate.CertificateID)
 
 	return nil
 }
