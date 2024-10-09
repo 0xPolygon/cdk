@@ -3,11 +3,12 @@ package aggsender
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
+	"github.com/0xPolygon/cdk/aggsender/db"
+	aggsendertypes "github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/bridgesync"
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/config/types"
@@ -15,17 +16,7 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 )
-
-const sentCertificatesL2Table = "sent_certificates_l2"
-
-func tableCfgFunc(defaultBuckets kv.TableCfg) kv.TableCfg {
-	return kv.TableCfg{
-		sentCertificatesL2Table: {},
-	}
-}
 
 // AggSender is a component that will send certificates to the aggLayer
 type AggSender struct {
@@ -35,7 +26,7 @@ type AggSender struct {
 	l2Client         bridgesync.EthClienter
 	l1infoTreeSyncer *l1infotreesync.L1InfoTreeSync
 
-	db             kv.RwDB
+	storage        db.AggSenderStorage
 	aggLayerClient agglayer.AgglayerClientInterface
 
 	sendInterval types.Duration
@@ -52,10 +43,7 @@ func New(
 	l1InfoTreeSyncer *l1infotreesync.L1InfoTreeSync,
 	l2Syncer *bridgesync.BridgeSync,
 	l2Client bridgesync.EthClienter) (*AggSender, error) {
-	db, err := mdbx.NewMDBX(nil).
-		Path(cfg.DBPath).
-		WithTableCfg(tableCfgFunc).
-		Open()
+	storage, err := db.NewAggSenderSQLStorage(logger, cfg.DBPath)
 	if err != nil {
 		return nil, err
 	}
@@ -66,8 +54,8 @@ func New(
 	}
 
 	return &AggSender{
-		db:               db,
 		log:              logger,
+		storage:          storage,
 		l2Syncer:         l2Syncer,
 		l2Client:         l2Client,
 		aggLayerClient:   aggLayerClient,
@@ -103,12 +91,12 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 func (a *AggSender) sendCertificate(ctx context.Context) error {
 	a.log.Info("trying to send a new certificate...")
 
-	lastSentCertificateHash, _, err := a.getLastSentCertificate(ctx)
+	lastSentCertificate, err := a.storage.GetLastSentCertificate(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting last sent certificate: %w", err)
 	}
 
-	a.log.Info("last sent certificate: %s", lastSentCertificateHash)
+	a.log.Info("last sent certificate: %s", lastSentCertificate.CertificateID)
 
 	finality := a.l2Syncer.BlockFinality()
 	blockFinality, err := finality.ToBlockNum()
@@ -127,19 +115,35 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		lastCertificateBlock  uint64
 	)
 
-	if lastSentCertificateHash != (common.Hash{}) {
+	if lastSentCertificate.CertificateID != (common.Hash{}) {
 		// we have sent a certificate before, get the last certificate header
-		lastSentCertificateHeader, err := a.aggLayerClient.GetCertificateHeader(lastSentCertificateHash)
+		lastSentCertificateHeader, err := a.aggLayerClient.GetCertificateHeader(lastSentCertificate.CertificateID)
 		if err != nil {
-			return fmt.Errorf("error getting certificate %s header: %w", lastSentCertificateHash, err)
+			return fmt.Errorf("error getting certificate %s header: %w", lastSentCertificate.CertificateID, err)
 		}
 
-		previousLocalExitRoot = lastSentCertificateHeader.NewLocalExitRoot
-		previousHeight = lastSentCertificateHeader.Height
+		if lastSentCertificateHeader.Status == agglayer.InError {
+			// last sent certificate had errors, we need to remove it from the db
+			// and build a new certificate from that block
+			if err := a.storage.DeleteCertificate(ctx, lastSentCertificateHeader.CertificateID); err != nil {
+				return fmt.Errorf("error deleting certificate %s: %w", lastSentCertificate.CertificateID, err)
+			}
+
+			lastValidCertificate, err := a.storage.GetCertificateByHeight(ctx, lastSentCertificateHeader.Height)
+			if err != nil {
+				return fmt.Errorf("error getting certificate by height %d: %w", lastSentCertificateHeader.Height, err)
+			}
+
+			previousLocalExitRoot = lastValidCertificate.NewLocalExitRoot
+			previousHeight = lastValidCertificate.Height
+		} else {
+			previousLocalExitRoot = lastSentCertificateHeader.NewLocalExitRoot
+			previousHeight = lastSentCertificateHeader.Height
+		}
 
 		lastCertificateBlock, err = a.l2Syncer.GetBlockByLER(ctx, lastSentCertificateHeader.NewLocalExitRoot)
 		if err != nil {
-			return fmt.Errorf("error getting block by LER %s: %w", lastSentCertificateHash, err)
+			return fmt.Errorf("error getting block by LER %s: %w", lastSentCertificate.CertificateID, err)
 		}
 	}
 
@@ -183,7 +187,13 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		return fmt.Errorf("error sending certificate: %w", err)
 	}
 
-	if err := a.saveLastSentCertificate(ctx, certificateHash, certificate); err != nil {
+	if err := a.storage.SaveLastSentCertificate(ctx, aggsendertypes.CertificateInfo{
+		Height:           certificate.Height,
+		CertificateID:    certificateHash,
+		NewLocalExitRoot: certificate.NewLocalExitRoot,
+		FromBlock:        fromBlock,
+		ToBlock:          toBlock,
+	}); err != nil {
 		return fmt.Errorf("error saving last sent certificate in db: %w", err)
 	}
 
@@ -363,50 +373,6 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 	}
 
 	return importedBridgeExits, nil
-}
-
-// saveLastSentCertificate saves the last sent certificate
-func (a *AggSender) saveLastSentCertificate(ctx context.Context, certificateHash common.Hash,
-	certificate *agglayer.Certificate) error {
-	return a.db.Update(ctx, func(tx kv.RwTx) error {
-		raw, err := json.Marshal(certificate)
-		if err != nil {
-			return err
-		}
-
-		return tx.Put(sentCertificatesL2Table, certificateHash.Bytes(), raw)
-	})
-}
-
-// getLastSentCertificate returns the last sent certificate
-func (a *AggSender) getLastSentCertificate(ctx context.Context) (common.Hash, *agglayer.Certificate, error) {
-	var (
-		lastSentCertificateHash common.Hash
-		lastCertificate         *agglayer.Certificate
-	)
-
-	err := a.db.View(ctx, func(tx kv.Tx) error {
-		cursor, err := tx.Cursor(sentCertificatesL2Table)
-		if err != nil {
-			return err
-		}
-
-		k, v, err := cursor.Last()
-		if err != nil {
-			return err
-		}
-
-		if k != nil {
-			lastSentCertificateHash = common.BytesToHash(k)
-			if err := json.Unmarshal(v, &lastCertificate); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-
-	return lastSentCertificateHash, lastCertificate, err
 }
 
 // signCertificate signs a certificate with the sequencer key
