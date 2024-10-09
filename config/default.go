@@ -277,4 +277,5 @@ SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
 CertificateSendInterval = "1m"
 URLRPCL2="http://test-aggoracle-l2:8545"
 CheckSettledInterval = "5s"
+EpochSize = 10
 `

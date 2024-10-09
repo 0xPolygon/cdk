@@ -49,6 +49,7 @@ generate-mocks-sync: ## Generates mocks for sync, using mockery tool
 .PHONY: generate-mocks-aggsender
 generate-mocks-aggsender: ## Generates mocks for aggsender, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=L1InfoTreeSyncer --dir=../aggsender --output=../aggsender --outpkg=aggsender --inpackage --structname=L1InfoTreeSyncerMock --filename=mock_l1infotree_syncer.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=L2BridgeSyncer --dir=../aggsender --output=../aggsender --outpkg=aggsender --inpackage --structname=L2BridgeSyncerMock --filename=mock_l2bridge_syncer.go
 
 .PHONY: test-e2e-fork9-validium
 test-e2e-fork9-validium: stop
