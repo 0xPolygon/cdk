@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygon/cdk/bridgesync"
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/config/types"
+	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
 	treeTypes "github.com/0xPolygon/cdk/tree/types"
@@ -26,11 +27,21 @@ type L1InfoTreeSyncer interface {
 		index uint32, root common.Hash) (treeTypes.Proof, error)
 }
 
+// L2BridgeSyncer is an interface defining functions that an L2BridgeSyncer should implement
+type L2BridgeSyncer interface {
+	GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error)
+	GetExitRootByIndex(ctx context.Context, index uint32) (treeTypes.Root, error)
+	GetBridges(ctx context.Context, fromBlock, toBlock uint64) ([]bridgesync.Bridge, error)
+	GetClaims(ctx context.Context, fromBlock, toBlock uint64) ([]bridgesync.Claim, error)
+	OriginNetwork() uint32
+	BlockFinality() etherman.BlockNumberFinality
+}
+
 // AggSender is a component that will send certificates to the aggLayer
 type AggSender struct {
 	log *log.Logger
 
-	l2Syncer         *bridgesync.BridgeSync
+	l2Syncer         L2BridgeSyncer
 	l2Client         bridgesync.EthClienter
 	l1infoTreeSyncer L1InfoTreeSyncer
 
