@@ -101,10 +101,14 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 
 // sendCertificate sends certificate for a network
 func (a *AggSender) sendCertificate(ctx context.Context) error {
+	a.log.Info("trying to send a new certificate...")
+
 	lastSentCertificateBlock, lastSentCertificate, err := a.getLastSentCertificate(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting last sent certificate: %w", err)
 	}
+
+	a.log.Info("last sent certificate block: %d", lastSentCertificateBlock)
 
 	finality := a.l2Syncer.BlockFinality()
 	blockFinality, err := finality.ToBlockNum()
@@ -159,6 +163,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 	if err := a.saveLastSentCertificate(ctx, lastFinalizedBlock.Nonce.Uint64(), certificate); err != nil {
 		return fmt.Errorf("error saving last sent certificate in db: %w", err)
 	}
+
+	a.log.Info("certificate sent successfully for block: %d", lastFinalizedBlock.Nonce.Uint64())
 
 	return nil
 }
