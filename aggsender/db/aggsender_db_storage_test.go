@@ -74,7 +74,7 @@ func Test_Storage(t *testing.T) {
 			NewLocalExitRoot: common.HexToHash("0x6"),
 			FromBlock:        5,
 			ToBlock:          6,
-			Status:           agglayer.Settled,
+			Status:           agglayer.Pending,
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
@@ -111,6 +111,70 @@ func Test_Storage(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, certificate, certificateFromDB)
+		require.NoError(t, storage.clean())
+	})
+
+	t.Run("GetCertificatesByStatus", func(t *testing.T) {
+		// Insert some certificates with different statuses
+		certificates := []*types.CertificateInfo{
+			{
+				Height:           7,
+				CertificateID:    common.HexToHash("0x7"),
+				NewLocalExitRoot: common.HexToHash("0x8"),
+				FromBlock:        7,
+				ToBlock:          8,
+				Status:           agglayer.Settled,
+			},
+			{
+				Height:           9,
+				CertificateID:    common.HexToHash("0x9"),
+				NewLocalExitRoot: common.HexToHash("0xA"),
+				FromBlock:        9,
+				ToBlock:          10,
+				Status:           agglayer.Pending,
+			},
+			{
+				Height:           11,
+				CertificateID:    common.HexToHash("0xB"),
+				NewLocalExitRoot: common.HexToHash("0xC"),
+				FromBlock:        11,
+				ToBlock:          12,
+				Status:           agglayer.InError,
+			},
+		}
+
+		for _, cert := range certificates {
+			require.NoError(t, storage.SaveLastSentCertificate(ctx, *cert))
+		}
+
+		// Test fetching certificates with status Settled
+		statuses := []agglayer.CertificateStatus{agglayer.Settled}
+		certificatesFromDB, err := storage.GetCertificatesByStatus(ctx, statuses)
+		require.NoError(t, err)
+		require.Len(t, certificatesFromDB, 1)
+		require.ElementsMatch(t, []*types.CertificateInfo{certificates[0]}, certificatesFromDB)
+
+		// Test fetching certificates with status Pending
+		statuses = []agglayer.CertificateStatus{agglayer.Pending}
+		certificatesFromDB, err = storage.GetCertificatesByStatus(ctx, statuses)
+		require.NoError(t, err)
+		require.Len(t, certificatesFromDB, 1)
+		require.ElementsMatch(t, []*types.CertificateInfo{certificates[1]}, certificatesFromDB)
+
+		// Test fetching certificates with status InError
+		statuses = []agglayer.CertificateStatus{agglayer.InError}
+		certificatesFromDB, err = storage.GetCertificatesByStatus(ctx, statuses)
+		require.NoError(t, err)
+		require.Len(t, certificatesFromDB, 1)
+		require.ElementsMatch(t, []*types.CertificateInfo{certificates[2]}, certificatesFromDB)
+
+		// Test fetching certificates with status InError and Pending
+		statuses = []agglayer.CertificateStatus{agglayer.InError, agglayer.Pending}
+		certificatesFromDB, err = storage.GetCertificatesByStatus(ctx, statuses)
+		require.NoError(t, err)
+		require.Len(t, certificatesFromDB, 2)
+		require.ElementsMatch(t, []*types.CertificateInfo{certificates[1], certificates[2]}, certificatesFromDB)
+
 		require.NoError(t, storage.clean())
 	})
 }

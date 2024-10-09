@@ -11,7 +11,6 @@ import (
 	aggsendertypes "github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/bridgesync"
 	cdkcommon "github.com/0xPolygon/cdk/common"
-	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
@@ -48,7 +47,7 @@ type AggSender struct {
 	storage        db.AggSenderStorage
 	aggLayerClient agglayer.AgglayerClientInterface
 
-	sendInterval types.Duration
+	cfg Config
 
 	sequencerKey *ecdsa.PrivateKey
 }
@@ -73,6 +72,7 @@ func New(
 	}
 
 	return &AggSender{
+		cfg:              cfg,
 		log:              logger,
 		storage:          storage,
 		l2Syncer:         l2Syncer,
@@ -80,18 +80,18 @@ func New(
 		aggLayerClient:   aggLayerClient,
 		l1infoTreeSyncer: l1InfoTreeSyncer,
 		sequencerKey:     sequencerPrivateKey,
-		sendInterval:     cfg.CertificateSendInterval,
 	}, nil
 }
 
 // Start starts the AggSender
 func (a *AggSender) Start(ctx context.Context) {
-	a.sendCertificates(ctx)
+	go a.sendCertificates(ctx)
+	go a.checkIfCertificatesAreSettled(ctx)
 }
 
 // sendCertificates sends certificates to the aggLayer
 func (a *AggSender) sendCertificates(ctx context.Context) {
-	ticker := time.NewTicker(a.sendInterval.Duration)
+	ticker := time.NewTicker(a.cfg.CertificateSendInterval.Duration)
 
 	for {
 		select {
@@ -407,4 +407,39 @@ func (a *AggSender) signCertificate(certificate *agglayer.Certificate) (*agglaye
 		Certificate: certificate,
 		Signature:   sig,
 	}, nil
+}
+
+// checkIfCertificatesAreSettled checks if certificates are settled
+func (a *AggSender) checkIfCertificatesAreSettled(ctx context.Context) {
+	ticker := time.NewTicker(a.cfg.CertificateSendInterval.Duration)
+	for {
+		select {
+		case <-ticker.C:
+			pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, []agglayer.CertificateStatus{agglayer.Pending})
+			if err != nil {
+				a.log.Error("error getting pending certificates: %w", err)
+				continue
+			}
+
+			for _, certificate := range pendingCertificates {
+				certificateHeader, err := a.aggLayerClient.GetCertificateHeader(certificate.CertificateID)
+				if err != nil {
+					a.log.Error("error getting header of certificate %s with height: %d from agglayer: %w",
+						certificate.CertificateID, certificate.Height, err)
+					continue
+				}
+
+				if certificateHeader.Status == agglayer.Settled || certificateHeader.Status == agglayer.InError {
+					certificate.Status = certificateHeader.Status
+
+					if err := a.storage.UpdateCertificateStatus(ctx, *certificate); err != nil {
+						a.log.Error("error updating certificate status in storage: %w", err)
+						continue
+					}
+				}
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
