@@ -339,4 +339,10 @@ RollupManagerAddr = "{{L1Config.polygonRollupManagerAddress}}"
 GlobalExitRootManagerAddr = "{{L1Config.polygonZkEVMGlobalExitRootAddress}}"
 
 
+[AggSender]
+DBPath = "/tmp/aggsender"
+AggLayerURL = "http://zkevm-agglayer"
+SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
+CertificateSendInterval = "1m"
+
 `

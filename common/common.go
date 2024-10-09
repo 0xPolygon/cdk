@@ -1,10 +1,15 @@
 package common
 
 import (
+	"crypto/ecdsa"
 	"encoding/binary"
 	"math/big"
+	"os"
+	"path/filepath"
 
+	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/keccak256"
 )
@@ -87,4 +92,20 @@ func CalculateAccInputHash(
 	logger.Debugf("Forced BlockHashL1: %v", forcedBlockhashL1)
 
 	return common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6))
+}
+
+// NewKeyFromKeystore creates a private key from a keystore file
+func NewKeyFromKeystore(cfg types.KeystoreFileConfig) (*ecdsa.PrivateKey, error) {
+	if cfg.Path == "" && cfg.Password == "" {
+		return nil, nil
+	}
+	keystoreEncrypted, err := os.ReadFile(filepath.Clean(cfg.Path))
+	if err != nil {
+		return nil, err
+	}
+	key, err := keystore.DecryptKey(keystoreEncrypted, cfg.Password)
+	if err != nil {
+		return nil, err
+	}
+	return key.PrivateKey, nil
 }

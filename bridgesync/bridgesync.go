@@ -20,6 +20,9 @@ const (
 type BridgeSync struct {
 	processor *processor
 	driver    *sync.EVMDriver
+
+	originNetwork uint32
+	blockFinality etherman.BlockNumberFinality
 }
 
 // NewL1 creates a bridge syncer that synchronizes the mainnet exit tree
@@ -35,6 +38,7 @@ func NewL1(
 	waitForNewBlocksPeriod time.Duration,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
+	originNetwork uint32,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -49,6 +53,7 @@ func NewL1(
 		waitForNewBlocksPeriod,
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
+		originNetwork,
 		false,
 	)
 }
@@ -66,6 +71,7 @@ func NewL2(
 	waitForNewBlocksPeriod time.Duration,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
+	originNetwork uint32,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -80,6 +86,7 @@ func NewL2(
 		waitForNewBlocksPeriod,
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
+		originNetwork,
 		true,
 	)
 }
@@ -97,6 +104,7 @@ func newBridgeSync(
 	waitForNewBlocksPeriod time.Duration,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
+	originNetwork uint32,
 	syncFullClaims bool,
 ) (*BridgeSync, error) {
 	processor, err := newProcessor(dbPath, l1OrL2ID)
@@ -146,8 +154,10 @@ func newBridgeSync(
 	}
 
 	return &BridgeSync{
-		processor: processor,
-		driver:    driver,
+		processor:     processor,
+		driver:        driver,
+		originNetwork: originNetwork,
+		blockFinality: blockFinalityType,
 	}, nil
 }
 
@@ -190,4 +200,19 @@ func (s *BridgeSync) GetRootByLER(ctx context.Context, ler common.Hash) (*tree.R
 		return root, err
 	}
 	return root, nil
+}
+
+// GetExitRootByIndex returns the root of the exit tree at the moment the leaf with the given index was added
+func (s *BridgeSync) GetExitRootByIndex(ctx context.Context, index uint32) (tree.Root, error) {
+	return s.processor.exitTree.GetRootByIndex(ctx, index)
+}
+
+// OriginNetwork returns the network ID of the origin chain
+func (s *BridgeSync) OriginNetwork() uint32 {
+	return s.originNetwork
+}
+
+// BlockFinality returns the block finality type
+func (s *BridgeSync) BlockFinality() etherman.BlockNumberFinality {
+	return s.blockFinality
 }

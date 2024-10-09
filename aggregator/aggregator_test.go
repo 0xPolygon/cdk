@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/cdk/agglayer"
 	mocks "github.com/0xPolygon/cdk/aggregator/mocks"
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	"github.com/0xPolygon/cdk/config/types"
@@ -457,7 +458,7 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 			stateMock := mocks.NewStateInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
-			aggLayerClient := mocks.NewAgglayerClientInterfaceMock(t)
+			aggLayerClient := agglayer.NewAggLayerClientMock(t)
 
 			curve := elliptic.P256()
 			privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
@@ -663,7 +664,7 @@ func Test_sendFinalProofError(t *testing.T) {
 			stateMock := mocks.NewStateInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
-			aggLayerClient := mocks.NewAgglayerClientInterfaceMock(t)
+			aggLayerClient := agglayer.NewAggLayerClientMock(t)
 
 			curve := elliptic.P256()
 			privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
