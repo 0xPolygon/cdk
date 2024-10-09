@@ -63,7 +63,7 @@ func start(cliCtx *cli.Context) error {
 
 	components := cliCtx.StringSlice(config.FlagComponents)
 	l1Client := runL1ClientIfNeeded(components, c.Etherman.URL)
-	l2Client := runL2ClientIfNeeded(components, c.AggOracle.EVMSender.URLRPCL2)
+	l2Client := runL2ClientIfNeeded(components, getL2RPCUrl(c))
 	reorgDetectorL1, errChanL1 := runReorgDetectorL1IfNeeded(cliCtx.Context, components, l1Client, &c.ReorgDetectorL1)
 	go func() {
 		if err := <-errChanL1; err != nil {
@@ -548,7 +548,8 @@ func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client
 	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
 		return nil
 	}
-	log.Debugf("dialing L2 client at: %s", urlRPCL2)
+
+	log.Infof("dialing L2 client at: %s", urlRPCL2)
 	l2CLient, err := ethclient.Dial(urlRPCL2)
 	if err != nil {
 		log.Fatal(err)
@@ -768,4 +769,12 @@ func createRPC(
 	}
 
 	return jRPC.NewServer(cfg, services, jRPC.WithLogger(logger.GetSugaredLogger()))
+}
+
+func getL2RPCUrl(c *config.Config) string {
+	if c.AggSender.URLRPCL2 != "" {
+		return c.AggSender.URLRPCL2
+	}
+
+	return c.AggOracle.EVMSender.URLRPCL2
 }

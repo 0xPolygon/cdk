@@ -10,4 +10,5 @@ type Config struct {
 	AggLayerURL             string                   `mapstructure:"AggLayerURL"`
 	CertificateSendInterval types.Duration           `mapstructure:"CertificateSendInterval"`
 	SequencerPrivateKey     types.KeystoreFileConfig `mapstructure:"SequencerPrivateKey"`
+	URLRPCL2                string                   `mapstructure:"URLRPCL2"`
 }
