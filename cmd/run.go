@@ -143,9 +143,10 @@ func createAggSender(
 	l2Syncer *bridgesync.BridgeSync,
 	l2Client bridgesync.EthClienter,
 ) (*aggsender.AggSender, error) {
+	logger := log.WithFields("module", cdkcommon.AGGSENDER)
 	agglayerClient := agglayer.NewAggLayerClient(cfg.AggLayerURL)
 
-	return aggsender.New(ctx, cfg, agglayerClient, l1InfoTreeSync, l2Syncer, l2Client)
+	return aggsender.New(ctx, logger, cfg, agglayerClient, l1InfoTreeSync, l2Syncer, l2Client)
 }
 
 func createAggregator(ctx context.Context, c config.Config, runMigrations bool) *aggregator.Aggregator {
