@@ -147,6 +147,7 @@ type ImportedBridgeExit struct {
 
 // Hash returns a hash that uniquely identifies the imported bridge exit
 func (c *ImportedBridgeExit) Hash() common.Hash {
-	globalIndexBig := bridgesync.GenerateGlobalIndex(c.GlobalIndex.MainnetFlag, c.GlobalIndex.RollupIndex, c.GlobalIndex.LeafIndex)
+	globalIndexBig := bridgesync.GenerateGlobalIndex(c.GlobalIndex.MainnetFlag,
+		c.GlobalIndex.RollupIndex, c.GlobalIndex.LeafIndex)
 	return crypto.Keccak256Hash(globalIndexBig.Bytes())
 }
