@@ -61,7 +61,7 @@ func TestBridgeEventE2E(t *testing.T) {
 	go rd.Start(ctx) //nolint:errcheck
 
 	testClient := helpers.TestClient{ClientRenamed: client.Client()}
-	syncer, err := bridgesync.NewL1(ctx, dbPathSyncer, bridgeAddr, 10, etherman.LatestBlock, rd, testClient, 0, time.Millisecond*10, 0, 0)
+	syncer, err := bridgesync.NewL1(ctx, dbPathSyncer, bridgeAddr, 10, etherman.LatestBlock, rd, testClient, 0, time.Millisecond*10, 0, 0, 1)
 	require.NoError(t, err)
 
 	go syncer.Start(ctx)
