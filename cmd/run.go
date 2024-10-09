@@ -122,7 +122,14 @@ func start(cliCtx *cli.Context) error {
 				}
 			}()
 		case cdkcommon.AGGSENDER:
-			aggsender, err := createAggSender(cliCtx.Context, c.AggSender, l1InfoTreeSync, l2BridgeSync, l2Client)
+			aggsender, err := createAggSender(
+				cliCtx.Context,
+				c.AggSender,
+				l1Client,
+				l1InfoTreeSync,
+				l2BridgeSync,
+				l2Client,
+			)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -139,6 +146,7 @@ func start(cliCtx *cli.Context) error {
 func createAggSender(
 	ctx context.Context,
 	cfg aggsender.Config,
+	l1Client bridgesync.EthClienter,
 	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
 	l2Syncer *bridgesync.BridgeSync,
 	l2Client bridgesync.EthClienter,
@@ -146,7 +154,7 @@ func createAggSender(
 	logger := log.WithFields("module", cdkcommon.AGGSENDER)
 	agglayerClient := agglayer.NewAggLayerClient(cfg.AggLayerURL)
 
-	return aggsender.New(ctx, logger, cfg, agglayerClient, l1InfoTreeSync, l2Syncer, l2Client)
+	return aggsender.New(ctx, logger, cfg, agglayerClient, l1Client, l1InfoTreeSync, l2Syncer, l2Client)
 }
 
 func createAggregator(ctx context.Context, c config.Config, runMigrations bool) *aggregator.Aggregator {

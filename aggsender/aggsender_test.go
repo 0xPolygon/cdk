@@ -551,6 +551,207 @@ func TestGetImportedBridgeExits(t *testing.T) {
 	}
 }
 
+func TestBuildCertificate(t *testing.T) {
+	mockL2BridgeSyncer := NewL2BridgeSyncerMock(t)
+	mockL1InfoTreeSyncer := NewL1InfoTreeSyncerMock(t)
+	mockProof := generateTestProof(t)
+
+	tests := []struct {
+		name          string
+		bridges       []bridgesync.Bridge
+		claims        []bridgesync.Claim
+		previousExit  common.Hash
+		lastHeight    uint64
+		mockFn        func()
+		expectedCert  *agglayer.Certificate
+		expectedError bool
+	}{
+		{
+			name: "Valid certificate with bridges and claims",
+			bridges: []bridgesync.Bridge{
+				{
+					LeafType:           agglayer.LeafTypeAsset.Uint8(),
+					OriginNetwork:      1,
+					OriginAddress:      common.HexToAddress("0x123"),
+					DestinationNetwork: 2,
+					DestinationAddress: common.HexToAddress("0x456"),
+					Amount:             big.NewInt(100),
+					Metadata:           []byte("metadata"),
+					DepositCount:       1,
+				},
+			},
+			claims: []bridgesync.Claim{
+				{
+					IsMessage:          false,
+					OriginNetwork:      1,
+					OriginAddress:      common.HexToAddress("0x1234"),
+					DestinationNetwork: 2,
+					DestinationAddress: common.HexToAddress("0x4567"),
+					Amount:             big.NewInt(111),
+					Metadata:           []byte("metadata1"),
+					GlobalIndex:        big.NewInt(1),
+					GlobalExitRoot:     common.HexToHash("0x7891"),
+					RollupExitRoot:     common.HexToHash("0xaaab"),
+					MainnetExitRoot:    common.HexToHash("0xbbba"),
+					ProofLocalExitRoot: mockProof,
+				},
+			},
+			previousExit: common.HexToHash("0x123"),
+			lastHeight:   1,
+			expectedCert: &agglayer.Certificate{
+				NetworkID:         1,
+				PrevLocalExitRoot: common.HexToHash("0x123"),
+				NewLocalExitRoot:  common.HexToHash("0x789"),
+				BridgeExits: []*agglayer.BridgeExit{
+					{
+						LeafType: agglayer.LeafTypeAsset,
+						TokenInfo: &agglayer.TokenInfo{
+							OriginNetwork:      1,
+							OriginTokenAddress: common.HexToAddress("0x123"),
+						},
+						DestinationNetwork: 2,
+						DestinationAddress: common.HexToAddress("0x456"),
+						Amount:             big.NewInt(100),
+						Metadata:           []byte("metadata"),
+					},
+				},
+				ImportedBridgeExits: []*agglayer.ImportedBridgeExit{
+					{
+						BridgeExit: &agglayer.BridgeExit{
+							LeafType: agglayer.LeafTypeAsset,
+							TokenInfo: &agglayer.TokenInfo{
+								OriginNetwork:      1,
+								OriginTokenAddress: common.HexToAddress("0x1234"),
+							},
+							DestinationNetwork: 2,
+							DestinationAddress: common.HexToAddress("0x4567"),
+							Amount:             big.NewInt(111),
+							Metadata:           []byte("metadata1"),
+						},
+						GlobalIndex: &agglayer.GlobalIndex{
+							MainnetFlag: false,
+							RollupIndex: 0,
+							LeafIndex:   1,
+						},
+						ClaimData: &agglayer.ClaimFromRollup{
+							L1Leaf: agglayer.L1InfoTreeLeaf{
+								L1InfoTreeIndex: 1,
+								RollupExitRoot:  common.HexToHash("0xaaab"),
+								MainnetExitRoot: common.HexToHash("0xbbba"),
+								Inner: agglayer.L1InfoTreeLeafInner{
+									GlobalExitRoot: common.HexToHash("0x7891"),
+									Timestamp:      123456789,
+									BlockHash:      common.HexToHash("0xabc"),
+								},
+							},
+							ProofLeafLER: agglayer.MerkleProof{
+								Root:  common.HexToHash("0xbbba"),
+								Proof: mockProof,
+							},
+							ProofLERToRER: agglayer.MerkleProof{},
+							ProofGERToL1Root: agglayer.MerkleProof{
+								Root:  common.HexToHash("0x7891"),
+								Proof: mockProof,
+							},
+						},
+					},
+				},
+				Height: 2,
+			},
+			mockFn: func() {
+				mockL2BridgeSyncer.On("OriginNetwork").Return(uint32(1))
+				mockL2BridgeSyncer.On("GetExitRootByIndex", mock.Anything, mock.Anything).Return(treeTypes.Root{Hash: common.HexToHash("0x789")}, nil)
+
+				mockL1InfoTreeSyncer.On("GetInfoByGlobalExitRoot", mock.Anything).Return(&l1infotreesync.L1InfoTreeLeaf{
+					L1InfoTreeIndex:   1,
+					Timestamp:         123456789,
+					PreviousBlockHash: common.HexToHash("0xabc"),
+				}, nil)
+				mockL1InfoTreeSyncer.On("GetL1InfoTreeMerkleProofFromIndexToRoot", mock.Anything, mock.Anything, mock.Anything).Return(mockProof, nil)
+			},
+			expectedError: false,
+		},
+		{
+			name:          "No bridges or claims",
+			bridges:       []bridgesync.Bridge{},
+			claims:        []bridgesync.Claim{},
+			previousExit:  common.HexToHash("0x123"),
+			lastHeight:    1,
+			expectedCert:  nil,
+			expectedError: true,
+		},
+		{
+			name: "Error getting imported bridge exits",
+			bridges: []bridgesync.Bridge{
+				{
+					LeafType:           agglayer.LeafTypeAsset.Uint8(),
+					OriginNetwork:      1,
+					OriginAddress:      common.HexToAddress("0x123"),
+					DestinationNetwork: 2,
+					DestinationAddress: common.HexToAddress("0x456"),
+					Amount:             big.NewInt(100),
+					Metadata:           []byte("metadata"),
+					DepositCount:       1,
+				},
+			},
+			claims: []bridgesync.Claim{
+				{
+					IsMessage:          false,
+					OriginNetwork:      1,
+					OriginAddress:      common.HexToAddress("0x1234"),
+					DestinationNetwork: 2,
+					DestinationAddress: common.HexToAddress("0x4567"),
+					Amount:             big.NewInt(111),
+					Metadata:           []byte("metadata1"),
+					GlobalIndex:        new(big.Int).SetBytes([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+					GlobalExitRoot:     common.HexToHash("0x7891"),
+					RollupExitRoot:     common.HexToHash("0xaaab"),
+					MainnetExitRoot:    common.HexToHash("0xbbba"),
+					ProofLocalExitRoot: mockProof,
+				},
+			},
+			previousExit: common.HexToHash("0x123"),
+			lastHeight:   1,
+			mockFn: func() {
+				mockL1InfoTreeSyncer.On("GetInfoByGlobalExitRoot", mock.Anything).Return(&l1infotreesync.L1InfoTreeLeaf{
+					L1InfoTreeIndex:   1,
+					Timestamp:         123456789,
+					PreviousBlockHash: common.HexToHash("0xabc"),
+				}, nil)
+			},
+			expectedCert:  nil,
+			expectedError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			mockL1InfoTreeSyncer.ExpectedCalls = nil
+			mockL2BridgeSyncer.ExpectedCalls = nil
+
+			if tt.mockFn != nil {
+				tt.mockFn()
+			}
+
+			aggSender := &AggSender{
+				l2Syncer:         mockL2BridgeSyncer,
+				l1infoTreeSyncer: mockL1InfoTreeSyncer,
+			}
+			cert, err := aggSender.buildCertificate(context.Background(), tt.bridges, tt.claims, tt.previousExit, tt.lastHeight)
+
+			if tt.expectedError {
+				require.Error(t, err)
+				require.Nil(t, cert)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedCert, cert)
+			}
+		})
+	}
+}
+
 func generateTestProof(t *testing.T) treeTypes.Proof {
 	t.Helper()
 
@@ -561,4 +762,56 @@ func generateTestProof(t *testing.T) treeTypes.Proof {
 	}
 
 	return proof
+}
+
+func TestShouldSendCertificate(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		block          uint64
+		epochSize      uint64
+		expectedResult bool
+	}{
+		{
+			name:           "Should send certificate",
+			block:          9,
+			epochSize:      10,
+			expectedResult: true,
+		},
+		{
+			name:           "Should not send certificate",
+			block:          8,
+			epochSize:      10,
+			expectedResult: false,
+		},
+		{
+			name:           "Should not send certificate at zero block",
+			block:          0,
+			epochSize:      1,
+			expectedResult: false,
+		},
+		{
+			name:           "Should send certificate with large epoch size",
+			block:          999,
+			epochSize:      1000,
+			expectedResult: true,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			aggSender := &AggSender{
+				cfg: Config{
+					EpochSize: tt.epochSize,
+				},
+			}
+			result := aggSender.shouldSendCertificate(tt.block)
+			require.Equal(t, tt.expectedResult, result)
+		})
+	}
 }
