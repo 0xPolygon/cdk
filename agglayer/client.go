@@ -1,4 +1,4 @@
-package aggregator
+package agglayer
 
 import (
 	"context"
@@ -17,6 +17,7 @@ import (
 type AgglayerClientInterface interface {
 	SendTx(signedTx SignedTx) (common.Hash, error)
 	WaitTxToBeMined(hash common.Hash, ctx context.Context) error
+	SendCertificate(certificate *SignedCertificate) error
 }
 
 // AggLayerClient is the client that will be used to interact with the AggLayer
@@ -78,4 +79,18 @@ func (c *AggLayerClient) WaitTxToBeMined(hash common.Hash, ctx context.Context) 
 			}
 		}
 	}
+}
+
+// SendCertificate sends a certificate to the AggLayer
+func (c *AggLayerClient) SendCertificate(certificate *SignedCertificate) error {
+	response, err := rpc.JSONRPCCall(c.url, "interop_sendCertificate", certificate)
+	if err != nil {
+		return err
+	}
+
+	if response.Error != nil {
+		return fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
+	}
+
+	return nil
 }

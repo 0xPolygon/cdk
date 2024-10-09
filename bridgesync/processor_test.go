@@ -3,6 +3,7 @@ package bridgesync
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -579,6 +580,94 @@ func TestHashBridge(t *testing.T) {
 				Metadata:           common.FromHex(testVector.Metadata),
 			}
 			require.Equal(t, common.HexToHash(testVector.ExpectedHash), bridge.Hash())
+		})
+	}
+}
+
+func TestDecodeGlobalIndex(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                string
+		globalIndex         *big.Int
+		expectedMainnetFlag bool
+		expectedRollupIndex uint32
+		expectedLocalIndex  uint32
+		expectedErr         error
+	}{
+		{
+			name:                "Mainnet flag true, rollup index 0",
+			globalIndex:         GenerateGlobalIndex(true, 0, 2),
+			expectedMainnetFlag: true,
+			expectedRollupIndex: 0,
+			expectedLocalIndex:  2,
+			expectedErr:         nil,
+		},
+		{
+			name:                "Mainnet flag true, indexes 0",
+			globalIndex:         GenerateGlobalIndex(true, 0, 0),
+			expectedMainnetFlag: true,
+			expectedRollupIndex: 0,
+			expectedLocalIndex:  0,
+			expectedErr:         nil,
+		},
+		{
+			name:                "Mainnet flag false, rollup index 0",
+			globalIndex:         GenerateGlobalIndex(false, 0, 2),
+			expectedMainnetFlag: false,
+			expectedRollupIndex: 0,
+			expectedLocalIndex:  2,
+			expectedErr:         nil,
+		},
+		{
+			name:                "Mainnet flag false, rollup index non-zero",
+			globalIndex:         GenerateGlobalIndex(false, 11, 0),
+			expectedMainnetFlag: false,
+			expectedRollupIndex: 11,
+			expectedLocalIndex:  0,
+			expectedErr:         nil,
+		},
+		{
+			name:                "Mainnet flag false, indexes 0",
+			globalIndex:         GenerateGlobalIndex(false, 0, 0),
+			expectedMainnetFlag: false,
+			expectedRollupIndex: 0,
+			expectedLocalIndex:  0,
+			expectedErr:         nil,
+		},
+		{
+			name:                "Mainnet flag false, indexes non zero",
+			globalIndex:         GenerateGlobalIndex(false, 1231, 111234),
+			expectedMainnetFlag: false,
+			expectedRollupIndex: 1231,
+			expectedLocalIndex:  111234,
+			expectedErr:         nil,
+		},
+		{
+			name:                "Invalid global index length",
+			globalIndex:         big.NewInt(0).SetBytes([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			expectedMainnetFlag: false,
+			expectedRollupIndex: 0,
+			expectedLocalIndex:  0,
+			expectedErr:         errors.New("invalid global index length"),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			mainnetFlag, rollupIndex, localExitRootIndex, err := DecodeGlobalIndex(tt.globalIndex)
+			if tt.expectedErr != nil {
+				require.EqualError(t, err, tt.expectedErr.Error())
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tt.expectedMainnetFlag, mainnetFlag)
+			require.Equal(t, tt.expectedRollupIndex, rollupIndex)
+			require.Equal(t, tt.expectedLocalIndex, localExitRootIndex)
 		})
 	}
 }

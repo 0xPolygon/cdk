@@ -16,6 +16,7 @@ import (
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	cdkTypes "github.com/0xPolygon/cdk-rpc/types"
+	"github.com/0xPolygon/cdk/agglayer"
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	cdkcommon "github.com/0xPolygon/cdk/common"
@@ -97,7 +98,7 @@ type Aggregator struct {
 	exit context.CancelFunc
 
 	sequencerPrivateKey *ecdsa.PrivateKey
-	aggLayerClient      AgglayerClientInterface
+	aggLayerClient      agglayer.AgglayerClientInterface
 }
 
 // New creates a new aggregator.
@@ -167,14 +168,14 @@ func New(
 	}
 
 	var (
-		aggLayerClient      AgglayerClientInterface
+		aggLayerClient      agglayer.AgglayerClientInterface
 		sequencerPrivateKey *ecdsa.PrivateKey
 	)
 
 	if !cfg.SyncModeOnlyEnabled && cfg.SettlementBackend == AggLayer {
-		aggLayerClient = NewAggLayerClient(cfg.AggLayerURL)
+		aggLayerClient = agglayer.NewAggLayerClient(cfg.AggLayerURL)
 
-		sequencerPrivateKey, err = newKeyFromKeystore(cfg.SequencerPrivateKey)
+		sequencerPrivateKey, err = cdkcommon.NewKeyFromKeystore(cfg.SequencerPrivateKey)
 		if err != nil {
 			return nil, err
 		}
@@ -921,10 +922,10 @@ func (a *Aggregator) settleWithAggLayer(
 	inputs ethmanTypes.FinalProofInputs) bool {
 	proofStrNo0x := strings.TrimPrefix(inputs.FinalProof.Proof, "0x")
 	proofBytes := common.Hex2Bytes(proofStrNo0x)
-	tx := Tx{
+	tx := agglayer.Tx{
 		LastVerifiedBatch: cdkTypes.ArgUint64(proof.BatchNumber - 1),
 		NewVerifiedBatch:  cdkTypes.ArgUint64(proof.BatchNumberFinal),
-		ZKP: ZKP{
+		ZKP: agglayer.ZKP{
 			NewStateRoot:     common.BytesToHash(inputs.NewStateRoot),
 			NewLocalExitRoot: common.BytesToHash(inputs.NewLocalExitRoot),
 			Proof:            cdkTypes.ArgBytes(proofBytes),
