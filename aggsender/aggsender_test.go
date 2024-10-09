@@ -433,7 +433,7 @@ func TestGetImportedBridgeExits(t *testing.T) {
 					DestinationAddress: common.HexToAddress("0xabc"),
 					Amount:             big.NewInt(200),
 					Metadata:           []byte("data"),
-					GlobalIndex:        big.NewInt(2),
+					GlobalIndex:        bridgesync.GenerateGlobalIndex(true, 0, 2),
 					GlobalExitRoot:     common.HexToHash("0xdef"),
 					RollupExitRoot:     common.HexToHash("0xbbb"),
 					MainnetExitRoot:    common.HexToHash("0xccc"),
@@ -494,11 +494,11 @@ func TestGetImportedBridgeExits(t *testing.T) {
 						Metadata:           []byte("data"),
 					},
 					GlobalIndex: &agglayer.GlobalIndex{
-						MainnetFlag: false,
+						MainnetFlag: true,
 						RollupIndex: 0,
 						LeafIndex:   2,
 					},
-					ClaimData: &agglayer.ClaimFromRollup{
+					ClaimData: &agglayer.ClaimFromMainnnet{
 						L1Leaf: agglayer.L1InfoTreeLeaf{
 							L1InfoTreeIndex: 2,
 							RollupExitRoot:  common.HexToHash("0xbbb"),
@@ -509,11 +509,10 @@ func TestGetImportedBridgeExits(t *testing.T) {
 								BlockHash:      common.HexToHash("0xabc"),
 							},
 						},
-						ProofLeafLER: agglayer.MerkleProof{
+						ProofLeafMER: agglayer.MerkleProof{
 							Root:  common.HexToHash("0xccc"),
 							Proof: mockProof,
 						},
-						ProofLERToRER: agglayer.MerkleProof{},
 						ProofGERToL1Root: agglayer.MerkleProof{
 							Root:  common.HexToHash("0x789"),
 							Proof: mockProof,
