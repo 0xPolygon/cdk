@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/0xPolygon/cdk/agglayer"
@@ -140,12 +139,12 @@ func (a *AggSenderSQLStorage) GetLastSentCertificate(ctx context.Context) (types
 	rows, err := tx.Query(`SELECT * FROM certificate_info WHERE status = $1 ORDER BY height DESC LIMIT 1;`,
 		agglayer.Pending)
 	if err != nil {
-		return types.CertificateInfo{}, getSelectQueryError(math.MaxUint64, err) // force checking err not found
+		return types.CertificateInfo{}, getSelectQueryError(0, err)
 	}
 
 	var certificateInfo types.CertificateInfo
 	if err = meddler.ScanRow(rows, &certificateInfo); err != nil {
-		return types.CertificateInfo{}, getSelectQueryError(math.MaxUint64, err) // force checking err not found
+		return types.CertificateInfo{}, getSelectQueryError(0, err)
 	}
 
 	return certificateInfo, nil
