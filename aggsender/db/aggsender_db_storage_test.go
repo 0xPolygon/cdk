@@ -177,4 +177,28 @@ func Test_Storage(t *testing.T) {
 
 		require.NoError(t, storage.clean())
 	})
+
+	t.Run("UpdateCertificateStatus", func(t *testing.T) {
+		// Insert a certificate
+		certificate := types.CertificateInfo{
+			Height:           13,
+			CertificateID:    common.HexToHash("0xD"),
+			NewLocalExitRoot: common.HexToHash("0xE"),
+			FromBlock:        13,
+			ToBlock:          14,
+			Status:           agglayer.Pending,
+		}
+		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
+
+		// Update the status of the certificate
+		certificate.Status = agglayer.Settled
+		require.NoError(t, storage.UpdateCertificateStatus(ctx, certificate))
+
+		// Fetch the certificate and verify the status has been updated
+		certificateFromDB, err := storage.GetCertificateByHeight(ctx, certificate.Height)
+		require.NoError(t, err)
+		require.Equal(t, certificate.Status, certificateFromDB.Status)
+
+		require.NoError(t, storage.clean())
+	})
 }

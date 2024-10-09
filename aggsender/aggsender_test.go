@@ -6,9 +6,13 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
+	"github.com/0xPolygon/cdk/aggsender/db"
+	aggsendertypes "github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/bridgesync"
+	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	treeTypes "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -812,6 +816,127 @@ func TestShouldSendCertificate(t *testing.T) {
 			}
 			result := aggSender.shouldSendCertificate(tt.block)
 			require.Equal(t, tt.expectedResult, result)
+		})
+	}
+}
+
+func TestCheckIfCertificatesAreSettled(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                string
+		pendingCertificates []*aggsendertypes.CertificateInfo
+		certificateHeaders  map[common.Hash]*agglayer.CertificateHeader
+		getFromDBError      error
+		clientError         error
+		updateDBError       error
+		expectedLogMessages []string
+	}{
+		{
+			name: "All certificates settled - update successful",
+			pendingCertificates: []*aggsendertypes.CertificateInfo{
+				{CertificateID: common.HexToHash("0x1"), Height: 1},
+				{CertificateID: common.HexToHash("0x2"), Height: 2},
+			},
+			certificateHeaders: map[common.Hash]*agglayer.CertificateHeader{
+				common.HexToHash("0x1"): {Status: agglayer.Settled},
+				common.HexToHash("0x2"): {Status: agglayer.Settled},
+			},
+		},
+		{
+			name: "Some certificates in error - update successful",
+			pendingCertificates: []*aggsendertypes.CertificateInfo{
+				{CertificateID: common.HexToHash("0x1"), Height: 1},
+				{CertificateID: common.HexToHash("0x2"), Height: 2},
+			},
+			certificateHeaders: map[common.Hash]*agglayer.CertificateHeader{
+				common.HexToHash("0x1"): {Status: agglayer.InError},
+				common.HexToHash("0x2"): {Status: agglayer.Settled},
+			},
+		},
+		{
+			name:           "Error getting pending certificates",
+			getFromDBError: fmt.Errorf("storage error"),
+			expectedLogMessages: []string{
+				"error getting pending certificates: %w",
+			},
+		},
+		{
+			name: "Error getting certificate header",
+			pendingCertificates: []*aggsendertypes.CertificateInfo{
+				{CertificateID: common.HexToHash("0x1"), Height: 1},
+			},
+			certificateHeaders: map[common.Hash]*agglayer.CertificateHeader{
+				common.HexToHash("0x1"): {Status: agglayer.InError},
+			},
+			clientError: fmt.Errorf("client error"),
+			expectedLogMessages: []string{
+				"error getting header of certificate %s with height: %d from agglayer: %w",
+			},
+		},
+		{
+			name: "Error updating certificate status",
+			pendingCertificates: []*aggsendertypes.CertificateInfo{
+				{CertificateID: common.HexToHash("0x1"), Height: 1},
+			},
+			certificateHeaders: map[common.Hash]*agglayer.CertificateHeader{
+				common.HexToHash("0x1"): {Status: agglayer.Settled},
+			},
+			updateDBError: fmt.Errorf("update error"),
+			expectedLogMessages: []string{
+				"error updating certificate status in storage: %w",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			mockStorage := db.NewAggSenderStorageMock(t)
+			mockAggLayerClient := agglayer.NewAgglayerClientMock(t)
+			mockLogger := NewLoggerMock(t)
+
+			mockStorage.On("GetCertificatesByStatus", mock.Anything, []agglayer.CertificateStatus{agglayer.Pending}).Return(tt.pendingCertificates, tt.getFromDBError)
+			for certID, header := range tt.certificateHeaders {
+				mockAggLayerClient.On("GetCertificateHeader", certID).Return(header, tt.clientError)
+			}
+			if tt.updateDBError != nil {
+				mockStorage.On("UpdateCertificateStatus", mock.Anything, mock.Anything).Return(tt.updateDBError)
+			} else if tt.clientError == nil && tt.getFromDBError == nil {
+				mockStorage.On("UpdateCertificateStatus", mock.Anything, mock.Anything).Return(nil)
+			}
+
+			if tt.clientError != nil {
+				for _, msg := range tt.expectedLogMessages {
+					mockLogger.On("Errorf", msg, mock.Anything, mock.Anything, mock.Anything).Return()
+				}
+			} else {
+				for _, msg := range tt.expectedLogMessages {
+					mockLogger.On("Errorf", msg, mock.Anything).Return()
+				}
+			}
+
+			aggSender := &AggSender{
+				log:            mockLogger,
+				storage:        mockStorage,
+				aggLayerClient: mockAggLayerClient,
+				cfg:            Config{CertificateSendInterval: types.Duration{Duration: time.Second}},
+			}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			go aggSender.checkIfCertificatesAreSettled(ctx)
+
+			time.Sleep(2 * time.Second)
+			cancel()
+
+			mockLogger.AssertExpectations(t)
+			mockAggLayerClient.AssertExpectations(t)
+			mockStorage.AssertExpectations(t)
 		})
 	}
 }
