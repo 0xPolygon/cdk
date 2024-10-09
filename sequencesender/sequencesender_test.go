@@ -145,8 +145,9 @@ func Test_Start(t *testing.T) {
 				etherman:     tt.getEtherman(t),
 				ethTxManager: tt.getEthTxManager(t),
 				cfg: Config{
-					SequencesTxFileName:  tmpFile.Name() + ".tmp",
-					GetBatchWaitInterval: tt.batchWaitDuration,
+					SequencesTxFileName:    tmpFile.Name() + ".tmp",
+					GetBatchWaitInterval:   tt.batchWaitDuration,
+					WaitPeriodSendSequence: types2.NewDuration(1 * time.Millisecond),
 				},
 				logger: log.GetDefaultLogger(),
 			}
@@ -356,8 +357,9 @@ func Test_tryToSendSequence(t *testing.T) {
 				etherman:     tt.getEtherman(t),
 				TxBuilder:    tt.getTxBuilder(t),
 				cfg: Config{
-					SequencesTxFileName: tmpFile.Name() + ".tmp",
-					MaxPendingTx:        tt.maxPendingTxn,
+					SequencesTxFileName:    tmpFile.Name() + ".tmp",
+					MaxPendingTx:           tt.maxPendingTxn,
+					WaitPeriodSendSequence: types2.NewDuration(time.Millisecond),
 				},
 				sequenceList:        tt.sequenceList,
 				latestSentToL1Batch: tt.latestSentToL1Batch,
