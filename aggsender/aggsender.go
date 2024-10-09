@@ -14,9 +14,17 @@ import (
 	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
+	treeTypes "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
+
+// L1InfoTreeSyncer is an interface defining functions that an L1InfoTreeSyncer should implement
+type L1InfoTreeSyncer interface {
+	GetInfoByGlobalExitRoot(globalExitRoot common.Hash) (*l1infotreesync.L1InfoTreeLeaf, error)
+	GetL1InfoTreeMerkleProofFromIndexToRoot(ctx context.Context,
+		index uint32, root common.Hash) (treeTypes.Proof, error)
+}
 
 // AggSender is a component that will send certificates to the aggLayer
 type AggSender struct {
@@ -24,7 +32,7 @@ type AggSender struct {
 
 	l2Syncer         *bridgesync.BridgeSync
 	l2Client         bridgesync.EthClienter
-	l1infoTreeSyncer *l1infotreesync.L1InfoTreeSync
+	l1infoTreeSyncer L1InfoTreeSyncer
 
 	storage        db.AggSenderStorage
 	aggLayerClient agglayer.AgglayerClientInterface
