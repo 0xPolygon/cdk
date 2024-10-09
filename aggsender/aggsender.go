@@ -253,7 +253,8 @@ func (a *AggSender) getBridgeExits(bridges []bridgesync.Bridge) []*agglayer.Brid
 }
 
 // getImportedBridgeExits converts claims to agglayer.ImportedBridgeExit objects and calculates necessary proofs
-func (a *AggSender) getImportedBridgeExits(ctx context.Context, claims []bridgesync.Claim) ([]*agglayer.ImportedBridgeExit, error) {
+func (a *AggSender) getImportedBridgeExits(ctx context.Context,
+	claims []bridgesync.Claim) ([]*agglayer.ImportedBridgeExit, error) {
 	var (
 		importedBridgeExits     = make([]*agglayer.ImportedBridgeExit, 0, len(claims))
 		greatestL1InfoTreeIndex = uint32(0)
