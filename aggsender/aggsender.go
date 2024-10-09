@@ -39,9 +39,17 @@ type L2BridgeSyncer interface {
 	BlockFinality() etherman.BlockNumberFinality
 }
 
+// Logger is an interface that defines the methods to log messages
+type Logger interface {
+	Info(args ...interface{})
+	Infof(format string, args ...interface{})
+	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
+}
+
 // AggSender is a component that will send certificates to the aggLayer
 type AggSender struct {
-	log *log.Logger
+	log Logger
 
 	l2Syncer         L2BridgeSyncer
 	l2Client         bridgesync.EthClienter
@@ -104,7 +112,7 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 		case <-ticker.C:
 			block, err := a.l1Client.BlockNumber(ctx)
 			if err != nil {
-				a.log.Error("error getting l1 block number: %w", err)
+				a.log.Errorf("error getting l1 block number: %w", err)
 				continue
 			}
 
@@ -124,14 +132,14 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 
 // sendCertificate sends certificate for a network
 func (a *AggSender) sendCertificate(ctx context.Context) error {
-	a.log.Info("trying to send a new certificate...")
+	a.log.Infof("trying to send a new certificate...")
 
 	lastSentCertificate, err := a.storage.GetLastSentCertificate(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting last sent certificate: %w", err)
 	}
 
-	a.log.Info("last sent certificate: %s", lastSentCertificate.CertificateID)
+	a.log.Infof("last sent certificate: %s", lastSentCertificate.CertificateID)
 
 	finality := a.l2Syncer.BlockFinality()
 	blockFinality, err := finality.ToBlockNum()
@@ -196,7 +204,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 	}
 
 	if len(bridges) == 0 {
-		a.log.Info("no bridges consumed, no need to send a certificate from block: %d to block: %d", fromBlock, toBlock)
+		a.log.Infof("no bridges consumed, no need to send a certificate from block: %d to block: %d", fromBlock, toBlock)
 		return nil
 	}
 
@@ -205,7 +213,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		return fmt.Errorf("error getting claims: %w", err)
 	}
 
-	a.log.Info("building certificate for block: %d to block: %d", fromBlock, toBlock)
+	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
 
 	certificate, err := a.buildCertificate(ctx, bridges, claims, previousLocalExitRoot, previousHeight)
 	if err != nil {
@@ -232,7 +240,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		return fmt.Errorf("error saving last sent certificate in db: %w", err)
 	}
 
-	a.log.Info("certificate: %s sent successfully for block: %d to block: %d", certificateHash, fromBlock, toBlock)
+	a.log.Infof("certificate: %s sent successfully for block: %d to block: %d", certificateHash, fromBlock, toBlock)
 
 	return nil
 }
@@ -437,14 +445,14 @@ func (a *AggSender) checkIfCertificatesAreSettled(ctx context.Context) {
 		case <-ticker.C:
 			pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, []agglayer.CertificateStatus{agglayer.Pending})
 			if err != nil {
-				a.log.Error("error getting pending certificates: %w", err)
+				a.log.Errorf("error getting pending certificates: %w", err)
 				continue
 			}
 
 			for _, certificate := range pendingCertificates {
 				certificateHeader, err := a.aggLayerClient.GetCertificateHeader(certificate.CertificateID)
 				if err != nil {
-					a.log.Error("error getting header of certificate %s with height: %d from agglayer: %w",
+					a.log.Errorf("error getting header of certificate %s with height: %d from agglayer: %w",
 						certificate.CertificateID, certificate.Height, err)
 					continue
 				}
@@ -453,7 +461,7 @@ func (a *AggSender) checkIfCertificatesAreSettled(ctx context.Context) {
 					certificate.Status = certificateHeader.Status
 
 					if err := a.storage.UpdateCertificateStatus(ctx, *certificate); err != nil {
-						a.log.Error("error updating certificate status in storage: %w", err)
+						a.log.Errorf("error updating certificate status in storage: %w", err)
 						continue
 					}
 				}
