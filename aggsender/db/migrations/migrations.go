@@ -5,7 +5,6 @@ import (
 
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/db/types"
-	treeMigrations "github.com/0xPolygon/cdk/tree/migrations"
 )
 
 //go:embed 0001.sql
@@ -18,6 +17,6 @@ func RunMigrations(dbPath string) error {
 			SQL: mig001,
 		},
 	}
-	migrations = append(migrations, treeMigrations.Migrations...)
+
 	return db.RunMigrations(dbPath, migrations)
 }
