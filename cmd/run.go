@@ -535,6 +535,7 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 	if !isNeeded([]string{
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
 		cdkcommon.AGGORACLE, cdkcommon.RPC,
+		cdkcommon.AGGSENDER,
 	}, components) {
 		return nil
 	}
