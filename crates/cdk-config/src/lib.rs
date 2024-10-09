@@ -21,18 +21,18 @@ use sequence_sender::SequenceSender;
 #[cfg_attr(any(test, feature = "testutils"), derive(Default))]
 pub struct Config {
     /// The log configuration.
-    #[serde(rename = "Log")]
+    #[serde(rename = "Log", default)]
     pub log: Log,
 
     #[serde(rename = "ForkUpgradeBatchNumber")]
     pub fork_upgrade_batch_number: Option<u64>,
 
-    #[serde(rename = "NetworkConfig")]
+    #[serde(rename = "NetworkConfig", default)]
     pub network_config: network_config::NetworkConfig,
 
-    #[serde(rename = "Aggregator")]
+    #[serde(rename = "Aggregator", default)]
     pub aggregator: aggregator::Aggregator,
 
-    #[serde(rename = "SequenceSender")]
+    #[serde(rename = "SequenceSender", default)]
     pub sequence_sender: SequenceSender,
 }

@@ -110,7 +110,6 @@ fn default_address() -> Address {
         .unwrap()
 }
 
-#[cfg(any(test, feature = "testutils"))]
 impl Default for Aggregator {
     fn default() -> Self {
         // Values are coming from https://github.com/0xPolygon/agglayer/blob/main/config/default.go#L11
