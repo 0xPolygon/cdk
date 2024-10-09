@@ -275,7 +275,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 
 	// Update state of transactions
 	s.logger.Infof("updating tx results")
-	countPending, err := s.syncEthTxResults(ctx)
+	pendingTxsCount, err := s.syncEthTxResults(ctx)
 	if err != nil {
 		return
 	}
@@ -287,8 +287,8 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	}
 
 	// Check if reached the maximum number of pending transactions
-	if countPending >= s.cfg.MaxPendingTx {
-		s.logger.Infof("max number of pending txs (%d) reached. Waiting for some to be completed", countPending)
+	if pendingTxsCount >= s.cfg.MaxPendingTx {
+		s.logger.Infof("max number of pending txs (%d) reached. Waiting for some to be completed", pendingTxsCount)
 		return
 	}
 
