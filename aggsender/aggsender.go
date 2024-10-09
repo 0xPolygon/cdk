@@ -3,6 +3,7 @@ package aggsender
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"time"
 
@@ -18,6 +19,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
+
+var errNoBridgesAndClaims = errors.New("no bridges and claims to build certificate")
 
 // L1InfoTreeSyncer is an interface defining functions that an L1InfoTreeSyncer should implement
 type L1InfoTreeSyncer interface {
@@ -43,6 +46,7 @@ type AggSender struct {
 	l2Syncer         L2BridgeSyncer
 	l2Client         bridgesync.EthClienter
 	l1infoTreeSyncer L1InfoTreeSyncer
+	l1Client         bridgesync.EthClienter
 
 	storage        db.AggSenderStorage
 	aggLayerClient agglayer.AgglayerClientInterface
@@ -58,6 +62,7 @@ func New(
 	logger *log.Logger,
 	cfg Config,
 	aggLayerClient agglayer.AgglayerClientInterface,
+	l1Client bridgesync.EthClienter,
 	l1InfoTreeSyncer *l1infotreesync.L1InfoTreeSync,
 	l2Syncer *bridgesync.BridgeSync,
 	l2Client bridgesync.EthClienter) (*AggSender, error) {
@@ -77,6 +82,7 @@ func New(
 		storage:          storage,
 		l2Syncer:         l2Syncer,
 		l2Client:         l2Client,
+		l1Client:         l1Client,
 		aggLayerClient:   aggLayerClient,
 		l1infoTreeSyncer: l1InfoTreeSyncer,
 		sequencerKey:     sequencerPrivateKey,
@@ -96,6 +102,16 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
+			block, err := a.l1Client.BlockNumber(ctx)
+			if err != nil {
+				a.log.Error("error getting l1 block number: %w", err)
+				continue
+			}
+
+			if !a.shouldSendCertificate(block) {
+				continue
+			}
+
 			if err := a.sendCertificate(ctx); err != nil {
 				log.Error(err)
 			}
@@ -226,6 +242,10 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	bridges []bridgesync.Bridge,
 	claims []bridgesync.Claim,
 	previousExitRoot common.Hash, lastHeight uint64) (*agglayer.Certificate, error) {
+	if len(bridges) == 0 && len(claims) == 0 {
+		return nil, errNoBridgesAndClaims
+	}
+
 	bridgeExits := a.getBridgeExits(bridges)
 	importedBridgeExits, err := a.getImportedBridgeExits(ctx, claims)
 	if err != nil {
@@ -442,4 +462,15 @@ func (a *AggSender) checkIfCertificatesAreSettled(ctx context.Context) {
 			return
 		}
 	}
+}
+
+// shouldSendCertificate checks if a certificate should be sent at given L1 block
+// we send certificates at one block before the epoch ending so we get most of the
+// bridges and claims in that epoch
+func (a *AggSender) shouldSendCertificate(block uint64) bool {
+	if block == 0 {
+		return false
+	}
+
+	return (block+1)%a.cfg.EpochSize == 0
 }
