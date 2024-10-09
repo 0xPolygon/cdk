@@ -162,28 +162,30 @@ func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 }
 
 // syncEthTxResults syncs results from L1 for transactions in the memory structure
-func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) { //nolint:unparam
+func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) {
 	s.mutexEthTx.Lock()
 	var (
 		txPending uint64
 		txSync    uint64
 	)
-	for hash, data := range s.ethTransactions {
-		if data.Status == types.MonitoredTxStatusFinalized.String() {
+	for hash, tx := range s.ethTransactions {
+		if tx.Status == types.MonitoredTxStatusFinalized.String() {
 			continue
 		}
 
 		err := s.getResultAndUpdateEthTx(ctx, hash)
 		if err != nil {
 			log.Errorf("error getting result for tx %v: %v", hash, err)
+			return 0, err
 		}
+
 		txSync++
-		txStatus := s.ethTransactions[hash].Status
+		txStatus := types.MonitoredTxStatus(tx.Status)
 		// Count if it is not in a final state
-		if s.ethTransactions[hash].OnMonitor &&
-			txStatus != types.MonitoredTxStatusFailed.String() &&
-			txStatus != types.MonitoredTxStatusSafe.String() &&
-			txStatus != types.MonitoredTxStatusFinalized.String() {
+		if tx.OnMonitor &&
+			txStatus != types.MonitoredTxStatusFailed &&
+			txStatus != types.MonitoredTxStatusSafe &&
+			txStatus != types.MonitoredTxStatusFinalized {
 			txPending++
 		}
 	}
@@ -193,6 +195,7 @@ func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) {
 	err := s.saveSentSequencesTransactions(ctx)
 	if err != nil {
 		log.Errorf("error saving tx sequence, error: %v", err)
+		return 0, err
 	}
 
 	log.Infof("%d tx results synchronized (%d in pending state)", txSync, txPending)
