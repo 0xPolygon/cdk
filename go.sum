@@ -1,5 +1,3 @@
-github.com/0xPolygon/agglayer v0.1.4 h1:qUGST1dSRfMr8dKPDLgXv2ilRhgGp72ogKoc2eDxcE0=
-github.com/0xPolygon/agglayer v0.1.4/go.mod h1:p6sazQ6LLP1PtZLlw6moDRW+4CRLQmb+QtGoZaQJcic=
 github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240826154954-f6182d2b17a2 h1:N5qvWG4amhUt6d1F4Kf8AdJZs4z7/xZfE3v/Im2afNM=
 github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240826154954-f6182d2b17a2/go.mod h1:mFlcEjsm2YBBsu8atHJ3zyVnwM+Z/fMXpVmIJge+WVU=
 github.com/0xPolygon/cdk-data-availability v0.0.10 h1:pVcke2I7GuPH7JeRLKokEOHffPMwEHmJd9yDXHqh9B4=
