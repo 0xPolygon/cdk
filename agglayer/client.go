@@ -21,7 +21,8 @@ var ErrAgglayerRateLimitExceeded = fmt.Errorf("agglayer rate limit exceeded")
 type AgglayerClientInterface interface {
 	SendTx(signedTx SignedTx) (common.Hash, error)
 	WaitTxToBeMined(hash common.Hash, ctx context.Context) error
-	SendCertificate(certificate *SignedCertificate) error
+	SendCertificate(certificate *SignedCertificate) (common.Hash, error)
+	GetCertificateHeader(certificateHash common.Hash) (*CertificateHeader, error)
 }
 
 // AggLayerClient is the client that will be used to interact with the AggLayer
@@ -89,15 +90,41 @@ func (c *AggLayerClient) WaitTxToBeMined(hash common.Hash, ctx context.Context) 
 }
 
 // SendCertificate sends a certificate to the AggLayer
-func (c *AggLayerClient) SendCertificate(certificate *SignedCertificate) error {
+func (c *AggLayerClient) SendCertificate(certificate *SignedCertificate) (common.Hash, error) {
 	response, err := rpc.JSONRPCCall(c.url, "interop_sendCertificate", certificate)
 	if err != nil {
-		return err
+		return common.Hash{}, err
 	}
 
 	if response.Error != nil {
-		return fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
+		return common.Hash{}, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
 	}
 
-	return nil
+	var result types.ArgHash
+	err = json.Unmarshal(response.Result, &result)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return result.Hash(), nil
+}
+
+// GetCertificateHeader returns the certificate header associated to the hash
+func (c *AggLayerClient) GetCertificateHeader(certificateHash common.Hash) (*CertificateHeader, error) {
+	response, err := rpc.JSONRPCCall(c.url, "interop_getCertificateHeader", certificateHash)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Error != nil {
+		return nil, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
+	}
+
+	var result *CertificateHeader
+	err = json.Unmarshal(response.Result, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
