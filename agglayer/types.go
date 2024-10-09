@@ -3,6 +3,7 @@ package agglayer
 import (
 	"math/big"
 
+	"github.com/0xPolygon/cdk/bridgesync"
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -32,15 +33,12 @@ type Certificate struct {
 
 // Hash returns a hash that uniquely identifies the certificate
 func (c *Certificate) Hash() common.Hash {
-	importedBridgeHashes := make([][]byte, 0, len(c.ImportedBridgeExits))
-	for _, claim := range c.ImportedBridgeExits {
-		importedBridgeHashes = append(importedBridgeHashes, claim.Hash().Bytes())
-	}
-
-	incomeCommitment := crypto.Keccak256Hash(importedBridgeHashes...)
-	outcomeCommitment := c.NewLocalExitRoot
-
-	return crypto.Keccak256Hash(outcomeCommitment.Bytes(), incomeCommitment.Bytes())
+	return crypto.Keccak256Hash(
+		cdkcommon.Uint32ToBytes(c.NetworkID),
+		cdkcommon.Uint64ToBytes(c.Height),
+		c.PrevLocalExitRoot.Bytes(),
+		c.NewLocalExitRoot.Bytes(),
+	)
 }
 
 // SignedCertificate is the struct that contains the certificate and the signature of the signer
@@ -89,16 +87,66 @@ func (c *BridgeExit) Hash() common.Hash {
 	)
 }
 
+type MerkleProof struct {
+	Root  common.Hash                      `json:"root"`
+	Proof [types.DefaultHeight]common.Hash `json:"proof"`
+}
+
+type L1InfoTreeLeafInner struct {
+	GlobalExitRoot common.Hash `json:"global_exit_root"`
+	BlockHash      common.Hash `json:"block_hash"`
+	Timestamp      uint64      `json:"timestamp"`
+}
+
+func (l L1InfoTreeLeafInner) Hash() common.Hash {
+	return crypto.Keccak256Hash(l.GlobalExitRoot.Bytes(), l.BlockHash.Bytes(), cdkcommon.Uint64ToBytes(l.Timestamp))
+}
+
+type L1InfoTreeLeaf struct {
+	L1InfoTreeIndex uint32              `json:"l1_info_tree_index"`
+	RollupExitRoot  common.Hash         `json:"rer"`
+	MainnetExitRoot common.Hash         `json:"mer"`
+	Inner           L1InfoTreeLeafInner `json:"inner"`
+}
+
+func (l L1InfoTreeLeaf) Hash() common.Hash {
+	return l.Inner.Hash()
+}
+
+type Claim interface {
+	Type() string
+}
+
+type ClaimFromMainnnet struct {
+	ProofLeafMER     MerkleProof    `json:"proof_leaf_mer"`
+	ProofGERToL1Root MerkleProof    `json:"proof_ger_l1root"`
+	L1Leaf           L1InfoTreeLeaf `json:"l1_leaf"`
+}
+
+func (c ClaimFromMainnnet) Type() string {
+	return "Mainnet"
+}
+
+type ClaimFromRollup struct {
+	ProofLeafLER     MerkleProof    `json:"proof_leaf_ler"`
+	ProofLERToRER    MerkleProof    `json:"proof_ler_rer"`
+	ProofGERToL1Root MerkleProof    `json:"proof_ger_l1root"`
+	L1Leaf           L1InfoTreeLeaf `json:"l1_leaf"`
+}
+
+func (c ClaimFromRollup) Type() string {
+	return "Rollup"
+}
+
 // ImportedBridgeExit represents a token bridge exit originating on another network but claimed on the current network.
 type ImportedBridgeExit struct {
-	BridgeExit            *BridgeExit                      `json:"bridge_exit"`
-	ImportedLocalExitRoot common.Hash                      `json:"imported_local_exit_root"`
-	InclusionProof        [types.DefaultHeight]common.Hash `json:"inclusion_proof"`
-	InclusionProofRER     [types.DefaultHeight]common.Hash `json:"inclusion_proof_rer"`
-	GlobalIndex           *GlobalIndex                     `json:"global_index"`
+	BridgeExit  *BridgeExit  `json:"bridge_exit"`
+	ClaimData   Claim        `json:"claim"`
+	GlobalIndex *GlobalIndex `json:"global_index"`
 }
 
 // Hash returns a hash that uniquely identifies the imported bridge exit
 func (c *ImportedBridgeExit) Hash() common.Hash {
-	return c.BridgeExit.Hash()
+	globalIndexBig := bridgesync.GenerateGlobalIndex(c.GlobalIndex.MainnetFlag, c.GlobalIndex.RollupIndex, c.GlobalIndex.LeafIndex)
+	return crypto.Keccak256Hash(globalIndexBig.Bytes())
 }
