@@ -115,7 +115,7 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 // purgeEthTx purges transactions from memory structures
 func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 	// If sequence sending is stopped, do not purge
-	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
+	if s.IsStopped() {
 		return
 	}
 
@@ -390,4 +390,9 @@ func (s *SequenceSender) saveSentSequencesTransactions(ctx context.Context) erro
 	}
 
 	return nil
+}
+
+// IsStopped returns true in case seqSendingStopped is set to 1, otherwise false
+func (s *SequenceSender) IsStopped() bool {
+	return atomic.LoadUint32(&s.seqSendingStopped) == 1
 }
