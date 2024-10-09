@@ -51,7 +51,9 @@ func NewAggSenderSQLStorage(logger *log.Logger, dbPath string) (*AggSenderSQLSto
 	}, nil
 }
 
-func (a *AggSenderSQLStorage) GetCertificateByHeight(ctx context.Context, height uint64) (types.CertificateInfo, error) {
+// GetCertificateByHeight returns a certificate by its height
+func (a *AggSenderSQLStorage) GetCertificateByHeight(ctx context.Context,
+	height uint64) (types.CertificateInfo, error) {
 	tx, err := a.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return types.CertificateInfo{}, err
@@ -68,12 +70,12 @@ func (a *AggSenderSQLStorage) GetCertificateByHeight(ctx context.Context, height
 		return types.CertificateInfo{}, getSelectQueryError(height, err)
 	}
 
-	var certificateInfo *types.CertificateInfo
-	if err = meddler.ScanAll(rows, &certificateInfo); err != nil {
+	var certificateInfo types.CertificateInfo
+	if err = meddler.ScanRow(rows, &certificateInfo); err != nil {
 		return types.CertificateInfo{}, err
 	}
 
-	return *certificateInfo, nil
+	return certificateInfo, nil
 }
 
 // GetLastSentCertificate returns the last certificate sent to the aggLayer
@@ -97,12 +99,12 @@ func (a *AggSenderSQLStorage) GetLastSentCertificate(ctx context.Context) (types
 		return types.CertificateInfo{}, err
 	}
 
-	var certificateInfo *types.CertificateInfo
-	if err = meddler.ScanAll(rows, &certificateInfo); err != nil {
+	var certificateInfo types.CertificateInfo
+	if err = meddler.ScanRow(rows, &certificateInfo); err != nil {
 		return types.CertificateInfo{}, err
 	}
 
-	return *certificateInfo, nil
+	return certificateInfo, nil
 }
 
 // SaveLastSentCertificate saves the last certificate sent to the aggLayer

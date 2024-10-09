@@ -1,6 +1,7 @@
 -- +migrate Down
 DROP TABLE IF EXISTS certificate_info;
 
+-- +migrate Up
 CREATE TABLE certificate_info (
 	height                      INTEGER NOT NULL,
 	certificate_id              VARCHAR NOT NULL,
