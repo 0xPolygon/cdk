@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	aggTx "github.com/0xPolygon/agglayer/tx"
+	aggtx "github.com/0xPolygon/agglayer/tx"
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk-rpc/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -16,7 +16,7 @@ import (
 
 // AgglayerClientInterface is the interface that defines the methods that the AggLayerClient will implement
 type AgglayerClientInterface interface {
-	SendTx(signedTx aggTx.SignedTx) (common.Hash, error)
+	SendTx(signedTx aggtx.SignedTx) (common.Hash, error)
 	WaitTxToBeMined(hash common.Hash, ctx context.Context) error
 }
 
@@ -33,7 +33,7 @@ func NewAggLayerClient(url string) *AggLayerClient {
 }
 
 // SendTx sends a signed transaction to the AggLayer
-func (c *AggLayerClient) SendTx(signedTx aggTx.SignedTx) (common.Hash, error) {
+func (c *AggLayerClient) SendTx(signedTx aggtx.SignedTx) (common.Hash, error) {
 	response, err := rpc.JSONRPCCall(c.url, "interop_sendTx", signedTx)
 	if err != nil {
 		return common.Hash{}, err

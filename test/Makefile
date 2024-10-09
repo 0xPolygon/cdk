@@ -1,5 +1,7 @@
 .PHONY: generate-mocks
-generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-mocks-sequencesender generate-mocks-da generate-mocks-l1infotreesync generate-mocks-helpers generate-mocks-sync generate-mocks-l1infotreesync generate-mocks-aggregator
+generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-mocks-sequencesender \
+	generate-mocks-da generate-mocks-l1infotreesync generate-mocks-helpers \
+	generate-mocks-sync generate-mocks-l1infotreesync generate-mocks-aggregator
 
 
 .PHONY: generate-mocks-bridgesync
@@ -47,14 +49,14 @@ generate-mocks-sync: ## Generates mocks for sync, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
 
 .PHONY: generate-mocks-aggregator	
-generate-mocks-aggregator: ## Generates mocks for aggregator , using mockery tool
+generate-mocks-aggregator: ## Generates mocks for aggregator, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ProverInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProverInterfaceMock --filename=mock_prover.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Etherman --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=StateInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=StateInterfaceMock --filename=mock_state.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AgglayerClientInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=AgglayerClientInterfaceMock --filename=mock_AgglayerClientInterface.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AgglayerClientInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=AgglayerClientInterfaceMock --filename=mock_agglayer_client.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Synchronizer --srcpkg=github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer --output=../aggregator/mocks --outpkg=mocks --structname=SynchronizerInterfaceMock --filename=mock_synchronizer.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=StreamClient --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=StreamClientMock --filename=mock_StreamClient.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManagerClient --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthTxManagerClientMock --filename=mock_EthTxManagerClient.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=StreamClient --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=StreamClientMock --filename=mock_streamclient.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManagerClient --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthTxManagerClientMock --filename=mock_eth_tx_manager.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../aggregator/mocks --outpkg=mocks --structname=DbTxMock --filename=mock_dbtx.go
 
 .PHONY: test-e2e-fork9-validium

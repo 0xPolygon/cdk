@@ -158,7 +158,7 @@ func Test_handleRollbackBatches(t *testing.T) {
 	mockState.AssertExpectations(t)
 }
 
-func Test_handleReceivedDataStream_BATCH_START(t *testing.T) {
+func Test_handleReceivedDataStream_BatchStart(t *testing.T) {
 	t.Parallel()
 
 	mockState := new(mocks.StateInterfaceMock)
@@ -195,7 +195,7 @@ func Test_handleReceivedDataStream_BATCH_START(t *testing.T) {
 	assert.Equal(t, agg.currentStreamBatch.Type, datastream.BatchType_BATCH_TYPE_REGULAR)
 }
 
-func Test_handleReceivedDataStreamBatchEnd(t *testing.T) {
+func Test_handleReceivedDataStream_BatchEnd(t *testing.T) {
 	t.Parallel()
 
 	mockState := new(mocks.StateInterfaceMock)
@@ -270,7 +270,7 @@ func Test_handleReceivedDataStreamBatchEnd(t *testing.T) {
 	mockL1Syncr.AssertExpectations(t)
 }
 
-func Test_handleReceivedDataStreamL2Block(t *testing.T) {
+func Test_handleReceivedDataStream_L2Block(t *testing.T) {
 	t.Parallel()
 
 	a := Aggregator{
@@ -312,7 +312,7 @@ func Test_handleReceivedDataStreamL2Block(t *testing.T) {
 	assert.Equal(t, common.BytesToHash([]byte{0x02}), a.currentStreamBatch.GlobalExitRoot)
 }
 
-func Test_handleReceivedDataStreamTransaction(t *testing.T) {
+func Test_handleReceivedDataStream_Transaction(t *testing.T) {
 	t.Parallel()
 
 	a := Aggregator{
@@ -333,9 +333,8 @@ func Test_handleReceivedDataStreamTransaction(t *testing.T) {
 
 	// Encode transaction into RLP format
 	var buf bytes.Buffer
-	if err := tx.EncodeRLP(&buf); err != nil {
-		t.Fatalf("Failed to encode transaction: %v", err)
-	}
+	err := tx.EncodeRLP(&buf)
+	require.NoError(t, err, "Failed to encode transaction")
 
 	transaction := &datastream.Transaction{
 		L2BlockNumber:               uint64(10),
@@ -363,6 +362,7 @@ func Test_handleReceivedDataStreamTransaction(t *testing.T) {
 }
 
 func Test_sendFinalProofSuccess(t *testing.T) {
+	require := require.New(t)
 	assert := assert.New(t)
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
@@ -448,9 +448,7 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 
 			curve := elliptic.P256()
 			privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
-			if err != nil {
-				t.Fatal("Error generating key")
-			}
+			require.NoError(err, "error generating key")
 
 			a := Aggregator{
 				state:                   stateMock,
@@ -496,6 +494,7 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 }
 
 func Test_sendFinalProofError(t *testing.T) {
+	require := require.New(t)
 	assert := assert.New(t)
 	errTest := errors.New("test error")
 	batchNum := uint64(23)
@@ -655,9 +654,7 @@ func Test_sendFinalProofError(t *testing.T) {
 
 			curve := elliptic.P256()
 			privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
-			if err != nil {
-				t.Fatal("Error generating key")
-			}
+			require.NoError(err, "error generating key")
 
 			a := Aggregator{
 				state:                   stateMock,
