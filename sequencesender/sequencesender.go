@@ -220,9 +220,20 @@ func (s *SequenceSender) populateSequenceData(rpcBatch *rpcbatch.RPCBatch, batch
 
 // sequenceSending starts loop to check if there are sequences to send and sends them if it's convenient
 func (s *SequenceSender) sequenceSending(ctx context.Context) {
+	// Create a ticker that fires every WaitPeriodSendSequence
+	ticker := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
+	defer ticker.Stop()
+
 	for {
-		s.tryToSendSequence(ctx)
-		time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
+		select {
+		case <-ctx.Done():
+			s.logger.Info("context canceled, stopping sequence sending")
+			return
+
+		case <-ticker.C:
+			// Trigger the sequence sending when the ticker fires
+			s.tryToSendSequence(ctx)
+		}
 	}
 }
 
@@ -382,13 +393,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 
 	sequence.SetLastVirtualBatchNumber(atomic.LoadUint64(&s.latestVirtualBatchNumber))
 
-	txToEstimateGas, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, sequence)
-	if err != nil {
-		s.logger.Errorf("error building sequenceBatches tx to estimate gas: %v", err)
-		return
-	}
-
-	gas, err := s.etherman.EstimateGas(ctx, s.cfg.SenderAddress, tx.To(), nil, txToEstimateGas.Data())
+	gas, err := s.etherman.EstimateGas(ctx, s.cfg.SenderAddress, tx.To(), nil, tx.Data())
 	if err != nil {
 		s.logger.Errorf("error estimating gas: ", err)
 		return
