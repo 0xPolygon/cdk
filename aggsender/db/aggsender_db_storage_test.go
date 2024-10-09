@@ -64,7 +64,7 @@ func Test_Storage(t *testing.T) {
 	t.Run("GetLastSentCertificate", func(t *testing.T) {
 		// try getting a certificate that doesn't exist
 		certificateFromDB, err := storage.GetLastSentCertificate(ctx)
-		require.ErrorIs(t, err, db.ErrNotFound)
+		require.NoError(t, err)
 		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
 
 		// try getting a certificate that exists
