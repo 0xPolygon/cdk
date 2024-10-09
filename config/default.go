@@ -270,4 +270,10 @@ ZkEVMAddr = "0x0000000000000000000000000000000000000000"
 RollupManagerAddr = "0x0000000000000000000000000000000000000000"
 GlobalExitRootManagerAddr = "0x0000000000000000000000000000000000000000"
 
+[AggSender]
+DBPath = "/tmp/aggsender"
+AggLayerURL = "http://zkevm-agglayer"
+SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
+CertificateSendInterval = "1m"
+
 `
