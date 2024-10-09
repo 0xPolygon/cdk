@@ -10,6 +10,19 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+type CertificateStatus int
+
+const (
+	Pending CertificateStatus = iota
+	InError
+	Settled
+)
+
+// String representation of the enum
+func (c CertificateStatus) String() string {
+	return [...]string{"Pending", "InError", "Settled"}[c]
+}
+
 type LeafType uint8
 
 func (l LeafType) Uint8() uint8 {
@@ -150,4 +163,15 @@ func (c *ImportedBridgeExit) Hash() common.Hash {
 	globalIndexBig := bridgesync.GenerateGlobalIndex(c.GlobalIndex.MainnetFlag,
 		c.GlobalIndex.RollupIndex, c.GlobalIndex.LeafIndex)
 	return crypto.Keccak256Hash(globalIndexBig.Bytes())
+}
+
+// CertificateHeader is the structure returned by the interop_getCertificateHeader RPC call
+type CertificateHeader struct {
+	NetworkID        uint32            `json:"network_id"`
+	Height           uint64            `json:"height"`
+	EpochNumber      *uint64           `json:"epoch_number"`
+	CertificateIndex *uint64           `json:"certificate_index"`
+	CertificateID    common.Hash       `json:"certificate_id"`
+	NewLocalExitRoot common.Hash       `json:"new_local_exit_root"`
+	Status           CertificateStatus `json:"status"`
 }
