@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
@@ -20,10 +19,7 @@ import (
 	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 )
 
-const (
-	aggSenderDBFolder       = "aggsender"
-	sentCertificatesL2Table = "sent_certificates_l2"
-)
+const sentCertificatesL2Table = "sent_certificates_l2"
 
 func tableCfgFunc(defaultBuckets kv.TableCfg) kv.TableCfg {
 	return kv.TableCfg{
@@ -57,7 +53,7 @@ func New(
 	l2Syncer *bridgesync.BridgeSync,
 	l2Client bridgesync.EthClienter) (*AggSender, error) {
 	db, err := mdbx.NewMDBX(nil).
-		Path(filepath.Join(cfg.DBPath, aggSenderDBFolder)).
+		Path(cfg.DBPath).
 		WithTableCfg(tableCfgFunc).
 		Open()
 	if err != nil {
