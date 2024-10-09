@@ -258,8 +258,9 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 	var (
 		importedBridgeExits     = make([]*agglayer.ImportedBridgeExit, 0, len(claims))
 		greatestL1InfoTreeIndex = uint32(0)
-		ger                     = common.Hash{}
+		ger                     common.Hash
 		timestamp               uint64
+		blockHash               common.Hash
 	)
 
 	for _, claim := range claims {
@@ -272,6 +273,7 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 			greatestL1InfoTreeIndex = info.L1InfoTreeIndex
 			ger = claim.GlobalExitRoot
 			timestamp = info.Timestamp
+			blockHash = info.PreviousBlockHash
 		}
 
 		importedBridgeExit, err := a.convertClaimToImportedBridgeExit(claim)
@@ -298,7 +300,7 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 					Inner: agglayer.L1InfoTreeLeafInner{
 						GlobalExitRoot: ger,
 						Timestamp:      timestamp,
-						// BlockHash: TODO,
+						BlockHash:      blockHash,
 					},
 				},
 				ProofLeafMER: agglayer.MerkleProof{
@@ -319,7 +321,7 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 					Inner: agglayer.L1InfoTreeLeafInner{
 						GlobalExitRoot: ger,
 						Timestamp:      timestamp,
-						// BlockHash: TODO,
+						BlockHash:      blockHash,
 					},
 				},
 				ProofLeafLER: agglayer.MerkleProof{
