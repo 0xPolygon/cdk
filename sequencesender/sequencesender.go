@@ -240,7 +240,7 @@ func (s *SequenceSender) sequenceSending(ctx context.Context) {
 // purgeSequences purges batches from memory structures
 func (s *SequenceSender) purgeSequences() {
 	// If sequence sending is stopped, do not purge
-	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
+	if s.IsStopped() {
 		return
 	}
 
@@ -292,7 +292,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	}
 
 	// Check if the sequence sending is stopped
-	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
+	if s.IsStopped() {
 		s.logger.Warnf("sending is stopped!")
 		return
 	}
