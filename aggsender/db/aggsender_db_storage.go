@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/0xPolygon/cdk/aggsender/db/migrations"
 	"github.com/0xPolygon/cdk/aggsender/types"
@@ -72,7 +73,7 @@ func (a *AggSenderSQLStorage) GetCertificateByHeight(ctx context.Context,
 
 	var certificateInfo types.CertificateInfo
 	if err = meddler.ScanRow(rows, &certificateInfo); err != nil {
-		return types.CertificateInfo{}, err
+		return types.CertificateInfo{}, getSelectQueryError(height, err)
 	}
 
 	return certificateInfo, nil
@@ -93,15 +94,12 @@ func (a *AggSenderSQLStorage) GetLastSentCertificate(ctx context.Context) (types
 
 	rows, err := tx.Query(`SELECT * FROM certificate_info ORDER BY height DESC LIMIT 1;`)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return types.CertificateInfo{}, db.ErrNotFound
-		}
-		return types.CertificateInfo{}, err
+		return types.CertificateInfo{}, getSelectQueryError(math.MaxUint64, err) // force checking err not found
 	}
 
 	var certificateInfo types.CertificateInfo
 	if err = meddler.ScanRow(rows, &certificateInfo); err != nil {
-		return types.CertificateInfo{}, err
+		return types.CertificateInfo{}, getSelectQueryError(math.MaxUint64, err) // force checking err not found
 	}
 
 	return certificateInfo, nil
@@ -155,6 +153,16 @@ func (a *AggSenderSQLStorage) DeleteCertificate(ctx context.Context, certificate
 	}
 
 	a.logger.Debugf("deleted certificate - CertificateID: %s", certificateID)
+
+	return nil
+}
+
+// clean deletes all the data from the storage
+// NOTE: Used only in tests
+func (a *AggSenderSQLStorage) clean() error {
+	if _, err := a.db.Exec(`DELETE FROM certificate_info;`); err != nil {
+		return err
+	}
 
 	return nil
 }

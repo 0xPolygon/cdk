@@ -2,20 +2,19 @@ package db
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"path"
 	"testing"
 
 	"github.com/0xPolygon/cdk/agglayer"
 	"github.com/0xPolygon/cdk/aggsender/db/migrations"
 	"github.com/0xPolygon/cdk/aggsender/types"
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
 
-func Test_SaveLastSentCertificate(t *testing.T) {
+func Test_Storage(t *testing.T) {
 	ctx := context.Background()
 
 	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
@@ -40,6 +39,7 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, certificate, certificateFromDB)
+		require.NoError(t, storage.clean())
 	})
 
 	t.Run("DeleteCertificate", func(t *testing.T) {
@@ -56,12 +56,18 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 		require.NoError(t, storage.DeleteCertificate(ctx, certificate.CertificateID))
 
 		certificateFromDB, err := storage.GetCertificateByHeight(ctx, certificate.Height)
-		require.Error(t, err)
-		require.True(t, errors.Is(err, sql.ErrNoRows))
+		require.ErrorIs(t, err, db.ErrNotFound)
 		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+		require.NoError(t, storage.clean())
 	})
 
 	t.Run("GetLastSentCertificate", func(t *testing.T) {
+		// try getting a certificate that doesn't exist
+		certificateFromDB, err := storage.GetLastSentCertificate(ctx)
+		require.ErrorIs(t, err, db.ErrNotFound)
+		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+
+		// try getting a certificate that exists
 		certificate := types.CertificateInfo{
 			Height:           3,
 			CertificateID:    common.HexToHash("0x5"),
@@ -72,9 +78,39 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
-		certificateFromDB, err := storage.GetLastSentCertificate(ctx)
+		certificateFromDB, err = storage.GetLastSentCertificate(ctx)
 		require.NoError(t, err)
 
 		require.Equal(t, certificate, certificateFromDB)
+		require.NoError(t, storage.clean())
+	})
+
+	t.Run("GetCertificateByHeight", func(t *testing.T) {
+		// try getting height 0
+		certificateFromDB, err := storage.GetCertificateByHeight(ctx, 0)
+		require.NoError(t, err)
+		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+
+		// try getting a certificate that doesn't exist
+		certificateFromDB, err = storage.GetCertificateByHeight(ctx, 4)
+		require.ErrorIs(t, err, db.ErrNotFound)
+		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+
+		// try getting a certificate that exists
+		certificate := types.CertificateInfo{
+			Height:           11,
+			CertificateID:    common.HexToHash("0x17"),
+			NewLocalExitRoot: common.HexToHash("0x18"),
+			FromBlock:        17,
+			ToBlock:          18,
+			Status:           agglayer.Pending,
+		}
+		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
+
+		certificateFromDB, err = storage.GetCertificateByHeight(ctx, certificate.Height)
+		require.NoError(t, err)
+
+		require.Equal(t, certificate, certificateFromDB)
+		require.NoError(t, storage.clean())
 	})
 }
