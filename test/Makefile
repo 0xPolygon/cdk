@@ -1,5 +1,5 @@
 .PHONY: generate-mocks
-generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-mocks-sequencesender generate-mocks-da generate-mocks-l1infotreesync generate-mocks-helpers generate-mocks-sync generate-mocks-l1infotreesync
+generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-mocks-sequencesender generate-mocks-da generate-mocks-l1infotreesync generate-mocks-helpers generate-mocks-sync generate-mocks-l1infotreesync generate-mocks-aggsender
 
 
 .PHONY: generate-mocks-bridgesync
@@ -34,8 +34,6 @@ generate-mocks-l1infotreesync: ## Generates mocks for l1infotreesync, using mock
 	rm -Rf ../l1infotreesync/mocks
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../l1infotreesync --output ../l1infotreesync/mocks --outpkg mocks_l1infotreesync ${COMMON_MOCKERY_PARAMS}
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../l1infotreesync --outpkg=l1infotreesync --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
-
-
 	
 .PHONY: generate-mocks-aggoracle
 generate-mocks-helpers: ## Generates mocks for helpers , using mockery tool
@@ -48,6 +46,9 @@ generate-mocks-sync: ## Generates mocks for sync, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=processorInterface --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=ProcessorMock --filename=mock_processor_test.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../sync --outpkg=sync --inpackage --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
 
+.PHONY: generate-mocks-aggsender
+generate-mocks-aggsender: ## Generates mocks for aggsender, using mockery tool
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=L1InfoTreeSyncer --dir=../aggsender --output=../aggsender --outpkg=aggsender --inpackage --structname=L1InfoTreeSyncerMock --filename=mock_l1infotree_syncer.go
 
 .PHONY: test-e2e-fork9-validium
 test-e2e-fork9-validium: stop
