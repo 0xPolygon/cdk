@@ -62,8 +62,9 @@ generate-mocks-aggregator: ## Generates mocks for aggregator, using mockery tool
 generate-mocks-aggsender: ## Generates mocks for aggsender, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=L1InfoTreeSyncer --dir=../aggsender --output=../aggsender --outpkg=aggsender --inpackage --structname=L1InfoTreeSyncerMock --filename=mock_l1infotree_syncer.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=L2BridgeSyncer --dir=../aggsender --output=../aggsender --outpkg=aggsender --inpackage --structname=L2BridgeSyncerMock --filename=mock_l2bridge_syncer.go
-		export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Logger --dir=../aggsender --output=../aggsender --outpkg=aggsender --inpackage --structname=LoggerMock --filename=mock_logger.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Logger --dir=../aggsender --output=../aggsender --outpkg=aggsender --inpackage --structname=LoggerMock --filename=mock_logger.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AggSenderStorage --dir=../aggsender/db --output=../aggsender/db --outpkg=db --inpackage --structname=AggSenderStorageMock --filename=mock_aggsender_storage.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthClient --dir=../aggsender --output=../aggsender --outpkg=aggsender --inpackage --structname=EthClientMock --filename=mock_eth_client.go
 
 .PHONY: generate-mocks-agglayer
 generate-mocks-agglayer: ## Generates mocks for agglayer, using mockery tool
