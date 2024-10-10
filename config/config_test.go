@@ -1,10 +1,12 @@
 package config
 
 import (
+	"flag"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 func TestLoadDeafaultConfig(t *testing.T) {
@@ -13,7 +15,10 @@ func TestLoadDeafaultConfig(t *testing.T) {
 	defer os.Remove(tmpFile.Name())
 	_, err = tmpFile.Write([]byte(DefaultValues))
 	require.NoError(t, err)
-	cfg, err := LoadFile(tmpFile.Name())
+	flagSet := flag.FlagSet{}
+	flagSet.String(FlagCfg, tmpFile.Name(), "")
+	ctx := cli.NewContext(nil, &flagSet, nil)
+	cfg, err := Load(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 }
@@ -29,7 +34,10 @@ func TestLoadConfigWithUnexpectedFields(t *testing.T) {
 	defer os.Remove(tmpFile.Name())
 	_, err = tmpFile.Write([]byte(configWithUnexpectedFields))
 	require.NoError(t, err)
-	cfg, err := LoadFile(tmpFile.Name())
+	flagSet := flag.FlagSet{}
+	flagSet.String(FlagCfg, tmpFile.Name(), "")
+	ctx := cli.NewContext(nil, &flagSet, nil)
+	cfg, err := Load(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 }
@@ -58,7 +66,10 @@ func TestLoadConfigWithForbiddenFields(t *testing.T) {
 			defer os.Remove(tmpFile.Name())
 			_, err = tmpFile.Write([]byte(c.input))
 			require.NoError(t, err)
-			cfg, err := LoadFile(tmpFile.Name())
+			flagSet := flag.FlagSet{}
+			flagSet.String(FlagCfg, tmpFile.Name(), "")
+			ctx := cli.NewContext(nil, &flagSet, nil)
+			cfg, err := Load(ctx)
 			require.NoError(t, err)
 			require.NotNil(t, cfg)
 		})
