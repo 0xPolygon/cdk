@@ -1,3 +1,7 @@
+.PHONY: run-tests
+run-tests: ## Runs all tests within the workspace
+	go test -v -race ./...
+
 .PHONY: generate-mocks
 generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-mocks-sequencesender \
 	generate-mocks-da generate-mocks-l1infotreesync generate-mocks-helpers \
