@@ -13,11 +13,12 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
+    /// Run the cdk-node with the provided configuration
     Node {
-        /// The path to the configuration file.
+        /// The path to the configuration file
         #[arg(
             long,
-            short,
+            short = 'C',
             value_hint = ValueHint::FilePath,
             env = "CDK_CONFIG_PATH"
         )]
@@ -32,11 +33,12 @@ pub(crate) enum Commands {
         )]
         components: Option<String>,
     },
+    /// Run cdk-erigon node with the provided default configuration
     Erigon {
-        /// The path to the configuration file.
+        /// The path to the configuration file
         #[arg(
             long,
-            short,
+            short = 'C',
             value_hint = ValueHint::FilePath,
             env = "CDK_CONFIG_PATH"
         )]
@@ -51,5 +53,6 @@ pub(crate) enum Commands {
         )]
         chain: PathBuf,
     },
+    /// Output the corresponding versions of the components
     Versions,
 }
