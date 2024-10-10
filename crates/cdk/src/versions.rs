@@ -1,32 +1,47 @@
-/// Command to print corresponding versions to the stdout.
+use colored::*;
+use execute::Execute;
+use std::io;
+use std::process::{Command, Output};
+
+fn version() -> Result<Output, io::Error> {
+    let bin_path = crate::helpers::get_bin_path();
+
+    // Run the node passing the config file path as argument
+    let mut command = Command::new(bin_path.clone());
+    command.args(&["version"]);
+
+    command.execute_output()
+}
+
 pub(crate) fn versions() {
-    // Multi-line string to print the versions.
-    println!(
-        r#"
-# FORK 12 IMAGES
-# yq .args .github/tests/forks/fork12.yml
-zkevm_contracts_image: leovct/zkevm-contracts:v8.0.0-rc.4-fork.12
-zkevm_prover_image: hermeznetwork/zkevm-prover:v8.0.0-RC12-fork.12
-cdk_erigon_node_image: hermeznetwork/cdk-erigon:0948e33
+    // Get the version of the cdk-node binary.
+    let output = version().unwrap();
+    let version = String::from_utf8(output.stdout).unwrap();
 
-# FORK 11 IMAGES
-# yq .args .github/tests/forks/fork11.yml
-# zkevm_contracts_image: leovct/zkevm-contracts:v7.0.0-rc.2-fork.11
-# zkevm_prover_image: hermeznetwork/zkevm-prover:v7.0.2-fork.11
-# cdk_erigon_node_image: hermeznetwork/cdk-erigon:acceptance-2.0.0-beta26-0f01107
+    println!("{}", format!("{}", version.trim()).green());
 
-zkevm_node_image: hermeznetwork/zkevm-node:v0.7.3-RC1
-cdk_validium_node_image: 0xpolygon/cdk-validium-node:0.7.0-cdk
+    let versions = vec![
+        (
+            "zkEVM Contracts",
+            "https://github.com/0xPolygonHermez/zkevm-contracts/releases/tag/v8.0.0-rc.4-fork.12",
+        ),
+        ("zkEVM Prover", "v8.0.0-RC12"),
+        ("CDK Erigon", "hermeznetwork/cdk-erigon:0948e33"),
+        (
+            "zkEVM Pool Manager",
+            "hermeznetwork/zkevm-pool-manager:v0.1.1",
+        ),
+        (
+            "CDK Data Availability Node",
+            "0xpolygon/cdk-data-availability:0.0.10",
+        ),
+    ];
 
-cdk_node_image: ghcr.io/0xpolygon/cdk:0.3.0-beta3
-zkevm_da_image: 0xpolygon/cdk-data-availability:0.0.10
-# agglayer_image: nulyjkdhthz/agglayer-rs:pr-318
-agglayer_image: ghcr.io/agglayer/agglayer-rs:pr-96
-zkevm_bridge_service_image: hermeznetwork/zkevm-bridge-service:v0.6.0-RC1
-zkevm_bridge_ui_image: leovct/zkevm-bridge-ui:multi-network
-zkevm_bridge_proxy_image: haproxy:3.0-bookworm
-zkevm_sequence_sender_image: hermeznetwork/zkevm-sequence-sender:v0.2.0-RC12
-zkevm_pool_manager_image: hermeznetwork/zkevm-pool-manager:v0.1.1
-"#
-    )
+    // Multi-line string to print the versions with colors.
+    let formatted_versions: Vec<String> = versions
+        .iter()
+        .map(|(key, value)| format!("{}: {}", key.green(), value.blue()))
+        .collect();
+
+    println!("{}", formatted_versions.join("\n"));
 }

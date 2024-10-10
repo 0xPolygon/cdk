@@ -5,6 +5,7 @@ use clap::{Parser, Subcommand, ValueHint};
 
 /// Command line interface.
 #[derive(Parser)]
+#[command(author, version, about, long_about = None)]
 pub(crate) struct Cli {
     #[command(subcommand)]
     pub(crate) cmd: Commands,

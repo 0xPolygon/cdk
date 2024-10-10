@@ -4,8 +4,8 @@ use alloy_rpc_client::ReqwestClient;
 use cdk_config::Config;
 use clap::Parser;
 use cli::Cli;
+use colored::*;
 use execute::Execute;
-use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 use url::Url;
@@ -13,10 +13,10 @@ use url::Url;
 pub mod allocs_render;
 mod cli;
 mod config_render;
+mod helpers;
 mod logging;
 mod versions;
 
-const CDK_CLIENT_BIN: &str = "cdk-node";
 const CDK_ERIGON_BIN: &str = "cdk-erigon";
 
 #[tokio::main]
@@ -26,6 +26,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     println!(
+        "{}",
         r#"🐼
   _____      _                            _____ _____  _  __
  |  __ \    | |                          / ____|  __ \| |/ /
@@ -36,6 +37,7 @@ async fn main() -> anyhow::Result<()> {
                 __/ | __/ |                                 
                |___/ |___/                                  
 "#
+        .purple()
     );
 
     match cli.cmd {
@@ -73,10 +75,7 @@ pub fn node(config_path: PathBuf, components: Option<String>) -> anyhow::Result<
 
     // This is to find the binary when running in development mode
     // otherwise it will use system path
-    let mut bin_path = env::var("CARGO_MANIFEST_DIR").unwrap_or(CDK_CLIENT_BIN.into());
-    if bin_path != CDK_CLIENT_BIN {
-        bin_path = format!("{}/../../target/{}", bin_path, CDK_CLIENT_BIN);
-    }
+    let bin_path = helpers::get_bin_path();
 
     let components_param = match components {
         Some(components) => format!("-components={}", components),
