@@ -1,15 +1,40 @@
 package config
 
+// This doesnt below to config, but are the vars used
+// in DefaultValues
+const DefaultVars = `
+PathRWData = "/tmp/cdk"
+L1URL = "http://localhost:8545"
+L1URLSyncChunkSize = 100
+L2URL = "localhost:8123"
+L1AggOracleURL = "http://test-aggoracle-l1:8545"
+L2AggOracleURL = "http://test-aggoracle-l2:8545"
+LogLevel = "info"
+
+# This values can be override directly from genesis.json
+rollupCreationBlockNumber = 0
+rollupManagerCreationBlockNumber = 0
+genesisBlockNumber = 0
+[L1Config]
+	chainId = 0
+	polygonZkEVMGlobalExitRootAddress = "0x"
+	polygonRollupManagerAddress = "0x"
+	polTokenAddress = "0x"
+	polygonZkEVMAddress = "0x"
+`
+
 // DefaultValues is the default configuration
 const DefaultValues = `
 ForkUpgradeBatchNumber = 0
 ForkUpgradeNewForkId = 0
 
+
+
 [Etherman]
-	URL="http://localhost:8545"
+	URL="{{L1URL}}"
 	ForkIDChunkSize=100
 	[Etherman.EthermanConfig]
-		URL="http://localhost:8545"
+		URL="{{L1URL}}"
 		MultiGasProvider=false
 		L1ChainID=1337
 		HTTPHeaders=[]
@@ -24,7 +49,7 @@ ContractVersions = "banana"
 
 [Log]
 Environment = "development" # "production" or "development"
-Level = "info"
+Level = "{{LogLevel}}"
 Outputs = ["stderr"]
 
 [SequenceSender]
@@ -40,7 +65,7 @@ WaitPeriodPurgeTxFile = "15m"
 MaxPendingTx = 1
 MaxBatchesForL1 = 300
 BlockFinality = "FinalizedBlock"
-RPCURL = "localhost:8123"
+RPCURL = "{{L2URL}}"
 GetBatchWaitInterval = "10s"
 	[SequenceSender.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
@@ -124,7 +149,7 @@ SequencerPrivateKey = {}
 			Outputs = ["stderr"]
 		[Aggregator.Synchronizer.SQLDB]
 			DriverName = "sqlite3"
-			DataSourceName = "file:/tmp/aggregator_sync_db.sqlite"
+			DataSourceName = "file:/{{PathRWData}}/aggregator_sync_db.sqlite"
 		[Aggregator.Synchronizer.Synchronizer]
 			SyncInterval = "10s"
 			SyncChunkSize = 1000
@@ -133,7 +158,7 @@ SequencerPrivateKey = {}
 			BlockFinality = "finalized"
 			OverrideStorageCheck = false
 		[Aggregator.Synchronizer.Etherman]
-			L1URL = "http://localhost:8545"
+			L1URL = "{{L1URL}}"
 			ForkIDChunkSize = 100
 			L1ChainID = 0
 			[Aggregator.Synchronizer.Etherman.Validium]
@@ -147,28 +172,28 @@ SequencerPrivateKey = {}
 				NumRequests = 900
 				Interval = "1s"
 [ReorgDetectorL1]
-DBPath = "/tmp/reorgdetectorl1"
+DBPath = "{{PathRWData}}/reorgdetectorl1"
 
 [ReorgDetectorL2]
-DBPath = "/tmp/reorgdetectorl2"
+DBPath = "{{PathRWData}}/reorgdetectorl2"
 
 [L1InfoTreeSync]
-DBPath = "/tmp/L1InfoTreeSync.sqlite"
+DBPath = "{{PathRWData}}/L1InfoTreeSync.sqlite"
 GlobalExitRootAddr="0x8464135c8F25Da09e49BC8782676a84730C318bC"
 SyncBlockChunkSize=10
 BlockFinality="LatestBlock"
-URLRPCL1="http://test-aggoracle-l1:8545"
+URLRPCL1="{{L1AggOracleURL}}"
 WaitForNewBlocksPeriod="100ms"
 InitialBlock=0
 
 [AggOracle]
 TargetChainType="EVM"
-URLRPCL1="http://test-aggoracle-l1:8545"
+URLRPCL1="{{L1AggOracleURL}}"
 BlockFinality="FinalizedBlock"
 WaitPeriodNextGER="100ms"
 	[AggOracle.EVMSender]
 		GlobalExitRootL2="0x8464135c8F25Da09e49BC8782676a84730C318bC"
-		URLRPCL2="http://test-aggoracle-l2:8545"
+		URLRPCL2="{{L2AggOracleURL}}"
 		ChainIDL2=1337
 		GasOffset=0
 		WaitPeriodMonitorTx="100ms"
@@ -184,12 +209,12 @@ WaitPeriodNextGER="100ms"
 				ForcedGas = 0
 				GasPriceMarginFactor = 1
 				MaxGasPriceLimit = 0
-				StoragePath = "/tmp/ethtxmanager-sequencesender.db"
+				StoragePath = "/{{PathRWData}}/ethtxmanager-sequencesender.db"
 				ReadPendingL1Txs = false
 				SafeStatusL1NumberOfBlocks = 5
 				FinalizedStatusL1NumberOfBlocks = 10
 					[AggOracle.EVMSender.EthTxManager.Etherman]
-						URL = "http://test-aggoracle-l2"
+						URL = "{{L2AggOracleURL}}"
 						MultiGasProvider = false
 						L1ChainID = 1337
 						HTTPHeaders = []
@@ -202,7 +227,7 @@ WriteTimeout = "2s"
 MaxRequestsPerIPAndSecond = 10
 
 [ClaimSponsor]
-DBPath = "/tmp/claimsopnsor"
+DBPath = "/{{PathRWData}}/claimsopnsor"
 Enabled = true
 SenderAddr = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
 BridgeAddrL2 = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
@@ -223,18 +248,18 @@ GasOffset = 0
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
 		MaxGasPriceLimit = 0
-		StoragePath = "/tmp/ethtxmanager-claimsponsor.db"
+		StoragePath = "/{{PathRWData}}/ethtxmanager-claimsponsor.db"
 		ReadPendingL1Txs = false
 		SafeStatusL1NumberOfBlocks = 5
 		FinalizedStatusL1NumberOfBlocks = 10
 			[ClaimSponsor.EthTxManager.Etherman]
-				URL = "http://test-aggoracle-l2"
+				URL = "{{L2AggOracleURL}}"
 				MultiGasProvider = false
 				L1ChainID = 1337
 				HTTPHeaders = []
 
 [BridgeL1Sync]
-DBPath = "/tmp/bridgel1sync"
+DBPath = "{{PathRWData}}/bridgel1sync"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
 BridgeAddr = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
@@ -244,7 +269,7 @@ MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
 
 [BridgeL2Sync]
-DBPath = "/tmp/bridgel2sync"
+DBPath = "{{PathRWData}}/bridgel2sync"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
 BridgeAddr = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
@@ -254,7 +279,7 @@ MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
 
 [LastGERSync]
-DBPath = "/tmp/lastgersync"
+DBPath = "{{PathRWData}}/lastgersync"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
 GlobalExitRootL2Addr = "0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa"
@@ -264,10 +289,10 @@ WaitForNewBlocksPeriod = "1s"
 DownloadBufferSize = 100
 
 [NetworkConfig.L1]
-L1ChainID = 0
-PolAddr = "0x0000000000000000000000000000000000000000"
-ZkEVMAddr = "0x0000000000000000000000000000000000000000"
-RollupManagerAddr = "0x0000000000000000000000000000000000000000"
-GlobalExitRootManagerAddr = "0x0000000000000000000000000000000000000000"
+L1ChainID = {{L1Config.chainId}}
+PolAddr = "{{L1Config.polTokenAddress}}"
+ZkEVMAddr = "{{L1Config.polygonZkEVMAddress}}"
+RollupManagerAddr = "{{L1Config.polygonRollupManagerAddress}}"
+GlobalExitRootManagerAddr = "{{L1Config.polygonZkEVMGlobalExitRootAddress}}"
 
 `

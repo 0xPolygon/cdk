@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	configFileFlag = cli.StringFlag{
+	configFileFlag = cli.StringSliceFlag{
 		Name:     config.FlagCfg,
 		Aliases:  []string{"c"},
 		Usage:    "Configuration `FILE`",
@@ -43,6 +43,12 @@ var (
 		Required: false,
 		Value:    cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR, common.AGGORACLE, common.RPC),
 	}
+	saveConfigFlag = cli.StringFlag{
+		Name:     "save-config-path",
+		Aliases:  []string{"s"},
+		Usage:    "Save final configuration file to next path (name: cdk-node-config.toml)",
+		Required: false,
+	}
 )
 
 func main() {
@@ -53,6 +59,7 @@ func main() {
 		&configFileFlag,
 		&yesFlag,
 		&componentsFlag,
+		&saveConfigFlag,
 	}
 	app.Commands = []*cli.Command{
 		{
