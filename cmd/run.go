@@ -12,10 +12,12 @@ import (
 	zkevm "github.com/0xPolygon/cdk"
 	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
 	jRPC "github.com/0xPolygon/cdk-rpc/rpc"
+	"github.com/0xPolygon/cdk/agglayer"
 	"github.com/0xPolygon/cdk/aggoracle"
 	"github.com/0xPolygon/cdk/aggoracle/chaingersender"
 	"github.com/0xPolygon/cdk/aggregator"
 	"github.com/0xPolygon/cdk/aggregator/db"
+	"github.com/0xPolygon/cdk/aggsender"
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/claimsponsor"
 	cdkcommon "github.com/0xPolygon/cdk/common"
@@ -61,7 +63,7 @@ func start(cliCtx *cli.Context) error {
 
 	components := cliCtx.StringSlice(config.FlagComponents)
 	l1Client := runL1ClientIfNeeded(components, c.Etherman.URL)
-	l2Client := runL2ClientIfNeeded(components, c.AggOracle.EVMSender.URLRPCL2)
+	l2Client := runL2ClientIfNeeded(components, getL2RPCUrl(c))
 	reorgDetectorL1, errChanL1 := runReorgDetectorL1IfNeeded(cliCtx.Context, components, l1Client, &c.ReorgDetectorL1)
 	go func() {
 		if err := <-errChanL1; err != nil {
@@ -119,12 +121,40 @@ func start(cliCtx *cli.Context) error {
 					log.Fatal(err)
 				}
 			}()
+		case cdkcommon.AGGSENDER:
+			aggsender, err := createAggSender(
+				cliCtx.Context,
+				c.AggSender,
+				l1Client,
+				l1InfoTreeSync,
+				l2BridgeSync,
+				l2Client,
+			)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			go aggsender.Start(cliCtx.Context)
 		}
 	}
 
 	waitSignal(nil)
 
 	return nil
+}
+
+func createAggSender(
+	ctx context.Context,
+	cfg aggsender.Config,
+	l1Client bridgesync.EthClienter,
+	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
+	l2Syncer *bridgesync.BridgeSync,
+	l2Client bridgesync.EthClienter,
+) (*aggsender.AggSender, error) {
+	logger := log.WithFields("module", cdkcommon.AGGSENDER)
+	agglayerClient := agglayer.NewAggLayerClient(cfg.AggLayerURL)
+
+	return aggsender.New(ctx, logger, cfg, agglayerClient, l1Client, l1InfoTreeSync, l2Syncer, l2Client)
 }
 
 func createAggregator(ctx context.Context, c config.Config, runMigrations bool) *aggregator.Aggregator {
@@ -482,7 +512,8 @@ func runL1InfoTreeSyncerIfNeeded(
 	l1Client *ethclient.Client,
 	reorgDetector *reorgdetector.ReorgDetector,
 ) *l1infotreesync.L1InfoTreeSync {
-	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.SEQUENCE_SENDER}, components) {
+	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC,
+		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGSENDER}, components) {
 		return nil
 	}
 	l1InfoTreeSync, err := l1infotreesync.New(
@@ -512,6 +543,7 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 	if !isNeeded([]string{
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
 		cdkcommon.AGGORACLE, cdkcommon.RPC,
+		cdkcommon.AGGSENDER,
 	}, components) {
 		return nil
 	}
@@ -525,10 +557,11 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 }
 
 func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client {
-	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
 		return nil
 	}
-	log.Debugf("dialing L2 client at: %s", urlRPCL2)
+
+	log.Infof("dialing L2 client at: %s", urlRPCL2)
 	l2CLient, err := ethclient.Dial(urlRPCL2)
 	if err != nil {
 		log.Fatal(err)
@@ -568,7 +601,7 @@ func runReorgDetectorL2IfNeeded(
 	l2Client *ethclient.Client,
 	cfg *reorgdetector.Config,
 ) (*reorgdetector.ReorgDetector, chan error) {
-	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
 		return nil, nil
 	}
 	rd := newReorgDetector(cfg, l2Client)
@@ -678,6 +711,7 @@ func runBridgeSyncL1IfNeeded(
 		cfg.WaitForNewBlocksPeriod.Duration,
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
+		cfg.OriginNetwork,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL1: %s", err)
@@ -694,8 +728,7 @@ func runBridgeSyncL2IfNeeded(
 	reorgDetectorL2 *reorgdetector.ReorgDetector,
 	l2Client *ethclient.Client,
 ) *bridgesync.BridgeSync {
-	// TODO: will be needed by AGGSENDER
-	if !isNeeded([]string{cdkcommon.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
 		return nil
 	}
 	bridgeSyncL2, err := bridgesync.NewL2(
@@ -710,6 +743,7 @@ func runBridgeSyncL2IfNeeded(
 		cfg.WaitForNewBlocksPeriod.Duration,
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
+		cfg.OriginNetwork,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL2: %s", err)
@@ -747,4 +781,12 @@ func createRPC(
 	}
 
 	return jRPC.NewServer(cfg, services, jRPC.WithLogger(logger.GetSugaredLogger()))
+}
+
+func getL2RPCUrl(c *config.Config) string {
+	if c.AggSender.URLRPCL2 != "" {
+		return c.AggSender.URLRPCL2
+	}
+
+	return c.AggOracle.EVMSender.URLRPCL2
 }

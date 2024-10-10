@@ -41,7 +41,8 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR, common.AGGORACLE, common.RPC),
+		Value: cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR,
+			common.AGGORACLE, common.RPC, common.AGGSENDER),
 	}
 )
 
