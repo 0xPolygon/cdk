@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
@@ -17,6 +18,7 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	treeTypes "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -39,6 +41,12 @@ type L2BridgeSyncer interface {
 	BlockFinality() etherman.BlockNumberFinality
 }
 
+// EthClient is an interface defining functions that an EthClient should implement
+type EthClient interface {
+	BlockNumber(ctx context.Context) (uint64, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+}
+
 // Logger is an interface that defines the methods to log messages
 type Logger interface {
 	Info(args ...interface{})
@@ -52,9 +60,9 @@ type AggSender struct {
 	log Logger
 
 	l2Syncer         L2BridgeSyncer
-	l2Client         bridgesync.EthClienter
+	l2Client         EthClient
 	l1infoTreeSyncer L1InfoTreeSyncer
-	l1Client         bridgesync.EthClienter
+	l1Client         EthClient
 
 	storage        db.AggSenderStorage
 	aggLayerClient agglayer.AgglayerClientInterface
@@ -70,10 +78,10 @@ func New(
 	logger *log.Logger,
 	cfg Config,
 	aggLayerClient agglayer.AgglayerClientInterface,
-	l1Client bridgesync.EthClienter,
+	l1Client EthClient,
 	l1InfoTreeSyncer *l1infotreesync.L1InfoTreeSync,
 	l2Syncer *bridgesync.BridgeSync,
-	l2Client bridgesync.EthClienter) (*AggSender, error) {
+	l2Client EthClient) (*AggSender, error) {
 	storage, err := db.NewAggSenderSQLStorage(logger, cfg.DBPath)
 	if err != nil {
 		return nil, err
@@ -110,16 +118,6 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			block, err := a.l1Client.BlockNumber(ctx)
-			if err != nil {
-				a.log.Errorf("error getting l1 block number: %w", err)
-				continue
-			}
-
-			if !a.shouldSendCertificate(block) {
-				continue
-			}
-
 			if err := a.sendCertificate(ctx); err != nil {
 				log.Error(err)
 			}
@@ -133,6 +131,16 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 // sendCertificate sends certificate for a network
 func (a *AggSender) sendCertificate(ctx context.Context) error {
 	a.log.Infof("trying to send a new certificate...")
+
+	block, err := a.l1Client.BlockNumber(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting l1 block number: %w", err)
+	}
+
+	if !a.shouldSendCertificate(block) {
+		a.log.Infof("block %d on L1 not near epoch ending, so we don't send a certificate", block)
+		return nil
+	}
 
 	lastSentCertificate, err := a.storage.GetLastSentCertificate(ctx)
 	if err != nil {
