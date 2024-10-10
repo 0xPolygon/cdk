@@ -69,7 +69,6 @@ type SequenceSender struct {
 	validStream              bool                       // Not valid while receiving data before the desired batch
 	seqSendingStopped        uint32                     // If there is a critical error
 	TxBuilder                txbuilder.TxBuilder
-	latestVirtualBatchLock   sync.Mutex
 }
 
 type sequenceData struct {
@@ -124,7 +123,7 @@ func (s *SequenceSender) Start(ctx context.Context) {
 	go s.ethTxManager.Start()
 
 	// Get latest virtual state batch from L1
-	err := s.getLatestVirtualBatch()
+	err := s.updateLatestVirtualBatch()
 	if err != nil {
 		s.logger.Fatalf("error getting latest sequenced batch, error: %v", err)
 	}
@@ -220,16 +219,27 @@ func (s *SequenceSender) populateSequenceData(rpcBatch *rpcbatch.RPCBatch, batch
 
 // sequenceSending starts loop to check if there are sequences to send and sends them if it's convenient
 func (s *SequenceSender) sequenceSending(ctx context.Context) {
+	// Create a ticker that fires every WaitPeriodSendSequence
+	ticker := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
+	defer ticker.Stop()
+
 	for {
-		s.tryToSendSequence(ctx)
-		time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
+		select {
+		case <-ctx.Done():
+			s.logger.Info("context canceled, stopping sequence sending")
+			return
+
+		case <-ticker.C:
+			// Trigger the sequence sending when the ticker fires
+			s.tryToSendSequence(ctx)
+		}
 	}
 }
 
 // purgeSequences purges batches from memory structures
 func (s *SequenceSender) purgeSequences() {
 	// If sequence sending is stopped, do not purge
-	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
+	if s.IsStopped() {
 		return
 	}
 
@@ -268,27 +278,27 @@ func (s *SequenceSender) purgeSequences() {
 func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Update latest virtual batch
 	s.logger.Infof("updating virtual batch")
-	err := s.getLatestVirtualBatch()
-	if err != nil {
-		return
-	}
-
-	// Update state of transactions
-	s.logger.Infof("updating tx results")
-	countPending, err := s.syncEthTxResults(ctx)
+	err := s.updateLatestVirtualBatch()
 	if err != nil {
 		return
 	}
 
 	// Check if the sequence sending is stopped
-	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
+	if s.IsStopped() {
 		s.logger.Warnf("sending is stopped!")
 		return
 	}
 
+	// Update state of transactions
+	s.logger.Infof("updating tx results")
+	pendingTxsCount, err := s.syncEthTxResults(ctx)
+	if err != nil {
+		return
+	}
+
 	// Check if reached the maximum number of pending transactions
-	if countPending >= s.cfg.MaxPendingTx {
-		s.logger.Infof("max number of pending txs (%d) reached. Waiting for some to be completed", countPending)
+	if pendingTxsCount >= s.cfg.MaxPendingTx {
+		s.logger.Infof("max number of pending txs (%d) reached. Waiting for some to be completed", pendingTxsCount)
 		return
 	}
 
@@ -375,20 +385,14 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	}
 
 	// Get latest virtual state batch from L1
-	err = s.getLatestVirtualBatch()
+	err = s.updateLatestVirtualBatch()
 	if err != nil {
 		s.logger.Fatalf("error getting latest sequenced batch, error: %v", err)
 	}
 
 	sequence.SetLastVirtualBatchNumber(atomic.LoadUint64(&s.latestVirtualBatchNumber))
 
-	txToEstimateGas, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, sequence)
-	if err != nil {
-		s.logger.Errorf("error building sequenceBatches tx to estimate gas: %v", err)
-		return
-	}
-
-	gas, err := s.etherman.EstimateGas(ctx, s.cfg.SenderAddress, tx.To(), nil, txToEstimateGas.Data())
+	gas, err := s.etherman.EstimateGas(ctx, s.cfg.SenderAddress, tx.To(), nil, tx.Data())
 	if err != nil {
 		s.logger.Errorf("error estimating gas: ", err)
 		return
@@ -476,14 +480,9 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 	return nil, nil
 }
 
-// getLatestVirtualBatch queries the value in L1 and updates the latest virtual batch field
-func (s *SequenceSender) getLatestVirtualBatch() error {
-	s.latestVirtualBatchLock.Lock()
-	defer s.latestVirtualBatchLock.Unlock()
-
+// updateLatestVirtualBatch queries the value in L1 and updates the latest virtual batch field
+func (s *SequenceSender) updateLatestVirtualBatch() error {
 	// Get latest virtual state batch from L1
-	var err error
-
 	latestVirtualBatchNumber, err := s.etherman.GetLatestBatchNumber()
 	if err != nil {
 		s.logger.Errorf("error getting latest virtual batch, error: %v", err)
@@ -491,7 +490,6 @@ func (s *SequenceSender) getLatestVirtualBatch() error {
 	}
 
 	atomic.StoreUint64(&s.latestVirtualBatchNumber, latestVirtualBatchNumber)
-
 	s.logger.Infof("latest virtual batch is %d", latestVirtualBatchNumber)
 
 	return nil
