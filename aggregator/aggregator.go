@@ -945,7 +945,7 @@ func (a *Aggregator) settleWithAggLayer(
 	a.logger.Debug("final proof signedTx: ", signedTx.Tx.ZKP.Proof.Hex())
 	txHash, err := a.aggLayerClient.SendTx(*signedTx)
 	if err != nil {
-		for errors.Is(err, ErrAgglayerRateLimitExceeded) {
+		for errors.Is(err, agglayer.ErrAgglayerRateLimitExceeded) {
 			a.logger.Warnf("agglayer rate limit exceeded, waiting for %v", a.cfg.AggLayerRateLimitRetryInterval.Duration)
 			time.Sleep(a.cfg.AggLayerRateLimitRetryInterval.Duration)
 			txHash, err = a.aggLayerClient.SendTx(*signedTx)
