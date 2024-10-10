@@ -242,7 +242,7 @@ SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
-
+SyncFullClaims = false
 [BridgeL2Sync]
 DBPath = "/tmp/bridgel2sync"
 BlockFinality = "LatestBlock"
@@ -252,6 +252,7 @@ SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
+SyncFullClaims = false
 
 [LastGERSync]
 DBPath = "/tmp/lastgersync"

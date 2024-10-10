@@ -24,4 +24,6 @@ type Config struct {
 	MaxRetryAttemptsAfterError int `mapstructure:"MaxRetryAttemptsAfterError"`
 	// WaitForNewBlocksPeriod time that will be waited when the synchronizer has reached the latest block
 	WaitForNewBlocksPeriod types.Duration `mapstructure:"WaitForNewBlocksPeriod"`
+	// SyncFullClaims enables the full sync of the claims, needed to generate certificates (aggSender)
+	SyncFullClaims bool `mapstructure:"SyncFullClaims"`
 }
