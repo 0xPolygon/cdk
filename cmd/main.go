@@ -44,7 +44,7 @@ var (
 		Value:    cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR, common.AGGORACLE, common.RPC),
 	}
 	saveConfigFlag = cli.StringFlag{
-		Name:     "save-config-path",
+		Name:     config.FlagSaveConfigPath,
 		Aliases:  []string{"s"},
 		Usage:    "Save final configuration file to next path (name: cdk-node-config.toml)",
 		Required: false,
