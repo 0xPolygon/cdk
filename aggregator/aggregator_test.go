@@ -56,7 +56,7 @@ type mox struct {
 	ethTxManager       *mocks.EthTxManagerClientMock
 	etherman           *mocks.EthermanMock
 	proverMock         *mocks.ProverInterfaceMock
-	aggLayerClientMock *mocks.AgglayerClientInterfaceMock
+	aggLayerClientMock *agglayer.AgglayerClientMock
 	synchronizerMock   *mocks.SynchronizerInterfaceMock
 }
 
@@ -458,7 +458,7 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 			stateMock := mocks.NewStateInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
-			aggLayerClient := agglayer.NewAggLayerClientMock(t)
+			aggLayerClient := agglayer.NewAgglayerClientMock(t)
 
 			curve := elliptic.P256()
 			privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
@@ -664,7 +664,7 @@ func Test_sendFinalProofError(t *testing.T) {
 			stateMock := mocks.NewStateInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
-			aggLayerClient := agglayer.NewAggLayerClientMock(t)
+			aggLayerClient := agglayer.NewAgglayerClientMock(t)
 
 			curve := elliptic.P256()
 			privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
