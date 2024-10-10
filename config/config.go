@@ -62,6 +62,8 @@ const (
 	EnvVarPrefix       = "CDK"
 	ConfigType         = "toml"
 	SaveConfigFileName = "cdk_config.toml"
+
+	DefaultCreationFilePermissions = os.FileMode(0600)
 )
 
 type ForbiddenField struct {
@@ -207,7 +209,7 @@ func LoadFile(files []FileData, saveConfigPath string) (*Config, error) {
 	}
 	if saveConfigPath != "" {
 		fullPath := saveConfigPath + "/" + SaveConfigFileName
-		err = os.WriteFile(fullPath, []byte(renderedCfg), 0644)
+		err = os.WriteFile(fullPath, []byte(renderedCfg), DefaultCreationFilePermissions)
 		if err != nil {
 			err = fmt.Errorf("error writing config file: %s. Err: %w", fullPath, err)
 			log.Error(err)
@@ -223,7 +225,8 @@ func LoadFile(files []FileData, saveConfigPath string) (*Config, error) {
 }
 
 // Load loads the configuration
-func loadString(cfg *Config, configData string, configType string, allowEnvVars bool, envPrefix string, expectedKeys *[]string) error {
+func loadString(cfg *Config, configData string, configType string,
+	allowEnvVars bool, envPrefix string, expectedKeys *[]string) error {
 	viper.SetConfigType(configType)
 	if allowEnvVars {
 		replacer := strings.NewReplacer(".", "_")
@@ -237,7 +240,8 @@ func loadString(cfg *Config, configData string, configType string, allowEnvVars 
 	}
 	decodeHooks := []viper.DecoderConfigOption{
 		// this allows arrays to be decoded from env var separated by ",", example: MY_VAR="value1,value2,value3"
-		viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(mapstructure.TextUnmarshallerHookFunc(), mapstructure.StringToSliceHookFunc(","))),
+		viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
+			mapstructure.TextUnmarshallerHookFunc(), mapstructure.StringToSliceHookFunc(","))),
 	}
 
 	err = viper.Unmarshal(&cfg, decodeHooks...)
@@ -261,7 +265,7 @@ func loadString(cfg *Config, configData string, configType string, allowEnvVars 
 	// TODO: Write config file must a parameter of ARGS
 	writeConfigFileName := "/tmp/cdk_config.toml"
 	log.Infof("Writing used config to %s", writeConfigFileName)
-	err = os.WriteFile(writeConfigFileName, []byte(configData), 0644)
+	err = os.WriteFile(writeConfigFileName, []byte(configData), DefaultCreationFilePermissions)
 	if err != nil {
 		log.Warnf("Error writing config file: %s", err)
 	}

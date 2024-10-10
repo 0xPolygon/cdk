@@ -121,7 +121,7 @@ func (c *ConfigRender) ResolveVars(fullConfigData string) (string, error) {
 // It iterate to configData, each step must reduce the number of 'vars'
 // if not means that there are cycle vars
 func (c *ConfigRender) ResolveCycle(partialResolvedConfigData string) (string, error) {
-	tmpData := RemoveQuotesForVars(string(partialResolvedConfigData))
+	tmpData := RemoveQuotesForVars(partialResolvedConfigData)
 	pendinVars := c.GetVars(tmpData)
 	if len(pendinVars) == 0 {
 		// Nothing to do resolve
@@ -135,7 +135,7 @@ func (c *ConfigRender) ResolveCycle(partialResolvedConfigData string) (string, e
 			return "", fmt.Errorf("fails to read template ResolveCycle. Err: %w", err)
 		}
 		renderedTemplateWithResolverVars := c.executeTemplate(tpl, valuesDefined, true)
-		tmpData = RemoveQuotesForVars(string(renderedTemplateWithResolverVars))
+		tmpData = RemoveQuotesForVars(renderedTemplateWithResolverVars)
 		tmpData = RemoveTypeMarks(tmpData)
 
 		pendinVars = c.GetVars(tmpData)
@@ -147,9 +147,10 @@ func (c *ConfigRender) ResolveCycle(partialResolvedConfigData string) (string, e
 	return previousData, nil
 }
 
-// The varaibles in data must be in format template:
+// The variables in data must be in format template:
 // A={{B}} no A="{{B}}"
-func (c *ConfigRender) ReadTemplateAdnDefinedValues(data string) (*fasttemplate.Template, map[string]interface{}, error) {
+func (c *ConfigRender) ReadTemplateAdnDefinedValues(data string) (*fasttemplate.Template,
+	map[string]interface{}, error) {
 	tpl, err := fasttemplate.NewTemplate(data, startTag, endTag)
 	if err != nil {
 		return nil, nil, fmt.Errorf("fail to load template ReadTemplateAdnDefinedValues. Err:%w", err)
@@ -158,7 +159,8 @@ func (c *ConfigRender) ReadTemplateAdnDefinedValues(data string) (*fasttemplate.
 	k := koanf.New(".")
 	err = k.Load(rawbytes.Provider([]byte(out)), toml.Parser())
 	if err != nil {
-		return nil, nil, fmt.Errorf("error ReadTemplateAdnDefinedValues parsing data koanf.Load.Content: %s.  Err: %w", out, err)
+		return nil, nil, fmt.Errorf("error ReadTemplateAdnDefinedValues parsing"+
+			" data koanf.Load.Content: %s.  Err: %w", out, err)
 	}
 	return tpl, k.All(), nil
 }
@@ -206,7 +208,6 @@ func (c *ConfigRender) executeTemplate(tpl *fasttemplate.Template,
 			}
 		}
 		if v, ok := data[tag]; ok {
-			//tmp := stringDependingOnType(v, v)
 			tmp := fmt.Sprintf("%v", v)
 			return w.Write([]byte(tmp))
 		}
@@ -218,7 +219,8 @@ func (c *ConfigRender) executeTemplate(tpl *fasttemplate.Template,
 
 // GetUnresolvedVars returns the vars in template that are no on data
 // In this case we don't use environment variables
-func (c *ConfigRender) GetUnresolvedVars(tpl *fasttemplate.Template, data map[string]interface{}, useEnv bool) []string {
+func (c *ConfigRender) GetUnresolvedVars(tpl *fasttemplate.Template,
+	data map[string]interface{}, useEnv bool) []string {
 	var unresolved []string
 	tpl.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
 		if useEnv {

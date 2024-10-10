@@ -17,10 +17,10 @@ rollupManagerCreationBlockNumber = 0
 genesisBlockNumber = 0
 [L1Config]
 	chainId = 0
-	polygonZkEVMGlobalExitRootAddress = "0x"
-	polygonRollupManagerAddress = "0x"
-	polTokenAddress = "0x"
-	polygonZkEVMAddress = "0x"
+	polygonZkEVMGlobalExitRootAddress = "0x0000000000000000000000000000000000000000"
+	polygonRollupManagerAddress = "0x0000000000000000000000000000000000000000"
+	polTokenAddress = "0x0000000000000000000000000000000000000000"
+	polygonZkEVMAddress = "0x0000000000000000000000000000000000000000"
 `
 
 // DefaultValues is the default configuration
