@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBlockMap(t *testing.T) {
@@ -50,8 +51,12 @@ func TestBlockMap(t *testing.T) {
 		t.Parallel()
 
 		copiedBm := bm.copy()
-		if !reflect.DeepEqual(bm, copiedBm) {
-			t.Errorf("add() returned incorrect result, expected: %v, got: %v", bm, copiedBm)
+		for i, header := range bm.headers {
+			copiedHeader, exists := copiedBm.headers[i]
+			require.True(t, exists)
+			if !reflect.DeepEqual(header, copiedHeader) {
+				t.Errorf("copy() returned incorrect result, expected: %v, got: %v", header, copiedHeader)
+			}
 		}
 	})
 

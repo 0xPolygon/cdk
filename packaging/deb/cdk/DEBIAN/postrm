@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+###############
+# Remove cdk-node installs
+##############
+#rm -rf /lib/systemd/system/cdk-node.service
+deluser cdk
+#systemctl daemon-reload

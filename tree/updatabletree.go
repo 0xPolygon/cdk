@@ -23,21 +23,21 @@ func NewUpdatableTree(db *sql.DB, dbPrefix string) *UpdatableTree {
 	return ut
 }
 
-func (t *UpdatableTree) UpsertLeaf(tx db.Txer, blockNum, blockPosition uint64, leaf types.Leaf) error {
+func (t *UpdatableTree) UpsertLeaf(tx db.Txer, blockNum, blockPosition uint64, leaf types.Leaf) (common.Hash, error) {
 	var rootHash common.Hash
 	root, err := t.getLastRootWithTx(tx)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			rootHash = t.zeroHashes[types.DefaultHeight]
 		} else {
-			return err
+			return common.Hash{}, err
 		}
 	} else {
 		rootHash = root.Hash
 	}
 	siblings, _, err := t.getSiblings(tx, leaf.Index, rootHash)
 	if err != nil {
-		return err
+		return common.Hash{}, err
 	}
 	currentChildHash := leaf.Hash
 	newNodes := []types.TreeNode{}
@@ -59,10 +59,10 @@ func (t *UpdatableTree) UpsertLeaf(tx db.Txer, blockNum, blockPosition uint64, l
 		BlockNum:      blockNum,
 		BlockPosition: blockPosition,
 	}); err != nil {
-		return err
+		return common.Hash{}, err
 	}
 	if err := t.storeNodes(tx, newNodes); err != nil {
-		return err
+		return common.Hash{}, err
 	}
-	return nil
+	return currentChildHash, nil
 }

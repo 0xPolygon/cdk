@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
+	"github.com/0xPolygon/zkevm-ethtx-manager/etherman"
 	"github.com/ethereum/go-ethereum/common"
 )
 

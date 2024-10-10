@@ -5,6 +5,18 @@ const DefaultValues = `
 ForkUpgradeBatchNumber = 0
 ForkUpgradeNewForkId = 0
 
+[Etherman]
+	URL="http://localhost:8545"
+	ForkIDChunkSize=100
+	[Etherman.EthermanConfig]
+		URL="http://localhost:8545"
+		MultiGasProvider=false
+		L1ChainID=1337
+		HTTPHeaders=[]
+		[Etherman.EthermanConfig.Etherscan]
+			ApiKey=""
+			Url="https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey="
+
 [Common]
 NetworkID = 1
 IsValidiumMode = false
@@ -28,8 +40,8 @@ WaitPeriodPurgeTxFile = "15m"
 MaxPendingTx = 1
 MaxBatchesForL1 = 300
 BlockFinality = "FinalizedBlock"
-	[SequenceSender.StreamClient]
-		Server = "127.0.0.1:6900"
+RPCURL = "localhost:8123"
+GetBatchWaitInterval = "10s"
 	[SequenceSender.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2m"
@@ -41,7 +53,7 @@ BlockFinality = "FinalizedBlock"
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
 		MaxGasPriceLimit = 0
-		PersistenceFilename = "ethtxmanager.json"
+		StoragePath = "ethtxmanager.db"
 		ReadPendingL1Txs = false
 		SafeStatusL1NumberOfBlocks = 0
 		FinalizedStatusL1NumberOfBlocks = 0
@@ -97,7 +109,7 @@ SequencerPrivateKey = {}
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
 		MaxGasPriceLimit = 0
-		PersistenceFilename = ""
+		StoragePath = ""
 		ReadPendingL1Txs = false
 		SafeStatusL1NumberOfBlocks = 0
 		FinalizedStatusL1NumberOfBlocks = 0
@@ -106,14 +118,13 @@ SequencerPrivateKey = {}
 				L1ChainID = 11155111
 				HTTPHeaders = []
 	[Aggregator.Synchronizer]
-		[Aggregator.Synchronizer.DB]
-			Name = "sync_db"
-			User = "sync_user"
-			Password = "sync_password"
-			Host = "cdk-l1-sync-db"
-			Port = "5432"
-			EnableLog = false
-			MaxConns = 10
+		[Aggregator.Synchronizer.Log]
+			Environment = "development" # "production" or "development"
+			Level = "info"
+			Outputs = ["stderr"]
+		[Aggregator.Synchronizer.SQLDB]
+			DriverName = "sqlite3"
+			DataSourceName = "file:/tmp/aggregator_sync_db.sqlite"
 		[Aggregator.Synchronizer.Synchronizer]
 			SyncInterval = "10s"
 			SyncChunkSize = 1000
@@ -122,9 +133,19 @@ SequencerPrivateKey = {}
 			BlockFinality = "finalized"
 			OverrideStorageCheck = false
 		[Aggregator.Synchronizer.Etherman]
+			L1URL = "http://localhost:8545"
+			ForkIDChunkSize = 100
+			L1ChainID = 0
 			[Aggregator.Synchronizer.Etherman.Validium]
 				Enabled = false
-
+				TrustedSequencerURL = ""
+				RetryOnDACErrorInterval = "1m"
+				DataSourcePriority = ["trusted", "external"]
+			[Aggregator.Synchronizer.Etherman.Validium.Translator]
+				FullMatchRules = []
+			[Aggregator.Synchronizer.Etherman.Validium.RateLimit]
+				NumRequests = 900
+				Interval = "1s"
 [ReorgDetectorL1]
 DBPath = "/tmp/reorgdetectorl1"
 
@@ -132,7 +153,7 @@ DBPath = "/tmp/reorgdetectorl1"
 DBPath = "/tmp/reorgdetectorl2"
 
 [L1InfoTreeSync]
-DBPath = "/tmp/L1InfoTreeSync"
+DBPath = "/tmp/L1InfoTreeSync.sqlite"
 GlobalExitRootAddr="0x8464135c8F25Da09e49BC8782676a84730C318bC"
 SyncBlockChunkSize=10
 BlockFinality="LatestBlock"
@@ -163,7 +184,7 @@ WaitPeriodNextGER="100ms"
 				ForcedGas = 0
 				GasPriceMarginFactor = 1
 				MaxGasPriceLimit = 0
-				PersistenceFilename = "/tmp/ethtxmanager-sequencesender.json"
+				StoragePath = "/tmp/ethtxmanager-sequencesender.db"
 				ReadPendingL1Txs = false
 				SafeStatusL1NumberOfBlocks = 5
 				FinalizedStatusL1NumberOfBlocks = 10
@@ -202,7 +223,7 @@ GasOffset = 0
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
 		MaxGasPriceLimit = 0
-		PersistenceFilename = "/tmp/ethtxmanager-claimsopnsor.json"
+		StoragePath = "/tmp/ethtxmanager-claimsponsor.db"
 		ReadPendingL1Txs = false
 		SafeStatusL1NumberOfBlocks = 5
 		FinalizedStatusL1NumberOfBlocks = 10
@@ -211,12 +232,6 @@ GasOffset = 0
 				MultiGasProvider = false
 				L1ChainID = 1337
 				HTTPHeaders = []
-
-[L1Bridge2InfoIndexSync]
-DBPath = "/tmp/l1bridge2infoindexsync"
-RetryAfterErrorPeriod = "1s"
-MaxRetryAttemptsAfterError = -1
-WaitForSyncersPeriod = "3s"
 
 [BridgeL1Sync]
 DBPath = "/tmp/bridgel1sync"
@@ -247,4 +262,12 @@ RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "1s"
 DownloadBufferSize = 100
+
+[NetworkConfig.L1]
+L1ChainID = 0
+PolAddr = "0x0000000000000000000000000000000000000000"
+ZkEVMAddr = "0x0000000000000000000000000000000000000000"
+RollupManagerAddr = "0x0000000000000000000000000000000000000000"
+GlobalExitRootManagerAddr = "0x0000000000000000000000000000000000000000"
+
 `

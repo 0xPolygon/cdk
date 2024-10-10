@@ -1,0 +1,89 @@
+name: x86_deb_packager
+
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - '**'
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'
+
+jobs:
+  build:
+    permissions:
+      id-token: write
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@master
+        with:
+          go-version: 1.22.x
+      # Variables
+      - name: Adding TAG to ENV
+        run: echo "GIT_TAG=`echo $(git describe --tags --abbrev=0)`" >> $GITHUB_ENV
+      - name: adding version
+        run: |
+          NUMERIC_VERSION=$( echo ${{ env.GIT_TAG }} | sed 's/[^0-9.]//g' ) 
+          echo "VERSION=$NUMERIC_VERSION" >> $GITHUB_ENV
+
+      - name: go mod download
+        run: go mod download
+
+      - name: Build the binary
+        run: make build
+
+      - name: Build the rust binary
+        run: |
+          BUILD_SCRIPT_DISABLED=1
+          cargo build --release --bin cdk
+
+      - name: making directory structure
+        run: mkdir -p packaging/deb/cdk/usr/bin/
+      - name: copying necessary binary for amd64
+        run: cp -rp target/cdk-node packaging/deb/cdk/usr/bin/cdk-node
+      - name: copying rust binary for amd64
+        run: cp -rp target/release/cdk packaging/deb/cdk/usr/bin/cdk
+
+      # Control file creation
+      - name: Create control file
+        run: |
+          echo "Package: cdk" >> packaging/deb/cdk/DEBIAN/control
+          echo "Version: ${{ env.VERSION }}" >> packaging/deb/cdk/DEBIAN/control
+          echo "Section: base" >> packaging/deb/cdk/DEBIAN/control
+          echo "Priority: optional" >> packaging/deb/cdk/DEBIAN/control
+          echo "Architecture: amd64" >> packaging/deb/cdk/DEBIAN/control
+          echo "Maintainer: devops@polygon.technology" >> packaging/deb/cdk/DEBIAN/control
+          echo "Description: cdk binary package" >> packaging/deb/cdk/DEBIAN/control
+
+      - name: Creating package for binary for cdk ${{ env.ARCH }}
+        run: cp -rp packaging/deb/cdk packaging/deb/cdk-${{ env.GIT_TAG }}-${{ env.ARCH }}
+        env:
+          ARCH: amd64
+
+      - name: Running package build
+        run: dpkg-deb --build --root-owner-group packaging/deb/cdk-${{ env.GIT_TAG }}-${{ env.ARCH }}
+        env:
+          ARCH: amd64
+
+      - name: Create checksum for the amd64 package
+        run: cd packaging/deb/ && sha256sum cdk-${{ env.GIT_TAG }}-${{ env.ARCH }}.deb > cdk-${{ env.GIT_TAG }}-${{ env.ARCH }}.deb.checksum
+        env:
+          ARCH: amd64
+
+
+      - name: Release cdk Packages
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.GIT_TAG }}
+          prerelease: true
+          files: |
+            packaging/deb/cdk**.deb
+            packaging/deb/cdk**.deb.checksum

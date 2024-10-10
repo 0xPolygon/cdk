@@ -9,11 +9,12 @@ RUN go mod download
 
 # BUILD BINARY
 COPY . .
-RUN make build
+RUN make build-go
 
 # BUILD RUST BIN
-FROM --platform=${BUILDPLATFORM} rust:slim-bullseye AS chef
+FROM --platform=${BUILDPLATFORM} rust:slim-bookworm AS chef
 USER root
+RUN apt-get update && apt-get install -y openssl pkg-config libssl-dev
 RUN cargo install cargo-chef
 WORKDIR /app
 
@@ -41,7 +42,7 @@ RUN cargo build --release --bin cdk
 # CONTAINER FOR RUNNING BINARY
 FROM --platform=${BUILDPLATFORM} debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y ca-certificates postgresql-client
+RUN apt-get update && apt-get install -y ca-certificates postgresql-client libssl-dev && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/cdk /usr/local/bin/
 COPY --from=build /go/src/github.com/0xPolygon/cdk/target/cdk-node /usr/local/bin/
 

@@ -1,11 +1,10 @@
-use std::net::SocketAddr;
-
-use serde::Deserialize;
-
 use super::DEFAULT_IP;
+use serde::Deserialize;
+use std::net::SocketAddr;
 
 #[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "PascalCase")]
+#[allow(dead_code)]
 pub struct TelemetryConfig {
     #[serde(rename = "PrometheusAddr", default = "default_metrics_api_addr")]
     pub addr: SocketAddr,

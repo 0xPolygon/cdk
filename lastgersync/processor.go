@@ -7,6 +7,7 @@ import (
 	"math"
 
 	"github.com/0xPolygon/cdk/common"
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	ethCommon "github.com/ethereum/go-ethereum/common"
@@ -22,7 +23,6 @@ const (
 
 var (
 	lastProcessedKey = []byte("lp")
-	ErrNotFound      = errors.New("not found")
 )
 
 type Event struct {
@@ -111,7 +111,7 @@ func (p *processor) getLastIndexWithTx(tx kv.Tx) (uint32, error) {
 		return 0, err
 	}
 	if k == nil {
-		return 0, ErrNotFound
+		return 0, db.ErrNotFound
 	}
 
 	return common.BytesToUint32(k), nil
@@ -142,7 +142,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if lenEvents > 0 {
 		li, err := p.getLastIndexWithTx(tx)
 		switch {
-		case errors.Is(err, ErrNotFound):
+		case errors.Is(err, db.ErrNotFound):
 			lastIndex = -1
 
 		case err != nil:
@@ -286,7 +286,7 @@ func (p *processor) GetFirstGERAfterL1InfoTreeIndex(
 		return 0, ethCommon.Hash{}, err
 	}
 	if l1InfoIndexBytes == nil {
-		return 0, ethCommon.Hash{}, ErrNotFound
+		return 0, ethCommon.Hash{}, db.ErrNotFound
 	}
 
 	return common.BytesToUint32(l1InfoIndexBytes), ethCommon.BytesToHash(ger), nil

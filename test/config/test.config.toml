@@ -13,7 +13,8 @@ SequencesTxFileName = "sequencesender.json"
 GasOffset = 80000
 WaitPeriodPurgeTxFile = "60m"
 MaxPendingTx = 1
-SanityCheckRPCURL = "http://127.0.0.1:8123"
+RPCURL = "http://127.0.0.1:8123"
+GetBatchWaitInterval = "10s"
 	[SequenceSender.StreamClient]
 		Server = "127.0.0.1:6900"
 	[SequenceSender.EthTxManager]
@@ -27,7 +28,7 @@ SanityCheckRPCURL = "http://127.0.0.1:8123"
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
 		MaxGasPriceLimit = 0
-		PersistenceFilename = "ethtxmanager.json"
+		StoragePath = "ethtxmanager.db"
 		ReadPendingL1Txs = false
 		SafeStatusL1NumberOfBlocks = 5
 		FinalizedStatusL1NumberOfBlocks = 10
@@ -85,7 +86,7 @@ SequencerPrivateKey = {}
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
 		MaxGasPriceLimit = 0
-		PersistenceFilename = ""
+		StoragePath = ""
 		ReadPendingL1Txs = false
 		SafeStatusL1NumberOfBlocks = 0
 		FinalizedStatusL1NumberOfBlocks = 0

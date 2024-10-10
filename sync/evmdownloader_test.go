@@ -222,9 +222,9 @@ func TestDownload(t *testing.T) {
 	}
 	expectedBlocks = append(expectedBlocks, b1)
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(0), uint64(1)).
-		Return([]EVMBlock{})
+		Return([]EVMBlock{}, false)
 	d.On("GetBlockHeader", mock.Anything, uint64(1)).
-		Return(b1.EVMBlockHeader)
+		Return(b1.EVMBlockHeader, false)
 
 	// iteration 1: wait for next block to be created
 	d.On("WaitForNewBlocks", mock.Anything, uint64(1)).
@@ -240,7 +240,7 @@ func TestDownload(t *testing.T) {
 	}
 	expectedBlocks = append(expectedBlocks, b2)
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(2), uint64(2)).
-		Return([]EVMBlock{b2})
+		Return([]EVMBlock{b2}, false)
 
 	// iteration 3: wait for next block to be created (jump to block 8)
 	d.On("WaitForNewBlocks", mock.Anything, uint64(2)).
@@ -270,9 +270,9 @@ func TestDownload(t *testing.T) {
 	}
 	expectedBlocks = append(expectedBlocks, b6, b7, b8)
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(3), uint64(8)).
-		Return([]EVMBlock{b6, b7})
+		Return([]EVMBlock{b6, b7}, false)
 	d.On("GetBlockHeader", mock.Anything, uint64(8)).
-		Return(b8.EVMBlockHeader)
+		Return(b8.EVMBlockHeader, false)
 
 	// iteration 5: wait for next block to be created (jump to block 30)
 	d.On("WaitForNewBlocks", mock.Anything, uint64(8)).
@@ -288,9 +288,9 @@ func TestDownload(t *testing.T) {
 	}
 	expectedBlocks = append(expectedBlocks, b19)
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(9), uint64(19)).
-		Return([]EVMBlock{})
+		Return([]EVMBlock{}, false)
 	d.On("GetBlockHeader", mock.Anything, uint64(19)).
-		Return(b19.EVMBlockHeader)
+		Return(b19.EVMBlockHeader, false)
 
 	// iteration 7: from block 20 to 30, events on last block
 	b30 := EVMBlock{
@@ -302,7 +302,7 @@ func TestDownload(t *testing.T) {
 	}
 	expectedBlocks = append(expectedBlocks, b30)
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(20), uint64(30)).
-		Return([]EVMBlock{b30})
+		Return([]EVMBlock{b30}, false)
 
 	// iteration 8: wait for next block to be created (jump to block 35)
 	d.On("WaitForNewBlocks", mock.Anything, uint64(30)).
@@ -369,14 +369,16 @@ func TestGetBlockHeader(t *testing.T) {
 
 	// at first attempt
 	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(returnedBlock, nil).Once()
-	actualBlock := d.GetBlockHeader(ctx, blockNum)
+	actualBlock, isCanceled := d.GetBlockHeader(ctx, blockNum)
 	assert.Equal(t, expectedBlock, actualBlock)
+	assert.False(t, isCanceled)
 
 	// after error from client
 	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(nil, errors.New("foo")).Once()
 	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(returnedBlock, nil).Once()
-	actualBlock = d.GetBlockHeader(ctx, blockNum)
+	actualBlock, isCanceled = d.GetBlockHeader(ctx, blockNum)
 	assert.Equal(t, expectedBlock, actualBlock)
+	assert.False(t, isCanceled)
 }
 
 func buildAppender() LogAppenderMap {

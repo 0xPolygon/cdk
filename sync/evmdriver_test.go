@@ -198,36 +198,19 @@ func TestHandleReorg(t *testing.T) {
 
 	// happy path
 	_, cancel := context.WithCancel(ctx)
-	downloadCh := make(chan EVMBlock)
 	firstReorgedBlock := uint64(5)
 	pm.On("Reorg", ctx, firstReorgedBlock).Return(nil)
-	go driver.handleReorg(ctx, cancel, downloadCh, firstReorgedBlock)
-	close(downloadCh)
+	go driver.handleReorg(ctx, cancel, firstReorgedBlock)
 	done := <-reorgProcessed
-	require.True(t, done)
-
-	// download ch sends some garbage
-	_, cancel = context.WithCancel(ctx)
-	downloadCh = make(chan EVMBlock)
-	firstReorgedBlock = uint64(6)
-	pm.On("Reorg", ctx, firstReorgedBlock).Return(nil)
-	go driver.handleReorg(ctx, cancel, downloadCh, firstReorgedBlock)
-	downloadCh <- EVMBlock{}
-	downloadCh <- EVMBlock{}
-	downloadCh <- EVMBlock{}
-	close(downloadCh)
-	done = <-reorgProcessed
 	require.True(t, done)
 
 	// processor fails 2 times
 	_, cancel = context.WithCancel(ctx)
-	downloadCh = make(chan EVMBlock)
 	firstReorgedBlock = uint64(7)
 	pm.On("Reorg", ctx, firstReorgedBlock).Return(errors.New("foo")).Once()
 	pm.On("Reorg", ctx, firstReorgedBlock).Return(errors.New("foo")).Once()
 	pm.On("Reorg", ctx, firstReorgedBlock).Return(nil).Once()
-	go driver.handleReorg(ctx, cancel, downloadCh, firstReorgedBlock)
-	close(downloadCh)
+	go driver.handleReorg(ctx, cancel, firstReorgedBlock)
 	done = <-reorgProcessed
 	require.True(t, done)
 }

@@ -1,0 +1,103 @@
+name: arm_rpm_packager
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - '**'
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'
+
+jobs:
+  build:
+    permissions:
+      id-token: write
+      contents: write
+    runs-on:
+      labels: arm-runner-2204
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@master
+        with:
+          go-version: 1.22.x
+      - name: Adding TAG to ENV
+        run: echo "GIT_TAG=`echo $(git describe --tags --abbrev=0)`" >> $GITHUB_ENV
+
+      - name: Adding a TAG.1 to the env
+        run: echo "GIT_TAG1=`echo $(git describe --tags --abbrev=0)`" | sed 's/-/./g' >> $GITHUB_ENV
+
+      - name: Download deps for project
+        run: go mod download
+
+      - name: Building cdk-node for amd64
+        run: make build
+
+      - name: Building the cdk
+        run: |
+          BUILD_SCRIPT_DISABLED=1
+          cargo build --release --bin cdk
+
+      - name: Installing some dependencies
+        run: sudo apt-get update && sudo apt-get install -y rpm
+
+      - name: Setup rpm package for binary
+        run: |
+          mkdir -p packaging/rpm/SPECS
+          mkdir -p packaging/rpm/BUILD
+          mkdir -p packaging/rpm/RPMS
+          mkdir -p packaging/rpm/SRPMS
+          
+          touch packaging/rpm/cdk.spec 
+          echo "Name: cdk" >> packaging/rpm/SPECS/cdk.spec
+          echo "Version: ${{ env.GIT_TAG1 }}" >> packaging/rpm/SPECS/cdk.spec
+          echo "Release: 1%{?dist}" >> packaging/rpm/SPECS/cdk.spec
+          echo "License: GPL/AGPL" >> packaging/rpm/SPECS/cdk.spec
+          echo "BuildArch: aarch64" >> packaging/rpm/SPECS/cdk.spec
+          echo "Summary: cdk rpm package" >> packaging/rpm/SPECS/cdk.spec
+          
+          echo "%description" >> packaging/rpm/SPECS/cdk.spec
+          echo "cdk rpm package" >> packaging/rpm/SPECS/cdk.spec
+          
+          echo "%pre" >> packaging/rpm/SPECS/cdk.spec
+          echo "getent group cdk >/dev/null || groupadd -r cdk" >> packaging/rpm/SPECS/cdk.spec
+          echo "getent passwd cdk >/dev/null || useradd -s /bin/false -d /opt/cdk -r cdk -g cdk" >> packaging/rpm/SPECS/cdk.spec
+          
+          echo "%install" >> packaging/rpm/SPECS/cdk.spec
+          echo "mkdir -p %{buildroot}/usr/bin" >> packaging/rpm/SPECS/cdk.spec
+          echo "cp /home/runner/work/cdk/cdk/target/cdk-node %{buildroot}/usr/bin/cdk-node" >> packaging/rpm/SPECS/cdk.spec
+          echo "cp /home/runner/work/cdk/cdk/target/release/cdk %{buildroot}/usr/bin/cdk" >> packaging/rpm/SPECS/cdk.spec
+          
+          echo "%files" >> packaging/rpm/SPECS/cdk.spec
+          echo "/usr/bin/cdk" >> packaging/rpm/SPECS/cdk.spec
+          echo "/usr/bin/cdk-node" >> packaging/rpm/SPECS/cdk.spec
+
+
+      - name: Construct rpm package
+        run: |
+          rpmbuild --define "_topdir /home/runner/work/cdk/cdk/packaging/rpm_build" \
+                   --define "_builddir %{_topdir}/BUILD" \
+                   --define "_rpmdir %{_topdir}/RPMS" \
+                   --define "_srcrpmdir %{_topdir}/SRPMS" \
+                   --define "__spec_install_post /bin/true" \
+                   -bb packaging/rpm/SPECS/cdk.spec
+
+      - name: Rename file for post rpm build and for checksum
+        run: mv /home/runner/work/cdk/cdk/packaging/rpm_build/RPMS/aarch64/cdk-${{ env.GIT_TAG1 }}-1.aarch64.rpm /home/runner/work/cdk/cdk/packaging/rpm_build/RPMS/aarch64/cdk-${{ env.GIT_TAG1 }}.aarch64.rpm
+
+      - name: Checksum for the rpm package
+        run: sha256sum /home/runner/work/cdk/cdk/packaging/rpm_build/RPMS/aarch64/cdk-${{ env.GIT_TAG1 }}.aarch64.rpm > /home/runner/work/cdk/cdk/packaging/rpm_build/RPMS/aarch64/cdk-${{ env.GIT_TAG1 }}.aarch64.rpm.checksum
+
+      - name: Release cdk Packages
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.GIT_TAG }}
+          prerelease: true
+          files: |
+            packaging/rpm_build/RPMS/aarch64/cdk-**.rpm
+            packaging/rpm_build/RPMS/aarch64/cdk-**.rpm.checksum

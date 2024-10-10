@@ -33,15 +33,68 @@ type EthClienter interface {
 	bind.ContractBackend
 }
 
-func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Address) (sync.LogAppenderMap, error) {
-	ger, err := polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2(globalExitRoot, client)
+func checkSMCIsRollupManager(rollupManagerAddr common.Address,
+	rollupManagerContract *polygonrollupmanager.Polygonrollupmanager) error {
+	bridgeAddr, err := rollupManagerContract.BridgeAddress(nil)
 	if err != nil {
+		return fmt.Errorf("fail sanity check RollupManager(%s) Contract. Err: %w", rollupManagerAddr.String(), err)
+	}
+	log.Infof("sanity check rollupManager(%s) OK. bridgeAddr: %s", rollupManagerAddr.String(), bridgeAddr.String())
+	return nil
+}
+
+func checkSMCIsGlobalExitRoot(globalExitRootAddr common.Address,
+	gerContract *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2) error {
+	depositCount, err := gerContract.DepositCount(nil)
+	if err != nil {
+		return fmt.Errorf("fail sanity check GlobalExitRoot(%s) Contract. Err: %w", globalExitRootAddr.String(), err)
+	}
+	log.Infof("sanity check GlobalExitRoot(%s) OK. DepositCount: %v", globalExitRootAddr.String(), depositCount)
+	return nil
+}
+
+func sanityCheckContracts(globalExitRoot, rollupManager common.Address,
+	gerContract *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
+	rollupManagerContract *polygonrollupmanager.Polygonrollupmanager) error {
+	errGER := checkSMCIsGlobalExitRoot(globalExitRoot, gerContract)
+	errRollup := checkSMCIsRollupManager(rollupManager, rollupManagerContract)
+	if errGER != nil || errRollup != nil {
+		err := fmt.Errorf("sanityCheckContracts: fails sanity check contracts. ErrGER: %w, ErrRollup: %w", errGER, errRollup)
+		log.Error(err)
+		return err
+	}
+	return nil
+}
+
+func createContracts(client EthClienter, globalExitRoot, rollupManager common.Address) (
+	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
+	*polygonrollupmanager.Polygonrollupmanager,
+	error) {
+	gerContract, err := polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2(globalExitRoot, client)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	rollupManagerContract, err := polygonrollupmanager.NewPolygonrollupmanager(rollupManager, client)
+	if err != nil {
+		return nil, nil, err
+	}
+	return gerContract, rollupManagerContract, nil
+}
+
+func buildAppender(client EthClienter, globalExitRoot,
+	rollupManager common.Address, flags CreationFlags) (sync.LogAppenderMap, error) {
+	ger, rm, err := createContracts(client, globalExitRoot, rollupManager)
+	if err != nil {
+		err := fmt.Errorf("buildAppender: fails contracts creation. Err:%w", err)
+		log.Error(err)
 		return nil, err
 	}
-	rm, err := polygonrollupmanager.NewPolygonrollupmanager(rollupManager, client)
-	if err != nil {
-		return nil, err
+	err = sanityCheckContracts(globalExitRoot, rollupManager, ger, rm)
+	if err != nil && flags&FlagAllowWrongContractsAddrs == 0 {
+		return nil, fmt.Errorf("buildAppender: fails sanity check contracts. Err:%w", err)
 	}
+
 	appender := make(sync.LogAppenderMap)
 	appender[initL1InfoRootMapSignature] = func(b *sync.EVMBlock, l types.Log) error {
 		init, err := ger.ParseInitL1InfoRootMap(l)
@@ -86,10 +139,12 @@ func buildAppender(client EthClienter, globalExitRoot, rollupManager common.Addr
 				l, err,
 			)
 		}
-		log.Infof("updateL1InfoTreeSignatureV2: expected root: %s", common.Bytes2Hex(l1InfoTreeUpdate.CurrentL1InfoRoot[:]))
+		log.Infof("updateL1InfoTreeSignatureV2: expected root: %s",
+			common.BytesToHash(l1InfoTreeUpdate.CurrentL1InfoRoot[:]))
 
 		return nil
 	}
+	// This event is coming from RollupManager
 	appender[verifyBatchesSignature] = func(b *sync.EVMBlock, l types.Log) error {
 		verifyBatches, err := rm.ParseVerifyBatches(l)
 		if err != nil {

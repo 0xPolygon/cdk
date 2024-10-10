@@ -10,7 +10,7 @@ import (
 	"github.com/0xPolygon/cdk/aggregator/db"
 	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	syncronizerConfig "github.com/0xPolygonHermez/zkevm-synchronizer-l1/config"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 )

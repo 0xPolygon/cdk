@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
@@ -70,7 +71,7 @@ func (a *AggOracle) Start(ctx context.Context) {
 				case errors.Is(err, l1infotreesync.ErrBlockNotProcessed):
 					a.logger.Debugf("syncer is not ready for the block %d", blockNumToFetch)
 
-				case errors.Is(err, l1infotreesync.ErrNotFound):
+				case errors.Is(err, db.ErrNotFound):
 					blockNumToFetch = 0
 					a.logger.Debugf("syncer has not found any GER until block %d", blockNumToFetch)
 

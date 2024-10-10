@@ -53,6 +53,10 @@ func (rd *ReorgDetector) getTrackedBlocks(ctx context.Context) (map[string]*head
 
 // saveTrackedBlock saves the tracked block for a subscriber in db and in memory
 func (rd *ReorgDetector) saveTrackedBlock(ctx context.Context, id string, b header) error {
+	rd.trackedBlocksLock.Lock()
+
+	// this has to go after the lock, because of a possible deadlock
+	// between AddBlocksToTrack and detectReorgInTrackedList
 	tx, err := rd.db.BeginRw(ctx)
 	if err != nil {
 		return err
@@ -60,7 +64,6 @@ func (rd *ReorgDetector) saveTrackedBlock(ctx context.Context, id string, b head
 
 	defer tx.Rollback()
 
-	rd.trackedBlocksLock.Lock()
 	hdrs, ok := rd.trackedBlocks[id]
 	if !ok || hdrs.isEmpty() {
 		hdrs = newHeadersList(b)
