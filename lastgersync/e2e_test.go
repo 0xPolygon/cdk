@@ -9,7 +9,7 @@ import (
 
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/lastgersync"
-	"github.com/0xPolygon/cdk/test/helpers"
+	"github.com/0xPolygon/cdk/test/aggoraclehelpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -17,7 +17,7 @@ import (
 
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
-	env := helpers.SetupAggoracleWithEVMChain(t)
+	env := aggoraclehelpers.SetupAggoracleWithEVMChain(t)
 	dbPathSyncer := t.TempDir()
 	syncer, err := lastgersync.New(
 		ctx,
