@@ -56,7 +56,7 @@ func newSimulatedClient(t *testing.T) (
 }
 
 func TestE2E(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancelCtx := context.WithCancel(context.Background())
 	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
 
 	rdm := l1infotreesync.NewReorgDetectorMock(t)
@@ -95,6 +95,11 @@ func TestE2E(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, common.Hash(expectedRoot), actualRoot.Hash)
 	}
+
+	// Restart syncer
+	cancelCtx()
+	ctx = context.Background()
+	go syncer.Start(ctx)
 
 	// Update 3 rollups (verify batches event) 3 times
 	for rollupID := uint32(1); rollupID < 3; rollupID++ {

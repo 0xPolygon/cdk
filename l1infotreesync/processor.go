@@ -248,10 +248,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		return err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	return nil
+	return tx.Commit()
 }
 
 // ProcessBlock process the events of the block to build the rollup exit tree and the l1 info tree

@@ -3,6 +3,8 @@ package l1infotreesync
 import (
 	"testing"
 
+	"github.com/0xPolygon/cdk/tree/types"
+
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum/common"
@@ -120,4 +122,140 @@ func TestGetLatestInfoUntilBlockIfNotFoundReturnsErrNotFound(t *testing.T) {
 
 	_, err = sut.GetLatestInfoUntilBlock(ctx, 1)
 	require.Equal(t, db.ErrNotFound, err)
+}
+
+func Test_processor_GetL1InfoTreeMerkleProof(t *testing.T) {
+	t.Parallel()
+
+	testTable := []struct {
+		name         string
+		getProcessor func(t *testing.T) *processor
+		idx          uint32
+		expectedRoot types.Root
+		expectedErr  error
+	}{
+		{
+			name: "empty tree",
+			getProcessor: func(t *testing.T) *processor {
+				p, err := newProcessor("file:Test_processor_GetL1InfoTreeMerkleProof_1?mode=memory&cache=shared")
+				require.NoError(t, err)
+				return p
+			},
+			idx:         0,
+			expectedErr: db.ErrNotFound,
+		},
+		{
+			name: "single leaf tree",
+			getProcessor: func(t *testing.T) *processor {
+				p, err := newProcessor("file:Test_processor_GetL1InfoTreeMerkleProof_2?mode=memory&cache=shared")
+				require.NoError(t, err)
+
+				info := &UpdateL1InfoTree{
+					MainnetExitRoot: common.HexToHash("beef"),
+					RollupExitRoot:  common.HexToHash("5ca1e"),
+					ParentHash:      common.HexToHash("1010101"),
+					Timestamp:       420,
+				}
+				err = p.ProcessBlock(context.Background(), sync.Block{
+					Num: 1,
+					Events: []interface{}{
+						Event{UpdateL1InfoTree: info},
+					},
+				})
+				require.NoError(t, err)
+
+				return p
+			},
+			idx: 0,
+			expectedRoot: types.Root{
+				Hash:          common.HexToHash("beef"),
+				Index:         0,
+				BlockNum:      1,
+				BlockPosition: 0,
+			},
+		},
+	}
+
+	for _, tt := range testTable {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			p := tt.getProcessor(t)
+			proof, root, err := p.GetL1InfoTreeMerkleProof(context.Background(), tt.idx)
+			if tt.expectedErr != nil {
+				require.Equal(t, tt.expectedErr, err)
+			} else {
+				require.NoError(t, err)
+				require.NotEmpty(t, proof)
+				require.NotEmpty(t, root.Hash)
+				require.Equal(t, tt.expectedRoot.Index, root.Index)
+				require.Equal(t, tt.expectedRoot.BlockNum, root.BlockNum)
+				require.Equal(t, tt.expectedRoot.BlockPosition, root.BlockPosition)
+			}
+		})
+	}
+}
+
+func Test_processor_Reorg(t *testing.T) {
+	t.Parallel()
+
+	testTable := []struct {
+		name         string
+		getProcessor func(t *testing.T) *processor
+		reorgBlock   uint64
+		expectedErr  error
+	}{
+		{
+			name: "empty tree",
+			getProcessor: func(t *testing.T) *processor {
+				p, err := newProcessor("file:Test_processor_Reorg_1?mode=memory&cache=shared")
+				require.NoError(t, err)
+				return p
+			},
+			reorgBlock:  0,
+			expectedErr: nil,
+		},
+		{
+			name: "single leaf tree",
+			getProcessor: func(t *testing.T) *processor {
+				p, err := newProcessor("file:Test_processor_Reorg_2?mode=memory&cache=shared")
+				require.NoError(t, err)
+
+				info := &UpdateL1InfoTree{
+					MainnetExitRoot: common.HexToHash("beef"),
+					RollupExitRoot:  common.HexToHash("5ca1e"),
+					ParentHash:      common.HexToHash("1010101"),
+					Timestamp:       420,
+				}
+				err = p.ProcessBlock(context.Background(), sync.Block{
+					Num: 1,
+					Events: []interface{}{
+						Event{UpdateL1InfoTree: info},
+					},
+				})
+				require.NoError(t, err)
+
+				return p
+			},
+			reorgBlock: 1,
+		},
+	}
+
+	for _, tt := range testTable {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			p := tt.getProcessor(t)
+			err := p.Reorg(context.Background(), tt.reorgBlock)
+			if tt.expectedErr != nil {
+				require.Equal(t, tt.expectedErr, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
