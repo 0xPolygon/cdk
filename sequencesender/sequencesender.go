@@ -414,8 +414,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 	defer s.mutexSequence.Unlock()
 	var prevCoinbase common.Address
 	sequenceBatches := make([]seqsendertypes.Batch, 0)
-	for i := 0; i < len(s.sequenceList); i++ {
-		batchNumber := s.sequenceList[i]
+	for _, batchNumber := range s.sequenceList {
 		if batchNumber <= atomic.LoadUint64(&s.latestVirtualBatchNumber) ||
 			batchNumber <= atomic.LoadUint64(&s.latestSentToL1Batch) {
 			continue
@@ -423,7 +422,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 
 		// Check if the next batch belongs to a new forkid, in this case we need to stop sequencing as we need to
 		// wait the upgrade of forkid is completed and s.cfg.NumBatchForkIdUpgrade is disabled (=0) again
-		if (s.cfg.ForkUpgradeBatchNumber != 0) && (batchNumber == (s.cfg.ForkUpgradeBatchNumber + 1)) {
+		if s.cfg.ForkUpgradeBatchNumber != 0 && batchNumber == (s.cfg.ForkUpgradeBatchNumber+1) {
 			return nil, fmt.Errorf(
 				"aborting sequencing process as we reached the batch %d where a new forkid is applied (upgrade)",
 				s.cfg.ForkUpgradeBatchNumber+1,
@@ -456,7 +455,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 
 		// Check if the current batch is the last before a change to a new forkid
 		// In this case we need to close and send the sequence to L1
-		if (s.cfg.ForkUpgradeBatchNumber != 0) && (batchNumber == (s.cfg.ForkUpgradeBatchNumber)) {
+		if s.cfg.ForkUpgradeBatchNumber != 0 && batchNumber == s.cfg.ForkUpgradeBatchNumber {
 			s.logger.Infof("sequence should be sent to L1, as we have reached the batch %d "+
 				"from which a new forkid is applied (upgrade)",
 				s.cfg.ForkUpgradeBatchNumber,
