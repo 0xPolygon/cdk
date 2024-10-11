@@ -8,60 +8,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry-paris/polygonzkevmbridgev2"
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/test/helpers"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/stretchr/testify/require"
 )
-
-func newSimulatedClient(t *testing.T, auth *bind.TransactOpts) (
-	client *simulated.Backend,
-	bridgeAddr common.Address,
-	bridgeContract *polygonzkevmbridgev2.Polygonzkevmbridgev2,
-) {
-	t.Helper()
-
-	var err error
-	balance, _ := big.NewInt(0).SetString("10000000000000000000000000", 10)
-	address := auth.From
-	genesisAlloc := map[common.Address]types.Account{
-		address: {
-			Balance: balance,
-		},
-	}
-	blockGasLimit := uint64(999999999999999999)
-	client = simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
-
-	bridgeAddr, _, bridgeContract, err = polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(auth, client.Client())
-	require.NoError(t, err)
-	client.Commit()
-
-	return
-}
 
 func TestBridgeEventE2E(t *testing.T) {
 	ctx := context.Background()
 	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	dbPathReorg := t.TempDir()
-	privateKey, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
-	require.NoError(t, err)
-	client, bridgeAddr, bridgeSc := newSimulatedClient(t, auth)
+
+	client, setup := helpers.SimulatedBackend(t, nil, 0)
 	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg})
 	require.NoError(t, err)
 
 	go rd.Start(ctx) //nolint:errcheck
 
 	testClient := helpers.TestClient{ClientRenamed: client.Client()}
-	syncer, err := bridgesync.NewL1(ctx, dbPathSyncer, bridgeAddr, 10, etherman.LatestBlock, rd, testClient, 0, time.Millisecond*10, 0, 0)
+	syncer, err := bridgesync.NewL1(ctx, dbPathSyncer, setup.EBZkevmBridgeAddr, 10, etherman.LatestBlock, rd, testClient, 0, time.Millisecond*10, 0, 0)
 	require.NoError(t, err)
 
 	go syncer.Start(ctx)
@@ -71,15 +39,15 @@ func TestBridgeEventE2E(t *testing.T) {
 
 	for i := 0; i < 100; i++ {
 		bridge := bridgesync.Bridge{
-			BlockNum:           uint64(2 + i),
+			BlockNum:           uint64(4 + i),
 			Amount:             big.NewInt(0),
 			DepositCount:       uint32(i),
 			DestinationNetwork: 3,
 			DestinationAddress: common.HexToAddress("f00"),
 			Metadata:           []byte{},
 		}
-		tx, err := bridgeSc.BridgeAsset(
-			auth,
+		tx, err := setup.EBZkevmBridgeContract.BridgeAsset(
+			setup.UserAuth,
 			bridge.DestinationNetwork,
 			bridge.DestinationAddress,
 			bridge.Amount,
