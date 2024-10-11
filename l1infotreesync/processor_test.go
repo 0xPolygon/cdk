@@ -3,10 +3,9 @@ package l1infotreesync
 import (
 	"testing"
 
-	"github.com/0xPolygon/cdk/tree/types"
-
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/sync"
+	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -137,8 +136,11 @@ func Test_processor_GetL1InfoTreeMerkleProof(t *testing.T) {
 		{
 			name: "empty tree",
 			getProcessor: func(t *testing.T) *processor {
+				t.Helper()
+
 				p, err := newProcessor("file:Test_processor_GetL1InfoTreeMerkleProof_1?mode=memory&cache=shared")
 				require.NoError(t, err)
+
 				return p
 			},
 			idx:         0,
@@ -147,6 +149,8 @@ func Test_processor_GetL1InfoTreeMerkleProof(t *testing.T) {
 		{
 			name: "single leaf tree",
 			getProcessor: func(t *testing.T) *processor {
+				t.Helper()
+
 				p, err := newProcessor("file:Test_processor_GetL1InfoTreeMerkleProof_2?mode=memory&cache=shared")
 				require.NoError(t, err)
 
@@ -210,6 +214,8 @@ func Test_processor_Reorg(t *testing.T) {
 		{
 			name: "empty tree",
 			getProcessor: func(t *testing.T) *processor {
+				t.Helper()
+
 				p, err := newProcessor("file:Test_processor_Reorg_1?mode=memory&cache=shared")
 				require.NoError(t, err)
 				return p
@@ -220,6 +226,8 @@ func Test_processor_Reorg(t *testing.T) {
 		{
 			name: "single leaf tree",
 			getProcessor: func(t *testing.T) *processor {
+				t.Helper()
+
 				p, err := newProcessor("file:Test_processor_Reorg_2?mode=memory&cache=shared")
 				require.NoError(t, err)
 
