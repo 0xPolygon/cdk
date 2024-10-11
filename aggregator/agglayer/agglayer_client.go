@@ -15,7 +15,7 @@ import (
 
 const errCodeAgglayerRateLimitExceeded int = -10007
 
-var ErrAgglayerRateLimitExceeded = fmt.Errorf("rate limit exceeded")
+var ErrAgglayerRateLimitExceeded = fmt.Errorf("agglayer rate limit exceeded")
 
 // AgglayerClientInterface is the interface that defines the methods that the AggLayerClient will implement
 type AgglayerClientInterface interface {

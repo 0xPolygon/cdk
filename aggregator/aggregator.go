@@ -946,8 +946,7 @@ func (a *Aggregator) settleWithAggLayer(
 	txHash, err := a.aggLayerClient.SendTx(*signedTx)
 	if err != nil {
 		if errors.Is(err, agglayer.ErrAgglayerRateLimitExceeded) {
-			a.logger.Error("agglayer rate limit exceeded. " +
-				"Config param VerifyProofInterval should match the agglayer configured rate limit.")
+			a.logger.Errorf("%s. Config param VerifyProofInterval should match the agglayer configured rate limit.", err)
 		} else {
 			a.logger.Errorf("failed to send tx to the agglayer: %v", err)
 		}
