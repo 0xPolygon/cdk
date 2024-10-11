@@ -947,6 +947,7 @@ func (a *Aggregator) settleWithAggLayer(
 	if err != nil {
 		for errors.Is(err, agglayer.ErrAgglayerRateLimitExceeded) {
 			a.logger.Warnf("agglayer rate limit exceeded, waiting for %v", a.cfg.AggLayerRateLimitRetryInterval.Duration)
+			a.logger.Warn("config param VerifyProofInterval should match the agglayer configured rate limit")
 			time.Sleep(a.cfg.AggLayerRateLimitRetryInterval.Duration)
 			txHash, err = a.aggLayerClient.SendTx(*signedTx)
 		}
