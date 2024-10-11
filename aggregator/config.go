@@ -60,10 +60,6 @@ type Config struct {
 	// or batches to generate proofs. It is also used in the isSynced loop
 	RetryTime types.Duration `mapstructure:"RetryTime"`
 
-	// AggLayerRateLimitRetryInterval is the interval of time to retry the request if the AggLayer
-	// returns a rate limit error
-	AggLayerRateLimitRetryInterval types.Duration `mapstructure:"AggLayerRateLimitRetryInterval"`
-
 	// VerifyProofInterval is the interval of time to verify/send an proof in L1
 	VerifyProofInterval types.Duration `mapstructure:"VerifyProofInterval"`
 
