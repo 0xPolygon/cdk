@@ -557,10 +557,10 @@ func Test_marginTimeElapsed(t *testing.T) {
 		timeMargin       int64
 	}
 	tests := []struct {
-		name  string
-		args  args
-		want  bool
-		want1 int64
+		name              string
+		args              args
+		expectedIsElapsed bool
+		expectedWaitTime  int64
 	}{
 		{
 			name: "time elapsed",
@@ -569,8 +569,8 @@ func Test_marginTimeElapsed(t *testing.T) {
 				currentTime:      200,
 				timeMargin:       50,
 			},
-			want:  true,
-			want1: 0,
+			expectedIsElapsed: true,
+			expectedWaitTime:  0,
 		},
 		{
 			name: "time not elapsed",
@@ -579,8 +579,18 @@ func Test_marginTimeElapsed(t *testing.T) {
 				currentTime:      200,
 				timeMargin:       150,
 			},
-			want:  false,
-			want1: 50,
+			expectedIsElapsed: false,
+			expectedWaitTime:  50,
+		},
+		{
+			name: "l2 block in the future (time margin not enough)",
+			args: args{
+				l2BlockTimestamp: 300,
+				currentTime:      200,
+				timeMargin:       50,
+			},
+			expectedIsElapsed: true,
+			expectedWaitTime:  0,
 		},
 	}
 
@@ -590,9 +600,9 @@ func Test_marginTimeElapsed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, got1 := marginTimeElapsed(tt.args.l2BlockTimestamp, tt.args.currentTime, tt.args.timeMargin)
-			require.Equal(t, tt.want, got, "marginTimeElapsed() got = %v, want %v", got, tt.want)
-			require.Equal(t, tt.want1, got1, "marginTimeElapsed() got1 = %v, want %v", got1, tt.want1)
+			isElapsed, waitTime := marginTimeElapsed(tt.args.l2BlockTimestamp, tt.args.currentTime, tt.args.timeMargin)
+			require.Equal(t, tt.expectedIsElapsed, isElapsed, "marginTimeElapsed() isElapsed = %t, want %t", isElapsed, tt.expectedIsElapsed)
+			require.Equal(t, tt.expectedWaitTime, waitTime, "marginTimeElapsed() got1 = %v, want %v", waitTime, tt.expectedWaitTime)
 		})
 	}
 }

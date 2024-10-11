@@ -506,29 +506,20 @@ func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
 
 // marginTimeElapsed checks if the time between currentTime and l2BlockTimestamp is greater than timeMargin.
 // If it's greater returns true, otherwise it returns false and the waitTime needed to achieve this timeMargin
-func marginTimeElapsed(
-	l2BlockTimestamp uint64, currentTime uint64, timeMargin int64,
-) (bool, int64) {
-	// Check the time difference between L2 block and currentTime
-	var timeDiff int64
-	if l2BlockTimestamp >= currentTime {
-		// L2 block timestamp is above currentTime, negative timeDiff. We do in this way to avoid uint64 overflow
-		timeDiff = int64(-(l2BlockTimestamp - currentTime))
-	} else {
-		timeDiff = int64(currentTime - l2BlockTimestamp)
+func marginTimeElapsed(l2BlockTimestamp uint64, currentTime uint64, timeMargin int64) (bool, int64) {
+	if int64(l2BlockTimestamp)-timeMargin > int64(currentTime) {
+		return true, 0
 	}
 
-	// Check if the time difference is less than timeMargin (L1BlockTimestampMargin)
+	timeDiff := int64(currentTime) - int64(l2BlockTimestamp)
+
+	// If the difference is less than the required margin, return false and calculate the remaining wait time
 	if timeDiff < timeMargin {
-		var waitTime int64
-		if timeDiff < 0 { // L2 block timestamp is above currentTime
-			waitTime = timeMargin + (-timeDiff)
-		} else {
-			waitTime = timeMargin - timeDiff
-		}
+		// Calculate the wait time needed to reach the timeMargin
+		waitTime := timeMargin - timeDiff
 		return false, waitTime
 	}
 
-	// timeDiff is greater than timeMargin
+	// Time difference is greater than or equal to timeMargin, no need to wait
 	return true, 0
 }
