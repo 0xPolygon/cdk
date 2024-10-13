@@ -315,7 +315,6 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Send sequences to L1
 	firstBatch := sequence.FirstBatch()
 	lastBatch := sequence.LastBatch()
-	lastL2BlockTimestamp := lastBatch.LastL2BLockTimestamp()
 
 	s.logger.Debugf(sequence.String())
 	s.logger.Infof("sending sequences to L1. From batch %d to batch %d", firstBatch.BatchNumber(), lastBatch.BatchNumber())
@@ -323,55 +322,25 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Wait until last L1 block timestamp is L1BlockTimestampMargin seconds above the timestamp
 	// of the last L2 block in the sequence
 	timeMargin := int64(s.cfg.L1BlockTimestampMargin.Seconds())
-	for {
-		// Get header of the last L1 block
-		lastL1BlockHeader, err := s.etherman.GetLatestBlockHeader(ctx)
-		if err != nil {
-			s.logger.Errorf("failed to get last L1 block timestamp, err: %v", err)
-			return
-		}
-
-		elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, lastL1BlockHeader.Time, timeMargin)
-
-		if !elapsed {
-			s.logger.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block %d (ts: %d) "+
-				"and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
-				waitTime, lastL1BlockHeader.Number, lastL1BlockHeader.Time,
-				lastBatch.BatchNumber(), lastL2BlockTimestamp, timeMargin,
-			)
-			time.Sleep(time.Duration(waitTime) * time.Second)
-		} else {
-			s.logger.Infof("continuing, time difference between last L1 block %d (ts: %d) and last L2 block %d (ts: %d) "+
-				"in the sequence is greater than %d seconds",
-				lastL1BlockHeader.Number,
-				lastL1BlockHeader.Time,
-				lastBatch.BatchNumber,
-				lastL2BlockTimestamp,
-				timeMargin,
-			)
-			break
-		}
+	lastL1BlockHeader, err := s.etherman.GetLatestBlockHeader(ctx)
+	if err != nil {
+		s.logger.Errorf("failed to get last L1 block timestamp, err: %v", err)
+		return
 	}
 
-	// Sanity check: Wait also until current time is L1BlockTimestampMargin seconds above the
-	// timestamp of the last L2 block in the sequence
-	for {
-		currentTime := uint64(time.Now().Unix())
+	err = s.waitForMargin(ctx, lastBatch, timeMargin, fmt.Sprintf("L1 block %d", lastL1BlockHeader.Number),
+		func() uint64 { return lastL1BlockHeader.Time })
+	if err != nil {
+		s.logger.Errorf("error waiting for L1 block time margin: %v", err)
+		return
+	}
 
-		elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, currentTime, timeMargin)
-
-		// Wait if the time difference is less than L1BlockTimestampMargin
-		if !elapsed {
-			s.logger.Infof("waiting at least %d seconds to send sequences, time difference between now (ts: %d) "+
-				"and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
-				waitTime, currentTime, lastBatch.BatchNumber, lastL2BlockTimestamp, timeMargin)
-			time.Sleep(time.Duration(waitTime) * time.Second)
-		} else {
-			s.logger.Infof("sending sequences now, time difference between now (ts: %d) and last L2 block %d (ts: %d) "+
-				"in the sequence is also greater than %d seconds",
-				currentTime, lastBatch.BatchNumber, lastL2BlockTimestamp, timeMargin)
-			break
-		}
+	// Sanity check: Wait until the current time is also L1BlockTimestampMargin seconds above the last L2 block timestamp
+	err = s.waitForMargin(ctx, lastBatch, timeMargin, "current time",
+		func() uint64 { return uint64(time.Now().Unix()) })
+	if err != nil {
+		s.logger.Errorf("error waiting for current time margin: %v", err)
+		return
 	}
 
 	// Send sequences to L1
@@ -406,6 +375,58 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 
 	// Purge sequences data from memory
 	s.purgeSequences()
+}
+
+// waitForMargin ensures that the time difference between the last L2 block and the current
+// timestamp exceeds the time margin before proceeding. It checks immediately, and if not
+// satisfied, it waits using a ticker and rechecks periodically.
+//
+// Params:
+// - ctx: Context to handle cancellation.
+// - lastBatch: The last batch in the sequence.
+// - timeMargin: Required time difference in seconds.
+// - description: A description for logging purposes.
+// - getTimeFn: Function to get the current time (e.g., L1 block time or current time).
+func (s *SequenceSender) waitForMargin(ctx context.Context, lastBatch seqsendertypes.Batch,
+	timeMargin int64, description string, getTimeFn func() uint64) error {
+	referentTime := getTimeFn()
+
+	lastL2BlockTimestamp := lastBatch.LastL2BLockTimestamp()
+	elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, referentTime, timeMargin)
+	if elapsed {
+		s.logger.Infof("time difference for %s exceeds %d seconds, proceeding (batch number: %d, last l2 block ts: %d)",
+			description, timeMargin, lastBatch.BatchNumber(), lastL2BlockTimestamp)
+		return nil
+	}
+
+	s.logger.Infof("waiting %d seconds for %s, margin less than %d seconds (batch number: %d, last l2 block ts: %d)",
+		waitTime, description, timeMargin, lastBatch.BatchNumber(), lastL2BlockTimestamp)
+	ticker := time.NewTicker(time.Duration(waitTime) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			s.logger.Infof("context canceled during %s wait (batch number: %d, last l2 block ts: %d)",
+				description, lastBatch.BatchNumber(), lastL2BlockTimestamp)
+			return ctx.Err()
+
+		case <-ticker.C:
+			referentTime = getTimeFn()
+
+			elapsed, waitTime = marginTimeElapsed(lastL2BlockTimestamp, referentTime, timeMargin)
+			if elapsed {
+				s.logger.Infof("time margin for %s now exceeds %d seconds, proceeding (batch number: %d, last l2 block ts: %d)",
+					description, timeMargin, lastBatch.BatchNumber(), lastL2BlockTimestamp)
+				return nil
+			}
+
+			s.logger.Infof(
+				"waiting another %d seconds for %s, margin still less than %d seconds (batch number: %d, last l2 block ts: %d)",
+				waitTime, description, timeMargin, lastBatch.BatchNumber(), lastL2BlockTimestamp)
+			ticker.Reset(time.Duration(waitTime) * time.Second)
+		}
+	}
 }
 
 func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes.Sequence, error) {
