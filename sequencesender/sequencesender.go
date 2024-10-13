@@ -248,8 +248,7 @@ func (s *SequenceSender) purgeSequences() {
 	defer s.mutexSequence.Unlock()
 	truncateUntil := 0
 	toPurge := make([]uint64, 0)
-	for i := 0; i < len(s.sequenceList); i++ {
-		batchNumber := s.sequenceList[i]
+	for i, batchNumber := range s.sequenceList {
 		if batchNumber <= atomic.LoadUint64(&s.latestVirtualBatchNumber) {
 			truncateUntil = i + 1
 			toPurge = append(toPurge, batchNumber)
@@ -259,16 +258,10 @@ func (s *SequenceSender) purgeSequences() {
 	if len(toPurge) > 0 {
 		s.sequenceList = s.sequenceList[truncateUntil:]
 
-		var firstPurged uint64
-		var lastPurged uint64
-		for i := 0; i < len(toPurge); i++ {
-			if i == 0 {
-				firstPurged = toPurge[i]
-			}
-			if i == len(toPurge)-1 {
-				lastPurged = toPurge[i]
-			}
-			delete(s.sequenceData, toPurge[i])
+		firstPurged := toPurge[0]
+		lastPurged := toPurge[len(toPurge)-1]
+		for _, batchNum := range toPurge {
+			delete(s.sequenceData, batchNum)
 		}
 		s.logger.Infof("batches purged count: %d, fromBatch: %d, toBatch: %d", len(toPurge), firstPurged, lastPurged)
 	}
