@@ -1,6 +1,8 @@
 PathRWData = "/data/"
 L1URL="{{.l1_rpc_url}}"
 L2URL="http://{{.l2_rpc_name}}{{.deployment_suffix}}:{{.zkevm_rpc_http_port}}"
+L1AggOracleURL = "http://test-aggoracle-l1:8545"
+L2AggOracleURL = "http://test-aggoracle-l2:8545"
 
 ForkId = {{.zkevm_rollup_fork_id}}
 IsValidiumMode = {{.is_cdk_validium}}
@@ -24,6 +26,9 @@ SenderProofToL1Addr = "{{.zkevm_l2_agglayer_address}}"
 WitnessURL = "http://{{.l2_rpc_name}}{{.deployment_suffix}}:{{.zkevm_rpc_http_port}}"
 AggLayerURL = "http://agglayer:{{.agglayer_port}}"
 StreamServer = "{{.sequencer_name}}{{.deployment_suffix}}:{{.zkevm_data_streamer_port}}"
+
+[L2Config]
+	GlobalExitRootAddr = "{{.zkevm_rollup_address}}"
 
 # This values can be override directly from genesis.json
 rollupCreationBlockNumber = "{{.zkevm_rollup_manager_block_number}}"
