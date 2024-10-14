@@ -2,34 +2,13 @@ package reorgdetector
 
 import (
 	"context"
-	big "math/big"
 	"testing"
 	"time"
 
 	cdktypes "github.com/0xPolygon/cdk/config/types"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient/simulated"
+	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/stretchr/testify/require"
 )
-
-func newSimulatedL1(t *testing.T, auth *bind.TransactOpts) *simulated.Backend {
-	t.Helper()
-
-	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10)
-
-	blockGasLimit := uint64(999999999999999999)
-	client := simulated.NewBackend(map[common.Address]types.Account{
-		auth.From: {
-			Balance: balance,
-		},
-	}, simulated.WithBlockGasLimit(blockGasLimit))
-	client.Commit()
-
-	return client
-}
 
 func Test_ReorgDetector(t *testing.T) {
 	const subID = "test"
@@ -37,12 +16,7 @@ func Test_ReorgDetector(t *testing.T) {
 	ctx := context.Background()
 
 	// Simulated L1
-	privateKeyL1, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	authL1, err := bind.NewKeyedTransactorWithChainID(privateKeyL1, big.NewInt(1337))
-	require.NoError(t, err)
-	clientL1 := newSimulatedL1(t, authL1)
-	require.NoError(t, err)
+	clientL1, _ := helpers.SimulatedBackend(t, nil, 0)
 
 	// Create test DB dir
 	testDir := t.TempDir()
@@ -92,6 +66,6 @@ func Test_ReorgDetector(t *testing.T) {
 	headersList, ok := reorgDetector.trackedBlocks[subID]
 	reorgDetector.trackedBlocksLock.Unlock()
 	require.True(t, ok)
-	require.Equal(t, 1, headersList.len()) // Only block 2 left
-	require.Equal(t, remainingHeader.Hash(), headersList.get(2).Hash)
+	require.Equal(t, 1, headersList.len()) // Only block 3 left
+	require.Equal(t, remainingHeader.Hash(), headersList.get(4).Hash)
 }
