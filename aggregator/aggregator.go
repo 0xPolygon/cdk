@@ -945,9 +945,12 @@ func (a *Aggregator) settleWithAggLayer(
 	a.logger.Debug("final proof signedTx: ", signedTx.Tx.ZKP.Proof.Hex())
 	txHash, err := a.aggLayerClient.SendTx(*signedTx)
 	if err != nil {
-		a.logger.Errorf("failed to send tx to the agglayer: %v", err)
+		if errors.Is(err, agglayer.ErrAgglayerRateLimitExceeded) {
+			a.logger.Errorf("%s. Config param VerifyProofInterval should match the agglayer configured rate limit.", err)
+		} else {
+			a.logger.Errorf("failed to send tx to the agglayer: %v", err)
+		}
 		a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
-
 		return false
 	}
 
