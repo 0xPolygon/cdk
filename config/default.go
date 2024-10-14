@@ -184,7 +184,7 @@ SyncModeOnlyEnabled = false
 			Outputs = ["stderr"]
 		[Aggregator.Synchronizer.SQLDB]
 			DriverName = "sqlite3"
-			DataSourceName = "file:/{{PathRWData}}/aggregator_sync_db.sqlite"
+			DataSource = "file:/{{PathRWData}}/aggregator_sync_db.sqlite"
 		[Aggregator.Synchronizer.Synchronizer]
 			SyncInterval = "10s"
 			SyncChunkSize = 1000
