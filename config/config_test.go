@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"testing"
 
@@ -9,33 +10,62 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+func TestLExploratorySetConfigFalg(t *testing.T) {
+	value := []string{"config.json", "another_config.json"}
+	ctx := newCliContextConfigFlag(value...)
+	configFilePath := ctx.StringSlice(FlagCfg)
+	require.Equal(t, value, configFilePath)
+}
+
 func TestLoadDeafaultConfig(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "ut_config")
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
-	_, err = tmpFile.Write([]byte(DefaultValues))
+	_, err = tmpFile.Write([]byte(DefaultVars))
 	require.NoError(t, err)
-	flagSet := flag.FlagSet{}
-	flagSet.String(FlagCfg, tmpFile.Name(), "")
-	ctx := cli.NewContext(nil, &flagSet, nil)
+	ctx := newCliContextConfigFlag(tmpFile.Name())
 	cfg, err := Load(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 }
 
-const configWithUnexpectedFields = `
-[UnknownField]
-Field = "value"
+const configWithDeprecatedFields = `
+[SequenceSender.EthTxManager]
+nodepretatedfield = "value2"
+persistencefilename = "value"
 `
 
-func TestLoadConfigWithUnexpectedFields(t *testing.T) {
+func TestLoadConfigWithDeprecatedFields(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "ut_config")
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
-	_, err = tmpFile.Write([]byte(configWithUnexpectedFields))
+	_, err = tmpFile.Write([]byte(DefaultVars + "\n" + configWithDeprecatedFields))
 	require.NoError(t, err)
+	fmt.Printf("file: %s\n", tmpFile.Name())
+	ctx := newCliContextConfigFlag(tmpFile.Name())
+	cfg, err := Load(ctx)
+	require.Error(t, err)
+	require.Nil(t, cfg)
+}
+
+func TestTLoadFileFromStringDeprecatedField(t *testing.T) {
+	configFileData := configWithDeprecatedFields
+	cfg, err := LoadFileFromString(configFileData, "toml")
+	require.Error(t, err)
+	require.Nil(t, cfg)
+}
+
+func TestCheckDeprecatedFields(t *testing.T) {
+	err := checkDeprecatedFields([]string{deprecatedFieldsOnConfig[0].FieldNamePattern})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), deprecatedFieldsOnConfig[0].FieldNamePattern)
+	require.Contains(t, err.Error(), deprecatedFieldsOnConfig[0].Reason)
+
+}
+
+func TestLoadConfigWithInvalidFilename(t *testing.T) {
 	flagSet := flag.FlagSet{}
-	flagSet.String(FlagCfg, tmpFile.Name(), "")
+	flagSet.String(FlagCfg, "invalid_file", "")
 	ctx := cli.NewContext(nil, &flagSet, nil)
 	cfg, err := Load(ctx)
 	require.NoError(t, err)
@@ -74,4 +104,14 @@ func TestLoadConfigWithForbiddenFields(t *testing.T) {
 			require.NotNil(t, cfg)
 		})
 	}
+}
+
+func newCliContextConfigFlag(values ...string) *cli.Context {
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	var configFilePaths cli.StringSlice
+	flagSet.Var(&configFilePaths, FlagCfg, "")
+	for _, value := range values {
+		flagSet.Parse([]string{"--" + FlagCfg, value})
+	}
+	return cli.NewContext(nil, flagSet, nil)
 }

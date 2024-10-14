@@ -66,30 +66,59 @@ const (
 	DefaultCreationFilePermissions = os.FileMode(0600)
 )
 
-type ForbiddenField struct {
-	FieldName string
-	Reason    string
+type ErrDeprecatedFields struct {
+	// key is the rules and the value is the fields name that matches the rule
+	Fields map[DeprecatedField][]string
+}
+
+func NewErrDeprecatedFields() *ErrDeprecatedFields {
+	return &ErrDeprecatedFields{
+		Fields: make(map[DeprecatedField][]string),
+	}
+}
+
+func (e *ErrDeprecatedFields) AddDeprecatedField(fieldName string, rule DeprecatedField) {
+	p := e.Fields[rule]
+	if p == nil {
+		p = make([]string, 0)
+	}
+	e.Fields[rule] = append(p, fieldName)
+}
+
+func (e *ErrDeprecatedFields) Error() string {
+	res := "found deprecated fields:"
+	for rule, fieldsMatches := range e.Fields {
+		res += fmt.Sprintf("\n\t- %s: %s", rule.Reason, strings.Join(fieldsMatches, ", "))
+	}
+	return res
+}
+
+type DeprecatedField struct {
+	// If the field name ends with a dot, it means that it is a section and we should check if the field is inside the section
+	FieldNamePattern string
+	Reason           string
 }
 
 var (
-	forbiddenFieldsOnConfig = []ForbiddenField{
+	deprecatedFieldsOnConfig = []DeprecatedField{
 		{
-			FieldName: "aggregator.synchronizer.db.",
-			Reason:    deprecatedFieldSyncDB,
+			FieldNamePattern: "sequencesender.ethtxmanager.persistencefilename",
+			Reason:           deprecatedFieldPersistenceFilename,
 		},
 		{
-			FieldName: "sequencesender.ethtxmanager.persistencefilename",
-			Reason:    deprecatedFieldPersistenceFilename,
+			FieldNamePattern: "aggregator.synchronizer.db.",
+			Reason:           deprecatedFieldSyncDB,
 		},
+
 		{
-			FieldName: "aggregator.ethtxmanager.persistencefilename",
-			Reason:    deprecatedFieldPersistenceFilename,
+			FieldNamePattern: "aggregator.ethtxmanager.persistencefilename",
+			Reason:           deprecatedFieldPersistenceFilename,
 		},
 	}
 )
 
 /*
-Config represents the configuration of the entire Hermez Node
+Config represents the configuration of the entire  Node
 The file is [TOML format]
 You could find some examples:
   - `config/environments/local/local.node.config.toml`: running a permisionless node
@@ -178,8 +207,7 @@ func getFileExtension(fileName string) string {
 // Load loads the configuration
 func LoadFileFromString(configFileData string, configType string) (*Config, error) {
 	cfg := &Config{}
-	expectedKeys := viper.AllKeys()
-	err := loadString(cfg, configFileData, configType, true, EnvVarPrefix, &expectedKeys)
+	err := loadString(cfg, configFileData, configType, true, EnvVarPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +225,8 @@ func SaveConfigToString(cfg Config) (string, error) {
 // Load loads the configuration
 func LoadFile(files []FileData, saveConfigPath string) (*Config, error) {
 	fileData := make([]FileData, 0)
-	fileData = append(fileData, FileData{Name: "default_vars", Content: DefaultVars})
+	// Don't add default_vars, if the config is fully defined is not going to fail
+	//fileData = append(fileData, FileData{Name: "default_vars", Content: DefaultVars})
 	fileData = append(fileData, FileData{Name: "default_values", Content: DefaultValues})
 	fileData = append(fileData, files...)
 
@@ -209,6 +238,7 @@ func LoadFile(files []FileData, saveConfigPath string) (*Config, error) {
 	}
 	if saveConfigPath != "" {
 		fullPath := saveConfigPath + "/" + SaveConfigFileName
+		log.Infof("Writting merged config file to: ", fullPath)
 		err = os.WriteFile(fullPath, []byte(renderedCfg), DefaultCreationFilePermissions)
 		if err != nil {
 			err = fmt.Errorf("error writing config file: %s. Err: %w", fullPath, err)
@@ -216,6 +246,7 @@ func LoadFile(files []FileData, saveConfigPath string) (*Config, error) {
 			return nil, err
 		}
 	}
+	log.Debug(renderedCfg)
 	cfg, err := LoadFileFromString(renderedCfg, ConfigType)
 	if err != nil {
 		return nil, err
@@ -226,7 +257,7 @@ func LoadFile(files []FileData, saveConfigPath string) (*Config, error) {
 
 // Load loads the configuration
 func loadString(cfg *Config, configData string, configType string,
-	allowEnvVars bool, envPrefix string, expectedKeys *[]string) error {
+	allowEnvVars bool, envPrefix string) error {
 	viper.SetConfigType(configType)
 	if allowEnvVars {
 		replacer := strings.NewReplacer(".", "_")
@@ -248,53 +279,38 @@ func loadString(cfg *Config, configData string, configType string,
 	if err != nil {
 		return err
 	}
-	// TODO: this is a non-sense. I need a place to get the expected values
-
-	if expectedKeys != nil {
-		configKeys := viper.AllKeys()
-		unexpectedFields := getUnexpectedFields(configKeys, *expectedKeys)
-		for _, field := range unexpectedFields {
-			forbbidenInfo := getForbiddenField(field)
-			if forbbidenInfo != nil {
-				log.Warnf("forbidden field %s in config file: %s", field, forbbidenInfo.Reason)
-			} else {
-				log.Debugf("field %s in config file doesnt have a default value", field)
-			}
-		}
-	}
-	// TODO: Write config file must a parameter of ARGS
-	writeConfigFileName := "/tmp/cdk_config.toml"
-	log.Infof("Writing used config to %s", writeConfigFileName)
-	err = os.WriteFile(writeConfigFileName, []byte(configData), DefaultCreationFilePermissions)
+	configKeys := viper.AllKeys()
+	err = checkDeprecatedFields(configKeys)
 	if err != nil {
-		log.Warnf("Error writing config file: %s", err)
+		return err
 	}
+
 	return nil
 }
-func getForbiddenField(fieldName string) *ForbiddenField {
-	for _, forbiddenField := range forbiddenFieldsOnConfig {
-		if forbiddenField.FieldName == fieldName || strings.HasPrefix(fieldName, forbiddenField.FieldName) {
-			return &forbiddenField
+
+func checkDeprecatedFields(keysOnConfig []string) error {
+	err := NewErrDeprecatedFields()
+	for _, key := range keysOnConfig {
+		forbbidenInfo := getDeprecatedField(key)
+		if forbbidenInfo != nil {
+			err.AddDeprecatedField(key, *forbbidenInfo)
 		}
+	}
+	if len(err.Fields) > 0 {
+		return err
 	}
 	return nil
 }
 
-func getUnexpectedFields(keysOnFile, expectedConfigKeys []string) []string {
-	wrongFields := make([]string, 0)
-	for _, key := range keysOnFile {
-		if !contains(expectedConfigKeys, key) {
-			wrongFields = append(wrongFields, key)
+func getDeprecatedField(fieldName string) *DeprecatedField {
+	for _, deprecatedField := range deprecatedFieldsOnConfig {
+		if deprecatedField.FieldNamePattern == fieldName {
+			return &deprecatedField
+		}
+		// If the field name ends with a dot, it means that it is a section and we should check if the field is inside the section
+		if deprecatedField.FieldNamePattern[len(deprecatedField.FieldNamePattern)-1] == '.' && strings.HasPrefix(fieldName, deprecatedField.FieldNamePattern) {
+			return &deprecatedField
 		}
 	}
-	return wrongFields
-}
-
-func contains(keys []string, key string) bool {
-	for _, k := range keys {
-		if k == key {
-			return true
-		}
-	}
-	return false
+	return nil
 }

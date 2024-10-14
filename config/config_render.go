@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/0xPolygon/cdk/log"
 	"github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/parsers/toml"
 	"github.com/knadh/koanf/providers/rawbytes"
@@ -20,8 +21,9 @@ const (
 )
 
 var (
-	ErrCycleVars   = fmt.Errorf("cycle vars")
-	ErrMissingVars = fmt.Errorf("missing vars")
+	ErrCycleVars                 = fmt.Errorf("cycle vars")
+	ErrMissingVars               = fmt.Errorf("missing vars")
+	ErrUnsupportedConfigFileType = fmt.Errorf("unsupported config file type")
 )
 
 type FileData struct {
@@ -282,7 +284,7 @@ func unresolvedVars(tpl *fasttemplate.Template, data map[string]interface{}) []s
 }
 
 func convertFileToToml(fileData string, fileType string) (string, error) {
-	switch fileType {
+	switch strings.ToLower(fileType) {
 	case "json":
 		k := koanf.New(".")
 		err := k.Load(rawbytes.Provider([]byte(fileData)), json.Parser())
@@ -295,7 +297,10 @@ func convertFileToToml(fileData string, fileType string) (string, error) {
 			return fileData, fmt.Errorf("error converting json to toml. Err: %w", err)
 		}
 		return string(tomlData), nil
+	case "yml", "yaml", "ini":
+		return fileData, fmt.Errorf("cant convert from %s to TOML. Err: %w", fileType, ErrUnsupportedConfigFileType)
 	default:
-		return fileData, fmt.Errorf("cant convert from %s to TOML. file type not supported", fileType)
+		log.Warnf("filetype %s unknown, assuming is a TOML file", fileType)
+		return fileData, nil
 	}
 }
