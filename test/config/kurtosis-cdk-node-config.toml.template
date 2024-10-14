@@ -27,8 +27,7 @@ WitnessURL = "http://{{.l2_rpc_name}}{{.deployment_suffix}}:{{.zkevm_rpc_http_po
 AggLayerURL = "http://agglayer:{{.agglayer_port}}"
 StreamServer = "{{.sequencer_name}}{{.deployment_suffix}}:{{.zkevm_data_streamer_port}}"
 
-[L2Config]
-	GlobalExitRootAddr = "{{.zkevm_rollup_address}}"
+
 
 # This values can be override directly from genesis.json
 rollupCreationBlockNumber = "{{.zkevm_rollup_manager_block_number}}"
@@ -42,6 +41,9 @@ genesisBlockNumber = "{{.zkevm_rollup_manager_block_number}}"
 	polygonZkEVMAddress = "{{.zkevm_rollup_address}}"
 	polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
 
+[L2Config]
+	GlobalExitRootAddr = "{{.zkevm_rollup_address}}"
+        
 [Log]
 Environment = "development" # "production" or "development"
 Level = "{{.global_log_level}}"
