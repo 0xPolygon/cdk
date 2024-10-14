@@ -234,11 +234,22 @@ func (c *ConfigRender) GetUnresolvedVars(tpl *fasttemplate.Template,
 			}
 		}
 		if _, ok := data[tag]; !ok {
-			unresolved = append(unresolved, tag)
+			if !contains(unresolved, tag) {
+				unresolved = append(unresolved, tag)
+			}
 		}
 		return w.Write([]byte(""))
 	})
 	return unresolved
+}
+
+func contains(vars []string, search string) bool {
+	for _, v := range vars {
+		if v == search {
+			return true
+		}
+	}
+	return false
 }
 
 // GetVars returns the vars in template

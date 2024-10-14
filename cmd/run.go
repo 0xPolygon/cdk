@@ -152,7 +152,6 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 	// READ CHAIN ID FROM POE SC
 
 	if c.Aggregator.ChainID == 0 {
-
 		l2ChainID, err := etherman.GetL2ChainID()
 		if err != nil {
 			logger.Fatal(err)

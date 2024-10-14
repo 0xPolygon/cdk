@@ -22,6 +22,11 @@ StreamServer = "localhost:6900"
 
 AggregatorPrivateKeyPath = "/app/keystore/aggregator.keystore"
 AggregatorPrivateKeyPassword = "testonly"
+# Who send Proof to L1? AggLayer addr, or aggregator addr?
+SenderProofToL1Addr = "0x0000000000000000000000000000000000000000"
+
+[L2Config]
+	GlobalExitRootAddr = "0x0000000000000000000000000000000000000000"
 
 # This values can be override directly from genesis.json
 rollupCreationBlockNumber = 0
@@ -35,8 +40,7 @@ genesisBlockNumber = 0
 	polygonZkEVMAddress = "0x0000000000000000000000000000000000000000"
 	polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
 
-[L2Config]
-	GlobalExitRootAddr = "0x0000000000000000000000000000000000000000"
+
 	
 `
 
@@ -125,7 +129,7 @@ BatchProofSanityCheckEnabled = true
 #  ChainID is L2ChainID. Is populated on runtimme
 ChainID = 0
 ForkId = {{ForkId}}
-SenderAddress = ""
+SenderAddress = "{{SenderProofToL1Addr}}"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 GasOffset = 0
@@ -184,7 +188,7 @@ SyncModeOnlyEnabled = false
 		[Aggregator.Synchronizer.Synchronizer]
 			SyncInterval = "10s"
 			SyncChunkSize = 1000
-			GenesisBlockNumber = 5511080
+			GenesisBlockNumber = {{genesisBlockNumber}}
 			SyncUpToBlock = "finalized"
 			BlockFinality = "finalized"
 			OverrideStorageCheck = false

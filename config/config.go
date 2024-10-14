@@ -21,6 +21,7 @@ import (
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/sequencesender"
 	"github.com/mitchellh/mapstructure"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
 )
@@ -247,7 +248,7 @@ func LoadFile(files []FileData, saveConfigPath string,
 		return nil, err
 	}
 	if saveConfigPath != "" {
-		fullPath := saveConfigPath + "/" + SaveConfigFileName
+		fullPath := saveConfigPath + "/" + SaveConfigFileName + ".merged"
 		log.Infof("Writing merged config file to: ", fullPath)
 		err = os.WriteFile(fullPath, []byte(renderedCfg), DefaultCreationFilePermissions)
 		if err != nil {
@@ -269,6 +270,21 @@ func LoadFile(files []FileData, saveConfigPath string,
 
 	if err != nil {
 		return nil, err
+	}
+	if saveConfigPath != "" {
+		fullPath := saveConfigPath + "/" + SaveConfigFileName
+		log.Infof("Writing final config file to: ", fullPath)
+		marshaled, err := toml.Marshal(cfg)
+		if err != nil {
+			log.Errorf("Can't marshal config to toml. Err: %w", err)
+			return nil, err
+		}
+		err = os.WriteFile(fullPath, marshaled, DefaultCreationFilePermissions)
+		if err != nil {
+			err = fmt.Errorf("error writing config file: %s. Err: %w", fullPath, err)
+			log.Error(err)
+			return nil, err
+		}
 	}
 	return cfg, nil
 }
