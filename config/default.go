@@ -221,6 +221,7 @@ DBPath = "{{PathRWData}}/reorgdetectorl2"
 [L1InfoTreeSync]
 DBPath = "{{PathRWData}}/L1InfoTreeSync.sqlite"
 GlobalExitRootAddr="{{NetworkConfig.L1.GlobalExitRootManagerAddr}}"
+RollupManagerAddr = "{{NetworkConfig.L1.RollupManagerAddr}}"
 SyncBlockChunkSize=10
 BlockFinality="LatestBlock"
 URLRPCL1="{{L1AggOracleURL}}"
