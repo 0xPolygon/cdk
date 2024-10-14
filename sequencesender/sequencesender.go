@@ -315,14 +315,16 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Wait until last L1 block timestamp is L1BlockTimestampMargin seconds above the timestamp
 	// of the last L2 block in the sequence
 	timeMargin := int64(s.cfg.L1BlockTimestampMargin.Seconds())
-	lastL1BlockHeader, err := s.etherman.GetLatestBlockHeader(ctx)
-	if err != nil {
-		s.logger.Errorf("failed to get last L1 block timestamp, err: %v", err)
-		return
-	}
 
-	err = s.waitForMargin(ctx, lastBatch, timeMargin, fmt.Sprintf("L1 block %d", lastL1BlockHeader.Number),
-		func() uint64 { return lastL1BlockHeader.Time })
+	err = s.waitForMargin(ctx, lastBatch, timeMargin, "L1 block block timestamp",
+		func() (uint64, error) {
+			lastL1BlockHeader, err := s.etherman.GetLatestBlockHeader(ctx)
+			if err != nil {
+				return 0, err
+			}
+
+			return lastL1BlockHeader.Time, nil
+		})
 	if err != nil {
 		s.logger.Errorf("error waiting for L1 block time margin: %v", err)
 		return
@@ -330,7 +332,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 
 	// Sanity check: Wait until the current time is also L1BlockTimestampMargin seconds above the last L2 block timestamp
 	err = s.waitForMargin(ctx, lastBatch, timeMargin, "current time",
-		func() uint64 { return uint64(time.Now().Unix()) })
+		func() (uint64, error) { return uint64(time.Now().Unix()), nil })
 	if err != nil {
 		s.logger.Errorf("error waiting for current time margin: %v", err)
 		return
@@ -381,8 +383,11 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 // - description: A description for logging purposes.
 // - getTimeFn: Function to get the current time (e.g., L1 block time or current time).
 func (s *SequenceSender) waitForMargin(ctx context.Context, lastBatch seqsendertypes.Batch,
-	timeMargin int64, description string, getTimeFn func() uint64) error {
-	referentTime := getTimeFn()
+	timeMargin int64, description string, getTimeFn func() (uint64, error)) error {
+	referentTime, err := getTimeFn()
+	if err != nil {
+		return err
+	}
 
 	lastL2BlockTimestamp := lastBatch.LastL2BLockTimestamp()
 	elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, referentTime, timeMargin)
@@ -405,7 +410,10 @@ func (s *SequenceSender) waitForMargin(ctx context.Context, lastBatch seqsendert
 			return ctx.Err()
 
 		case <-ticker.C:
-			referentTime = getTimeFn()
+			referentTime, err = getTimeFn()
+			if err != nil {
+				return err
+			}
 
 			elapsed, waitTime = marginTimeElapsed(lastL2BlockTimestamp, referentTime, timeMargin)
 			if elapsed {
