@@ -66,18 +66,18 @@ const (
 	DefaultCreationFilePermissions = os.FileMode(0600)
 )
 
-type ErrDeprecatedFields struct {
+type DeprecatedFieldsError struct {
 	// key is the rules and the value is the fields name that matches the rule
 	Fields map[DeprecatedField][]string
 }
 
-func NewErrDeprecatedFields() *ErrDeprecatedFields {
-	return &ErrDeprecatedFields{
+func NewErrDeprecatedFields() *DeprecatedFieldsError {
+	return &DeprecatedFieldsError{
 		Fields: make(map[DeprecatedField][]string),
 	}
 }
 
-func (e *ErrDeprecatedFields) AddDeprecatedField(fieldName string, rule DeprecatedField) {
+func (e *DeprecatedFieldsError) AddDeprecatedField(fieldName string, rule DeprecatedField) {
 	p := e.Fields[rule]
 	if p == nil {
 		p = make([]string, 0)
@@ -85,7 +85,7 @@ func (e *ErrDeprecatedFields) AddDeprecatedField(fieldName string, rule Deprecat
 	e.Fields[rule] = append(p, fieldName)
 }
 
-func (e *ErrDeprecatedFields) Error() string {
+func (e *DeprecatedFieldsError) Error() string {
 	res := "found deprecated fields:"
 	for rule, fieldsMatches := range e.Fields {
 		res += fmt.Sprintf("\n\t- %s: %s", rule.Reason, strings.Join(fieldsMatches, ", "))
@@ -94,7 +94,7 @@ func (e *ErrDeprecatedFields) Error() string {
 }
 
 type DeprecatedField struct {
-	// If the field name ends with a dot, it means that it is a section and we should check if the field is inside the section
+	// If the field name ends with a dot means that match a section
 	FieldNamePattern string
 	Reason           string
 }
@@ -226,7 +226,6 @@ func SaveConfigToString(cfg Config) (string, error) {
 func LoadFile(files []FileData, saveConfigPath string) (*Config, error) {
 	fileData := make([]FileData, 0)
 	// Don't add default_vars, if the config is fully defined is not going to fail
-	//fileData = append(fileData, FileData{Name: "default_vars", Content: DefaultVars})
 	fileData = append(fileData, FileData{Name: "default_values", Content: DefaultValues})
 	fileData = append(fileData, files...)
 
@@ -238,7 +237,7 @@ func LoadFile(files []FileData, saveConfigPath string) (*Config, error) {
 	}
 	if saveConfigPath != "" {
 		fullPath := saveConfigPath + "/" + SaveConfigFileName
-		log.Infof("Writting merged config file to: ", fullPath)
+		log.Infof("Writing merged config file to: ", fullPath)
 		err = os.WriteFile(fullPath, []byte(renderedCfg), DefaultCreationFilePermissions)
 		if err != nil {
 			err = fmt.Errorf("error writing config file: %s. Err: %w", fullPath, err)
@@ -251,7 +250,6 @@ func LoadFile(files []FileData, saveConfigPath string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return cfg, nil
 }
 
@@ -307,8 +305,9 @@ func getDeprecatedField(fieldName string) *DeprecatedField {
 		if deprecatedField.FieldNamePattern == fieldName {
 			return &deprecatedField
 		}
-		// If the field name ends with a dot, it means that it is a section and we should check if the field is inside the section
-		if deprecatedField.FieldNamePattern[len(deprecatedField.FieldNamePattern)-1] == '.' && strings.HasPrefix(fieldName, deprecatedField.FieldNamePattern) {
+		// If the field name ends with a dot, it means FieldNamePattern*
+		if deprecatedField.FieldNamePattern[len(deprecatedField.FieldNamePattern)-1] == '.' &&
+			strings.HasPrefix(fieldName, deprecatedField.FieldNamePattern) {
 			return &deprecatedField
 		}
 	}

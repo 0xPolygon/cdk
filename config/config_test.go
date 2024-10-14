@@ -12,7 +12,7 @@ import (
 
 func TestLExploratorySetConfigFalg(t *testing.T) {
 	value := []string{"config.json", "another_config.json"}
-	ctx := newCliContextConfigFlag(value...)
+	ctx := newCliContextConfigFlag(t, value...)
 	configFilePath := ctx.StringSlice(FlagCfg)
 	require.Equal(t, value, configFilePath)
 }
@@ -23,7 +23,7 @@ func TestLoadDeafaultConfig(t *testing.T) {
 	defer os.Remove(tmpFile.Name())
 	_, err = tmpFile.Write([]byte(DefaultVars))
 	require.NoError(t, err)
-	ctx := newCliContextConfigFlag(tmpFile.Name())
+	ctx := newCliContextConfigFlag(t, tmpFile.Name())
 	cfg, err := Load(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
@@ -42,7 +42,7 @@ func TestLoadConfigWithDeprecatedFields(t *testing.T) {
 	_, err = tmpFile.Write([]byte(DefaultVars + "\n" + configWithDeprecatedFields))
 	require.NoError(t, err)
 	fmt.Printf("file: %s\n", tmpFile.Name())
-	ctx := newCliContextConfigFlag(tmpFile.Name())
+	ctx := newCliContextConfigFlag(t, tmpFile.Name())
 	cfg, err := Load(ctx)
 	require.Error(t, err)
 	require.Nil(t, cfg)
@@ -60,7 +60,6 @@ func TestCheckDeprecatedFields(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), deprecatedFieldsOnConfig[0].FieldNamePattern)
 	require.Contains(t, err.Error(), deprecatedFieldsOnConfig[0].Reason)
-
 }
 
 func TestLoadConfigWithInvalidFilename(t *testing.T) {
@@ -106,12 +105,14 @@ func TestLoadConfigWithForbiddenFields(t *testing.T) {
 	}
 }
 
-func newCliContextConfigFlag(values ...string) *cli.Context {
+func newCliContextConfigFlag(t *testing.T, values ...string) *cli.Context {
+	t.Helper()
 	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
 	var configFilePaths cli.StringSlice
 	flagSet.Var(&configFilePaths, FlagCfg, "")
 	for _, value := range values {
-		flagSet.Parse([]string{"--" + FlagCfg, value})
+		err := flagSet.Parse([]string{"--" + FlagCfg, value})
+		require.NoError(t, err)
 	}
 	return cli.NewContext(nil, flagSet, nil)
 }
