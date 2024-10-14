@@ -1,16 +1,12 @@
 package config
 
-// This doesnt below to config, but are the vars used
-// in DefaultValues
-const DefaultVars = `
-PathRWData = "/tmp/cdk"
+// This values doesnt have a default value because depend on the
+// environment / deployment
+const DefaultMandatoryVars = `
 L1URL = "http://localhost:8545"
-L1URLSyncChunkSize = 100
 L2URL = "localhost:8123"
 L1AggOracleURL = "http://test-aggoracle-l1:8545"
 L2AggOracleURL = "http://test-aggoracle-l2:8545"
-LogLevel = "info"
-
 # This values can be override directly from genesis.json
 rollupCreationBlockNumber = 0
 rollupManagerCreationBlockNumber = 0
@@ -21,6 +17,14 @@ genesisBlockNumber = 0
 	polygonRollupManagerAddress = "0x0000000000000000000000000000000000000000"
 	polTokenAddress = "0x0000000000000000000000000000000000000000"
 	polygonZkEVMAddress = "0x0000000000000000000000000000000000000000"
+`
+
+// This doesnt below to config, but are the vars used
+// to avoid repetition in config-files
+const DefaultVars = `
+PathRWData = "/tmp/cdk"
+L1URLSyncChunkSize = 100
+LogLevel = "info"
 `
 
 // DefaultValues is the default configuration

@@ -49,6 +49,18 @@ var (
 		Usage:    "Save final configuration file to next path (name: cdk-node-config.toml)",
 		Required: false,
 	}
+	disableDefaultConfigVars = cli.BoolFlag{
+		Name:     config.FlagDisableDefaultConfigVars,
+		Aliases:  []string{"d"},
+		Usage:    "Disable default configuration variables, all must be defined on config files",
+		Required: false,
+	}
+
+	allowDeprecatedFields = cli.BoolFlag{
+		Name:     config.FlagAllowDeprecatedFields,
+		Usage:    "Allow that config-files contains deprecated fields",
+		Required: false,
+	}
 )
 
 func main() {
@@ -60,6 +72,8 @@ func main() {
 		&yesFlag,
 		&componentsFlag,
 		&saveConfigFlag,
+		&disableDefaultConfigVars,
+		&allowDeprecatedFields,
 	}
 	app.Commands = []*cli.Command{
 		{

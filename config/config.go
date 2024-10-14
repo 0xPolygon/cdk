@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -53,6 +54,10 @@ const (
 	FlagMaxAmount = "max-amount"
 	// FlagSaveConfigPath is the flag to save the final configuration file
 	FlagSaveConfigPath = "save-config-path"
+	// FlagDisableDefaultConfigVars is the flag to force that all vars are set on config-files
+	FlagDisableDefaultConfigVars = "disable-default-config-vars"
+	// FlagAllowDeprecatedFields is the flag to allow deprecated fields
+	FlagAllowDeprecatedFields = "allow-deprecated-fields"
 
 	deprecatedFieldSyncDB = "Aggregator.Synchronizer.DB is deprecated. Use Aggregator.Synchronizer.SQLDB instead."
 
@@ -178,7 +183,9 @@ func Load(ctx *cli.Context) (*Config, error) {
 		return nil, fmt.Errorf("error reading files:  Err:%w", err)
 	}
 	saveConfigPath := ctx.String(FlagSaveConfigPath)
-	return LoadFile(filesData, saveConfigPath)
+	defaultConfigVars := !ctx.Bool(FlagDisableDefaultConfigVars)
+	allowDeprecatedFields := ctx.Bool(FlagAllowDeprecatedFields)
+	return LoadFile(filesData, saveConfigPath, defaultConfigVars, allowDeprecatedFields)
 }
 
 func readFiles(files []string) ([]FileData, error) {
@@ -209,7 +216,7 @@ func LoadFileFromString(configFileData string, configType string) (*Config, erro
 	cfg := &Config{}
 	err := loadString(cfg, configFileData, configType, true, EnvVarPrefix)
 	if err != nil {
-		return nil, err
+		return cfg, err
 	}
 	return cfg, nil
 }
@@ -223,9 +230,16 @@ func SaveConfigToString(cfg Config) (string, error) {
 }
 
 // Load loads the configuration
-func LoadFile(files []FileData, saveConfigPath string) (*Config, error) {
+func LoadFile(files []FileData, saveConfigPath string,
+	setDefaultVars bool, allowDeprecatedFields bool) (*Config, error) {
+	log.Infof("Loading configuration: saveConfigPath: %s, setDefaultVars: %t, allowDeprecatedFields: %t",
+		saveConfigPath, setDefaultVars, allowDeprecatedFields)
 	fileData := make([]FileData, 0)
-	// Don't add default_vars, if the config is fully defined is not going to fail
+	if setDefaultVars {
+		log.Info("Setting default vars")
+		fileData = append(fileData, FileData{Name: "default_mandatory_vars", Content: DefaultMandatoryVars})
+	}
+	fileData = append(fileData, FileData{Name: "default_vars", Content: DefaultVars})
 	fileData = append(fileData, FileData{Name: "default_values", Content: DefaultValues})
 	fileData = append(fileData, files...)
 
@@ -247,6 +261,15 @@ func LoadFile(files []FileData, saveConfigPath string) (*Config, error) {
 	}
 	log.Debug(renderedCfg)
 	cfg, err := LoadFileFromString(renderedCfg, ConfigType)
+	// If allowDeprecatedFields is true, we ignore the deprecated fields
+	if err != nil && allowDeprecatedFields {
+		var customErr *DeprecatedFieldsError
+		if errors.As(err, &customErr) {
+			log.Warnf("detected deprecated fields: %s", err.Error())
+			err = nil
+		}
+	}
+
 	if err != nil {
 		return nil, err
 	}

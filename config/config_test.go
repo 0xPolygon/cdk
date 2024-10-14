@@ -50,9 +50,31 @@ func TestLoadConfigWithDeprecatedFields(t *testing.T) {
 
 func TestTLoadFileFromStringDeprecatedField(t *testing.T) {
 	configFileData := configWithDeprecatedFields
-	cfg, err := LoadFileFromString(configFileData, "toml")
+	_, err := LoadFileFromString(configFileData, "toml")
 	require.Error(t, err)
-	require.Nil(t, cfg)
+}
+func TestTLoadDeprecatedField(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "ut_config")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+	_, err = tmpFile.Write([]byte(DefaultVars + "\n" + configWithDeprecatedFields))
+	require.NoError(t, err)
+	ctx := newCliContextConfigFlag(t, tmpFile.Name())
+	_, err = Load(ctx)
+	require.Error(t, err)
+}
+
+func TestTLoadDeprecatedFieldWithAllowFlag(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "ut_config")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+	_, err = tmpFile.Write([]byte(DefaultVars + "\n" + configWithDeprecatedFields))
+	require.NoError(t, err)
+	ctx := newCliContextConfigFlag(t, tmpFile.Name())
+	err = ctx.Set(FlagAllowDeprecatedFields, "true")
+	require.NoError(t, err)
+	_, err = Load(ctx)
+	require.NoError(t, err)
 }
 
 func TestCheckDeprecatedFields(t *testing.T) {
@@ -62,13 +84,17 @@ func TestCheckDeprecatedFields(t *testing.T) {
 	require.Contains(t, err.Error(), deprecatedFieldsOnConfig[0].Reason)
 }
 
+func TestCheckDeprecatedFieldsPattern(t *testing.T) {
+	err := checkDeprecatedFields([]string{"aggregator.synchronizer.db.name"})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), deprecatedFieldSyncDB)
+}
+
 func TestLoadConfigWithInvalidFilename(t *testing.T) {
-	flagSet := flag.FlagSet{}
-	flagSet.String(FlagCfg, "invalid_file", "")
-	ctx := cli.NewContext(nil, &flagSet, nil)
+	ctx := newCliContextConfigFlag(t, "invalid_file")
 	cfg, err := Load(ctx)
-	require.NoError(t, err)
-	require.NotNil(t, cfg)
+	require.Error(t, err)
+	require.Nil(t, cfg)
 }
 
 func TestLoadConfigWithForbiddenFields(t *testing.T) {
@@ -78,7 +104,7 @@ func TestLoadConfigWithForbiddenFields(t *testing.T) {
 	}{
 		{
 			name: "[Aggregator.Synchronizer] DB",
-			input: `[aggregator.synchronizer.db]
+			input: `[Aggregator.Synchronizer.DB]
 						name = "value"`,
 		},
 		{
@@ -95,12 +121,10 @@ func TestLoadConfigWithForbiddenFields(t *testing.T) {
 			defer os.Remove(tmpFile.Name())
 			_, err = tmpFile.Write([]byte(c.input))
 			require.NoError(t, err)
-			flagSet := flag.FlagSet{}
-			flagSet.String(FlagCfg, tmpFile.Name(), "")
-			ctx := cli.NewContext(nil, &flagSet, nil)
+			ctx := newCliContextConfigFlag(t, tmpFile.Name())
 			cfg, err := Load(ctx)
-			require.NoError(t, err)
-			require.NotNil(t, cfg)
+			require.Error(t, err)
+			require.Nil(t, cfg)
 		})
 	}
 }
@@ -110,6 +134,7 @@ func newCliContextConfigFlag(t *testing.T, values ...string) *cli.Context {
 	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
 	var configFilePaths cli.StringSlice
 	flagSet.Var(&configFilePaths, FlagCfg, "")
+	flagSet.Bool(FlagAllowDeprecatedFields, false, "")
 	for _, value := range values {
 		err := flagSet.Parse([]string{"--" + FlagCfg, value})
 		require.NoError(t, err)
