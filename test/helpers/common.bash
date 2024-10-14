@@ -289,6 +289,7 @@ function verify_native_token_balance() {
     
     # Get final balance in wei (after the operation)
     local final_balance_wei=$(cast balance "$account" --rpc-url "$rpc_url" | awk '{print $1}')
+    echo "Final balance of $account in $rpc_url: $final_balance_wei wei" >&3
 
     # Calculate expected final balance (initial_balance + amount)
     local expected_final_balance_wei=$(echo "$initial_balance_wei + $amount_wei" | bc)
@@ -297,7 +298,7 @@ function verify_native_token_balance() {
     if [ "$(echo "$final_balance_wei == $expected_final_balance_wei" | bc)" -eq 1 ]; then
         echo "✅ Balance verification successful: final balance is correct."
     else
-        echo "❌ Balance verification failed: expected $expected_final_balance_wei but got $final_balance_wei."
+        echo "❌ Balance verification failed: expected $expected_final_balance_wei but got $final_balance_wei." >&3
         exit 1
     fi
 }

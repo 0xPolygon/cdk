@@ -24,6 +24,7 @@ setup() {
     token_addr=${TOKEN_ADDRESS:-"0x0000000000000000000000000000000000000000"}
     readonly is_forced=${IS_FORCED:-"true"}
     readonly bridge_addr=$BRIDGE_ADDRESS
+    readonly bridge_sig='bridgeAsset(uint32,address,uint256,address,bool,bytes)'
     readonly meta_bytes=${META_BYTES:-"0x"}
 
     readonly l1_rpc_url=${L1_ETH_RPC_URL:-"$(kurtosis port print $enclave el-1-geth-lighthouse rpc)"}
@@ -47,7 +48,7 @@ setup() {
 
     timeout="120"
     claim_frequency="10"
-    run wait_for_claim "$timeout" "$claim_frequency"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url"
     assert_success
 }
 
@@ -115,10 +116,33 @@ setup() {
     # Claim deposits (settle them on the L2)
     timeout="120"
     claim_frequency="10"
-    run wait_for_claim "$timeout" "$claim_frequency"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url"
     assert_success
 
     # Validate that the native token of receiver on L2 has increased by the bridge tokens amount
     run verify_native_token_balance "$l2_rpc_url" "$receiver" "$initial_receiver_balance" "$tokens_amount"
+    assert_success
+}
+
+@test "Run withdrawal" {
+    echo "Running LxLy withdrawal" >&3
+
+    local initial_receiver_balance=$(cast balance -e "$destination_addr" --rpc-url "$l1_rpc_url")
+
+    run withdrawal
+    assert_success
+
+    # Claim withdrawals (settle them on the L1)
+    timeout="120"
+    claim_frequency="10"
+    destination_net=$l1_rpc_network_id
+    run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url"
+    assert_success
+
+    # Validate that the native token of receiver on L1 has increased by the bridge tokens amount
+    run verify_native_token_balance "$l1_rpc_url" "$destination_addr" "$initial_receiver_balance" "$ether_value"
+    if [ $status -eq 0 ]; then
+        break
+    fi
     assert_success
 }
