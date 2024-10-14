@@ -10,18 +10,18 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func TestLExploratorySetConfigFalg(t *testing.T) {
+func TestLExploratorySetConfigFlag(t *testing.T) {
 	value := []string{"config.json", "another_config.json"}
 	ctx := newCliContextConfigFlag(t, value...)
 	configFilePath := ctx.StringSlice(FlagCfg)
 	require.Equal(t, value, configFilePath)
 }
 
-func TestLoadDeafaultConfig(t *testing.T) {
+func TestLoadDefaultConfig(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "ut_config")
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
-	_, err = tmpFile.Write([]byte(DefaultVars))
+	_, err = tmpFile.Write([]byte(DefaultMandatoryVars))
 	require.NoError(t, err)
 	ctx := newCliContextConfigFlag(t, tmpFile.Name())
 	cfg, err := Load(ctx)

@@ -80,6 +80,7 @@ func (c *ConfigRender) Merge() (string, error) {
 		dataToml := c.convertVarsToStrings(data.Content)
 		err := k.Load(rawbytes.Provider([]byte(dataToml)), toml.Parser())
 		if err != nil {
+			log.Errorf("error loading file %s. Err:%v.FileData: %v", data.Name, err, dataToml)
 			return "", fmt.Errorf("fail to load  converted template %s to toml. Err: %w", data.Name, err)
 		}
 	}
@@ -129,11 +130,13 @@ func (c *ConfigRender) ResolveCycle(partialResolvedConfigData string) (string, e
 		// Nothing to do resolve
 		return partialResolvedConfigData, nil
 	}
+	log.Debugf("ResolveCycle: pending vars: %v", pendinVars)
 	previousData := tmpData
 	for ok := true; ok; ok = len(pendinVars) > 0 {
 		previousVars := pendinVars
 		tpl, valuesDefined, err := c.ReadTemplateAdnDefinedValues(previousData)
 		if err != nil {
+			log.Errorf("resolveCycle: fails ReadTemplateAdnDefinedValues. Err: %v. Data:%s", err, previousData)
 			return "", fmt.Errorf("fails to read template ResolveCycle. Err: %w", err)
 		}
 		renderedTemplateWithResolverVars := c.executeTemplate(tpl, valuesDefined, true)

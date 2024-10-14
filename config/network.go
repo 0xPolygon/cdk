@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/urfave/cli/v2"
 )
 
 // NetworkConfig is the configuration struct for the different environments
@@ -64,21 +62,6 @@ type genesisAccountFromJSON struct {
 	Storage map[string]string `json:"storage"`
 	// Name of the contract in L1 (e.g. "PolygonZkEVMDeployer", "PolygonZkEVMBridge",...)
 	ContractName string `json:"contractName"`
-}
-
-func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
-	cfgPath := ctx.String(FlagCustomNetwork)
-
-	networkJSON, err := LoadGenesisFileAsString(cfgPath)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	config, err := LoadGenesisFromJSONString(networkJSON)
-	if err != nil {
-		panic(fmt.Errorf("failed to load genesis configuration from file. Error: %w", err))
-	}
-	cfg.NetworkConfig = config
 }
 
 // LoadGenesisFileAsString loads the genesis file as a string

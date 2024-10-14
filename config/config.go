@@ -20,7 +20,6 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/sequencesender"
-	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
@@ -136,8 +135,6 @@ You could find some examples:
 type Config struct {
 	// Configuration of the etherman (client for access L1)
 	Etherman ethermanconfig.Config
-	// Configuration for ethereum transaction manager
-	EthTxManager ethtxmanager.Config
 	// Configuration of the aggregator
 	Aggregator aggregator.Config
 	// Configure Log level for all the services, allow also to store the logs in a file
