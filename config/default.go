@@ -25,8 +25,7 @@ AggregatorPrivateKeyPassword = "testonly"
 # Who send Proof to L1? AggLayer addr, or aggregator addr?
 SenderProofToL1Addr = "0x0000000000000000000000000000000000000000"
 
-[L2Config]
-	GlobalExitRootAddr = "0x0000000000000000000000000000000000000000"
+
 
 # This values can be override directly from genesis.json
 rollupCreationBlockNumber = 0
@@ -40,8 +39,9 @@ genesisBlockNumber = 0
 	polygonZkEVMAddress = "0x0000000000000000000000000000000000000000"
 	polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
 
+[L2Config]
+	GlobalExitRootAddr = "0x0000000000000000000000000000000000000000"
 
-	
 `
 
 // This doesnt below to config, but are the vars used
