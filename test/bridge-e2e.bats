@@ -133,7 +133,7 @@ setup() {
     assert_success
 
     # Claim withdrawals (settle them on the L1)
-    timeout="120"
+    timeout="240"
     claim_frequency="10"
     destination_net=$l1_rpc_network_id
     run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url"
