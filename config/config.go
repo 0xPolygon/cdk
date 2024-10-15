@@ -265,7 +265,6 @@ func LoadFile(files []FileData, saveConfigPath string,
 			return nil, err
 		}
 	}
-	log.Debug(renderedCfg)
 	cfg, err := LoadFileFromString(renderedCfg, ConfigType)
 	// If allowDeprecatedFields is true, we ignore the deprecated fields
 	if err != nil && allowDeprecatedFields {

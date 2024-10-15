@@ -35,11 +35,11 @@ nodepretatedfield = "value2"
 persistencefilename = "value"
 `
 
-func TestLoadConfigWithSaveConfigFile(t *testing.T) {
+func TestLoadConfigWithDeprecatedFields(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "ut_config")
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
-	_, err = tmpFile.Write([]byte(DefaultVars))
+	_, err = tmpFile.Write([]byte(DefaultVars + "\n" + configWithDeprecatedFields))
 	require.NoError(t, err)
 	ctx := newCliContextConfigFlag(t, tmpFile.Name())
 	cfg, err := Load(ctx)
@@ -47,7 +47,7 @@ func TestLoadConfigWithSaveConfigFile(t *testing.T) {
 	require.Nil(t, cfg)
 }
 
-func TestLoadConfigWithDeprecatedFields(t *testing.T) {
+func TestLoadConfigWithSaveConfigFile(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "ut_config")
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
