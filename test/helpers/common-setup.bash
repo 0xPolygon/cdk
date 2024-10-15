@@ -18,7 +18,7 @@ _common_setup() {
 
 
     # Kurtosis enclave and service identifiers
-    readonly enclave=${KURTOSIS_ENCLAVE:-cdk-v1}
+    readonly enclave=${KURTOSIS_ENCLAVE:-cdk}
     readonly contracts_container=${KURTOSIS_CONTRACTS:-contracts-001}
     readonly contracts_service_wrapper=${KURTOSIS_CONTRACTS_WRAPPER:-"kurtosis service exec $enclave $contracts_container"}
     readonly erigon_rpc_node=${KURTOSIS_ERIGON_RPC:-cdk-erigon-node-001}
