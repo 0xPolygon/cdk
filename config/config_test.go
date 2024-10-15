@@ -35,17 +35,37 @@ nodepretatedfield = "value2"
 persistencefilename = "value"
 `
 
-func TestLoadConfigWithDeprecatedFields(t *testing.T) {
+func TestLoadConfigWithSaveConfigFile(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "ut_config")
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
-	_, err = tmpFile.Write([]byte(DefaultVars + "\n" + configWithDeprecatedFields))
+	_, err = tmpFile.Write([]byte(DefaultVars))
 	require.NoError(t, err)
-	fmt.Printf("file: %s\n", tmpFile.Name())
 	ctx := newCliContextConfigFlag(t, tmpFile.Name())
 	cfg, err := Load(ctx)
 	require.Error(t, err)
 	require.Nil(t, cfg)
+}
+
+func TestLoadConfigWithDeprecatedFields(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "ut_config")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+	_, err = tmpFile.Write([]byte(DefaultVars + "\n"))
+	require.NoError(t, err)
+	fmt.Printf("file: %s\n", tmpFile.Name())
+	ctx := newCliContextConfigFlag(t, tmpFile.Name())
+	dir, err := os.MkdirTemp("", "ut_test_save_config")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	err = ctx.Set(FlagSaveConfigPath, dir)
+	require.NoError(t, err)
+	cfg, err := Load(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	_, err = os.Stat(dir + "/" + SaveConfigFileName)
+	require.NoError(t, err)
 }
 
 func TestTLoadFileFromStringDeprecatedField(t *testing.T) {
@@ -135,6 +155,7 @@ func newCliContextConfigFlag(t *testing.T, values ...string) *cli.Context {
 	var configFilePaths cli.StringSlice
 	flagSet.Var(&configFilePaths, FlagCfg, "")
 	flagSet.Bool(FlagAllowDeprecatedFields, false, "")
+	flagSet.String(FlagSaveConfigPath, "", "")
 	for _, value := range values {
 		err := flagSet.Parse([]string{"--" + FlagCfg, value})
 		require.NoError(t, err)

@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -219,12 +218,24 @@ func LoadFileFromString(configFileData string, configType string) (*Config, erro
 	return cfg, nil
 }
 
-func SaveConfigToString(cfg Config) (string, error) {
-	b, err := json.Marshal(cfg)
+func SaveConfigToFile(cfg *Config, saveConfigPath string) error {
+	marshaled, err := toml.Marshal(cfg)
 	if err != nil {
-		return "", err
+		log.Errorf("Can't marshal config to toml. Err: %w", err)
+		return err
 	}
-	return string(b), nil
+	return SaveDataToFile(saveConfigPath, "final config file", marshaled)
+}
+
+func SaveDataToFile(fullPath, reason string, data []byte) error {
+	log.Infof("Writing %s to: %s", reason, fullPath)
+	err := os.WriteFile(fullPath, data, DefaultCreationFilePermissions)
+	if err != nil {
+		err = fmt.Errorf("error writing %s to file %s. Err: %w", reason, fullPath, err)
+		log.Error(err)
+		return err
+	}
+	return nil
 }
 
 // Load loads the configuration
@@ -249,11 +260,8 @@ func LoadFile(files []FileData, saveConfigPath string,
 	}
 	if saveConfigPath != "" {
 		fullPath := saveConfigPath + "/" + SaveConfigFileName + ".merged"
-		log.Infof("Writing merged config file to: ", fullPath)
-		err = os.WriteFile(fullPath, []byte(renderedCfg), DefaultCreationFilePermissions)
+		err = SaveDataToFile(fullPath, "merged config file", []byte(renderedCfg))
 		if err != nil {
-			err = fmt.Errorf("error writing config file: %s. Err: %w", fullPath, err)
-			log.Error(err)
 			return nil, err
 		}
 	}
@@ -273,16 +281,8 @@ func LoadFile(files []FileData, saveConfigPath string,
 	}
 	if saveConfigPath != "" {
 		fullPath := saveConfigPath + "/" + SaveConfigFileName
-		log.Infof("Writing final config file to: ", fullPath)
-		marshaled, err := toml.Marshal(cfg)
+		err = SaveConfigToFile(cfg, fullPath)
 		if err != nil {
-			log.Errorf("Can't marshal config to toml. Err: %w", err)
-			return nil, err
-		}
-		err = os.WriteFile(fullPath, marshaled, DefaultCreationFilePermissions)
-		if err != nil {
-			err = fmt.Errorf("error writing config file: %s. Err: %w", fullPath, err)
-			log.Error(err)
 			return nil, err
 		}
 	}
