@@ -147,7 +147,7 @@ function export_values_of_cdk_node_config(){
     export_obj_key_from_toml_file_or_fatal  zkevm_l2_aggregator_keystore_password   $_CDK_CONFIG_FILE Aggregator.EthTxManager PrivateKeys Password
     
     export_key_from_toml_file_or_fatal      zkevm_rollup_fork_id        $_CDK_CONFIG_FILE Aggregator ForkId
-    export_key_from_toml_file_or_fatal  zkevm_l2_agglayer_keystore_password              $_CDK_CONFIG_FILE  AggSender.SequencerPrivateKey Path Password
+    export_key_from_toml_file_or_fatal  zkevm_l2_agglayer_keystore_password              $_CDK_CONFIG_FILE  AggSender.SequencerPrivateKey Password
     
     
     export is_cdk_validium=$zkevm_is_validium
