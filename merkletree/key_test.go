@@ -29,10 +29,10 @@ type bytecodeTest struct {
 func init() {
 	// Change dir to project root
 	// This is important because we have relative paths to files containing test vectors
-	_, filename, _, _ := runtime.Caller(0)
+	_, filename, _, _ := runtime.Caller(0) //nolint:dogsled
 	dir := path.Join(path.Dir(filename), "../")
-	err := os.Chdir(dir)
-	if err != nil {
+
+	if err := os.Chdir(dir); err != nil {
 		panic(err)
 	}
 }

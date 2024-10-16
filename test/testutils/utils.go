@@ -9,7 +9,7 @@ import (
 // potentially the message it should carry.
 func CheckError(err error, expected bool, msg string) error {
 	if !expected && err != nil {
-		return fmt.Errorf("unexpected error %v", err)
+		return fmt.Errorf("unexpected error %w", err)
 	}
 	if expected {
 		if err == nil {
