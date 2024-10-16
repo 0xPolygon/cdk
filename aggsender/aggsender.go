@@ -22,6 +22,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+// defines number of blocks before epoch ending to send a certificate
+const numOfBlocksBeforeEpochEnding = 2
+
 var errNoBridgesAndClaims = errors.New("no bridges and claims to build certificate")
 
 // L1InfoTreeSyncer is an interface defining functions that an L1InfoTreeSyncer should implement
@@ -180,7 +183,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 				return fmt.Errorf("error deleting certificate %s: %w", lastSentCertificate.CertificateID, err)
 			}
 
-			lastValidCertificate, err := a.storage.GetCertificateByHeight(ctx, lastSentCertificateHeader.Height)
+			lastValidCertificate, err := a.storage.GetCertificateByHeight(ctx, lastSentCertificateHeader.Height-1)
 			if err != nil {
 				return fmt.Errorf("error getting certificate by height %d: %w", lastSentCertificateHeader.Height, err)
 			}
@@ -192,7 +195,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 			previousHeight = lastSentCertificateHeader.Height
 		}
 
-		lastCertificateBlock, err = a.l2Syncer.GetBlockByLER(ctx, lastSentCertificateHeader.NewLocalExitRoot)
+		lastCertificateBlock, err = a.l2Syncer.GetBlockByLER(ctx, previousLocalExitRoot)
 		if err != nil {
 			return fmt.Errorf("error getting block by LER %s: %w", lastSentCertificate.CertificateID, err)
 		}
@@ -481,12 +484,12 @@ func (a *AggSender) checkIfCertificatesAreSettled(ctx context.Context) {
 }
 
 // shouldSendCertificate checks if a certificate should be sent at given L1 block
-// we send certificates at one block before the epoch ending so we get most of the
+// we send certificates at two blocks before the epoch ending so we get most of the
 // bridges and claims in that epoch
 func (a *AggSender) shouldSendCertificate(block uint64) bool {
 	if block == 0 {
 		return false
 	}
 
-	return (block+1)%a.cfg.EpochSize == 0
+	return (block+numOfBlocksBeforeEpochEnding)%a.cfg.EpochSize == 0
 }

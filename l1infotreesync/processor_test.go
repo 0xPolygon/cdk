@@ -124,8 +124,6 @@ func TestGetLatestInfoUntilBlockIfNotFoundReturnsErrNotFound(t *testing.T) {
 }
 
 func Test_processor_GetL1InfoTreeMerkleProof(t *testing.T) {
-	t.Parallel()
-
 	testTable := []struct {
 		name         string
 		getProcessor func(t *testing.T) *processor
@@ -184,8 +182,6 @@ func Test_processor_GetL1InfoTreeMerkleProof(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			p := tt.getProcessor(t)
 			proof, root, err := p.GetL1InfoTreeMerkleProof(context.Background(), tt.idx)
 			if tt.expectedErr != nil {
