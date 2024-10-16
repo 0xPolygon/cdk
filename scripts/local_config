@@ -30,10 +30,13 @@ function get_value_from_toml_file(){
     local _LINE
     local _inside_section=0
     local _return_next_line=0
+    local _TMP_FILE=$(mktemp)
+    cat $_FILE > $_TMP_FILE
+    # Maybe the file doesnt end with a new line so we added just in case
+    echo "\n" >> $_TMP_FILE
     while read -r _LINE; do
         # Clean up line from spaces and tabs
         _LINE=$(echo $_LINE | tr -d '[:space:]')
-        #echo $_LINE
         if [ $_inside_section -eq 1 ]; then
             if [[ "$_LINE" == [* ]]; then
                 return 1
@@ -51,6 +54,7 @@ function get_value_from_toml_file(){
                 if [ $_key_value == "[" ]; then
                     _return_next_line=1
                 else
+                rm $_TMP_FILE
                 # sed sentence remove quotes
                 echo $_key_value |  sed 's/^[[:space:]]*"//;s/"$//'
                 return 0
@@ -61,7 +65,8 @@ function get_value_from_toml_file(){
         fi
         
     
-    done < "$_FILE"
+    done < "$_TMP_FILE"
+    rm $_TMP_FILE
     return 2
 
 }
@@ -142,6 +147,9 @@ function export_values_of_cdk_node_config(){
     export_obj_key_from_toml_file_or_fatal  zkevm_l2_aggregator_keystore_password   $_CDK_CONFIG_FILE Aggregator.EthTxManager PrivateKeys Password
     
     export_key_from_toml_file_or_fatal      zkevm_rollup_fork_id        $_CDK_CONFIG_FILE Aggregator ForkId
+    export_key_from_toml_file_or_fatal  zkevm_l2_agglayer_keystore_password              $_CDK_CONFIG_FILE  AggSender.SequencerPrivateKey Path Password
+    
+    
     export is_cdk_validium=$zkevm_is_validium
     export zkevm_rollup_chain_id=$l2_chain_id
 
@@ -205,6 +213,7 @@ function export_ports_from_kurtosis(){
     export aggregator_db_hostname="127.0.0.1"
     export l1_rpc_url="http://localhost:${l1_rpc_port}"
     export l2_rpc_url="http://localhost:${zkevm_rpc_http_port}"
+    export agglayer_url="http://localhost:${agglayer_port}"
 }
 
 ###############################################################################
@@ -263,6 +272,10 @@ function download_kurtosis_artifacts(){
     kurtosis files download $KURTOSIS_ENCLAVE aggregator-keystore $DEST
     ok_or_fatal "Error downloading kurtosis artifact cdk-node-config-artifact  to $DEST"
     export zkevm_l2_aggregator_keystore_file=$DEST/aggregator.keystore
+
+    kurtosis files download $KURTOSIS_ENCLAVE agglayer-keystore $DEST
+    ok_or_fatal "Error downloading kurtosis artifact agglayer  to $DEST"
+    export zkevm_l2_agglayer_keystore_file=$DEST/agglayer.keystore
     
 }
 ###############################################################################
@@ -281,6 +294,7 @@ function check_generated_config_file(){
 # MAIN
 ###############################################################################
 set -o pipefail # enable strict command pipe error detection
+
 check_requirements
 create_dest_folder
 
@@ -313,7 +327,7 @@ echo " "
 echo "- Add next configuration to vscode launch.json"
 cat << EOF
          {
-            "name": "Debug cdk"",
+            "name": "Debug cdk",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -325,5 +339,8 @@ cat << EOF
                 "-components", "sequence-sender,aggregator",
             ]
         },
+
+        To run AggSender change components to:
+                "-components", "aggsender",
 EOF
 
