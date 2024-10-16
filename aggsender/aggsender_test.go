@@ -783,13 +783,13 @@ func TestShouldSendCertificate(t *testing.T) {
 	}{
 		{
 			name:           "Should send certificate",
-			block:          9,
+			block:          8,
 			epochSize:      10,
 			expectedResult: true,
 		},
 		{
 			name:           "Should not send certificate",
-			block:          8,
+			block:          9,
 			epochSize:      10,
 			expectedResult: false,
 		},
@@ -801,7 +801,7 @@ func TestShouldSendCertificate(t *testing.T) {
 		},
 		{
 			name:           "Should send certificate with large epoch size",
-			block:          999,
+			block:          998,
 			epochSize:      1000,
 			expectedResult: true,
 		},
@@ -1083,13 +1083,13 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:                   "error getting last sent certificate",
-			l1BlockNumber:          []interface{}{uint64(9), nil},
+			l1BlockNumber:          []interface{}{uint64(8), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{}, errors.New("error getting last sent certificate")},
 			expectedError:          "error getting last sent certificate",
 		},
 		{
 			name:          "error getting block finality",
-			l1BlockNumber: []interface{}{uint64(9), nil},
+			l1BlockNumber: []interface{}{uint64(8), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           1,
 				CertificateID:    common.HexToHash("0x1"),
@@ -1102,7 +1102,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "error getting last l2 block",
-			l1BlockNumber: []interface{}{uint64(9), nil},
+			l1BlockNumber: []interface{}{uint64(8), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           1,
 				CertificateID:    common.HexToHash("0x1"),
@@ -1116,7 +1116,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "error getting last certificate header",
-			l1BlockNumber: []interface{}{uint64(19), nil},
+			l1BlockNumber: []interface{}{uint64(18), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           1,
 				CertificateID:    common.HexToHash("0x1"),
@@ -1131,7 +1131,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "error deleting in error certificate",
-			l1BlockNumber: []interface{}{uint64(19), nil},
+			l1BlockNumber: []interface{}{uint64(18), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           1,
 				CertificateID:    common.HexToHash("0x1"),
@@ -1149,7 +1149,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "error getting certificate by height",
-			l1BlockNumber: []interface{}{uint64(29), nil},
+			l1BlockNumber: []interface{}{uint64(28), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           11,
 				CertificateID:    common.HexToHash("0x1"),
@@ -1168,7 +1168,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "error getting block by LER",
-			l1BlockNumber: []interface{}{uint64(39), nil},
+			l1BlockNumber: []interface{}{uint64(38), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           21,
 				CertificateID:    common.HexToHash("0x11"),
@@ -1177,7 +1177,7 @@ func TestSendCertificate(t *testing.T) {
 				ToBlock:          38,
 			}, nil},
 			l2BlockFinality:  []interface{}{etherman.PendingBlock},
-			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(39)}, nil},
+			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(38)}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status: agglayer.InError,
 			}, nil},
@@ -1191,7 +1191,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "no new blocks to send certificate",
-			l1BlockNumber: []interface{}{uint64(39), nil},
+			l1BlockNumber: []interface{}{uint64(38), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           41,
 				CertificateID:    common.HexToHash("0x111"),
@@ -1208,7 +1208,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "get bridges error",
-			l1BlockNumber: []interface{}{uint64(99), nil},
+			l1BlockNumber: []interface{}{uint64(98), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           50,
 				CertificateID:    common.HexToHash("0x1111"),
@@ -1229,7 +1229,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "no bridges",
-			l1BlockNumber: []interface{}{uint64(199), nil},
+			l1BlockNumber: []interface{}{uint64(198), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           60,
 				CertificateID:    common.HexToHash("0x11111"),
@@ -1249,7 +1249,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "get claims error",
-			l1BlockNumber: []interface{}{uint64(159), nil},
+			l1BlockNumber: []interface{}{uint64(158), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           70,
 				CertificateID:    common.HexToHash("0x121111"),
@@ -1278,7 +1278,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "error building certificate",
-			l1BlockNumber: []interface{}{uint64(149), nil},
+			l1BlockNumber: []interface{}{uint64(148), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           80,
 				CertificateID:    common.HexToHash("0x1321111"),
@@ -1312,7 +1312,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "send certificate error",
-			l1BlockNumber: []interface{}{uint64(139), nil},
+			l1BlockNumber: []interface{}{uint64(138), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           90,
 				CertificateID:    common.HexToHash("0x1121111"),
@@ -1346,7 +1346,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "store last sent certificate error",
-			l1BlockNumber: []interface{}{uint64(129), nil},
+			l1BlockNumber: []interface{}{uint64(128), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           100,
 				CertificateID:    common.HexToHash("0x11121111"),
@@ -1381,7 +1381,7 @@ func TestSendCertificate(t *testing.T) {
 		},
 		{
 			name:          "successful sending of certificate",
-			l1BlockNumber: []interface{}{uint64(179), nil},
+			l1BlockNumber: []interface{}{uint64(178), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           110,
 				CertificateID:    common.HexToHash("0x12121111"),
