@@ -71,7 +71,7 @@ function claim() {
             cast calldata $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
             cast call --rpc-url $l2_rpc_url $bridge_addr $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
         else
-            comp_gas_price=$(bc -l <<< "$gas_price * $gas_price_factor" | sed 's/\..*//')
+            local comp_gas_price=$(bc -l <<< "$gas_price * $gas_price_factor" | sed 's/\..*//')
             if [[ $? -ne 0 ]]; then
                 echo "Failed to calculate gas price" >&3
                 exit 1
