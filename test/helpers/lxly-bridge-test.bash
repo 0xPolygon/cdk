@@ -78,7 +78,7 @@ function claim() {
             fi
             
             echo "cast send --legacy --gas-price $comp_gas_price --rpc-url $l2_rpc_url --private-key $sender_private_key $bridge_addr \"$claim_sig\" \"$in_merkle_proof\" \"$in_rollup_merkle_proof\" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata" >&3
-            cast send --legacy --gas_price $gas_price --rpc-url $l2_rpc_url --private-key $sender_private_key $bridge_addr "$claim_sig" "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
+            cast send --legacy --gas_price $comp_gas_price --rpc-url $l2_rpc_url --private-key $sender_private_key $bridge_addr "$claim_sig" "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
             if [[ $? -ne 0 ]]; then
                 gas_price_factor=$(bc -l <<< "$gas_price_factor * 1.5")
             fi
