@@ -69,7 +69,6 @@ type SequenceSender struct {
 	validStream              bool                       // Not valid while receiving data before the desired batch
 	seqSendingStopped        uint32                     // If there is a critical error
 	TxBuilder                txbuilder.TxBuilder
-	latestVirtualBatchLock   sync.Mutex
 }
 
 type sequenceData struct {
@@ -124,7 +123,7 @@ func (s *SequenceSender) Start(ctx context.Context) {
 	go s.ethTxManager.Start()
 
 	// Get latest virtual state batch from L1
-	err := s.getLatestVirtualBatch()
+	err := s.updateLatestVirtualBatch()
 	if err != nil {
 		s.logger.Fatalf("error getting latest sequenced batch, error: %v", err)
 	}
@@ -220,16 +219,27 @@ func (s *SequenceSender) populateSequenceData(rpcBatch *rpcbatch.RPCBatch, batch
 
 // sequenceSending starts loop to check if there are sequences to send and sends them if it's convenient
 func (s *SequenceSender) sequenceSending(ctx context.Context) {
+	// Create a ticker that fires every WaitPeriodSendSequence
+	ticker := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
+	defer ticker.Stop()
+
 	for {
-		s.tryToSendSequence(ctx)
-		time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
+		select {
+		case <-ctx.Done():
+			s.logger.Info("context canceled, stopping sequence sending")
+			return
+
+		case <-ticker.C:
+			// Trigger the sequence sending when the ticker fires
+			s.tryToSendSequence(ctx)
+		}
 	}
 }
 
 // purgeSequences purges batches from memory structures
 func (s *SequenceSender) purgeSequences() {
 	// If sequence sending is stopped, do not purge
-	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
+	if s.IsStopped() {
 		return
 	}
 
@@ -238,8 +248,7 @@ func (s *SequenceSender) purgeSequences() {
 	defer s.mutexSequence.Unlock()
 	truncateUntil := 0
 	toPurge := make([]uint64, 0)
-	for i := 0; i < len(s.sequenceList); i++ {
-		batchNumber := s.sequenceList[i]
+	for i, batchNumber := range s.sequenceList {
 		if batchNumber <= atomic.LoadUint64(&s.latestVirtualBatchNumber) {
 			truncateUntil = i + 1
 			toPurge = append(toPurge, batchNumber)
@@ -249,16 +258,10 @@ func (s *SequenceSender) purgeSequences() {
 	if len(toPurge) > 0 {
 		s.sequenceList = s.sequenceList[truncateUntil:]
 
-		var firstPurged uint64
-		var lastPurged uint64
-		for i := 0; i < len(toPurge); i++ {
-			if i == 0 {
-				firstPurged = toPurge[i]
-			}
-			if i == len(toPurge)-1 {
-				lastPurged = toPurge[i]
-			}
-			delete(s.sequenceData, toPurge[i])
+		firstPurged := toPurge[0]
+		lastPurged := toPurge[len(toPurge)-1]
+		for _, batchNum := range toPurge {
+			delete(s.sequenceData, batchNum)
 		}
 		s.logger.Infof("batches purged count: %d, fromBatch: %d, toBatch: %d", len(toPurge), firstPurged, lastPurged)
 	}
@@ -268,27 +271,27 @@ func (s *SequenceSender) purgeSequences() {
 func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Update latest virtual batch
 	s.logger.Infof("updating virtual batch")
-	err := s.getLatestVirtualBatch()
-	if err != nil {
-		return
-	}
-
-	// Update state of transactions
-	s.logger.Infof("updating tx results")
-	countPending, err := s.syncEthTxResults(ctx)
+	err := s.updateLatestVirtualBatch()
 	if err != nil {
 		return
 	}
 
 	// Check if the sequence sending is stopped
-	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
+	if s.IsStopped() {
 		s.logger.Warnf("sending is stopped!")
 		return
 	}
 
+	// Update state of transactions
+	s.logger.Infof("updating tx results")
+	pendingTxsCount, err := s.syncEthTxResults(ctx)
+	if err != nil {
+		return
+	}
+
 	// Check if reached the maximum number of pending transactions
-	if countPending >= s.cfg.MaxPendingTx {
-		s.logger.Infof("max number of pending txs (%d) reached. Waiting for some to be completed", countPending)
+	if pendingTxsCount >= s.cfg.MaxPendingTx {
+		s.logger.Infof("max number of pending txs (%d) reached. Waiting for some to be completed", pendingTxsCount)
 		return
 	}
 
@@ -305,7 +308,6 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Send sequences to L1
 	firstBatch := sequence.FirstBatch()
 	lastBatch := sequence.LastBatch()
-	lastL2BlockTimestamp := lastBatch.LastL2BLockTimestamp()
 
 	s.logger.Debugf(sequence.String())
 	s.logger.Infof("sending sequences to L1. From batch %d to batch %d", firstBatch.BatchNumber(), lastBatch.BatchNumber())
@@ -313,55 +315,27 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Wait until last L1 block timestamp is L1BlockTimestampMargin seconds above the timestamp
 	// of the last L2 block in the sequence
 	timeMargin := int64(s.cfg.L1BlockTimestampMargin.Seconds())
-	for {
-		// Get header of the last L1 block
-		lastL1BlockHeader, err := s.etherman.GetLatestBlockHeader(ctx)
-		if err != nil {
-			s.logger.Errorf("failed to get last L1 block timestamp, err: %v", err)
-			return
-		}
 
-		elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, lastL1BlockHeader.Time, timeMargin)
+	err = s.waitForMargin(ctx, lastBatch, timeMargin, "L1 block block timestamp",
+		func() (uint64, error) {
+			lastL1BlockHeader, err := s.etherman.GetLatestBlockHeader(ctx)
+			if err != nil {
+				return 0, err
+			}
 
-		if !elapsed {
-			s.logger.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block %d (ts: %d) "+
-				"and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
-				waitTime, lastL1BlockHeader.Number, lastL1BlockHeader.Time,
-				lastBatch.BatchNumber(), lastL2BlockTimestamp, timeMargin,
-			)
-			time.Sleep(time.Duration(waitTime) * time.Second)
-		} else {
-			s.logger.Infof("continuing, time difference between last L1 block %d (ts: %d) and last L2 block %d (ts: %d) "+
-				"in the sequence is greater than %d seconds",
-				lastL1BlockHeader.Number,
-				lastL1BlockHeader.Time,
-				lastBatch.BatchNumber,
-				lastL2BlockTimestamp,
-				timeMargin,
-			)
-			break
-		}
+			return lastL1BlockHeader.Time, nil
+		})
+	if err != nil {
+		s.logger.Errorf("error waiting for L1 block time margin: %v", err)
+		return
 	}
 
-	// Sanity check: Wait also until current time is L1BlockTimestampMargin seconds above the
-	// timestamp of the last L2 block in the sequence
-	for {
-		currentTime := uint64(time.Now().Unix())
-
-		elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, currentTime, timeMargin)
-
-		// Wait if the time difference is less than L1BlockTimestampMargin
-		if !elapsed {
-			s.logger.Infof("waiting at least %d seconds to send sequences, time difference between now (ts: %d) "+
-				"and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
-				waitTime, currentTime, lastBatch.BatchNumber, lastL2BlockTimestamp, timeMargin)
-			time.Sleep(time.Duration(waitTime) * time.Second)
-		} else {
-			s.logger.Infof("sending sequences now, time difference between now (ts: %d) and last L2 block %d (ts: %d) "+
-				"in the sequence is also greater than %d seconds",
-				currentTime, lastBatch.BatchNumber, lastL2BlockTimestamp, timeMargin)
-			break
-		}
+	// Sanity check: Wait until the current time is also L1BlockTimestampMargin seconds above the last L2 block timestamp
+	err = s.waitForMargin(ctx, lastBatch, timeMargin, "current time",
+		func() (uint64, error) { return uint64(time.Now().Unix()), nil })
+	if err != nil {
+		s.logger.Errorf("error waiting for current time margin: %v", err)
+		return
 	}
 
 	// Send sequences to L1
@@ -375,20 +349,14 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	}
 
 	// Get latest virtual state batch from L1
-	err = s.getLatestVirtualBatch()
+	err = s.updateLatestVirtualBatch()
 	if err != nil {
 		s.logger.Fatalf("error getting latest sequenced batch, error: %v", err)
 	}
 
 	sequence.SetLastVirtualBatchNumber(atomic.LoadUint64(&s.latestVirtualBatchNumber))
 
-	txToEstimateGas, err := s.TxBuilder.BuildSequenceBatchesTx(ctx, sequence)
-	if err != nil {
-		s.logger.Errorf("error building sequenceBatches tx to estimate gas: %v", err)
-		return
-	}
-
-	gas, err := s.etherman.EstimateGas(ctx, s.cfg.SenderAddress, tx.To(), nil, txToEstimateGas.Data())
+	gas, err := s.etherman.EstimateGas(ctx, s.cfg.SenderAddress, tx.To(), nil, tx.Data())
 	if err != nil {
 		s.logger.Errorf("error estimating gas: ", err)
 		return
@@ -404,14 +372,71 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	s.purgeSequences()
 }
 
+// waitForMargin ensures that the time difference between the last L2 block and the current
+// timestamp exceeds the time margin before proceeding. It checks immediately, and if not
+// satisfied, it waits using a ticker and rechecks periodically.
+//
+// Params:
+// - ctx: Context to handle cancellation.
+// - lastBatch: The last batch in the sequence.
+// - timeMargin: Required time difference in seconds.
+// - description: A description for logging purposes.
+// - getTimeFn: Function to get the current time (e.g., L1 block time or current time).
+func (s *SequenceSender) waitForMargin(ctx context.Context, lastBatch seqsendertypes.Batch,
+	timeMargin int64, description string, getTimeFn func() (uint64, error)) error {
+	referentTime, err := getTimeFn()
+	if err != nil {
+		return err
+	}
+
+	lastL2BlockTimestamp := lastBatch.LastL2BLockTimestamp()
+	elapsed, waitTime := marginTimeElapsed(lastL2BlockTimestamp, referentTime, timeMargin)
+	if elapsed {
+		s.logger.Infof("time difference for %s exceeds %d seconds, proceeding (batch number: %d, last l2 block ts: %d)",
+			description, timeMargin, lastBatch.BatchNumber(), lastL2BlockTimestamp)
+		return nil
+	}
+
+	s.logger.Infof("waiting %d seconds for %s, margin less than %d seconds (batch number: %d, last l2 block ts: %d)",
+		waitTime, description, timeMargin, lastBatch.BatchNumber(), lastL2BlockTimestamp)
+	ticker := time.NewTicker(time.Duration(waitTime) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			s.logger.Infof("context canceled during %s wait (batch number: %d, last l2 block ts: %d)",
+				description, lastBatch.BatchNumber(), lastL2BlockTimestamp)
+			return ctx.Err()
+
+		case <-ticker.C:
+			referentTime, err = getTimeFn()
+			if err != nil {
+				return err
+			}
+
+			elapsed, waitTime = marginTimeElapsed(lastL2BlockTimestamp, referentTime, timeMargin)
+			if elapsed {
+				s.logger.Infof("time margin for %s now exceeds %d seconds, proceeding (batch number: %d, last l2 block ts: %d)",
+					description, timeMargin, lastBatch.BatchNumber(), lastL2BlockTimestamp)
+				return nil
+			}
+
+			s.logger.Infof(
+				"waiting another %d seconds for %s, margin still less than %d seconds (batch number: %d, last l2 block ts: %d)",
+				waitTime, description, timeMargin, lastBatch.BatchNumber(), lastL2BlockTimestamp)
+			ticker.Reset(time.Duration(waitTime) * time.Second)
+		}
+	}
+}
+
 func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes.Sequence, error) {
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	s.mutexSequence.Lock()
 	defer s.mutexSequence.Unlock()
 	var prevCoinbase common.Address
 	sequenceBatches := make([]seqsendertypes.Batch, 0)
-	for i := 0; i < len(s.sequenceList); i++ {
-		batchNumber := s.sequenceList[i]
+	for _, batchNumber := range s.sequenceList {
 		if batchNumber <= atomic.LoadUint64(&s.latestVirtualBatchNumber) ||
 			batchNumber <= atomic.LoadUint64(&s.latestSentToL1Batch) {
 			continue
@@ -419,7 +444,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 
 		// Check if the next batch belongs to a new forkid, in this case we need to stop sequencing as we need to
 		// wait the upgrade of forkid is completed and s.cfg.NumBatchForkIdUpgrade is disabled (=0) again
-		if (s.cfg.ForkUpgradeBatchNumber != 0) && (batchNumber == (s.cfg.ForkUpgradeBatchNumber + 1)) {
+		if s.cfg.ForkUpgradeBatchNumber != 0 && batchNumber == (s.cfg.ForkUpgradeBatchNumber+1) {
 			return nil, fmt.Errorf(
 				"aborting sequencing process as we reached the batch %d where a new forkid is applied (upgrade)",
 				s.cfg.ForkUpgradeBatchNumber+1,
@@ -452,7 +477,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 
 		// Check if the current batch is the last before a change to a new forkid
 		// In this case we need to close and send the sequence to L1
-		if (s.cfg.ForkUpgradeBatchNumber != 0) && (batchNumber == (s.cfg.ForkUpgradeBatchNumber)) {
+		if s.cfg.ForkUpgradeBatchNumber != 0 && batchNumber == s.cfg.ForkUpgradeBatchNumber {
 			s.logger.Infof("sequence should be sent to L1, as we have reached the batch %d "+
 				"from which a new forkid is applied (upgrade)",
 				s.cfg.ForkUpgradeBatchNumber,
@@ -476,14 +501,9 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) (seqsendertypes
 	return nil, nil
 }
 
-// getLatestVirtualBatch queries the value in L1 and updates the latest virtual batch field
-func (s *SequenceSender) getLatestVirtualBatch() error {
-	s.latestVirtualBatchLock.Lock()
-	defer s.latestVirtualBatchLock.Unlock()
-
+// updateLatestVirtualBatch queries the value in L1 and updates the latest virtual batch field
+func (s *SequenceSender) updateLatestVirtualBatch() error {
 	// Get latest virtual state batch from L1
-	var err error
-
 	latestVirtualBatchNumber, err := s.etherman.GetLatestBatchNumber()
 	if err != nil {
 		s.logger.Errorf("error getting latest virtual batch, error: %v", err)
@@ -491,7 +511,6 @@ func (s *SequenceSender) getLatestVirtualBatch() error {
 	}
 
 	atomic.StoreUint64(&s.latestVirtualBatchNumber, latestVirtualBatchNumber)
-
 	s.logger.Infof("latest virtual batch is %d", latestVirtualBatchNumber)
 
 	return nil
@@ -509,29 +528,20 @@ func (s *SequenceSender) logFatalf(template string, args ...interface{}) {
 
 // marginTimeElapsed checks if the time between currentTime and l2BlockTimestamp is greater than timeMargin.
 // If it's greater returns true, otherwise it returns false and the waitTime needed to achieve this timeMargin
-func marginTimeElapsed(
-	l2BlockTimestamp uint64, currentTime uint64, timeMargin int64,
-) (bool, int64) {
-	// Check the time difference between L2 block and currentTime
-	var timeDiff int64
-	if l2BlockTimestamp >= currentTime {
-		// L2 block timestamp is above currentTime, negative timeDiff. We do in this way to avoid uint64 overflow
-		timeDiff = int64(-(l2BlockTimestamp - currentTime))
-	} else {
-		timeDiff = int64(currentTime - l2BlockTimestamp)
+func marginTimeElapsed(l2BlockTimestamp uint64, currentTime uint64, timeMargin int64) (bool, int64) {
+	if int64(l2BlockTimestamp)-timeMargin > int64(currentTime) {
+		return true, 0
 	}
 
-	// Check if the time difference is less than timeMargin (L1BlockTimestampMargin)
+	timeDiff := int64(currentTime) - int64(l2BlockTimestamp)
+
+	// If the difference is less than the required margin, return false and calculate the remaining wait time
 	if timeDiff < timeMargin {
-		var waitTime int64
-		if timeDiff < 0 { // L2 block timestamp is above currentTime
-			waitTime = timeMargin + (-timeDiff)
-		} else {
-			waitTime = timeMargin - timeDiff
-		}
+		// Calculate the wait time needed to reach the timeMargin
+		waitTime := timeMargin - timeDiff
 		return false, waitTime
 	}
 
-	// timeDiff is greater than timeMargin
+	// Time difference is greater than or equal to timeMargin, no need to wait
 	return true, 0
 }
