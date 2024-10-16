@@ -575,7 +575,7 @@ func runReorgDetectorL1IfNeeded(
 ) (*reorgdetector.ReorgDetector, chan error) {
 	if !isNeeded([]string{
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
-		cdkcommon.AGGORACLE, cdkcommon.RPC},
+		cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER},
 		components) {
 		return nil, nil
 	}
