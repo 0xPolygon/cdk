@@ -60,3 +60,13 @@ Outputs = ["stderr"]
                 Port = "{{.aggregator_db.port}}"
                 EnableLog = false
                 MaxConns = 200
+[AggSender]
+DBPath = "/tmp/aggsender.sqlite"
+AggLayerURL = "{{.agglayer_url}}"
+#SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
+SequencerPrivateKey = {Path = "{{or .zkevm_l2_agglayer_keystore_file "/pk/sequencer.keystore"}}", Password = "{{.zkevm_l2_agglayer_keystore_password}}"}
+
+CertificateSendInterval = "1m"
+URLRPCL2="{{.l2_rpc_url}}"
+CheckSettledInterval = "5s"
+EpochSize = 10
