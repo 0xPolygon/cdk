@@ -52,7 +52,7 @@ var (
 	disableDefaultConfigVars = cli.BoolFlag{
 		Name:     config.FlagDisableDefaultConfigVars,
 		Aliases:  []string{"d"},
-		Usage:    "Disable default configuration variables, all must be defined on config files",
+		Usage:    "Disable default configuration variables, all of them must be defined on config files",
 		Required: false,
 	}
 
