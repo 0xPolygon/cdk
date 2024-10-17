@@ -15,9 +15,19 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree/testvectors"
+	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/russross/meddler"
 	"github.com/stretchr/testify/require"
 )
+
+func TestBigIntString(t *testing.T) {
+	globalIndex := GenerateGlobalIndex(true, 0, 1093)
+	fmt.Println(globalIndex.String())
+
+	_, ok := new(big.Int).SetString(globalIndex.String(), 10)
+	require.True(t, ok)
+}
 
 func TestProceessor(t *testing.T) {
 	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
@@ -670,4 +680,47 @@ func TestDecodeGlobalIndex(t *testing.T) {
 			require.Equal(t, tt.expectedLocalIndex, localExitRootIndex)
 		})
 	}
+}
+
+func TestInsertAndGetClaim(t *testing.T) {
+	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	log.Debugf("sqlite path: %s", path)
+	err := migrationsBridge.RunMigrations(path)
+	require.NoError(t, err)
+	p, err := newProcessor(path, "foo")
+	require.NoError(t, err)
+
+	tx, err := p.db.BeginTx(context.Background(), nil)
+	require.NoError(t, err)
+
+	// insert test claim
+	testClaim := &Claim{
+		BlockNum:            1,
+		BlockPos:            0,
+		GlobalIndex:         GenerateGlobalIndex(true, 0, 1093),
+		OriginNetwork:       11,
+		OriginAddress:       common.HexToAddress("0x11"),
+		DestinationAddress:  common.HexToAddress("0x11"),
+		Amount:              big.NewInt(11),
+		ProofLocalExitRoot:  types.Proof{},
+		ProofRollupExitRoot: types.Proof{},
+		MainnetExitRoot:     common.Hash{},
+		RollupExitRoot:      common.Hash{},
+		GlobalExitRoot:      common.Hash{},
+		DestinationNetwork:  12,
+		Metadata:            []byte("0x11"),
+		IsMessage:           false,
+	}
+
+	_, err = tx.Exec(`INSERT INTO block (num) VALUES ($1)`, testClaim.BlockNum)
+	require.NoError(t, err)
+	require.NoError(t, meddler.Insert(tx, "claim", testClaim))
+
+	require.NoError(t, tx.Commit())
+
+	// get test claim
+	claims, err := p.GetClaims(context.Background(), 1, 1)
+	require.NoError(t, err)
+	require.Len(t, claims, 1)
+	require.Equal(t, testClaim, &claims[0])
 }
