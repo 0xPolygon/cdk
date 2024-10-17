@@ -83,9 +83,6 @@ func NewErrDeprecatedFields() *DeprecatedFieldsError {
 
 func (e *DeprecatedFieldsError) AddDeprecatedField(fieldName string, rule DeprecatedField) {
 	p := e.Fields[rule]
-	if p == nil {
-		p = make([]string, 0)
-	}
 	e.Fields[rule] = append(p, fieldName)
 }
 
@@ -181,7 +178,7 @@ func Load(ctx *cli.Context) (*Config, error) {
 }
 
 func readFiles(files []string) ([]FileData, error) {
-	result := make([]FileData, 0)
+	result := make([]FileData, 0, len(files))
 	for _, file := range files {
 		fileContent, err := readFileToString(file)
 		if err != nil {

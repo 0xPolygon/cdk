@@ -34,25 +34,9 @@ type FileData struct {
 type ConfigRender struct {
 	// 0: default, 1: specific
 	FilesData []FileData
-	// Function to resolv environment variables typically: Os.LookupEnv
+	// Function to resolve environment variables typically: Os.LookupEnv
 	LookupEnvFunc     func(key string) (string, bool)
 	EnvinormentPrefix string
-}
-
-// NewConfigRenderFromFile creates a new ConfigRender from a file and using defaults
-func NewConfigRenderFromFile(configFilename string) (*ConfigRender, error) {
-	specificConfig, err := readFileToString(configFilename)
-	if err != nil {
-		return nil, fmt.Errorf("fail to read specific config file %s. Err: %w", configFilename, err)
-	}
-	return &ConfigRender{
-		FilesData: []FileData{
-			{Name: "default", Content: DefaultValues},
-			{Name: "file:" + configFilename, Content: specificConfig},
-		},
-		LookupEnvFunc:     os.LookupEnv,
-		EnvinormentPrefix: EnvVarPrefix,
-	}, nil
 }
 
 func NewConfigRender(filesData []FileData, envinormentPrefix string) *ConfigRender {
@@ -85,6 +69,9 @@ func (c *ConfigRender) Merge() (string, error) {
 		}
 	}
 	marshaled, err := k.Marshal(toml.Parser())
+	if err != nil {
+		return "", fmt.Errorf("fail to marshal to toml. Err: %w", err)
+	}
 	out2 := RemoveQuotesForVars(string(marshaled))
 	return out2, err
 }
