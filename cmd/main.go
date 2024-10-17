@@ -21,7 +21,7 @@ var (
 	configFileFlag = cli.StringSliceFlag{
 		Name:     config.FlagCfg,
 		Aliases:  []string{"c"},
-		Usage:    "Configuration `FILE`",
+		Usage:    "Configuration file(s)",
 		Required: true,
 	}
 	customNetworkFlag = cli.StringFlag{
