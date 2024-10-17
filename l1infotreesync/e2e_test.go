@@ -62,10 +62,12 @@ func TestE2E(t *testing.T) {
 	rdm := l1infotreesync.NewReorgDetectorMock(t)
 	rdm.On("Subscribe", mock.Anything).Return(&reorgdetector.Subscription{}, nil)
 	rdm.On("AddBlockToTrack", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
 	client, auth, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
 	syncer, err := l1infotreesync.New(ctx, dbPath, gerAddr, verifyAddr, 10, etherman.LatestBlock, rdm, client.Client(), time.Millisecond, 0, 100*time.Millisecond, 3,
 		l1infotreesync.FlagAllowWrongContractsAddrs)
 	require.NoError(t, err)
+
 	go syncer.Start(ctx)
 
 	// Update GER 3 times

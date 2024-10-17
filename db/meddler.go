@@ -13,8 +13,8 @@ import (
 	"github.com/russross/meddler"
 )
 
-// initMeddler registers tags to be used to read/write from SQL DBs using meddler
-func initMeddler() {
+// init registers tags to be used to read/write from SQL DBs using meddler
+func init() {
 	meddler.Default = meddler.SQLite
 	meddler.Register("bigint", BigIntMeddler{})
 	meddler.Register("merkleproof", MerkleProofMeddler{})
