@@ -5,8 +5,16 @@ use url::Url;
 /// The StreamClient configuration.
 #[derive(Deserialize, Debug, Clone)]
 pub struct StreamClient {
-    #[serde(rename = "Server")]
+    #[serde(rename = "Server", default)]
     pub server: String,
+}
+
+impl Default for StreamClient {
+    fn default() -> Self {
+        Self {
+            server: "localhost:9092".to_string(),
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -15,68 +23,93 @@ pub struct EthTxManager {
     pub etherman: Etherman,
 }
 
+impl Default for EthTxManager {
+    fn default() -> Self {
+        Self {
+            etherman: Etherman::default(),
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct Etherman {
-    #[serde(rename = "URL")]
+    #[serde(rename = "URL", default)]
     pub url: String,
+}
+
+impl Default for Etherman {
+    fn default() -> Self {
+        Self {
+            url: "http://localhost:8545".to_string(),
+        }
+    }
 }
 
 /// The Aggregator configuration.
 #[derive(Deserialize, Debug, Clone)]
 pub struct Aggregator {
-    #[serde(rename = "ChainID")]
+    #[serde(rename = "ChainID", default)]
     pub chain_id: String,
-    #[serde(rename = "Host")]
+    #[serde(rename = "Host", default)]
     pub host: String,
-    #[serde(rename = "Port")]
+    #[serde(rename = "Port", default)]
     pub port: String,
-    #[serde(rename = "RetryTime")]
+    #[serde(rename = "RetryTime", default)]
     pub retry_time: String,
-    #[serde(rename = "VerifyProofInterval")]
+    #[serde(rename = "VerifyProofInterval", default)]
     pub verify_proof_interval: String,
-    #[serde(rename = "ProofStatePollingInterval")]
+    #[serde(rename = "ProofStatePollingInterval", default)]
     pub proof_state_polling_interval: String,
-    #[serde(rename = "TxProfitabilityCheckerType")]
+    #[serde(rename = "TxProfitabilityCheckerType", default)]
     pub tx_profitability_checker_type: String,
-    #[serde(rename = "TxProfitabilityMinReward")]
+    #[serde(rename = "TxProfitabilityMinReward", default)]
     pub tx_profitability_min_reward: String,
-    #[serde(rename = "IntervalAfterWhichBatchConsolidateAnyway")]
+    #[serde(rename = "IntervalAfterWhichBatchConsolidateAnyway", default)]
     pub interval_after_which_batch_consolidate_anyway: String,
-    #[serde(rename = "ForkId")]
+    #[serde(rename = "ForkId", default)]
     pub fork_id: u64,
-    #[serde(rename = "CleanupLockedProofsInterval")]
+    #[serde(rename = "CleanupLockedProofsInterval", default)]
     pub cleanup_locked_proofs_interval: String,
-    #[serde(rename = "GeneratingProofCleanupThreshold")]
+    #[serde(rename = "GeneratingProofCleanupThreshold", default)]
     pub generating_proof_cleanup_threshold: String,
-    #[serde(rename = "GasOffset")]
+    #[serde(rename = "GasOffset", default)]
     pub gas_offset: u64,
-    #[serde(rename = "WitnessURL")]
+    #[serde(rename = "WitnessURL", default = "default_url")]
     pub witness_url: Url,
-    #[serde(rename = "SenderAddress")]
+    #[serde(rename = "SenderAddress", default = "default_address")]
     pub sender_address: Address,
-    #[serde(rename = "SettlementBackend")]
+    #[serde(rename = "SettlementBackend", default)]
     pub settlement_backend: String,
-    #[serde(rename = "AggLayerTxTimeout")]
+    #[serde(rename = "AggLayerTxTimeout", default)]
     pub agg_layer_tx_timeout: String,
-    #[serde(rename = "AggLayerURL")]
+    #[serde(rename = "AggLayerURL", default = "default_url")]
     pub agg_layer_url: Url,
-    #[serde(rename = "UseL1BatchData")]
+    #[serde(rename = "UseL1BatchData", default)]
     pub use_l1_batch_data: bool,
-    #[serde(rename = "UseFullWitness")]
+    #[serde(rename = "UseFullWitness", default)]
     pub use_full_witness: bool,
-    #[serde(rename = "MaxWitnessRetrievalWorkers")]
+    #[serde(rename = "MaxWitnessRetrievalWorkers", default)]
     pub max_witness_retrieval_workers: u32,
-    #[serde(rename = "SyncModeOnlyEnabled")]
+    #[serde(rename = "SyncModeOnlyEnabled", default)]
     pub sync_mode_only_enabled: bool,
 
-    #[serde(rename = "StreamClient")]
+    #[serde(rename = "StreamClient", default)]
     pub stream_client: StreamClient,
 
-    #[serde(rename = "EthTxManager")]
+    #[serde(rename = "EthTxManager", default)]
     pub eth_tx_manager: EthTxManager,
 }
 
-#[cfg(any(test, feature = "testutils"))]
+fn default_url() -> Url {
+    Url::parse("http://localhost:8546").unwrap()
+}
+
+fn default_address() -> Address {
+    "0x0000000000000000000000000000000000000000"
+        .parse()
+        .unwrap()
+}
+
 impl Default for Aggregator {
     fn default() -> Self {
         // Values are coming from https://github.com/0xPolygon/agglayer/blob/main/config/default.go#L11
@@ -94,10 +127,8 @@ impl Default for Aggregator {
             cleanup_locked_proofs_interval: "1h".to_string(),
             generating_proof_cleanup_threshold: "10m".to_string(),
             gas_offset: 0,
-            witness_url: Url::parse("http://localhost:8546").unwrap(),
-            sender_address: "0x0000000000000000000000000000000000000000"
-                .parse()
-                .unwrap(),
+            witness_url: default_url(),
+            sender_address: default_address(),
             settlement_backend: "default".to_string(),
             agg_layer_tx_timeout: "30s".to_string(),
             agg_layer_url: Url::parse("http://localhost:8547").unwrap(),

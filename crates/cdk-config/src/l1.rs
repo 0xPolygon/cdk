@@ -4,19 +4,18 @@ use serde::Deserialize;
 /// The L1 configuration.
 #[derive(Deserialize, Debug, Clone)]
 pub struct L1 {
-    #[serde(rename = "L1ChainID")]
+    #[serde(rename = "L1ChainID", alias = "ChainID", default)]
     pub l1_chain_id: String,
-    #[serde(rename = "PolAddr")]
+    #[serde(rename = "PolAddr", default)]
     pub pol_addr: Address,
-    #[serde(rename = "ZkEVMAddr")]
+    #[serde(rename = "ZkEVMAddr", default)]
     pub zk_evm_addr: Address,
-    #[serde(rename = "RollupManagerAddr")]
+    #[serde(rename = "RollupManagerAddr", default)]
     pub rollup_manager_addr: Address,
-    #[serde(rename = "GlobalExitRootManagerAddr")]
+    #[serde(rename = "GlobalExitRootManagerAddr", default)]
     pub global_exit_root_manager_addr: Address,
 }
 
-#[cfg(any(test, feature = "testutils"))]
 impl Default for L1 {
     fn default() -> Self {
         // Values are coming from https://github.com/0xPolygon/agglayer/blob/main/config/default.go#L11

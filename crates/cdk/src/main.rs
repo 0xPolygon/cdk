@@ -4,8 +4,8 @@ use alloy_rpc_client::ReqwestClient;
 use cdk_config::Config;
 use clap::Parser;
 use cli::Cli;
+use colored::*;
 use execute::Execute;
-use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 use url::Url;
@@ -13,9 +13,10 @@ use url::Url;
 pub mod allocs_render;
 mod cli;
 mod config_render;
+mod helpers;
 mod logging;
+mod versions;
 
-const CDK_CLIENT_BIN: &str = "cdk-node";
 const CDK_ERIGON_BIN: &str = "cdk-erigon";
 
 #[tokio::main]
@@ -24,13 +25,8 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
 
-    // Read the config
-    let config = read_config(cli.config.clone())?;
-
-    // Initialize the logger
-    logging::tracing(&config.log);
-
     println!(
+        "{}",
         r#"🐼
   _____      _                            _____ _____  _  __
  |  __ \    | |                          / ____|  __ \| |/ /
@@ -41,12 +37,13 @@ async fn main() -> anyhow::Result<()> {
                 __/ | __/ |                                 
                |___/ |___/                                  
 "#
+        .purple()
     );
 
     match cli.cmd {
-        cli::Commands::Node { components } => node(cli.config, components)?,
-        cli::Commands::Erigon {} => erigon(config, cli.chain).await?,
-        // _ => forward()?,
+        cli::Commands::Node { config, components } => node(config, components)?,
+        cli::Commands::Erigon { config, chain } => erigon(config, chain).await?,
+        cli::Commands::Versions {} => versions::versions(),
     }
 
     Ok(())
@@ -70,12 +67,15 @@ fn read_config(config_path: PathBuf) -> anyhow::Result<Config> {
 /// This function returns on fatal error or after graceful shutdown has
 /// completed.
 pub fn node(config_path: PathBuf, components: Option<String>) -> anyhow::Result<()> {
-    // This is to find the erigon binary when running in development mode
+    // Read the config
+    let config = read_config(config_path.clone())?;
+
+    // Initialize the logger
+    logging::tracing(&config.log);
+
+    // This is to find the binary when running in development mode
     // otherwise it will use system path
-    let mut bin_path = env::var("CARGO_MANIFEST_DIR").unwrap_or(CDK_CLIENT_BIN.into());
-    if bin_path != CDK_CLIENT_BIN {
-        bin_path = format!("{}/../../target/{}", bin_path, CDK_CLIENT_BIN);
-    }
+    let bin_path = helpers::get_bin_path();
 
     let components_param = match components {
         Some(components) => format!("-components={}", components),
@@ -118,7 +118,13 @@ pub fn node(config_path: PathBuf, components: Option<String>) -> anyhow::Result<
 
 /// This is the main erigon entrypoint.
 /// This function starts everything needed to run an Erigon node.
-pub async fn erigon(config: Config, genesis_file: PathBuf) -> anyhow::Result<()> {
+pub async fn erigon(config_path: PathBuf, genesis_file: PathBuf) -> anyhow::Result<()> {
+    // Read the config
+    let config = read_config(config_path.clone())?;
+
+    // Initialize the logger
+    logging::tracing(&config.log);
+
     // Render configuration files
     let chain_id = config.aggregator.chain_id.clone();
     let rpc_url = Url::parse(&config.sequence_sender.rpc_url).unwrap();

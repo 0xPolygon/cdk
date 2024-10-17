@@ -3,29 +3,29 @@ use serde::Deserialize;
 /// The SequenceSender configuration.
 #[derive(Deserialize, Debug, Clone)]
 pub struct SequenceSender {
-    #[serde(rename = "WaitPeriodSendSequence")]
+    #[serde(rename = "WaitPeriodSendSequence", default)]
     pub wait_period_send_sequence: String,
-    #[serde(rename = "LastBatchVirtualizationTimeMaxWaitPeriod")]
+    #[serde(rename = "LastBatchVirtualizationTimeMaxWaitPeriod", default)]
     pub last_batch_virtualization_time_max_wait_period: String,
-    #[serde(rename = "MaxTxSizeForL1")]
+    #[serde(rename = "MaxTxSizeForL1", default)]
     pub max_tx_size_for_l1: u32,
-    #[serde(rename = "L2Coinbase")]
+    #[serde(rename = "L2Coinbase", default)]
     pub l2_coinbase: String,
-    #[serde(rename = "SequencesTxFileName")]
+    #[serde(rename = "SequencesTxFileName", default)]
     pub sequences_tx_file_name: String,
-    #[serde(rename = "GasOffset")]
+    #[serde(rename = "GasOffset", default)]
     pub gas_offset: u64,
-    #[serde(rename = "WaitPeriodPurgeTxFile")]
+    #[serde(rename = "WaitPeriodPurgeTxFile", default)]
     pub wait_period_purge_tx_file: String,
-    #[serde(rename = "MaxPendingTx")]
+    #[serde(rename = "MaxPendingTx", default)]
     pub max_pending_tx: u32,
-    #[serde(rename = "MaxBatchesForL1")]
+    #[serde(rename = "MaxBatchesForL1", default)]
     pub max_batches_for_l1: u32,
-    #[serde(rename = "BlockFinality")]
+    #[serde(rename = "BlockFinality", default)]
     pub block_finality: String,
-    #[serde(rename = "RPCURL")]
+    #[serde(rename = "RPCURL", default)]
     pub rpc_url: String,
-    #[serde(rename = "GetBatchWaitInterval")]
+    #[serde(rename = "GetBatchWaitInterval", default)]
     pub get_batch_wait_interval: String,
 }
 
