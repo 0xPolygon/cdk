@@ -115,7 +115,7 @@ func (s *SequenceSender) sendTx(ctx context.Context, resend bool, txOldHash *com
 // purgeEthTx purges transactions from memory structures
 func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 	// If sequence sending is stopped, do not purge
-	if atomic.LoadUint32(&s.seqSendingStopped) == 1 {
+	if s.IsStopped() {
 		return
 	}
 
@@ -162,28 +162,30 @@ func (s *SequenceSender) purgeEthTx(ctx context.Context) {
 }
 
 // syncEthTxResults syncs results from L1 for transactions in the memory structure
-func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) { //nolint:unparam
+func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) {
 	s.mutexEthTx.Lock()
 	var (
 		txPending uint64
 		txSync    uint64
 	)
-	for hash, data := range s.ethTransactions {
-		if data.Status == types.MonitoredTxStatusFinalized.String() {
+	for hash, tx := range s.ethTransactions {
+		if tx.Status == types.MonitoredTxStatusFinalized.String() {
 			continue
 		}
 
 		err := s.getResultAndUpdateEthTx(ctx, hash)
 		if err != nil {
 			log.Errorf("error getting result for tx %v: %v", hash, err)
+			return 0, err
 		}
+
 		txSync++
-		txStatus := s.ethTransactions[hash].Status
+		txStatus := types.MonitoredTxStatus(tx.Status)
 		// Count if it is not in a final state
-		if s.ethTransactions[hash].OnMonitor &&
-			txStatus != types.MonitoredTxStatusFailed.String() &&
-			txStatus != types.MonitoredTxStatusSafe.String() &&
-			txStatus != types.MonitoredTxStatusFinalized.String() {
+		if tx.OnMonitor &&
+			txStatus != types.MonitoredTxStatusFailed &&
+			txStatus != types.MonitoredTxStatusSafe &&
+			txStatus != types.MonitoredTxStatusFinalized {
 			txPending++
 		}
 	}
@@ -193,6 +195,7 @@ func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) {
 	err := s.saveSentSequencesTransactions(ctx)
 	if err != nil {
 		log.Errorf("error saving tx sequence, error: %v", err)
+		return 0, err
 	}
 
 	log.Infof("%d tx results synchronized (%d in pending state)", txSync, txPending)
@@ -387,4 +390,9 @@ func (s *SequenceSender) saveSentSequencesTransactions(ctx context.Context) erro
 	}
 
 	return nil
+}
+
+// IsStopped returns true in case seqSendingStopped is set to 1, otherwise false
+func (s *SequenceSender) IsStopped() bool {
+	return atomic.LoadUint32(&s.seqSendingStopped) == 1
 }
