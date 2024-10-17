@@ -46,7 +46,7 @@ var (
 	saveConfigFlag = cli.StringFlag{
 		Name:     config.FlagSaveConfigPath,
 		Aliases:  []string{"s"},
-		Usage:    "Save final configuration file to next path (name: cdk-node-config.toml)",
+		Usage:    "Save final configuration into to the indicated path (name: cdk-node-config.toml)",
 		Required: false,
 	}
 	disableDefaultConfigVars = cli.BoolFlag{
