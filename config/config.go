@@ -122,7 +122,7 @@ var (
 )
 
 /*
-Config represents the configuration of the entire Node
+Config represents the configuration of the entire CDK Node
 The file is [TOML format]
 
 [TOML format]: https://en.wikipedia.org/wiki/TOML
