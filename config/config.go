@@ -53,7 +53,7 @@ const (
 	FlagMaxAmount = "max-amount"
 	// FlagSaveConfigPath is the flag to save the final configuration file
 	FlagSaveConfigPath = "save-config-path"
-	// FlagDisableDefaultConfigVars is the flag to force that all vars are set on config-files
+	// FlagDisableDefaultConfigVars is the flag to force all variables to be set on config-files
 	FlagDisableDefaultConfigVars = "disable-default-config-vars"
 	// FlagAllowDeprecatedFields is the flag to allow deprecated fields
 	FlagAllowDeprecatedFields = "allow-deprecated-fields"
