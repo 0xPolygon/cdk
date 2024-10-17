@@ -1,17 +1,8 @@
 package config
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"os"
-
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
-	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/state"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/urfave/cli/v2"
 )
 
 // NetworkConfig is the configuration struct for the different environments
@@ -64,109 +55,4 @@ type genesisAccountFromJSON struct {
 	Storage map[string]string `json:"storage"`
 	// Name of the contract in L1 (e.g. "PolygonZkEVMDeployer", "PolygonZkEVMBridge",...)
 	ContractName string `json:"contractName"`
-}
-
-func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
-	cfgPath := ctx.String(FlagCustomNetwork)
-
-	networkJSON, err := LoadGenesisFileAsString(cfgPath)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	config, err := LoadGenesisFromJSONString(networkJSON)
-	if err != nil {
-		panic(fmt.Errorf("failed to load genesis configuration from file. Error: %w", err))
-	}
-	cfg.NetworkConfig = config
-}
-
-// LoadGenesisFileAsString loads the genesis file as a string
-func LoadGenesisFileAsString(cfgPath string) (string, error) {
-	if cfgPath != "" {
-		f, err := os.Open(cfgPath)
-		if err != nil {
-			return "", err
-		}
-
-		defer func() {
-			err := f.Close()
-			if err != nil {
-				log.Error(err)
-			}
-		}()
-
-		b, err := io.ReadAll(f)
-		if err != nil {
-			return "", err
-		}
-
-		return string(b), nil
-	} else {
-		return "", errors.New("custom netwrork file not provided. Please use the custom-network-file flag")
-	}
-}
-
-// LoadGenesisFromJSONString loads the genesis file from JSON string
-func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
-	var cfg NetworkConfig
-
-	var cfgJSON GenesisFromJSON
-	if err := json.Unmarshal([]byte(jsonStr), &cfgJSON); err != nil {
-		return NetworkConfig{}, err
-	}
-
-	if len(cfgJSON.Genesis) == 0 {
-		return cfg, nil
-	}
-
-	cfg.L1Config = cfgJSON.L1Config
-	cfg.Genesis = state.Genesis{
-		BlockNumber: cfgJSON.GenesisBlockNum,
-		Root:        common.HexToHash(cfgJSON.Root),
-		Actions:     []*state.GenesisAction{},
-	}
-
-	for _, account := range cfgJSON.Genesis {
-		if account.Balance != "" && account.Balance != "0" {
-			action := &state.GenesisAction{
-				Address: account.Address,
-				Type:    int(LeafTypeBalance),
-				Value:   account.Balance,
-			}
-			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
-		}
-
-		if account.Nonce != "" && account.Nonce != "0" {
-			action := &state.GenesisAction{
-				Address: account.Address,
-				Type:    int(LeafTypeNonce),
-				Value:   account.Nonce,
-			}
-			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
-		}
-
-		if account.Bytecode != "" {
-			action := &state.GenesisAction{
-				Address:  account.Address,
-				Type:     int(LeafTypeCode),
-				Bytecode: account.Bytecode,
-			}
-			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
-		}
-
-		if len(account.Storage) > 0 {
-			for storageKey, storageValue := range account.Storage {
-				action := &state.GenesisAction{
-					Address:         account.Address,
-					Type:            int(LeafTypeStorage),
-					StoragePosition: storageKey,
-					Value:           storageValue,
-				}
-				cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
-			}
-		}
-	}
-
-	return cfg, nil
 }
