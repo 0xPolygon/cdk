@@ -4,7 +4,5 @@ args:
   cdk_erigon_node_image: hermeznetwork/cdk-erigon:ab3013d
   cdk_node_image: cdk
   zkevm_use_gas_token_contract: true
-  additional_services:
-    - tx_spammer
   data_availability_mode: rollup
   sequencer_type: erigon

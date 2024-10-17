@@ -7,6 +7,5 @@ args:
   zkevm_use_gas_token_contract: true
   additional_services:
     - pless_zkevm_node
-    - tx_spammer
   data_availability_mode: rollup
   sequencer_type: erigon
