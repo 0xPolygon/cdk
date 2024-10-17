@@ -343,8 +343,8 @@ GlobalExitRootManagerAddr = "{{L1Config.polygonZkEVMGlobalExitRootAddress}}"
 DBPath = "/tmp/aggsender"
 AggLayerURL = "http://zkevm-agglayer"
 SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
-CertificateSendInterval = "1m"
+BlockGetInterval = "2s"
 URLRPCL2="http://test-aggoracle-l2:8545"
-CheckSettledInterval = "5s"
+CheckSettledInterval = "2s"
 EpochSize = 10
 `

@@ -66,7 +66,7 @@ AggLayerURL = "{{.agglayer_url}}"
 #SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
 SequencerPrivateKey = {Path = "{{or .zkevm_l2_agglayer_keystore_file "/pk/sequencer.keystore"}}", Password = "{{.zkevm_l2_agglayer_keystore_password}}"}
 
-CertificateSendInterval = "1m"
+BlockGetInterval = "2s"
 URLRPCL2="{{.l2_rpc_url}}"
-CheckSettledInterval = "5s"
+CheckSettledInterval = "2s"
 EpochSize = 10

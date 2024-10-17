@@ -927,7 +927,7 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 				log:            mockLogger,
 				storage:        mockStorage,
 				aggLayerClient: mockAggLayerClient,
-				cfg:            Config{CertificateSendInterval: types.Duration{Duration: time.Second}},
+				cfg:            Config{BlockGetInterval: types.Duration{Duration: time.Second}},
 			}
 
 			ctx, cancel := context.WithCancel(context.Background())
