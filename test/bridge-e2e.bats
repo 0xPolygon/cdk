@@ -33,7 +33,7 @@ setup() {
     readonly sender_addr="$(cast wallet address --private-key $sender_private_key)"
     readonly l1_rpc_network_id=$(cast call --rpc-url $l1_rpc_url $bridge_addr 'networkID() (uint32)')
     readonly l2_rpc_network_id=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'networkID() (uint32)')
-    readonly gas_price=$(cast gas-price --rpc-url "$l2_rpc_url")
+    gas_price=$(cast gas-price --rpc-url "$l2_rpc_url")
 }
 
 @test "Run deposit" {
