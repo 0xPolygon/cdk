@@ -116,7 +116,7 @@ func (a *AggSender) Start(ctx context.Context) {
 
 // sendCertificates sends certificates to the aggLayer
 func (a *AggSender) sendCertificates(ctx context.Context) {
-	ticker := time.NewTicker(a.cfg.CertificateSendInterval.Duration)
+	ticker := time.NewTicker(a.cfg.BlockGetInterval.Duration)
 
 	for {
 		select {
@@ -450,7 +450,7 @@ func (a *AggSender) signCertificate(certificate *agglayer.Certificate) (*agglaye
 
 // checkIfCertificatesAreSettled checks if certificates are settled
 func (a *AggSender) checkIfCertificatesAreSettled(ctx context.Context) {
-	ticker := time.NewTicker(a.cfg.CertificateSendInterval.Duration)
+	ticker := time.NewTicker(a.cfg.CheckSettledInterval.Duration)
 	for {
 		select {
 		case <-ticker.C:
