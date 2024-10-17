@@ -17,7 +17,6 @@ var (
 
 // NewSQLiteDB creates a new SQLite DB
 func NewSQLiteDB(dbPath string) (*sql.DB, error) {
-	initMeddler()
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
