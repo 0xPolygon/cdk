@@ -425,6 +425,12 @@ func (a *Aggregator) handleReceivedDataStream(
 
 			switch entry.Type {
 			case datastreamer.EntryType(datastream.EntryType_ENTRY_TYPE_BATCH_START):
+				// Check currentStreamBatchRaw is empty as sanity check
+				if len(a.currentStreamBatchRaw.Blocks) > 0 {
+					a.logger.Errorf("currentStreamBatchRaw should be empty, "+
+						"but it contains %v blocks", len(a.currentStreamBatchRaw.Blocks))
+					a.resetCurrentBatchData()
+				}
 				batch := &datastream.BatchStart{}
 				err := proto.Unmarshal(entry.Data, batch)
 				if err != nil {
