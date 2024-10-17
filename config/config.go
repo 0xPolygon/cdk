@@ -122,7 +122,7 @@ var (
 )
 
 /*
-Config represents the configuration of the entire  Node
+Config represents the configuration of the entire Node
 The file is [TOML format]
 You could find some examples:
   - `config/environments/local/local.node.config.toml`: running a permisionless node
