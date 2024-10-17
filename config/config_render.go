@@ -106,7 +106,7 @@ func (c *ConfigRender) ResolveVars(fullConfigData string) (string, error) {
 	if len(unresolvedVars) > 0 {
 		return renderedTemplateWithResolverVars, fmt.Errorf("missing vars: %v. Err: %w", unresolvedVars, ErrMissingVars)
 	}
-	// If there are still vars on configfile means that there are cycles:
+	// If there are still vars on configfile it means there are cycles:
 	// Cycles are vars that depend on each other:
 	// A= {{B}} and B= {{A}}
 	// Also can be bigger cycles:
