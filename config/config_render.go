@@ -54,8 +54,7 @@ func (c *ConfigRender) Render() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("fail to merge files. Err: %w", err)
 	}
-	resolved, err := c.ResolveVars(mergedData)
-	return resolved, err
+	return c.ResolveVars(mergedData)
 }
 
 func (c *ConfigRender) Merge() (string, error) {
