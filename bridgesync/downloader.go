@@ -41,11 +41,8 @@ type EthClienter interface {
 	Client() *rpc.Client
 }
 
-func buildAppender(client EthClienter, bridge common.Address, syncFullClaims bool) (sync.LogAppenderMap, error) {
-	bridgeContractV1, err := polygonzkevmbridge.NewPolygonzkevmbridge(bridge, client)
-	if err != nil {
-		return nil, err
-	}
+func buildAppender(client EthClienter, bridge common.Address,
+	syncFullClaims, includePreEtrog bool) (sync.LogAppenderMap, error) {
 	bridgeContractV2, err := polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridge, client)
 	if err != nil {
 		return nil, err
@@ -102,30 +99,36 @@ func buildAppender(client EthClienter, bridge common.Address, syncFullClaims boo
 		return nil
 	}
 
-	appender[claimEventSignaturePreEtrog] = func(b *sync.EVMBlock, l types.Log) error {
-		claimEvent, err := bridgeContractV1.ParseClaimEvent(l)
+	if includePreEtrog {
+		bridgeContractV1, err := polygonzkevmbridge.NewPolygonzkevmbridge(bridge, client)
 		if err != nil {
-			return fmt.Errorf(
-				"error parsing log %+v using d.bridgeContractV1.ParseClaimEvent: %w",
-				l, err,
-			)
+			return nil, err
 		}
-		claim := &Claim{
-			BlockNum:           b.Num,
-			BlockPos:           uint64(l.Index),
-			GlobalIndex:        big.NewInt(int64(claimEvent.Index)),
-			OriginNetwork:      claimEvent.OriginNetwork,
-			OriginAddress:      claimEvent.OriginAddress,
-			DestinationAddress: claimEvent.DestinationAddress,
-			Amount:             claimEvent.Amount,
-		}
-		if syncFullClaims {
-			if err := setClaimCalldata(client, bridge, l.TxHash, claim); err != nil {
-				return err
+		appender[claimEventSignaturePreEtrog] = func(b *sync.EVMBlock, l types.Log) error {
+			claimEvent, err := bridgeContractV1.ParseClaimEvent(l)
+			if err != nil {
+				return fmt.Errorf(
+					"error parsing log %+v using d.bridgeContractV1.ParseClaimEvent: %w",
+					l, err,
+				)
 			}
+			claim := &Claim{
+				BlockNum:           b.Num,
+				BlockPos:           uint64(l.Index),
+				GlobalIndex:        big.NewInt(int64(claimEvent.Index)),
+				OriginNetwork:      claimEvent.OriginNetwork,
+				OriginAddress:      claimEvent.OriginAddress,
+				DestinationAddress: claimEvent.DestinationAddress,
+				Amount:             claimEvent.Amount,
+			}
+			if syncFullClaims {
+				if err := setClaimCalldata(client, bridge, l.TxHash, claim); err != nil {
+					return err
+				}
+			}
+			b.Events = append(b.Events, Event{Claim: claim})
+			return nil
 		}
-		b.Events = append(b.Events, Event{Claim: claim})
-		return nil
 	}
 
 	return appender, nil

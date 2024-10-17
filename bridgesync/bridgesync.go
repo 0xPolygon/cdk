@@ -55,6 +55,7 @@ func NewL1(
 		maxRetryAttemptsAfterError,
 		originNetwork,
 		false,
+		false,
 	)
 }
 
@@ -88,6 +89,7 @@ func NewL2(
 		maxRetryAttemptsAfterError,
 		originNetwork,
 		true,
+		false,
 	)
 }
 
@@ -106,6 +108,7 @@ func newBridgeSync(
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
 	syncFullClaims bool,
+	includePreEtrog bool,
 ) (*BridgeSync, error) {
 	processor, err := newProcessor(dbPath, l1OrL2ID)
 	if err != nil {
@@ -130,7 +133,7 @@ func newBridgeSync(
 		RetryAfterErrorPeriod:      retryAfterErrorPeriod,
 	}
 
-	appender, err := buildAppender(ethClient, bridge, syncFullClaims)
+	appender, err := buildAppender(ethClient, bridge, syncFullClaims, includePreEtrog)
 	if err != nil {
 		return nil, err
 	}

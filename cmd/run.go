@@ -541,10 +541,12 @@ func runL1InfoTreeSyncerIfNeeded(
 
 func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client {
 	if !isNeeded([]string{
-		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
-		cdkcommon.AGGORACLE, cdkcommon.RPC,
+		cdkcommon.SEQUENCE_SENDER,
+		cdkcommon.AGGREGATOR,
+		cdkcommon.AGGORACLE,
+		cdkcommon.RPC,
 		cdkcommon.AGGSENDER,
-	}, components) {
+		cdkcommon.BRIDGE_SYNC_L1}, components) {
 		return nil
 	}
 	log.Debugf("dialing L1 client at: %s", urlRPCL1)
@@ -557,7 +559,11 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 }
 
 func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client {
-	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
+	if !isNeeded([]string{
+		cdkcommon.AGGORACLE,
+		cdkcommon.RPC,
+		cdkcommon.AGGSENDER,
+		cdkcommon.BRIDGE_SYNC_L2}, components) {
 		return nil
 	}
 
@@ -578,7 +584,7 @@ func runReorgDetectorL1IfNeeded(
 ) (*reorgdetector.ReorgDetector, chan error) {
 	if !isNeeded([]string{
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
-		cdkcommon.AGGORACLE, cdkcommon.RPC},
+		cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.BRIDGE_SYNC_L1},
 		components) {
 		return nil, nil
 	}
@@ -601,7 +607,9 @@ func runReorgDetectorL2IfNeeded(
 	l2Client *ethclient.Client,
 	cfg *reorgdetector.Config,
 ) (*reorgdetector.ReorgDetector, chan error) {
-	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
+	if !isNeeded([]string{
+		cdkcommon.AGGORACLE, cdkcommon.RPC,
+		cdkcommon.AGGSENDER, cdkcommon.BRIDGE_SYNC_L2}, components) {
 		return nil, nil
 	}
 	rd := newReorgDetector(cfg, l2Client)
@@ -696,7 +704,7 @@ func runBridgeSyncL1IfNeeded(
 	reorgDetectorL1 *reorgdetector.ReorgDetector,
 	l1Client *ethclient.Client,
 ) *bridgesync.BridgeSync {
-	if !isNeeded([]string{cdkcommon.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.RPC, cdkcommon.BRIDGE_SYNC_L1}, components) {
 		return nil
 	}
 	bridgeSyncL1, err := bridgesync.NewL1(
@@ -728,7 +736,7 @@ func runBridgeSyncL2IfNeeded(
 	reorgDetectorL2 *reorgdetector.ReorgDetector,
 	l2Client *ethclient.Client,
 ) *bridgesync.BridgeSync {
-	if !isNeeded([]string{cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
+	if !isNeeded([]string{cdkcommon.RPC, cdkcommon.AGGSENDER, cdkcommon.BRIDGE_SYNC_L2}, components) {
 		return nil
 	}
 	bridgeSyncL2, err := bridgesync.NewL2(
