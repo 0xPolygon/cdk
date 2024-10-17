@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # Error code reference https://hackmd.io/WwahVBZERJKdfK3BbKxzQQ
 function deposit() {
-    readonly deposit_sig='bridgeAsset(uint32,address,uint256,address,bool,bytes)'
-
     if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
         echo "The ETH balance for sender "$sender_addr":" >&3
         cast balance -e --rpc-url $l1_rpc_url $sender_addr >&3
@@ -15,17 +13,18 @@ function deposit() {
     echo "Attempting to deposit $amount [wei] to $destination_addr, token $token_addr (sender=$sender_addr, network id=$destination_net, rpc url=$l1_rpc_url)" >&3
 
     if [[ $dry_run == "true" ]]; then
-        cast calldata $deposit_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
+        cast calldata $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
     else
         if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
-            cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $l1_rpc_url $bridge_addr $deposit_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
+            cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $l1_rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         else
-            cast send --legacy --private-key $sender_private_key --rpc-url $l1_rpc_url $bridge_addr $deposit_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
+            cast send --legacy --private-key $sender_private_key --rpc-url $l1_rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         fi
     fi
 }
 
 function claim() {
+    local destination_rpc_url="$1"
     readonly claim_sig="claimAsset(bytes32[32],bytes32[32],uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)"
     readonly bridge_deposit_file=$(mktemp)
     readonly claimable_deposit_file=$(mktemp)
@@ -68,9 +67,9 @@ function claim() {
 
         if [[ $dry_run == "true" ]]; then
             cast calldata $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
-            cast call --rpc-url $l2_rpc_url $bridge_addr $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
+            cast call --rpc-url $destination_rpc_url $bridge_addr $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
         else
-            cast send --legacy --rpc-url $l2_rpc_url --private-key $sender_private_key $bridge_addr $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
+            cast send --legacy --rpc-url $destination_rpc_url --private-key $sender_private_key $bridge_addr $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
         fi
 
     done < <(seq 0 $((claimable_count - 1)))
@@ -79,6 +78,7 @@ function claim() {
 function wait_for_claim() {
     local timeout="$1"         # timeout (in seconds)
     local claim_frequency="$2" # claim frequency (in seconds)
+    local destination_rpc_url="$3" # destination rpc url
     local start_time=$(date +%s)
     local end_time=$((start_time + timeout))
 
@@ -89,11 +89,37 @@ function wait_for_claim() {
             exit 1
         fi
 
-        run claim
+        run claim $destination_rpc_url
         if [ $status -eq 0 ]; then
             break
         fi
 
         sleep "$claim_frequency"
     done
+}
+
+function withdrawal() {
+    if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
+        echo "The ETH balance for sender "$sender_addr":" >&3
+        cast balance -e --rpc-url $l2_rpc_url $sender_addr >&3
+
+        echo "The ETH balance for receiver "$destination_addr ":" >&3
+        cast balance -e --rpc-url $l1_rpc_url $destination_addr >&3
+    else
+        echo "The "$token_addr" token balance for sender "$sender_addr":" >&3
+        balance_wei=$(cast call --rpc-url "$l2_rpc_url" "$token_addr" "$balance_of_fn_sig" "$sender_addr")
+        echo "$(cast --from-wei "$balance_wei")" >&3
+    fi
+
+    echo "Attempting to withdraw $amount [wei] to $destination_addr, token $token_addr (sender=$sender_addr, network id=$l1_rpc_network_id, rpc url=$l2_rpc_url)" >&3
+
+    if [[ $dry_run == "true" ]]; then
+        cast calldata $bridge_sig $l1_rpc_network_id $destination_addr $amount $token_addr $is_forced $meta_bytes
+    else
+        if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
+            cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $l2_rpc_url $bridge_addr $bridge_sig $l1_rpc_network_id $destination_addr $amount $token_addr $is_forced $meta_bytes
+        else
+            cast send --legacy --private-key $sender_private_key --rpc-url $l2_rpc_url $bridge_addr $bridge_sig $destination_net $l1_rpc_network_id $amount $token_addr $is_forced $meta_bytes
+        fi
+    fi
 }
