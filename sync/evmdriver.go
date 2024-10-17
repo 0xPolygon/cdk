@@ -71,6 +71,7 @@ reset:
 		attempts           int
 		err                error
 	)
+
 	for {
 		lastProcessedBlock, err = d.processor.GetLastProcessedBlock(ctx)
 		if err != nil {
@@ -84,18 +85,23 @@ reset:
 	cancellableCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	log.Info("Starting sync...", " lastProcessedBlock", lastProcessedBlock)
 	// start downloading
 	downloadCh := make(chan EVMBlock, d.downloadBufferSize)
-	go d.downloader.Download(cancellableCtx, lastProcessedBlock, downloadCh)
+	go d.downloader.Download(cancellableCtx, lastProcessedBlock+1, downloadCh)
 
 	for {
 		select {
+		case <-ctx.Done():
+			d.log.Info("sync stopped due to context done")
+			cancel()
+			return
 		case b := <-downloadCh:
-			d.log.Debug("handleNewBlock")
+			d.log.Debug("handleNewBlock", " blockNum: ", b.Num, " blockHash: ", b.Hash)
 			d.handleNewBlock(ctx, b)
 		case firstReorgedBlock := <-d.reorgSub.ReorgedBlock:
-			d.log.Debug("handleReorg")
-			d.handleReorg(ctx, cancel, downloadCh, firstReorgedBlock)
+			d.log.Debug("handleReorg from block: ", firstReorgedBlock)
+			d.handleReorg(ctx, cancel, firstReorgedBlock)
 			goto reset
 		}
 	}
@@ -130,15 +136,10 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
 	}
 }
 
-func (d *EVMDriver) handleReorg(
-	ctx context.Context, cancel context.CancelFunc, downloadCh chan EVMBlock, firstReorgedBlock uint64,
-) {
+func (d *EVMDriver) handleReorg(ctx context.Context, cancel context.CancelFunc, firstReorgedBlock uint64) {
 	// stop downloader
 	cancel()
-	_, ok := <-downloadCh
-	for ok {
-		_, ok = <-downloadCh
-	}
+
 	// handle reorg
 	attempts := 0
 	for {

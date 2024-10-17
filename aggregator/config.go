@@ -10,7 +10,7 @@ import (
 	"github.com/0xPolygon/cdk/aggregator/db"
 	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	syncronizerConfig "github.com/0xPolygonHermez/zkevm-synchronizer-l1/config"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 )
@@ -152,8 +152,8 @@ type Config struct {
 	// MaxWitnessRetrievalWorkers is the maximum number of workers that will be used to retrieve the witness
 	MaxWitnessRetrievalWorkers int `mapstructure:"MaxWitnessRetrievalWorkers"`
 
-	// SyncModeOnlyEnabled is a flag to enable the sync mode only
-	// In this mode the aggregator will only sync from L1 and will not generate or read the data stream
+	// SyncModeOnlyEnabled is a flag that activates sync mode exclusively.
+	// When enabled, the aggregator will sync data only from L1 and will not generate or read the data stream.
 	SyncModeOnlyEnabled bool `mapstructure:"SyncModeOnlyEnabled"`
 }
 

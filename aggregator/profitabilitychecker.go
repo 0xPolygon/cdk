@@ -18,14 +18,14 @@ const (
 
 // TxProfitabilityCheckerBase checks pol collateral with min reward
 type TxProfitabilityCheckerBase struct {
-	State                             stateInterface
+	State                             StateInterface
 	IntervalAfterWhichBatchSentAnyway time.Duration
 	MinReward                         *big.Int
 }
 
 // NewTxProfitabilityCheckerBase init base tx profitability checker
 func NewTxProfitabilityCheckerBase(
-	state stateInterface, interval time.Duration, minReward *big.Int,
+	state StateInterface, interval time.Duration, minReward *big.Int,
 ) *TxProfitabilityCheckerBase {
 	return &TxProfitabilityCheckerBase{
 		State:                             state,
@@ -50,12 +50,12 @@ func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx context.Context, polColla
 
 // TxProfitabilityCheckerAcceptAll validate batch anyway and don't check anything
 type TxProfitabilityCheckerAcceptAll struct {
-	State                             stateInterface
+	State                             StateInterface
 	IntervalAfterWhichBatchSentAnyway time.Duration
 }
 
 // NewTxProfitabilityCheckerAcceptAll init tx profitability checker that accept all txs
-func NewTxProfitabilityCheckerAcceptAll(state stateInterface, interval time.Duration) *TxProfitabilityCheckerAcceptAll {
+func NewTxProfitabilityCheckerAcceptAll(state StateInterface, interval time.Duration) *TxProfitabilityCheckerAcceptAll {
 	return &TxProfitabilityCheckerAcceptAll{
 		State:                             state,
 		IntervalAfterWhichBatchSentAnyway: interval,
@@ -77,7 +77,7 @@ func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(ctx context.Context, pol
 }
 
 // TODO: now it's impossible to check, when batch got consolidated, bcs it's not saved
-// func isConsolidatedBatchAppeared(ctx context.Context, state stateInterface,
+// func isConsolidatedBatchAppeared(ctx context.Context, state StateInterface,
 //  intervalAfterWhichBatchConsolidatedAnyway time.Duration) (bool, error) {
 //	batch, err := state.GetLastVerifiedBatch(ctx, nil)
 //	if err != nil {

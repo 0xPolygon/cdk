@@ -16,6 +16,7 @@ import (
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	cdkTypes "github.com/0xPolygon/cdk-rpc/types"
+	"github.com/0xPolygon/cdk/aggregator/agglayer"
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	cdkcommon "github.com/0xPolygon/cdk/common"
@@ -24,13 +25,15 @@ import (
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/datastream"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	ethtxlog "github.com/0xPolygon/zkevm-ethtx-manager/log"
+	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	streamlog "github.com/0xPolygonHermez/zkevm-data-streamer/log"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
-	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
 	synclog "github.com/0xPolygonHermez/zkevm-synchronizer-l1/log"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/state/entities"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer"
+	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer/l1_check_block"
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
@@ -64,10 +67,10 @@ type Aggregator struct {
 	cfg    Config
 	logger *log.Logger
 
-	state        stateInterface
-	etherman     etherman
-	ethTxManager *ethtxmanager.Client
-	streamClient *datastreamer.StreamClient
+	state        StateInterface
+	etherman     Etherman
+	ethTxManager EthTxManagerClient
+	streamClient StreamClient
 	l1Syncr      synchronizer.Synchronizer
 	halted       atomic.Bool
 
@@ -95,7 +98,7 @@ type Aggregator struct {
 	exit context.CancelFunc
 
 	sequencerPrivateKey *ecdsa.PrivateKey
-	aggLayerClient      AgglayerClientInterface
+	aggLayerClient      agglayer.AgglayerClientInterface
 }
 
 // New creates a new aggregator.
@@ -103,8 +106,8 @@ func New(
 	ctx context.Context,
 	cfg Config,
 	logger *log.Logger,
-	stateInterface stateInterface,
-	etherman etherman) (*Aggregator, error) {
+	stateInterface StateInterface,
+	etherman Etherman) (*Aggregator, error) {
 	var profitabilityChecker aggregatorTxProfitabilityChecker
 
 	switch cfg.TxProfitabilityCheckerType {
@@ -165,12 +168,12 @@ func New(
 	}
 
 	var (
-		aggLayerClient      AgglayerClientInterface
+		aggLayerClient      agglayer.AgglayerClientInterface
 		sequencerPrivateKey *ecdsa.PrivateKey
 	)
 
 	if !cfg.SyncModeOnlyEnabled && cfg.SettlementBackend == AggLayer {
-		aggLayerClient = NewAggLayerClient(cfg.AggLayerURL)
+		aggLayerClient = agglayer.NewAggLayerClient(cfg.AggLayerURL)
 
 		sequencerPrivateKey, err = newKeyFromKeystore(cfg.SequencerPrivateKey)
 		if err != nil {
@@ -422,6 +425,12 @@ func (a *Aggregator) handleReceivedDataStream(
 
 			switch entry.Type {
 			case datastreamer.EntryType(datastream.EntryType_ENTRY_TYPE_BATCH_START):
+				// Check currentStreamBatchRaw is empty as sanity check
+				if len(a.currentStreamBatchRaw.Blocks) > 0 {
+					a.logger.Errorf("currentStreamBatchRaw should be empty, "+
+						"but it contains %v blocks", len(a.currentStreamBatchRaw.Blocks))
+					a.resetCurrentBatchData()
+				}
 				batch := &datastream.BatchStart{}
 				err := proto.Unmarshal(entry.Data, batch)
 				if err != nil {
@@ -919,10 +928,11 @@ func (a *Aggregator) settleWithAggLayer(
 	inputs ethmanTypes.FinalProofInputs) bool {
 	proofStrNo0x := strings.TrimPrefix(inputs.FinalProof.Proof, "0x")
 	proofBytes := common.Hex2Bytes(proofStrNo0x)
-	tx := Tx{
+
+	tx := agglayer.Tx{
 		LastVerifiedBatch: cdkTypes.ArgUint64(proof.BatchNumber - 1),
 		NewVerifiedBatch:  cdkTypes.ArgUint64(proof.BatchNumberFinal),
-		ZKP: ZKP{
+		ZKP: agglayer.ZKP{
 			NewStateRoot:     common.BytesToHash(inputs.NewStateRoot),
 			NewLocalExitRoot: common.BytesToHash(inputs.NewLocalExitRoot),
 			Proof:            cdkTypes.ArgBytes(proofBytes),
@@ -941,9 +951,12 @@ func (a *Aggregator) settleWithAggLayer(
 	a.logger.Debug("final proof signedTx: ", signedTx.Tx.ZKP.Proof.Hex())
 	txHash, err := a.aggLayerClient.SendTx(*signedTx)
 	if err != nil {
-		a.logger.Errorf("failed to send tx to the agglayer: %v", err)
+		if errors.Is(err, agglayer.ErrAgglayerRateLimitExceeded) {
+			a.logger.Errorf("%s. Config param VerifyProofInterval should match the agglayer configured rate limit.", err)
+		} else {
+			a.logger.Errorf("failed to send tx to the agglayer: %v", err)
+		}
 		a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
-
 		return false
 	}
 
@@ -978,7 +991,7 @@ func (a *Aggregator) settleDirect(
 		return false
 	}
 
-	monitoredTxID, err := a.ethTxManager.Add(ctx, to, nil, big.NewInt(0), data, a.cfg.GasOffset, nil)
+	monitoredTxID, err := a.ethTxManager.Add(ctx, to, big.NewInt(0), data, a.cfg.GasOffset, nil)
 	if err != nil {
 		a.logger.Errorf("Error Adding TX to ethTxManager: %v", err)
 		mTxLogger := ethtxmanager.CreateLogger(monitoredTxID, sender, to)
@@ -989,8 +1002,8 @@ func (a *Aggregator) settleDirect(
 	}
 
 	// process monitored batch verifications before starting a next cycle
-	a.ethTxManager.ProcessPendingMonitoredTxs(ctx, func(result ethtxmanager.MonitoredTxResult) {
-		a.handleMonitoredTxResult(result)
+	a.ethTxManager.ProcessPendingMonitoredTxs(ctx, func(result ethtxtypes.MonitoredTxResult) {
+		a.handleMonitoredTxResult(result, proof.BatchNumber, proof.BatchNumberFinal)
 	})
 
 	return true
@@ -1011,7 +1024,7 @@ func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx context.Cont
 
 // buildFinalProof builds and return the final proof for an aggregated/batch proof.
 func (a *Aggregator) buildFinalProof(
-	ctx context.Context, prover proverInterface, proof *state.Proof) (*prover.FinalProof, error) {
+	ctx context.Context, prover ProverInterface, proof *state.Proof) (*prover.FinalProof, error) {
 	tmpLogger := a.logger.WithFields(
 		"prover", prover.Name(),
 		"proverId", prover.ID(),
@@ -1057,7 +1070,7 @@ func (a *Aggregator) buildFinalProof(
 // build the final proof.  If no proof is provided it looks for a previously
 // generated proof.  If the proof is eligible, then the final proof generation
 // is triggered.
-func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (bool, error) {
+func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover ProverInterface, proof *state.Proof) (bool, error) {
 	proverName := prover.Name()
 	proverID := prover.ID()
 
@@ -1243,7 +1256,7 @@ func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.
 }
 
 func (a *Aggregator) getAndLockProofsToAggregate(
-	ctx context.Context, prover proverInterface) (*state.Proof, *state.Proof, error) {
+	ctx context.Context, prover ProverInterface) (*state.Proof, *state.Proof, error) {
 	tmpLogger := a.logger.WithFields(
 		"prover", prover.Name(),
 		"proverId", prover.ID(),
@@ -1291,7 +1304,7 @@ func (a *Aggregator) getAndLockProofsToAggregate(
 	return proof1, proof2, nil
 }
 
-func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterface) (bool, error) {
+func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover ProverInterface) (bool, error) {
 	proverName := prover.Name()
 	proverID := prover.ID()
 
@@ -1456,7 +1469,7 @@ func (a *Aggregator) getVerifiedBatchAccInputHash(ctx context.Context, batchNumb
 }
 
 func (a *Aggregator) getAndLockBatchToProve(
-	ctx context.Context, prover proverInterface,
+	ctx context.Context, prover ProverInterface,
 ) (*state.Batch, []byte, *state.Proof, error) {
 	proverID := prover.ID()
 	proverName := prover.Name()
@@ -1572,7 +1585,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	return &dbBatch.Batch, dbBatch.Witness, proof, nil
 }
 
-func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover proverInterface) (bool, error) {
+func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInterface) (bool, error) {
 	tmpLogger := a.logger.WithFields(
 		"prover", prover.Name(),
 		"proverId", prover.ID(),
@@ -1875,13 +1888,7 @@ func (a *Aggregator) getWitness(batchNumber uint64, url string, fullWitness bool
 		return nil, err
 	}
 
-	witnessString := strings.TrimLeft(witness, "0x")
-	if len(witnessString)%2 != 0 {
-		witnessString = "0" + witnessString
-	}
-	bytes := common.Hex2Bytes(witnessString)
-
-	return bytes, nil
+	return common.FromHex(witness), nil
 }
 
 func printInputProver(logger *log.Logger, inputProver *prover.StatelessInputProver) {
@@ -1934,57 +1941,39 @@ func (hc *healthChecker) Watch(req *grpchealth.HealthCheckRequest, server grpche
 	})
 }
 
-func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResult) {
+func (a *Aggregator) handleMonitoredTxResult(result ethtxtypes.MonitoredTxResult, firstBatch, lastBatch uint64) {
 	mTxResultLogger := ethtxmanager.CreateMonitoredTxResultLogger(result)
-	if result.Status == ethtxmanager.MonitoredTxStatusFailed {
+	if result.Status == ethtxtypes.MonitoredTxStatusFailed {
 		mTxResultLogger.Fatal("failed to send batch verification, TODO: review this fatal and define what to do in this case")
 	}
 
-	// TODO: REVIEW THIS
+	// Wait for the transaction to be finalized, then we can safely delete all recursive
+	// proofs up to the last batch in this proof
 
-	/*
-	   // monitoredIDFormat: "proof-from-%v-to-%v"
-	   idSlice := strings.Split(result.ID, "-")
-	   proofBatchNumberStr := idSlice[2]
-	   proofBatchNumber, err := strconv.ParseUint(proofBatchNumberStr, encoding.Base10, 0)
+	finaLizedBlockNumber, err := l1_check_block.L1FinalizedFetch.BlockNumber(a.ctx, a.etherman)
+	if err != nil {
+		mTxResultLogger.Errorf("failed to get finalized block number: %v", err)
+	}
 
-	   	if err != nil {
-	   		mTxResultLogger.Errorf("failed to read final proof batch number from monitored tx: %v", err)
-	   	}
+	for result.MinedAtBlockNumber.Uint64() > finaLizedBlockNumber {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-time.After(a.cfg.RetryTime.Duration):
+			finaLizedBlockNumber, err = l1_check_block.L1FinalizedFetch.BlockNumber(a.ctx, a.etherman)
+			if err != nil {
+				mTxResultLogger.Errorf("failed to get finalized block number: %v", err)
+			}
+		}
+	}
 
-	   proofBatchNumberFinalStr := idSlice[4]
-	   proofBatchNumberFinal, err := strconv.ParseUint(proofBatchNumberFinalStr, encoding.Base10, 0)
+	err = a.state.DeleteGeneratedProofs(a.ctx, firstBatch, lastBatch, nil)
+	if err != nil {
+		mTxResultLogger.Errorf("failed to delete generated proofs from %d to %d: %v", firstBatch, lastBatch, err)
+	}
 
-	   	if err != nil {
-	   		mTxResultLogger.Errorf("failed to read final proof batch number final from monitored tx: %v", err)
-	   	}
-
-	   log := log.WithFields("txId", result.ID, "batches", fmt.Sprintf("%d-%d", proofBatchNumber, proofBatchNumberFinal))
-	   log.Info("Final proof verified")
-
-	   // wait for the synchronizer to catch up the verified batches
-	   log.Debug("A final proof has been sent, waiting for the network to be synced")
-
-	   	for !a.isSynced(a.ctx, &proofBatchNumberFinal) {
-	   		log.Info("Waiting for synchronizer to sync...")
-	   		time.Sleep(a.cfg.RetryTime.Duration)
-	   	}
-
-	   // network is synced with the final proof, we can safely delete all recursive
-	   // proofs up to the last synced batch
-	   err = a.State.CleanupGeneratedProofs(a.ctx, proofBatchNumberFinal, nil)
-
-	   	if err != nil {
-	   		log.Errorf("Failed to store proof aggregation result: %v", err)
-	   	}
-	*/
+	mTxResultLogger.Debugf("deleted generated proofs from %d to %d", firstBatch, lastBatch)
 }
-
-/*
-func buildMonitoredTxID(batchNumber, batchNumberFinal uint64) string {
-	return fmt.Sprintf(monitoredIDFormat, batchNumber, batchNumberFinal)
-}
-*/
 
 func (a *Aggregator) cleanupLockedProofs() {
 	for {

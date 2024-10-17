@@ -23,7 +23,7 @@ fn main() {
 
     // Call the make command
     let output = Command::new("make")
-        .arg("build") // Create a new make command
+        .arg("build-go") // Create a new make command
         .current_dir(build_path) // Set the current directory for the command
         .output() // Execute the command and capture the output
         .expect("Failed to execute make command");

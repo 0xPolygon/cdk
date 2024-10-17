@@ -25,7 +25,6 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/etherman/contracts"
-	"github.com/0xPolygon/cdk/l1bridge2infoindexsync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/log"
@@ -36,10 +35,10 @@ import (
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/pgstatestorage"
 	"github.com/0xPolygon/cdk/translator"
-	ethtxman "github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman/etherscan"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
-	ethtxlog "github.com/0xPolygonHermez/zkevm-ethtx-manager/log"
+	ethtxman "github.com/0xPolygon/zkevm-ethtx-manager/etherman"
+	"github.com/0xPolygon/zkevm-ethtx-manager/etherman/etherscan"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	ethtxlog "github.com/0xPolygon/zkevm-ethtx-manager/log"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
@@ -81,10 +80,6 @@ func start(cliCtx *cli.Context) error {
 	claimSponsor := runClaimSponsorIfNeeded(cliCtx.Context, components, l2Client, c.ClaimSponsor)
 	l1BridgeSync := runBridgeSyncL1IfNeeded(cliCtx.Context, components, c.BridgeL1Sync, reorgDetectorL1, l1Client)
 	l2BridgeSync := runBridgeSyncL2IfNeeded(cliCtx.Context, components, c.BridgeL2Sync, reorgDetectorL2, l2Client)
-	l1Bridge2InfoIndexSync := runL1Bridge2InfoIndexSyncIfNeeded(
-		cliCtx.Context, components, c.L1Bridge2InfoIndexSync,
-		l1BridgeSync, l1InfoTreeSync, l1Client,
-	)
 	lastGERSync := runLastGERSyncIfNeeded(
 		cliCtx.Context, components, c.LastGERSync, reorgDetectorL2, l2Client, l1InfoTreeSync,
 	)
@@ -115,7 +110,6 @@ func start(cliCtx *cli.Context) error {
 				c.Common.NetworkID,
 				claimSponsor,
 				l1InfoTreeSync,
-				l1Bridge2InfoIndexSync,
 				lastGERSync,
 				l1BridgeSync,
 				l2BridgeSync,
@@ -185,6 +179,12 @@ func createSequenceSender(
 	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
 ) *sequencesender.SequenceSender {
 	logger := log.WithFields("module", cdkcommon.SEQUENCE_SENDER)
+
+	// Check config
+	if cfg.SequenceSender.RPCURL == "" {
+		logger.Fatal("Required field RPCURL is empty in sequence sender config")
+	}
+
 	ethman, err := etherman.NewClient(ethermanconfig.Config{
 		EthermanConfig: ethtxman.Config{
 			URL:              cfg.SequenceSender.EthTxManager.Etherman.URL,
@@ -206,9 +206,9 @@ func createSequenceSender(
 		logger.Fatal(err)
 	}
 	cfg.SequenceSender.SenderAddress = auth.From
-	blockFialityType := etherman.BlockNumberFinality(cfg.SequenceSender.BlockFinality)
+	blockFinalityType := etherman.BlockNumberFinality(cfg.SequenceSender.BlockFinality)
 
-	blockFinality, err := blockFialityType.ToBlockNum()
+	blockFinality, err := blockFinalityType.ToBlockNum()
 	if err != nil {
 		logger.Fatalf("Failed to create block finality. Err: %w, ", err)
 	}
@@ -498,6 +498,7 @@ func runL1InfoTreeSyncerIfNeeded(
 		cfg.L1InfoTreeSync.InitialBlock,
 		cfg.L1InfoTreeSync.RetryAfterErrorPeriod.Duration,
 		cfg.L1InfoTreeSync.MaxRetryAttemptsAfterError,
+		l1infotreesync.FlagNone,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -517,7 +518,7 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 	log.Debugf("dialing L1 client at: %s", urlRPCL1)
 	l1CLient, err := ethclient.Dial(urlRPCL1)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to create client for L1 using URL: %s. Err:%v", urlRPCL1, err)
 	}
 
 	return l1CLient
@@ -623,34 +624,6 @@ func runClaimSponsorIfNeeded(
 	return cs
 }
 
-func runL1Bridge2InfoIndexSyncIfNeeded(
-	ctx context.Context,
-	components []string,
-	cfg l1bridge2infoindexsync.Config,
-	l1BridgeSync *bridgesync.BridgeSync,
-	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
-	l1Client *ethclient.Client,
-) *l1bridge2infoindexsync.L1Bridge2InfoIndexSync {
-	if !isNeeded([]string{cdkcommon.RPC}, components) {
-		return nil
-	}
-	l1Bridge2InfoIndexSync, err := l1bridge2infoindexsync.New(
-		cfg.DBPath,
-		l1BridgeSync,
-		l1InfoTreeSync,
-		l1Client,
-		cfg.RetryAfterErrorPeriod.Duration,
-		cfg.MaxRetryAttemptsAfterError,
-		cfg.WaitForSyncersPeriod.Duration,
-	)
-	if err != nil {
-		log.Fatalf("error creating l1Bridge2InfoIndexSync: %s", err)
-	}
-	go l1Bridge2InfoIndexSync.Start(ctx)
-
-	return l1Bridge2InfoIndexSync
-}
-
 func runLastGERSyncIfNeeded(
 	ctx context.Context,
 	components []string,
@@ -751,7 +724,6 @@ func createRPC(
 	cdkNetworkID uint32,
 	sponsor *claimsponsor.ClaimSponsor,
 	l1InfoTree *l1infotreesync.L1InfoTreeSync,
-	l1Bridge2Index *l1bridge2infoindexsync.L1Bridge2InfoIndexSync,
 	injectedGERs *lastgersync.LastGERSync,
 	bridgeL1 *bridgesync.BridgeSync,
 	bridgeL2 *bridgesync.BridgeSync,
@@ -767,7 +739,6 @@ func createRPC(
 				cdkNetworkID,
 				sponsor,
 				l1InfoTree,
-				l1Bridge2Index,
 				injectedGERs,
 				bridgeL1,
 				bridgeL2,
