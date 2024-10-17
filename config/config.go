@@ -71,7 +71,7 @@ const (
 )
 
 type DeprecatedFieldsError struct {
-	// key is the rules and the value is the fields name that matches the rule
+	// key is the rule and the value is the field's name that matches the rule
 	Fields map[DeprecatedField][]string
 }
 
