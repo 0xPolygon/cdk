@@ -71,17 +71,14 @@ function claim() {
             cast calldata $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
             cast call --rpc-url $l2_rpc_url $bridge_addr $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
         else
-            local comp_gas_price=$(bc -l <<< "$gas_price * $gas_price_factor" | sed 's/\..*//')
+            local comp_gas_price=$(bc -l <<< "$gas_price * 1.5" | sed 's/\..*//')
             if [[ $? -ne 0 ]]; then
                 echo "Failed to calculate gas price" >&3
                 exit 1
             fi
             
             echo "cast send --legacy --gas-price $comp_gas_price --rpc-url $l2_rpc_url --private-key $sender_private_key $bridge_addr \"$claim_sig\" \"$in_merkle_proof\" \"$in_rollup_merkle_proof\" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata" >&3
-            cast send --legacy --gas_price $comp_gas_price --rpc-url $l2_rpc_url --private-key $sender_private_key $bridge_addr "$claim_sig" "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
-            if [[ $? -ne 0 ]]; then
-                gas_price_factor=$(bc -l <<< "$gas_price_factor * 1.5")
-            fi
+            cast send --legacy --gas-price $comp_gas_price --rpc-url $l2_rpc_url --private-key $sender_private_key $bridge_addr "$claim_sig" "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
         fi
 
     done < <(seq 0 $((claimable_count - 1)))
