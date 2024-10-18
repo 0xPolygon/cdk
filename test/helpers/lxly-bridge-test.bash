@@ -44,6 +44,7 @@ function claim() {
     echo "We have $claimable_count claimable deposits on network $destination_net. Let's get this party started." >&3
     readonly current_deposit=$(mktemp)
     readonly current_proof=$(mktemp)
+    local gas_price_factor=1
     while read deposit_idx; do
         echo "Starting claim for tx index: "$deposit_idx >&3
         echo "Deposit info:" >&3
@@ -69,7 +70,14 @@ function claim() {
             cast calldata $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
             cast call --rpc-url $destination_rpc_url $bridge_addr $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
         else
-            cast send --legacy --rpc-url $destination_rpc_url --private-key $sender_private_key $bridge_addr $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
+            local comp_gas_price=$(bc -l <<< "$gas_price * 1.5" | sed 's/\..*//')
+            if [[ $? -ne 0 ]]; then
+                echo "Failed to calculate gas price" >&3
+                exit 1
+            fi
+            
+            echo "cast send --legacy --gas-price $comp_gas_price --rpc-url $destination_rpc_url --private-key $sender_private_key $bridge_addr \"$claim_sig\" \"$in_merkle_proof\" \"$in_rollup_merkle_proof\" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata" >&3
+            cast send --legacy --gas-price $comp_gas_price --rpc-url $destination_rpc_url --private-key $sender_private_key $bridge_addr "$claim_sig" "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
         fi
 
     done < <(seq 0 $((claimable_count - 1)))

@@ -33,8 +33,15 @@ function deploy_contract() {
     fi
 
     # Send the transaction and capture the output
+    gas_price=$(cast gas-price --rpc-url "$rpc_url")
+    local comp_gas_price=$(bc -l <<< "$gas_price * 1.5" | sed 's/\..*//')
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to calculate gas price" >&3
+        exit 1
+    fi
     local cast_output=$(cast send --rpc-url "$rpc_url" \
         --private-key "$private_key" \
+        --gas-price $comp_gas_price \
         --legacy \
         --create "$bytecode" \
         2>&1)
@@ -126,7 +133,14 @@ function send_eoa_transaction() {
 
     # Send transaction via cast
     local cast_output tx_hash
-    cast_output=$(cast send --rpc-url "$rpc_url" --private-key "$private_key" "$receiver_addr" --value "$value" --legacy 2>&1)
+    gas_price=$(cast gas-price --rpc-url "$rpc_url")
+    local comp_gas_price=$(bc -l <<< "$gas_price * 1.5" | sed 's/\..*//')
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to calculate gas price" >&3
+        exit 1
+    fi
+    echo "cast send --gas-price $comp_gas_price --rpc-url $rpc_url --private-key $private_key $receiver_addr --value $value --legacy" >&3
+    cast_output=$(cast send --gas-price $comp_gas_price --rpc-url "$rpc_url" --private-key "$private_key" "$receiver_addr" --value "$value" --legacy 2>&1)
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to send transaction. Output:"
         echo "$cast_output"
@@ -159,7 +173,13 @@ function send_smart_contract_transaction() {
 
     # Send the smart contract interaction using cast
     local cast_output tx_hash
-    cast_output=$(cast send "$receiver_addr" --rpc-url "$rpc_url" --private-key "$private_key" --legacy "$function_sig" "${params[@]}" 2>&1)
+    gas_price=$(cast gas-price --rpc-url "$rpc_url")
+    local comp_gas_price=$(bc -l <<< "$gas_price * 1.5" | sed 's/\..*//')
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to calculate gas price" >&3
+        exit 1
+    fi
+    cast_output=$(cast send "$receiver_addr" --rpc-url "$rpc_url" --private-key "$private_key" --gas-price $comp_gas_price --legacy "$function_sig" "${params[@]}" 2>&1)
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to send transaction. Output:"
         echo "$cast_output"

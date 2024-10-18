@@ -8,7 +8,7 @@ import (
 
 	gerContractL1 "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/globalexitrootnopush0"
 	"github.com/0xPolygon/cdk/aggoracle"
-	"github.com/0xPolygon/cdk/test/helpers"
+	"github.com/0xPolygon/cdk/test/aggoraclehelpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
@@ -16,7 +16,7 @@ import (
 )
 
 func TestEVM(t *testing.T) {
-	env := helpers.SetupAggoracleWithEVMChain(t)
+	env := aggoraclehelpers.SetupAggoracleWithEVMChain(t)
 	runTest(t, env.GERL1Contract, env.AggOracleSender, env.L1Client, env.AuthL1)
 }
 
