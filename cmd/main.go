@@ -18,10 +18,10 @@ const (
 )
 
 var (
-	configFileFlag = cli.StringFlag{
+	configFileFlag = cli.StringSliceFlag{
 		Name:     config.FlagCfg,
 		Aliases:  []string{"c"},
-		Usage:    "Configuration `FILE`",
+		Usage:    "Configuration file(s)",
 		Required: true,
 	}
 	customNetworkFlag = cli.StringFlag{
@@ -43,6 +43,24 @@ var (
 		Required: false,
 		Value:    cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR, common.AGGORACLE, common.RPC),
 	}
+	saveConfigFlag = cli.StringFlag{
+		Name:     config.FlagSaveConfigPath,
+		Aliases:  []string{"s"},
+		Usage:    "Save final configuration into to the indicated path (name: cdk-node-config.toml)",
+		Required: false,
+	}
+	disableDefaultConfigVars = cli.BoolFlag{
+		Name:     config.FlagDisableDefaultConfigVars,
+		Aliases:  []string{"d"},
+		Usage:    "Disable default configuration variables, all of them must be defined on config files",
+		Required: false,
+	}
+
+	allowDeprecatedFields = cli.BoolFlag{
+		Name:     config.FlagAllowDeprecatedFields,
+		Usage:    "Allow that config-files contains deprecated fields",
+		Required: false,
+	}
 )
 
 func main() {
@@ -53,6 +71,9 @@ func main() {
 		&configFileFlag,
 		&yesFlag,
 		&componentsFlag,
+		&saveConfigFlag,
+		&disableDefaultConfigVars,
+		&allowDeprecatedFields,
 	}
 	app.Commands = []*cli.Command{
 		{
