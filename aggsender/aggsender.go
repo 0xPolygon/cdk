@@ -145,60 +145,14 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		return nil
 	}
 
-	lastSentCertificate, err := a.storage.GetLastSentCertificate(ctx)
-	if err != nil {
-		return fmt.Errorf("error getting last sent certificate: %w", err)
-	}
-
-	a.log.Infof("last sent certificate: %s", lastSentCertificate.CertificateID)
-
-	finality := a.l2Syncer.BlockFinality()
-	blockFinality, err := finality.ToBlockNum()
-	if err != nil {
-		return fmt.Errorf("error getting block finality: %w", err)
-	}
-
-	lastL2Block, err := a.l2Client.HeaderByNumber(ctx, blockFinality)
+	lastL2Block, err := a.getLastL2Block(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting block from l2: %w", err)
 	}
 
-	var (
-		previousLocalExitRoot common.Hash
-		previousHeight        uint64
-		lastCertificateBlock  uint64
-	)
-
-	if lastSentCertificate.CertificateID != (common.Hash{}) {
-		// we have sent a certificate before, get the last certificate header
-		lastSentCertificateHeader, err := a.aggLayerClient.GetCertificateHeader(lastSentCertificate.CertificateID)
-		if err != nil {
-			return fmt.Errorf("error getting certificate %s header: %w", lastSentCertificate.CertificateID, err)
-		}
-
-		if lastSentCertificateHeader.Status == agglayer.InError {
-			// last sent certificate had errors, we need to remove it from the db
-			// and build a new certificate from that block
-			if err := a.storage.DeleteCertificate(ctx, lastSentCertificateHeader.CertificateID); err != nil {
-				return fmt.Errorf("error deleting certificate %s: %w", lastSentCertificate.CertificateID, err)
-			}
-
-			lastValidCertificate, err := a.storage.GetCertificateByHeight(ctx, lastSentCertificateHeader.Height-1)
-			if err != nil {
-				return fmt.Errorf("error getting certificate by height %d: %w", lastSentCertificateHeader.Height, err)
-			}
-
-			previousLocalExitRoot = lastValidCertificate.NewLocalExitRoot
-			previousHeight = lastValidCertificate.Height
-		} else {
-			previousLocalExitRoot = lastSentCertificateHeader.NewLocalExitRoot
-			previousHeight = lastSentCertificateHeader.Height
-		}
-
-		lastCertificateBlock, err = a.l2Syncer.GetBlockByLER(ctx, previousLocalExitRoot)
-		if err != nil {
-			return fmt.Errorf("error getting block by LER %s: %w", lastSentCertificate.CertificateID, err)
-		}
+	previousLocalExitRoot, previousHeight, lastCertificateBlock, err := a.getLastSentCertificateData(ctx)
+	if err != nil {
+		return err
 	}
 
 	if lastL2Block.Number.Uint64() <= lastCertificateBlock {
@@ -291,6 +245,73 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	}, nil
 }
 
+// getLastSentCertificateData gets the previous local exit root, previous certificate height
+// and last certificate block sent (gotten from the last sent certificate in db)
+func (a *AggSender) getLastSentCertificateData(ctx context.Context) (common.Hash, uint64, uint64, error) {
+	lastSentCertificate, err := a.storage.GetLastSentCertificate(ctx)
+	if err != nil {
+		return common.Hash{}, 0, 0, fmt.Errorf("error getting last sent certificate: %w", err)
+	}
+
+	a.log.Infof("last sent certificate: %s", lastSentCertificate.String())
+
+	var (
+		previousLocalExitRoot common.Hash
+		previousHeight        uint64
+		lastCertificateBlock  uint64
+	)
+
+	if lastSentCertificate.CertificateID != (common.Hash{}) {
+		// we have sent a certificate before, get the last certificate header
+		lastSentCertificateHeader, err := a.aggLayerClient.GetCertificateHeader(lastSentCertificate.CertificateID)
+		if err != nil {
+			return common.Hash{}, 0, 0, fmt.Errorf("error getting certificate %s header: %w",
+				lastSentCertificate.CertificateID, err)
+		}
+
+		if lastSentCertificateHeader.Status == agglayer.InError {
+			// last sent certificate had errors, we need to remove it from the db
+			// and build a new certificate from that block
+			if err := a.storage.DeleteCertificate(ctx, lastSentCertificateHeader.CertificateID); err != nil {
+				return common.Hash{}, 0, 0, fmt.Errorf("error deleting certificate %s: %w",
+					lastSentCertificate.CertificateID, err)
+			}
+
+			lastValidCertificate, err := a.storage.GetCertificateByHeight(ctx, lastSentCertificateHeader.Height-1)
+			if err != nil {
+				return common.Hash{}, 0, 0, fmt.Errorf("error getting certificate by height %d: %w",
+					lastSentCertificateHeader.Height, err)
+			}
+
+			previousLocalExitRoot = lastValidCertificate.NewLocalExitRoot
+			previousHeight = lastValidCertificate.Height
+		} else {
+			previousLocalExitRoot = lastSentCertificateHeader.NewLocalExitRoot
+			previousHeight = lastSentCertificateHeader.Height
+		}
+
+		lastCertificateBlock, err = a.l2Syncer.GetBlockByLER(ctx, previousLocalExitRoot)
+		if err != nil {
+			return common.Hash{}, 0, 0, fmt.Errorf("error getting block by LER %s: %w",
+				lastSentCertificate.CertificateID, err)
+		}
+	}
+
+	return previousLocalExitRoot, previousHeight, lastCertificateBlock, nil
+}
+
+// getLastL2Block gets the last L2 block based on the finality configured for l2 bridge syncer
+func (a *AggSender) getLastL2Block(ctx context.Context) (*types.Header, error) {
+	finality := a.l2Syncer.BlockFinality()
+	blockFinality, err := finality.ToBlockNum()
+	if err != nil {
+		return nil, fmt.Errorf("error getting block finality: %w", err)
+	}
+
+	return a.l2Client.HeaderByNumber(ctx, blockFinality)
+}
+
+// convertClaimToImportedBridgeExit converts a claim to an ImportedBridgeExit object
 func (a *AggSender) convertClaimToImportedBridgeExit(claim bridgesync.Claim) (*agglayer.ImportedBridgeExit, error) {
 	leafType := agglayer.LeafTypeAsset
 	if claim.IsMessage {
@@ -454,31 +475,38 @@ func (a *AggSender) checkIfCertificatesAreSettled(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, []agglayer.CertificateStatus{agglayer.Pending})
-			if err != nil {
-				a.log.Errorf("error getting pending certificates: %w", err)
-				continue
-			}
-
-			for _, certificate := range pendingCertificates {
-				certificateHeader, err := a.aggLayerClient.GetCertificateHeader(certificate.CertificateID)
-				if err != nil {
-					a.log.Errorf("error getting header of certificate %s with height: %d from agglayer: %w",
-						certificate.CertificateID, certificate.Height, err)
-					continue
-				}
-
-				if certificateHeader.Status == agglayer.Settled || certificateHeader.Status == agglayer.InError {
-					certificate.Status = certificateHeader.Status
-
-					if err := a.storage.UpdateCertificateStatus(ctx, *certificate); err != nil {
-						a.log.Errorf("error updating certificate status in storage: %w", err)
-						continue
-					}
-				}
-			}
+			a.checkPendingCertificatesStatus(ctx)
 		case <-ctx.Done():
 			return
+		}
+	}
+}
+
+// checkPendingCertificatesStatus checks the status of pending certificates
+// and updates in the storage if it changed on agglayer
+func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
+	pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, []agglayer.CertificateStatus{agglayer.Pending})
+	if err != nil {
+		a.log.Errorf("error getting pending certificates: %w", err)
+	}
+
+	for _, certificate := range pendingCertificates {
+		certificateHeader, err := a.aggLayerClient.GetCertificateHeader(certificate.CertificateID)
+		if err != nil {
+			a.log.Errorf("error getting header of certificate %s with height: %d from agglayer: %w",
+				certificate.CertificateID, certificate.Height, err)
+			continue
+		}
+
+		if certificateHeader.Status == agglayer.Settled || certificateHeader.Status == agglayer.InError {
+			certificate.Status = certificateHeader.Status
+
+			a.log.Infof("certificate %s changed status to %s", certificateHeader.String(), certificate.Status)
+
+			if err := a.storage.UpdateCertificateStatus(ctx, *certificate); err != nil {
+				a.log.Errorf("error updating certificate status in storage: %w", err)
+				continue
+			}
 		}
 	}
 }

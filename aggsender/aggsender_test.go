@@ -828,13 +828,14 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name                string
-		pendingCertificates []*aggsendertypes.CertificateInfo
-		certificateHeaders  map[common.Hash]*agglayer.CertificateHeader
-		getFromDBError      error
-		clientError         error
-		updateDBError       error
-		expectedLogMessages []string
+		name                     string
+		pendingCertificates      []*aggsendertypes.CertificateInfo
+		certificateHeaders       map[common.Hash]*agglayer.CertificateHeader
+		getFromDBError           error
+		clientError              error
+		updateDBError            error
+		expectedErrorLogMessages []string
+		expectedInfoMessages     []string
 	}{
 		{
 			name: "All certificates settled - update successful",
@@ -845,6 +846,9 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 			certificateHeaders: map[common.Hash]*agglayer.CertificateHeader{
 				common.HexToHash("0x1"): {Status: agglayer.Settled},
 				common.HexToHash("0x2"): {Status: agglayer.Settled},
+			},
+			expectedInfoMessages: []string{
+				"certificate %s changed status to %s",
 			},
 		},
 		{
@@ -857,11 +861,14 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 				common.HexToHash("0x1"): {Status: agglayer.InError},
 				common.HexToHash("0x2"): {Status: agglayer.Settled},
 			},
+			expectedInfoMessages: []string{
+				"certificate %s changed status to %s",
+			},
 		},
 		{
 			name:           "Error getting pending certificates",
 			getFromDBError: fmt.Errorf("storage error"),
-			expectedLogMessages: []string{
+			expectedErrorLogMessages: []string{
 				"error getting pending certificates: %w",
 			},
 		},
@@ -874,7 +881,7 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 				common.HexToHash("0x1"): {Status: agglayer.InError},
 			},
 			clientError: fmt.Errorf("client error"),
-			expectedLogMessages: []string{
+			expectedErrorLogMessages: []string{
 				"error getting header of certificate %s with height: %d from agglayer: %w",
 			},
 		},
@@ -887,8 +894,11 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 				common.HexToHash("0x1"): {Status: agglayer.Settled},
 			},
 			updateDBError: fmt.Errorf("update error"),
-			expectedLogMessages: []string{
+			expectedErrorLogMessages: []string{
 				"error updating certificate status in storage: %w",
+			},
+			expectedInfoMessages: []string{
+				"certificate %s changed status to %s",
 			},
 		},
 	}
@@ -914,12 +924,16 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 			}
 
 			if tt.clientError != nil {
-				for _, msg := range tt.expectedLogMessages {
+				for _, msg := range tt.expectedErrorLogMessages {
 					mockLogger.On("Errorf", msg, mock.Anything, mock.Anything, mock.Anything).Return()
 				}
 			} else {
-				for _, msg := range tt.expectedLogMessages {
+				for _, msg := range tt.expectedErrorLogMessages {
 					mockLogger.On("Errorf", msg, mock.Anything).Return()
+				}
+
+				for _, msg := range tt.expectedInfoMessages {
+					mockLogger.On("Infof", msg, mock.Anything, mock.Anything).Return()
 				}
 			}
 
@@ -1087,32 +1101,20 @@ func TestSendCertificate(t *testing.T) {
 		{
 			name:                   "error getting last sent certificate",
 			l1BlockNumber:          []interface{}{uint64(8), nil},
+			l2BlockFinality:        []interface{}{etherman.FinalizedBlock},
+			l2HeaderByNumber:       []interface{}{&gethTypes.Header{Number: big.NewInt(8)}, nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{}, errors.New("error getting last sent certificate")},
 			expectedError:          "error getting last sent certificate",
 		},
 		{
-			name:          "error getting block finality",
-			l1BlockNumber: []interface{}{uint64(8), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
-				Height:           1,
-				CertificateID:    common.HexToHash("0x1"),
-				NewLocalExitRoot: common.HexToHash("0x123"),
-				FromBlock:        1,
-				ToBlock:          10,
-			}, nil},
+			name:            "error getting block finality",
+			l1BlockNumber:   []interface{}{uint64(8), nil},
 			l2BlockFinality: []interface{}{etherman.BlockNumberFinality("invalid")},
 			expectedError:   "error getting block finality",
 		},
 		{
-			name:          "error getting last l2 block",
-			l1BlockNumber: []interface{}{uint64(8), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
-				Height:           1,
-				CertificateID:    common.HexToHash("0x1"),
-				NewLocalExitRoot: common.HexToHash("0x123"),
-				FromBlock:        1,
-				ToBlock:          10,
-			}, nil},
+			name:             "error getting last l2 block",
+			l1BlockNumber:    []interface{}{uint64(8), nil},
 			l2BlockFinality:  []interface{}{etherman.FinalizedBlock},
 			l2HeaderByNumber: []interface{}{nil, errors.New("error getting block")},
 			expectedError:    "error getting block from l2",

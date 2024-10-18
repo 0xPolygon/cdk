@@ -1,6 +1,7 @@
 package agglayer
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/0xPolygon/cdk/bridgesync"
@@ -174,4 +175,8 @@ type CertificateHeader struct {
 	CertificateID    common.Hash       `json:"certificate_id"`
 	NewLocalExitRoot common.Hash       `json:"new_local_exit_root"`
 	Status           CertificateStatus `json:"status"`
+}
+
+func (c CertificateHeader) String() string {
+	return fmt.Sprintf("Height: %d, CertificateID: %s", c.Height, c.CertificateID.String())
 }

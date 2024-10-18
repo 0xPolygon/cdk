@@ -16,6 +16,8 @@ import (
 	"github.com/russross/meddler"
 )
 
+const errWhileRollbackFormat = "error while rolling back tx: %w"
+
 // AggSenderStorage is the interface that defines the methods to interact with the storage
 type AggSenderStorage interface {
 	// GetCertificateByHeight returns a certificate by its height
@@ -66,7 +68,7 @@ func (a *AggSenderSQLStorage) GetCertificatesByStatus(ctx context.Context,
 
 	defer func() {
 		if err := tx.Rollback(); err != nil {
-			a.logger.Warnf("error rolling back tx: %w", err)
+			a.logger.Warnf(errWhileRollbackFormat, err)
 		}
 	}()
 
@@ -106,7 +108,7 @@ func (a *AggSenderSQLStorage) GetCertificateByHeight(ctx context.Context,
 
 	defer func() {
 		if err := tx.Rollback(); err != nil {
-			a.logger.Warnf("error rolling back tx: %w", err)
+			a.logger.Warnf(errWhileRollbackFormat, err)
 		}
 	}()
 
@@ -132,7 +134,7 @@ func (a *AggSenderSQLStorage) GetLastSentCertificate(ctx context.Context) (types
 
 	defer func() {
 		if err := tx.Rollback(); err != nil {
-			a.logger.Warnf("error rolling back tx: %w", err)
+			a.logger.Warnf(errWhileRollbackFormat, err)
 		}
 	}()
 
@@ -159,7 +161,7 @@ func (a *AggSenderSQLStorage) SaveLastSentCertificate(ctx context.Context, certi
 	defer func() {
 		if err != nil {
 			if errRllbck := tx.Rollback(); errRllbck != nil {
-				a.logger.Errorf("error while rolling back tx %w", errRllbck)
+				a.logger.Errorf(errWhileRollbackFormat, errRllbck)
 			}
 		}
 	}()
@@ -185,7 +187,7 @@ func (a *AggSenderSQLStorage) DeleteCertificate(ctx context.Context, certificate
 	defer func() {
 		if err != nil {
 			if errRllbck := tx.Rollback(); errRllbck != nil {
-				a.logger.Errorf("error while rolling back tx %w", errRllbck)
+				a.logger.Errorf(errWhileRollbackFormat, errRllbck)
 			}
 		}
 	}()
@@ -211,7 +213,7 @@ func (a *AggSenderSQLStorage) UpdateCertificateStatus(ctx context.Context, certi
 	defer func() {
 		if err != nil {
 			if errRllbck := tx.Rollback(); errRllbck != nil {
-				a.logger.Errorf("error while rolling back tx %w", errRllbck)
+				a.logger.Errorf(errWhileRollbackFormat, errRllbck)
 			}
 		}
 	}()
