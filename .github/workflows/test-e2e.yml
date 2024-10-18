@@ -70,7 +70,7 @@ jobs:
       with:
         repository: 0xPolygon/kurtosis-cdk
         path: "kurtosis-cdk"
-        ref: "v0.2.11"
+        ref: "v0.2.15"
 
     - name: Setup Bats and bats libs
       uses: bats-core/bats-action@2.0.0
@@ -81,3 +81,22 @@ jobs:
       env:
         KURTOSIS_FOLDER: ${{ github.workspace }}/kurtosis-cdk
         BATS_LIB_PATH: /usr/lib/
+    
+    - name: Dump enclave logs
+      if: failure()
+      run: kurtosis dump ./dump
+
+    - name: Generate archive name
+      if: failure()
+      run: |
+        archive_name="dump_run_with_args_${{matrix.e2e-group}}_${{ github.run_id }}"
+        echo "ARCHIVE_NAME=${archive_name}" >> "$GITHUB_ENV"
+        echo "Generated archive name: ${archive_name}"
+        kurtosis service exec cdk cdk-node-001 'cat /etc/cdk/cdk-node-config.toml' > ./dump/cdk-node-config.toml
+
+    - name: Upload logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARCHIVE_NAME }}
+        path: ./dump

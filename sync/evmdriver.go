@@ -92,6 +92,10 @@ reset:
 
 	for {
 		select {
+		case <-ctx.Done():
+			d.log.Info("sync stopped due to context done")
+			cancel()
+			return
 		case b := <-downloadCh:
 			d.log.Debug("handleNewBlock", " blockNum: ", b.Num, " blockHash: ", b.Hash)
 			d.handleNewBlock(ctx, b)

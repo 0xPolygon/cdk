@@ -33,8 +33,15 @@ function deploy_contract() {
     fi
 
     # Send the transaction and capture the output
+    gas_price=$(cast gas-price --rpc-url "$rpc_url")
+    local comp_gas_price=$(bc -l <<< "$gas_price * 1.5" | sed 's/\..*//')
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to calculate gas price" >&3
+        exit 1
+    fi
     local cast_output=$(cast send --rpc-url "$rpc_url" \
         --private-key "$private_key" \
+        --gas-price $comp_gas_price \
         --legacy \
         --create "$bytecode" \
         2>&1)
@@ -126,7 +133,14 @@ function send_eoa_transaction() {
 
     # Send transaction via cast
     local cast_output tx_hash
-    cast_output=$(cast send --rpc-url "$rpc_url" --private-key "$private_key" "$receiver_addr" --value "$value" --legacy 2>&1)
+    gas_price=$(cast gas-price --rpc-url "$rpc_url")
+    local comp_gas_price=$(bc -l <<< "$gas_price * 1.5" | sed 's/\..*//')
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to calculate gas price" >&3
+        exit 1
+    fi
+    echo "cast send --gas-price $comp_gas_price --rpc-url $rpc_url --private-key $private_key $receiver_addr --value $value --legacy" >&3
+    cast_output=$(cast send --gas-price $comp_gas_price --rpc-url "$rpc_url" --private-key "$private_key" "$receiver_addr" --value "$value" --legacy 2>&1)
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to send transaction. Output:"
         echo "$cast_output"
@@ -159,7 +173,13 @@ function send_smart_contract_transaction() {
 
     # Send the smart contract interaction using cast
     local cast_output tx_hash
-    cast_output=$(cast send "$receiver_addr" --rpc-url "$rpc_url" --private-key "$private_key" --legacy "$function_sig" "${params[@]}" 2>&1)
+    gas_price=$(cast gas-price --rpc-url "$rpc_url")
+    local comp_gas_price=$(bc -l <<< "$gas_price * 1.5" | sed 's/\..*//')
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to calculate gas price" >&3
+        exit 1
+    fi
+    cast_output=$(cast send "$receiver_addr" --rpc-url "$rpc_url" --private-key "$private_key" --gas-price $comp_gas_price --legacy "$function_sig" "${params[@]}" 2>&1)
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to send transaction. Output:"
         echo "$cast_output"
@@ -274,21 +294,24 @@ function check_balances() {
     fi
 }
 
-function verify_native_token_balance() {
-    local rpc_url="$1"         # RPC URL
-    local account="$2"         # account address
-    local initial_balance="$3" # initial balance in Ether (decimal)
-    local ether_amount="$4"    # amount to be added (in Ether, decimal)
-
-    # Convert initial balance and amount to wei (no decimals)
-    local initial_balance_wei=$(cast --to-wei "$initial_balance")
+function verify_balance() {
+    local rpc_url="$1"             # RPC URL
+    local token_addr="$2"      # gas token contract address
+    local account="$3"             # account address
+    local initial_balance_wei="$4" # initial balance in Wei (decimal)
+    local ether_amount="$5"        # amount to be added (in Ether, decimal)
 
     # Trim 'ether' from ether_amount if it exists
     ether_amount=$(echo "$ether_amount" | sed 's/ether//')
     local amount_wei=$(cast --to-wei "$ether_amount")
     
     # Get final balance in wei (after the operation)
-    local final_balance_wei=$(cast balance "$account" --rpc-url "$rpc_url" | awk '{print $1}')
+    local final_balance_wei
+    if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
+        final_balance_wei=$(cast balance "$account" --rpc-url "$rpc_url" | awk '{print $1}')
+    else
+        final_balance_wei=$(cast call --rpc-url "$rpc_url" "$token_addr" "$balance_of_fn_sig" "$destination_addr" | awk '{print $1}')
+    fi
     echo "Final balance of $account in $rpc_url: $final_balance_wei wei" >&3
 
     # Calculate expected final balance (initial_balance + amount)

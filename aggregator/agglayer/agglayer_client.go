@@ -1,4 +1,4 @@
-package aggregator
+package agglayer
 
 import (
 	"context"
@@ -12,6 +12,10 @@ import (
 	"github.com/0xPolygon/cdk-rpc/types"
 	"github.com/ethereum/go-ethereum/common"
 )
+
+const errCodeAgglayerRateLimitExceeded int = -10007
+
+var ErrAgglayerRateLimitExceeded = fmt.Errorf("agglayer rate limit exceeded")
 
 // AgglayerClientInterface is the interface that defines the methods that the AggLayerClient will implement
 type AgglayerClientInterface interface {
@@ -39,6 +43,9 @@ func (c *AggLayerClient) SendTx(signedTx SignedTx) (common.Hash, error) {
 	}
 
 	if response.Error != nil {
+		if response.Error.Code == errCodeAgglayerRateLimitExceeded {
+			return common.Hash{}, ErrAgglayerRateLimitExceeded
+		}
 		return common.Hash{}, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
 	}
 

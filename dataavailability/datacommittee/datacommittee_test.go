@@ -9,9 +9,9 @@ import (
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygondatacommittee"
 	"github.com/0xPolygon/cdk/log"
 	erc1967proxy "github.com/0xPolygon/cdk/test/contracts/erc1967proxy"
+	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +20,7 @@ import (
 
 func TestUpdateDataCommitteeEvent(t *testing.T) {
 	// Set up testing environment
-	dac, ethBackend, auth, da := newTestingEnv(t)
+	dac, ethBackend, da, auth := newSimulatedDacman(t)
 
 	// Update the committee
 	requiredAmountOfSignatures := big.NewInt(2)
@@ -63,82 +63,39 @@ func init() {
 	})
 }
 
-// This function prepare the blockchain, the wallet with funds and deploy the smc
-func newTestingEnv(t *testing.T) (
-	dac *Backend,
-	ethBackend *simulated.Backend,
-	auth *bind.TransactOpts,
-	da *polygondatacommittee.Polygondatacommittee,
-) {
-	t.Helper()
-	privateKey, err := crypto.GenerateKey()
-	if err != nil {
-		log.Fatal(err)
-	}
-	auth, err = bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
-	if err != nil {
-		log.Fatal(err)
-	}
-	dac, ethBackend, da, err = newSimulatedDacman(t, auth)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return dac, ethBackend, auth, da
-}
-
 // NewSimulatedEtherman creates an etherman that uses a simulated blockchain. It's important to notice that the ChainID of the auth
 // must be 1337. The address that holds the auth will have an initial balance of 10 ETH
-func newSimulatedDacman(t *testing.T, auth *bind.TransactOpts) (
-	dacman *Backend,
-	ethBackend *simulated.Backend,
-	da *polygondatacommittee.Polygondatacommittee,
-	err error,
+func newSimulatedDacman(t *testing.T) (
+	*Backend,
+	*simulated.Backend,
+	*polygondatacommittee.Polygondatacommittee,
+	*bind.TransactOpts,
 ) {
 	t.Helper()
-	if auth == nil {
-		// read only client
-		return &Backend{}, nil, nil, nil
-	}
-	// 10000000 ETH in wei
-	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10)
-	address := auth.From
-	genesisAlloc := map[common.Address]types.Account{
-		address: {
-			Balance: balance,
-		},
-	}
-	blockGasLimit := uint64(999999999999999999)
-	client := simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
+
+	ethBackend, setup := helpers.SimulatedBackend(t, nil, 0)
 
 	// DAC Setup
-	addr, _, _, err := smcparis.DeployPolygondatacommittee(auth, client.Client())
-	if err != nil {
-		return &Backend{}, nil, nil, err
-	}
-	client.Commit()
-	proxyAddr, err := deployDACProxy(auth, client.Client(), addr)
-	if err != nil {
-		return &Backend{}, nil, nil, err
-	}
+	addr, _, _, err := smcparis.DeployPolygondatacommittee(setup.UserAuth, ethBackend.Client())
+	require.NoError(t, err)
+	ethBackend.Commit()
 
-	client.Commit()
-	da, err = polygondatacommittee.NewPolygondatacommittee(proxyAddr, client.Client())
-	if err != nil {
-		return &Backend{}, nil, nil, err
-	}
+	proxyAddr, err := deployDACProxy(setup.UserAuth, ethBackend.Client(), addr)
+	require.NoError(t, err)
+	ethBackend.Commit()
 
-	_, err = da.SetupCommittee(auth, big.NewInt(0), []string{}, []byte{})
-	if err != nil {
-		return &Backend{}, nil, nil, err
-	}
-	client.Commit()
+	da, err := polygondatacommittee.NewPolygondatacommittee(proxyAddr, ethBackend.Client())
+	require.NoError(t, err)
+
+	_, err = da.SetupCommittee(setup.UserAuth, big.NewInt(0), []string{}, []byte{})
+	require.NoError(t, err)
+	ethBackend.Commit()
 
 	c := &Backend{
 		dataCommitteeContract: da,
 	}
 
-	return c, client, da, nil
+	return c, ethBackend, da, setup.UserAuth
 }
 
 func deployDACProxy(auth *bind.TransactOpts, client bind.ContractBackend, dacImpl common.Address) (common.Address, error) {
