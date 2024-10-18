@@ -65,7 +65,6 @@ DBPath = "/tmp/aggsender.sqlite"
 AggLayerURL = "{{.agglayer_url}}"
 #SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
 SequencerPrivateKey = {Path = "{{or .zkevm_l2_agglayer_keystore_file "/pk/sequencer.keystore"}}", Password = "{{.zkevm_l2_agglayer_keystore_password}}"}
-
 BlockGetInterval = "2s"
 URLRPCL2="{{.l2_rpc_url}}"
 CheckSettledInterval = "2s"
