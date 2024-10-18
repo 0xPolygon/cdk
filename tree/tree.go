@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/russross/meddler"
 	"golang.org/x/crypto/sha3"
 )
@@ -250,5 +251,20 @@ func (t *Tree) Reorg(tx db.Txer, firstReorgedBlock uint64) error {
 		firstReorgedBlock,
 	)
 	return err
-	// NOTE: rht is not cleaned, this could be done in the future as optimization
+}
+
+// CalculateRoot calculates the Merkle Root based on the leaf and proof	of inclusion
+func CalculateRoot(leafHash common.Hash, proof [types.DefaultHeight]common.Hash, index uint32) common.Hash {
+	node := leafHash
+
+	// Compute the Merkle root
+	for height := uint8(0); height < types.DefaultHeight; height++ {
+		if (index>>height)&1 == 1 {
+			node = crypto.Keccak256Hash(proof[height].Bytes(), node.Bytes())
+		} else {
+			node = crypto.Keccak256Hash(node.Bytes(), proof[height].Bytes())
+		}
+	}
+
+	return node
 }
