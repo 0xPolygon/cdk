@@ -146,9 +146,9 @@ function export_values_of_cdk_node_config(){
     export_key_from_toml_file_or_fatal      aggregator_db_password                  $_CDK_CONFIG_FILE Aggregator.DB           Password
     export_obj_key_from_toml_file_or_fatal  zkevm_l2_aggregator_keystore_password   $_CDK_CONFIG_FILE Aggregator.EthTxManager PrivateKeys Password
     
-    export_key_from_toml_file_or_fatal      zkevm_rollup_fork_id        $_CDK_CONFIG_FILE Aggregator ForkId
-    export_key_from_toml_file_or_fatal  zkevm_l2_agglayer_keystore_password              $_CDK_CONFIG_FILE  AggSender.SequencerPrivateKey Password
-    
+    export_key_from_toml_file_or_fatal      zkevm_rollup_fork_id                    $_CDK_CONFIG_FILE Aggregator ForkId
+    export_key_from_toml_file_or_fatal      zkevm_l2_agglayer_keystore_password     $_CDK_CONFIG_FILE AggSender.SequencerPrivateKey Password
+    export_key_from_toml_file_or_fatal      zkevm_bridge_address                    $_CDK_CONFIG_FILE BridgeL1Sync BridgeAddr
     
     export is_cdk_validium=$zkevm_is_validium
     export zkevm_rollup_chain_id=$l2_chain_id
@@ -206,7 +206,7 @@ function export_portnum_from_kurtosis_or_fail(){
 ###############################################################################
 function export_ports_from_kurtosis(){
     export_portnum_from_kurtosis_or_fail    l1_rpc_port              el-1-geth-lighthouse rpc
-    export_portnum_from_kurtosis_or_fail    zkevm_rpc_http_port      cdk-erigon-node-001 rpc rpc
+    export_portnum_from_kurtosis_or_fail    zkevm_rpc_http_port      cdk-erigon-node-001 http-rpc rpc
     export_portnum_from_kurtosis_or_fail    zkevm_data_streamer_port cdk-erigon-sequencer-001 data-streamer
     export_portnum_from_kurtosis_or_fail    aggregator_db_port       postgres-001 postgres
     export_portnum_from_kurtosis_or_fail    agglayer_port            agglayer agglayer
@@ -253,8 +253,10 @@ EOF
 ###############################################################################
 function create_dest_folder(){
     export DEST=${TMP_CDK_FOLDER}/local_config
+    export path_rw_data=${TMP_CDK_FOLDER}/runtime
     [ ! -d ${DEST} ] && mkdir -p ${DEST}
     rm $DEST/*
+    mkdir $path_rw_data
 }
 ###############################################################################
 function download_kurtosis_artifacts(){
@@ -291,10 +293,31 @@ function check_generated_config_file(){
     fi
 }
 ###############################################################################
+function parse_command_line_args(){
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                echo "Usage: $0"
+                echo "  -h: help"
+                exit 0
+                ;;
+            -e|--enclave)
+                KURTOSIS_ENCLAVE=$2
+                shift
+                shift
+                ;;
+            -*)
+                echo "Invalid Option: $1" 1>&2
+                exit 1
+                ;;
+        esac
+    done
+}
+###############################################################################
 # MAIN
 ###############################################################################
 set -o pipefail # enable strict command pipe error detection
-
+parse_command_line_args $*
 check_requirements
 create_dest_folder
 

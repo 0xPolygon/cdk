@@ -1,8 +1,9 @@
-PathRWData = "/data/"
+PathRWData = "{{.path_rw_data}}/"
 L1URL="{{.l1_rpc_url}}"
 L2URL="http://{{.l2_rpc_name}}{{.deployment_suffix}}:{{.zkevm_rpc_http_port}}"
 L1AggOracleURL = "http://test-aggoracle-l1:8545"
 L2AggOracleURL = "http://test-aggoracle-l2:8545"
+AggLayerURL="{{.agglayer_url}}"
 
 ForkId = {{.zkevm_rollup_fork_id}}
 IsValidiumMode = {{.is_cdk_validium}}
@@ -19,12 +20,11 @@ SequencerPrivateKeyPassword  = "{{.zkevm_l2_keystore_password}}"
 AggregatorPrivateKeyPath = "{{or .zkevm_l2_aggregator_keystore_file "/etc/cdk/aggregator.keystore"}}"
 AggregatorPrivateKeyPassword  = "{{.zkevm_l2_keystore_password}}"
 SenderProofToL1Addr = "{{.zkevm_l2_agglayer_address}}"   
-
+polygonBridgeAddr = "{{.zkevm_bridge_address}}" 
 
 
 
 WitnessURL = "http://{{.l2_rpc_name}}{{.deployment_suffix}}:{{.zkevm_rpc_http_port}}"
-AggLayerURL = "http://agglayer:{{.agglayer_port}}"
 StreamServer = "{{.sequencer_name}}{{.deployment_suffix}}:{{.zkevm_data_streamer_port}}"
 
 
@@ -39,8 +39,7 @@ genesisBlockNumber = "{{.zkevm_rollup_manager_block_number}}"
 	polygonRollupManagerAddress = "{{.zkevm_rollup_manager_address}}"
 	polTokenAddress = "{{.pol_token_address}}"
 	polygonZkEVMAddress = "{{.zkevm_rollup_address}}"
-	polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
-
+	
 [L2Config]
 	GlobalExitRootAddr = "{{.zkevm_global_exit_root_address}}"
 
@@ -60,12 +59,6 @@ Outputs = ["stderr"]
                 Port = "{{.aggregator_db.port}}"
                 EnableLog = false
                 MaxConns = 200
+       
 [AggSender]
-DBPath = "/tmp/aggsender.sqlite"
-AggLayerURL = "{{.agglayer_url}}"
-#SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
 SequencerPrivateKey = {Path = "{{or .zkevm_l2_agglayer_keystore_file "/pk/sequencer.keystore"}}", Password = "{{.zkevm_l2_agglayer_keystore_password}}"}
-BlockGetInterval = "2s"
-URLRPCL2="{{.l2_rpc_url}}"
-CheckSettledInterval = "2s"
-EpochSize = 10

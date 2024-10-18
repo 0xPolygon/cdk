@@ -7,7 +7,7 @@ L1URL = "http://localhost:8545"
 L2URL = "localhost:8123"
 L1AggOracleURL = "http://test-aggoracle-l1:8545"
 L2AggOracleURL = "http://test-aggoracle-l2:8545"
-
+AggLayerURL = "https://agglayer-dev.polygon.technology"
 
 ForkId = 9
 ContractVersions = "elderberry"
@@ -17,14 +17,13 @@ L2Coinbase = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
 SequencerPrivateKeyPath = "/app/sequencer.keystore"
 SequencerPrivateKeyPassword = "test"
 WitnessURL = "localhost:8123"
-AggLayerURL = "https://agglayer-dev.polygon.technology"
 StreamServer = "localhost:6900"
 
 AggregatorPrivateKeyPath = "/app/keystore/aggregator.keystore"
 AggregatorPrivateKeyPassword = "testonly"
 # Who send Proof to L1? AggLayer addr, or aggregator addr?
 SenderProofToL1Addr = "0x0000000000000000000000000000000000000000"
-
+polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
 
 
 # This values can be override directly from genesis.json
@@ -37,7 +36,7 @@ genesisBlockNumber = 0
 	polygonRollupManagerAddress = "0x0000000000000000000000000000000000000000"
 	polTokenAddress = "0x0000000000000000000000000000000000000000"
 	polygonZkEVMAddress = "0x0000000000000000000000000000000000000000"
-	polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
+
 
 [L2Config]
 	GlobalExitRootAddr = "0x0000000000000000000000000000000000000000"
@@ -304,7 +303,7 @@ GasOffset = 0
 DBPath = "{{PathRWData}}/bridgel1sync"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
-BridgeAddr = "{{L1Config.polygonBridgeAddr}}"
+BridgeAddr = "{{polygonBridgeAddr}}"
 SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
@@ -314,7 +313,7 @@ WaitForNewBlocksPeriod = "3s"
 DBPath = "{{PathRWData}}/bridgel2sync"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
-BridgeAddr = "{{L1Config.polygonBridgeAddr}}"
+BridgeAddr = "{{polygonBridgeAddr}}"
 SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
@@ -340,11 +339,11 @@ GlobalExitRootManagerAddr = "{{L1Config.polygonZkEVMGlobalExitRootAddress}}"
 
 
 [AggSender]
-DBPath = "/tmp/aggsender"
-AggLayerURL = "http://zkevm-agglayer"
-SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
+DBPath = "{{PathRWData}}/aggsender.sqlite"
+AggLayerURL = "{{AggLayerURL}}"
+SequencerPrivateKey = {Path = "{{SequencerPrivateKeyPath}}", Password = "{{SequencerPrivateKeyPassword}}"}
 BlockGetInterval = "2s"
-URLRPCL2="http://test-aggoracle-l2:8545"
+URLRPCL2="{{L2URL}}"
 CheckSettledInterval = "2s"
 EpochSize = 10
 `
