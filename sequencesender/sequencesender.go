@@ -271,7 +271,7 @@ func (s *SequenceSender) purgeSequences() {
 func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Update latest virtual batch
 	s.logger.Infof("updating virtual batch")
-	err := s.updateLatestVirtualBatch()
+	err := s.getLatestVirtualBatch()
 	if err != nil {
 		return
 	}
@@ -349,7 +349,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	}
 
 	// Get latest virtual state batch from L1
-	err = s.updateLatestVirtualBatch()
+	err = s.getLatestVirtualBatch()
 	if err != nil {
 		s.logger.Fatalf("error getting latest sequenced batch, error: %v", err)
 	}
