@@ -294,21 +294,24 @@ function check_balances() {
     fi
 }
 
-function verify_native_token_balance() {
-    local rpc_url="$1"         # RPC URL
-    local account="$2"         # account address
-    local initial_balance="$3" # initial balance in Ether (decimal)
-    local ether_amount="$4"    # amount to be added (in Ether, decimal)
-
-    # Convert initial balance and amount to wei (no decimals)
-    local initial_balance_wei=$(cast --to-wei "$initial_balance")
+function verify_balance() {
+    local rpc_url="$1"             # RPC URL
+    local gas_token_addr="$2"      # gas token contract address
+    local account="$3"             # account address
+    local initial_balance_wei="$4" # initial balance in Wei (decimal)
+    local ether_amount="$5"        # amount to be added (in Ether, decimal)
 
     # Trim 'ether' from ether_amount if it exists
     ether_amount=$(echo "$ether_amount" | sed 's/ether//')
     local amount_wei=$(cast --to-wei "$ether_amount")
     
     # Get final balance in wei (after the operation)
-    local final_balance_wei=$(cast balance "$account" --rpc-url "$rpc_url" | awk '{print $1}')
+    local final_balance_wei
+    if [[ $gas_token_addr == "0x0000000000000000000000000000000000000000" ]]; then
+        final_balance_wei=$(cast balance "$account" --rpc-url "$rpc_url" | awk '{print $1}')
+    else
+        final_balance_wei=$(cast call --rpc-url "$rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$destination_addr" | awk '{print $1}')
+    fi
     echo "Final balance of $account in $rpc_url: $final_balance_wei wei" >&3
 
     # Calculate expected final balance (initial_balance + amount)

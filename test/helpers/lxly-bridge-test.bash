@@ -1,24 +1,26 @@
 #!/usr/bin/env bash
 # Error code reference https://hackmd.io/WwahVBZERJKdfK3BbKxzQQ
 function deposit() {
-    if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
+    local token_addr="$1"
+    local rpc_url="$2"
+    if [[ $token_addr == $native_token_addr ]]; then
         echo "The ETH balance for sender "$sender_addr":" >&3
-        cast balance -e --rpc-url $l1_rpc_url $sender_addr >&3
+        cast balance -e --rpc-url $rpc_url $sender_addr >&3
     else
         echo "The "$token_addr" token balance for sender "$sender_addr":" >&3
-        balance_wei=$(cast call --rpc-url "$l1_rpc_url" "$token_addr" "$balance_of_fn_sig" "$sender_addr")
+        balance_wei=$(cast call --rpc-url "$rpc_url" "$token_addr" "$balance_of_fn_sig" "$sender_addr")
         echo "$(cast --from-wei "$balance_wei")" >&3
     fi
 
-    echo "Attempting to deposit $amount [wei] to $destination_addr, token $token_addr (sender=$sender_addr, network id=$destination_net, rpc url=$l1_rpc_url)" >&3
+    echo "Attempting to deposit $amount [wei] to $destination_addr, token $token_addr (sender=$sender_addr, network id=$destination_net, rpc url=$rpc_url)" >&3
 
     if [[ $dry_run == "true" ]]; then
         cast calldata $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
     else
         if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
-            cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $l1_rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
+            cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         else
-            cast send --legacy --private-key $sender_private_key --rpc-url $l1_rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
+            cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         fi
     fi
 }
@@ -68,7 +70,6 @@ function claim() {
 
         if [[ $dry_run == "true" ]]; then
             cast calldata $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
-            cast call --rpc-url $destination_rpc_url $bridge_addr $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
         else
             local comp_gas_price=$(bc -l <<< "$gas_price * 1.5" | sed 's/\..*//')
             if [[ $? -ne 0 ]]; then
@@ -104,30 +105,4 @@ function wait_for_claim() {
 
         sleep "$claim_frequency"
     done
-}
-
-function withdrawal() {
-    if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
-        echo "The ETH balance for sender "$sender_addr":" >&3
-        cast balance -e --rpc-url $l2_rpc_url $sender_addr >&3
-
-        echo "The ETH balance for receiver "$destination_addr ":" >&3
-        cast balance -e --rpc-url $l1_rpc_url $destination_addr >&3
-    else
-        echo "The "$token_addr" token balance for sender "$sender_addr":" >&3
-        balance_wei=$(cast call --rpc-url "$l2_rpc_url" "$token_addr" "$balance_of_fn_sig" "$sender_addr")
-        echo "$(cast --from-wei "$balance_wei")" >&3
-    fi
-
-    echo "Attempting to withdraw $amount [wei] to $destination_addr, token $token_addr (sender=$sender_addr, network id=$l1_rpc_network_id, rpc url=$l2_rpc_url)" >&3
-
-    if [[ $dry_run == "true" ]]; then
-        cast calldata $bridge_sig $l1_rpc_network_id $destination_addr $amount $token_addr $is_forced $meta_bytes
-    else
-        if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
-            cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $l2_rpc_url $bridge_addr $bridge_sig $l1_rpc_network_id $destination_addr $amount $token_addr $is_forced $meta_bytes
-        else
-            cast send --legacy --private-key $sender_private_key --rpc-url $l2_rpc_url $bridge_addr $bridge_sig $destination_net $l1_rpc_network_id $amount $token_addr $is_forced $meta_bytes
-        fi
-    fi
 }
