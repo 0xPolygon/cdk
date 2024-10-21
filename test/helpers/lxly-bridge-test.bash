@@ -3,12 +3,13 @@
 function deposit() {
     local token_addr="$1"
     local rpc_url="$2"
-    if [[ $token_addr == $native_token_addr ]]; then
+    if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
         echo "The ETH balance for sender "$sender_addr":" >&3
         cast balance -e --rpc-url $rpc_url $sender_addr >&3
     else
         echo "The "$token_addr" token balance for sender "$sender_addr":" >&3
-        balance_wei=$(cast call --rpc-url "$rpc_url" "$token_addr" "$balance_of_fn_sig" "$sender_addr")
+        echo "cast call --rpc-url $rpc_url $token_addr \"$balance_of_fn_sig\" $sender_addr" >&3
+        balance_wei=$(cast call --rpc-url "$rpc_url" "$token_addr" "$balance_of_fn_sig" "$sender_addr" | awk '{print $1}')
         echo "$(cast --from-wei "$balance_wei")" >&3
     fi
 
@@ -18,8 +19,10 @@ function deposit() {
         cast calldata $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
     else
         if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
+            echo "cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes" >&3
             cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         else
+            echo "cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr \"$bridge_sig\" $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes"
             cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         fi
     fi

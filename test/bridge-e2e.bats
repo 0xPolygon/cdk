@@ -13,10 +13,10 @@ setup() {
         bridge_default_address=$(echo "$combined_json_output" | jq -r .polygonZkEVMBridgeAddress)
         BRIDGE_ADDRESS=$bridge_default_address
     fi
-
     echo "Bridge address=$BRIDGE_ADDRESS" >&3
 
     readonly sender_private_key=${SENDER_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
+    readonly sender_addr="$(cast wallet address --private-key $sender_private_key)"
     destination_net=${DESTINATION_NET:-"1"}
     destination_addr=${DESTINATION_ADDRESS:-"0x0bb7AA0b4FdC2D2862c088424260e99ed6299148"}
     ether_value=${ETHER_VALUE:-"0.0200000054"}
@@ -42,7 +42,6 @@ setup() {
     readonly bridge_api_url=${BRIDGE_API_URL:-"$(kurtosis port print $enclave zkevm-bridge-service-001 rpc)"}
 
     readonly dry_run=${DRY_RUN:-"false"}
-    readonly sender_addr="$(cast wallet address --private-key $sender_private_key)"
     readonly l1_rpc_network_id=$(cast call --rpc-url $l1_rpc_url $bridge_addr 'networkID() (uint32)')
     readonly l2_rpc_network_id=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'networkID() (uint32)')
     gas_price=$(cast gas-price --rpc-url "$l2_rpc_url")
@@ -133,12 +132,12 @@ setup() {
     echo "Gas token addr $gas_token_addr, L1 RPC: $l1_rpc_url" >&3
 
     # Validate that the native token of receiver on L1 has increased by the bridge tokens amount
-    local initial_receiver_balance=$(cast call --rpc-url "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$destination_addr" 2>&1)
-    echo "Receiver balance of gas token on L1 $initial_receiver_balance" >&3
+    local initial_receiver_balance=$(cast call --rpc-url "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$destination_addr" | awk '{print $1}')
     assert_success
+    echo "Receiver balance of gas token on L1 $initial_receiver_balance" >&3
 
     destination_net=$l1_rpc_network_id
-    run deposit "$gas_token_addr" "$l2_rpc_url"
+    run deposit "$native_token_addr" "$l2_rpc_url"
     assert_success
 
     # Claim withdrawals (settle them on the L1)
@@ -148,7 +147,7 @@ setup() {
     run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url"
     assert_success
 
-    run verify_gas_token_balance "$l1_rpc_url" "$gas_token_addr" "$destination_addr" "$initial_receiver_balance" "$amount"
+    run verify_balance "$l1_rpc_url" "$gas_token_addr" "$destination_addr" "$initial_receiver_balance" "$ether_value"
     if [ $status -eq 0 ]; then
         break
     fi
