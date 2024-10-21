@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
@@ -73,6 +74,9 @@ type AggSender struct {
 	cfg Config
 
 	sequencerKey *ecdsa.PrivateKey
+
+	lock                   sync.Mutex
+	lastL1CertificateBlock uint64
 }
 
 // New returns a new AggSender
@@ -135,13 +139,13 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 func (a *AggSender) sendCertificate(ctx context.Context) error {
 	a.log.Infof("trying to send a new certificate...")
 
-	block, err := a.l1Client.BlockNumber(ctx)
+	l1Block, err := a.l1Client.BlockNumber(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting l1 block number: %w", err)
 	}
 
-	if !a.shouldSendCertificate(block) {
-		a.log.Infof("block %d on L1 not near epoch ending, so we don't send a certificate", block)
+	if !a.shouldSendCertificate(l1Block) {
+		a.log.Infof("block %d on L1 not near epoch ending, so we don't send a certificate", l1Block)
 		return nil
 	}
 
@@ -204,6 +208,10 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 	}); err != nil {
 		return fmt.Errorf("error saving last sent certificate in db: %w", err)
 	}
+
+	a.lock.Lock()
+	a.lastL1CertificateBlock = l1Block
+	a.lock.Unlock()
 
 	a.log.Infof("certificate: %s sent successfully for block: %d to block: %d", certificateHash, fromBlock, toBlock)
 
@@ -519,5 +527,11 @@ func (a *AggSender) shouldSendCertificate(block uint64) bool {
 		return false
 	}
 
-	return (block+numOfBlocksBeforeEpochEnding)%a.cfg.EpochSize == 0
+	a.lock.Lock()
+	lastL1BlockSeen := a.lastL1CertificateBlock
+	a.lock.Unlock()
+
+	shouldSend := lastL1BlockSeen+a.cfg.EpochSize-numOfBlocksBeforeEpochEnding <= block
+
+	return shouldSend
 }

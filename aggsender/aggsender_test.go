@@ -776,10 +776,11 @@ func TestShouldSendCertificate(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name           string
-		block          uint64
-		epochSize      uint64
-		expectedResult bool
+		name                   string
+		block                  uint64
+		epochSize              uint64
+		lastL1CertificateBlock uint64
+		expectedResult         bool
 	}{
 		{
 			name:           "Should send certificate",
@@ -788,10 +789,17 @@ func TestShouldSendCertificate(t *testing.T) {
 			expectedResult: true,
 		},
 		{
-			name:           "Should not send certificate",
+			name:           "Should send certificate - another case",
 			block:          9,
 			epochSize:      10,
-			expectedResult: false,
+			expectedResult: true,
+		},
+		{
+			name:                   "Should not send certificate",
+			block:                  25,
+			epochSize:              10,
+			lastL1CertificateBlock: 18,
+			expectedResult:         false,
 		},
 		{
 			name:           "Should not send certificate at zero block",
@@ -800,10 +808,11 @@ func TestShouldSendCertificate(t *testing.T) {
 			expectedResult: false,
 		},
 		{
-			name:           "Should send certificate with large epoch size",
-			block:          998,
-			epochSize:      1000,
-			expectedResult: true,
+			name:                   "Should send certificate with large epoch size",
+			block:                  1998,
+			epochSize:              1000,
+			lastL1CertificateBlock: 998,
+			expectedResult:         true,
 		},
 	}
 
@@ -817,6 +826,7 @@ func TestShouldSendCertificate(t *testing.T) {
 				cfg: Config{
 					EpochSize: tt.epochSize,
 				},
+				lastL1CertificateBlock: tt.lastL1CertificateBlock,
 			}
 			result := aggSender.shouldSendCertificate(tt.block)
 			require.Equal(t, tt.expectedResult, result)
