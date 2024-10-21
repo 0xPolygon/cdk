@@ -61,17 +61,6 @@ func NewAggSenderSQLStorage(logger *log.Logger, dbPath string) (*AggSenderSQLSto
 
 func (a *AggSenderSQLStorage) GetCertificatesByStatus(ctx context.Context,
 	statuses []agglayer.CertificateStatus) ([]*types.CertificateInfo, error) {
-	tx, err := a.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		if err := tx.Rollback(); err != nil {
-			a.logger.Warnf(errWhileRollbackFormat, err)
-		}
-	}()
-
 	query := "SELECT * FROM certificate_info"
 	args := make([]interface{}, len(statuses))
 
@@ -91,7 +80,7 @@ func (a *AggSenderSQLStorage) GetCertificatesByStatus(ctx context.Context,
 	query += " ORDER BY height ASC"
 
 	var certificates []*types.CertificateInfo
-	if err = meddler.QueryAll(a.db, &certificates, query, args...); err != nil {
+	if err := meddler.QueryAll(a.db, &certificates, query, args...); err != nil {
 		return nil, err
 	}
 
@@ -101,24 +90,9 @@ func (a *AggSenderSQLStorage) GetCertificatesByStatus(ctx context.Context,
 // GetCertificateByHeight returns a certificate by its height
 func (a *AggSenderSQLStorage) GetCertificateByHeight(ctx context.Context,
 	height uint64) (types.CertificateInfo, error) {
-	tx, err := a.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return types.CertificateInfo{}, err
-	}
-
-	defer func() {
-		if err := tx.Rollback(); err != nil {
-			a.logger.Warnf(errWhileRollbackFormat, err)
-		}
-	}()
-
-	rows, err := tx.Query(`SELECT * FROM certificate_info WHERE height = $1;`, height)
-	if err != nil {
-		return types.CertificateInfo{}, getSelectQueryError(height, err)
-	}
-
 	var certificateInfo types.CertificateInfo
-	if err = meddler.ScanRow(rows, &certificateInfo); err != nil {
+	if err := meddler.QueryRow(a.db, &certificateInfo,
+		"SELECT * FROM certificate_info WHERE height = $1;", height); err != nil {
 		return types.CertificateInfo{}, getSelectQueryError(height, err)
 	}
 
@@ -127,25 +101,10 @@ func (a *AggSenderSQLStorage) GetCertificateByHeight(ctx context.Context,
 
 // GetLastSentCertificate returns the last certificate sent to the aggLayer that is still Pending
 func (a *AggSenderSQLStorage) GetLastSentCertificate(ctx context.Context) (types.CertificateInfo, error) {
-	tx, err := a.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return types.CertificateInfo{}, err
-	}
-
-	defer func() {
-		if err := tx.Rollback(); err != nil {
-			a.logger.Warnf(errWhileRollbackFormat, err)
-		}
-	}()
-
-	rows, err := tx.Query(`SELECT * FROM certificate_info WHERE status = $1 ORDER BY height DESC LIMIT 1;`,
-		agglayer.Pending)
-	if err != nil {
-		return types.CertificateInfo{}, getSelectQueryError(0, err)
-	}
-
 	var certificateInfo types.CertificateInfo
-	if err = meddler.ScanRow(rows, &certificateInfo); err != nil {
+	if err := meddler.QueryRow(a.db, &certificateInfo,
+		"SELECT * FROM certificate_info WHERE status = $1 ORDER BY height DESC LIMIT 1;",
+		agglayer.Pending); err != nil {
 		return types.CertificateInfo{}, getSelectQueryError(0, err)
 	}
 
