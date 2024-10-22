@@ -19,7 +19,6 @@ SequencerPrivateKeyPassword = "test"
 RPCURL = "localhost:8123"
 WitnessURL = "localhost:8123"
 AggLayerURL = "https://agglayer-dev.polygon.technology"
-StreamServer = "localhost:6900"
 
 AggregatorPrivateKeyPath = "/app/keystore/aggregator.keystore"
 AggregatorPrivateKeyPassword = "testonly"
@@ -136,7 +135,6 @@ GeneratingProofCleanupThreshold = "10m"
 GasOffset = 0
 RPCURL = "{{L2URL}}"
 WitnessURL = "{{WitnessURL}}"
-UseL1BatchData = true
 UseFullWitness = false
 SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
