@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Error code reference https://hackmd.io/WwahVBZERJKdfK3BbKxzQQ
-function deposit() {
+function bridgeAsset() {
     local token_addr="$1"
     local rpc_url="$2"
+    readonly bridge_sig='bridgeAsset(uint32,address,uint256,address,bool,bytes)'
+
     if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
         echo "The ETH balance for sender "$sender_addr":" >&3
         cast balance -e --rpc-url $rpc_url $sender_addr >&3

@@ -21,7 +21,7 @@ setup() {
     destination_addr=${DESTINATION_ADDRESS:-"0x0bb7AA0b4FdC2D2862c088424260e99ed6299148"}
     ether_value=${ETHER_VALUE:-"0.0200000054"}
     amount=$(cast to-wei $ether_value ether)
-    readonly native_token_addr=${TOKEN_ADDRESS:-"0x0000000000000000000000000000000000000000"}
+    readonly native_token_addr=${NATIVE_TOKEN_ADDRESS:-"0x0000000000000000000000000000000000000000"}
     if [[ -n "$GAS_TOKEN_ADDR" ]]; then
         echo "Using provided GAS_TOKEN_ADDR: $GAS_TOKEN_ADDR" >&3
         gas_token_addr="$GAS_TOKEN_ADDR"
@@ -35,7 +35,6 @@ setup() {
     fi
     readonly is_forced=${IS_FORCED:-"true"}
     readonly bridge_addr=$BRIDGE_ADDRESS
-    readonly bridge_sig='bridgeAsset(uint32,address,uint256,address,bool,bytes)'
     readonly meta_bytes=${META_BYTES:-"0x"}
 
     readonly l1_rpc_url=${L1_ETH_RPC_URL:-"$(kurtosis port print $enclave el-1-geth-lighthouse rpc)"}
@@ -53,7 +52,7 @@ setup() {
     echo "Initial receiver balance of native token on L2 $initial_receiver_balance" >&3
 
     echo "Running LxLy deposit" >&3
-    run deposit "$native_token_addr" "$l1_rpc_url"
+    run bridgeAsset "$native_token_addr" "$l1_rpc_url"
     assert_success
 
     echo "Running LxLy claim" >&3
@@ -113,7 +112,7 @@ setup() {
     destination_addr=$receiver
     destination_net=$l2_rpc_network_id
     amount=$wei_amount
-    run deposit "$gas_token_addr" "$l1_rpc_url"
+    run bridgeAsset "$gas_token_addr" "$l1_rpc_url"
     assert_success
 
     # Claim deposits (settle them on the L2)
@@ -137,7 +136,7 @@ setup() {
     echo "Receiver balance of gas token on L1 $initial_receiver_balance" >&3
 
     destination_net=$l1_rpc_network_id
-    run deposit "$native_token_addr" "$l2_rpc_url"
+    run bridgeAsset "$native_token_addr" "$l2_rpc_url"
     assert_success
 
     # Claim withdrawals (settle them on the L1)
