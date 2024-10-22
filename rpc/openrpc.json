@@ -7,7 +7,7 @@
   "methods": [
       {
         "name": "bridge_l1InfoTreeIndexForBridge",
-        "summary": "Gets the smalles L1 info tree index in which a given bridge is includded",
+        "summary": "Returns the first L1 Info Tree index in which the bridge was included. NetworkID represents the origin network. This call needs to be done to a client of the same network were the bridge tx was sent",
         "params": [
           {
             "$ref": "#/components/contentDescriptors/NetworkID"
@@ -22,11 +22,9 @@
         "examples": [
           {
               "name": "example",
-              "description": "",
               "params": [],
               "result": {
                   "name": "exampleResult",
-                  "description": "",
                   "value": "0x1"
               }
           }
@@ -34,7 +32,7 @@
       },
       {
         "name": "bridge_injectedInfoAfterIndex",
-        "summary": "Gets the smalles L1 info tree index in which a given bridge is includded",
+        "summary": "Return the first GER injected onto the network that is linked to the given index or greater. This call is useful to understand when a bridge is ready to be claimed on its destination network",
         "params": [
           {
             "$ref": "#/components/contentDescriptors/NetworkID"
@@ -49,7 +47,7 @@
         "examples": [ ]
       },
       {
-        "name": "bridge_claimProof",
+        "name": "bridge_getProof",
         "summary": "Gets the proof needed to perform a claim for a given bridge",
         "params": [
           {
@@ -327,7 +325,7 @@
       },
       "Metadata": {
         "title": "metadata",
-        "description": "Extra data includded in the bridge",
+        "description": "Extra data included in the bridge",
         "$ref": "#/components/schemas/Bytes"
       },
       "SponsorClaim": {
