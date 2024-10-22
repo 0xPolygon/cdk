@@ -1,14 +1,14 @@
 # Non EVM Integration
 
-The purpose of this document is to explain how a 3rd Party Execution Environment can integrate with CDK/AggLayer.
+The purpose of this document is to explain how a 3rd Party Execution Environment can integrate with LxLy/AggLayer using the CDK.
 
-## Considerations
+## Disclaimer
 
-This is experimental, and there is no working examples of anything non EVM being integrated to the AggLayer yet. While the core principles of what needs to be done in order to achieve this are clear, the implementation details on how to get there are mmore than likely to change. Consider this as a reference on the amount of work that needs to be done, rather than the path to a production integration
+This is experimental, and there is no working examples of anything non EVM being integrated to the AggLayer yet. While the core principles of what needs to be done in order to achieve this are clear, the implementation details on how to get there are more than likely to change. Consider this as a reference on the amount of work that needs to be done, rather than the path to a production grade integration
 
 ## Key concepts
 
-Anything should be able to interact with the [LxLy](TODO) bridge, and settle using the [AggLayer](TODO). Specially if done through the [Pesimistic Proof](TODO). In the future more advanced and secure options (consensus, execution, DA, ...) will be provided, but as of now, this doc assumes that the integration uses exclusively the Pesimistic Proof settlement configuration
+Anything (chain or not chain) should be able to interact with the [LxLy](https://docs.polygon.technology/zkEVM/architecture/unified-LxLy) bridge, and settle using the [AggLayer](https://docs.polygon.technology/learn/agglayer/overview/). Specially if done through the [Pesimistic Proof](https://docs.polygon.technology/learn/agglayer/pessimistic_proof/). In the future more advanced and secure options (consensus, execution, DA, ...) will be provided, but as of now, this doc assumes that the integration uses exclusively the Pesimistic Proof settlement configuration
 
 The CDK client is in charge of handling the integration to both the LxLy bridge and the AggLayer. Consider it an SDK to bring your project to the AggLayer ecosystem. In order to do so, some code will be needed, in a adaptor/plugin fashion, for the CDK client to index and interact with the service being integrated
 
