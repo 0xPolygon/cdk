@@ -123,7 +123,7 @@ func (t *Tree) getRHTNode(tx db.Querier, nodeHash common.Hash) (*types.TreeNode,
 	err := meddler.QueryRow(
 		tx, node,
 		fmt.Sprintf(`select * from %s where hash = $1`, t.rhtTable),
-		nodeHash.Hex(),
+		nodeHash.String(),
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
