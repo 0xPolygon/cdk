@@ -604,15 +604,16 @@ func (a *Aggregator) buildFinalProof(
 		string(finalProof.Public.NewLocalExitRoot) == mockedLocalExitRoot {
 		// This local exit root and state root come from the mock
 		// prover, use the one captured by the executor instead
-		finalDBBatch, err := a.state.GetBatch(ctx, proof.BatchNumberFinal, nil)
+		rpcFinalBatch, err := rpc.GetBatchFromRPC(a.cfg.RPCURL, proof.BatchNumberFinal)
 		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve batch with number [%d]", proof.BatchNumberFinal)
+			return nil, fmt.Errorf("error getting batch %d from RPC: %w", proof.BatchNumberFinal, err)
 		}
+
 		tmpLogger.Warnf(
 			"NewLocalExitRoot and NewStateRoot look like a mock values, using values from executor instead: LER: %v, SR: %v",
-			finalDBBatch.Batch.LocalExitRoot.TerminalString(), finalDBBatch.Batch.StateRoot.TerminalString())
-		finalProof.Public.NewStateRoot = finalDBBatch.Batch.StateRoot.Bytes()
-		finalProof.Public.NewLocalExitRoot = finalDBBatch.Batch.LocalExitRoot.Bytes()
+			rpcFinalBatch.LocalExitRoot().TerminalString(), rpcFinalBatch.StateRoot().TerminalString())
+		finalProof.Public.NewStateRoot = rpcFinalBatch.StateRoot().Bytes()
+		finalProof.Public.NewLocalExitRoot = rpcFinalBatch.LocalExitRoot().Bytes()
 	}
 
 	return finalProof, nil
@@ -1054,7 +1055,8 @@ func (a *Aggregator) getAndLockBatchToProve(
 
 	// Not found, so it it not possible to verify the batch yet
 	if sequence == nil || errors.Is(err, entities.ErrNotFound) {
-		tmpLogger.Infof("Sequencing event for batch %d has not been synced yet, so it is not possible to verify it yet. Waiting...", batchNumberToVerify)
+		tmpLogger.Infof("Sequencing event for batch %d has not been synced yet, "+
+			"so it is not possible to verify it yet. Waiting...", batchNumberToVerify)
 
 		return nil, nil, nil, state.ErrNotFound
 	}
@@ -1070,7 +1072,8 @@ func (a *Aggregator) getAndLockBatchToProve(
 		a.logger.Errorf("Error getting virtual batch: %v", err)
 		return nil, nil, nil, err
 	} else if errors.Is(err, entities.ErrNotFound) {
-		a.logger.Infof("Virtual batch %d has not been synced yet, so it is not possible to verify it yet. Waiting...", batchNumberToVerify)
+		a.logger.Infof("Virtual batch %d has not been synced yet, "+
+			"so it is not possible to verify it yet. Waiting...", batchNumberToVerify)
 		return nil, nil, nil, state.ErrNotFound
 	}
 
@@ -1406,7 +1409,7 @@ func (a *Aggregator) buildInputProver(
 	}
 
 	// Get Old Acc Input Hash
-	oldDBBatch, err := a.state.GetBatch(ctx, batchToVerify.BatchNumber-1, nil)
+	rpcOldBatch, err := rpc.GetBatchFromRPC(a.cfg.RPCURL, batchToVerify.BatchNumber-1)
 	if err != nil {
 		return nil, err
 	}
@@ -1414,7 +1417,7 @@ func (a *Aggregator) buildInputProver(
 	inputProver := &prover.StatelessInputProver{
 		PublicInputs: &prover.StatelessPublicInputs{
 			Witness:           witness,
-			OldAccInputHash:   oldDBBatch.Batch.AccInputHash.Bytes(),
+			OldAccInputHash:   rpcOldBatch.AccInputHash().Bytes(),
 			OldBatchNum:       batchToVerify.BatchNumber - 1,
 			ChainId:           batchToVerify.ChainID,
 			ForkId:            batchToVerify.ForkID,

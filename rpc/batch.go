@@ -51,8 +51,9 @@ func GetBatchFromRPC(addr string, batchNumber uint64) (*types.RPCBatch, error) {
 	}
 
 	rpcBatch, err := types.NewRPCBatch(batchNumber, common.HexToHash(zkEVMBatchData.AccInputHash), zkEVMBatchData.Blocks,
-		common.FromHex(zkEVMBatchData.BatchL2Data), common.HexToHash(zkEVMBatchData.GlobalExitRoot), common.HexToHash(zkEVMBatchData.LocalExitRoot),
-		common.HexToHash(zkEVMBatchData.StateRoot), common.HexToAddress(zkEVMBatchData.Coinbase), zkEVMBatchData.Closed)
+		common.FromHex(zkEVMBatchData.BatchL2Data), common.HexToHash(zkEVMBatchData.GlobalExitRoot),
+		common.HexToHash(zkEVMBatchData.LocalExitRoot), common.HexToHash(zkEVMBatchData.StateRoot),
+		common.HexToAddress(zkEVMBatchData.Coinbase), zkEVMBatchData.Closed)
 	if err != nil {
 		return nil, fmt.Errorf("error creating the rpc batch: %w", err)
 	}
