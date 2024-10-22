@@ -6,7 +6,7 @@ args:
   cdk_validium_node_image: 0xpolygon/cdk-validium-node:0.7.0-cdk
   cdk_node_image: cdk
   zkevm_use_gas_token_contract: true
-  additional_services:
-    - pless_zkevm_node
+  # additional_services:
+  #   - pless_zkevm_node
   data_availability_mode: cdk-validium
   sequencer_type: erigon
