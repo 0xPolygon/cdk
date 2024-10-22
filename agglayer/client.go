@@ -97,7 +97,7 @@ func (c *AggLayerClient) SendCertificate(certificate *SignedCertificate) (common
 	}
 
 	if response.Error != nil {
-		return common.Hash{}, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
+		return common.Hash{}, fmt.Errorf("%d %s", response.Error.Code, response.Error.Message)
 	}
 
 	var result types.ArgHash
@@ -117,7 +117,7 @@ func (c *AggLayerClient) GetCertificateHeader(certificateHash common.Hash) (*Cer
 	}
 
 	if response.Error != nil {
-		return nil, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
+		return nil, fmt.Errorf("%d %s", response.Error.Code, response.Error.Message)
 	}
 
 	var result *CertificateHeader

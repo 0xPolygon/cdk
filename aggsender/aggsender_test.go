@@ -776,43 +776,49 @@ func TestShouldSendCertificate(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name                   string
-		block                  uint64
-		epochSize              uint64
-		lastL1CertificateBlock uint64
-		expectedResult         bool
+		name                    string
+		block                   uint64
+		epochSize               uint64
+		blocksBeforeEpochEnding uint64
+		lastL1CertificateBlock  uint64
+		expectedResult          bool
 	}{
 		{
-			name:           "Should send certificate",
-			block:          8,
-			epochSize:      10,
-			expectedResult: true,
+			name:                    "Should send certificate",
+			block:                   8,
+			epochSize:               10,
+			blocksBeforeEpochEnding: 2,
+			expectedResult:          true,
 		},
 		{
-			name:           "Should send certificate - another case",
-			block:          9,
-			epochSize:      10,
-			expectedResult: true,
+			name:                    "Should send certificate - another case",
+			block:                   9,
+			epochSize:               10,
+			blocksBeforeEpochEnding: 1,
+			expectedResult:          true,
 		},
 		{
-			name:                   "Should not send certificate",
-			block:                  25,
-			epochSize:              10,
-			lastL1CertificateBlock: 18,
-			expectedResult:         false,
+			name:                    "Should not send certificate",
+			block:                   25,
+			epochSize:               10,
+			lastL1CertificateBlock:  18,
+			blocksBeforeEpochEnding: 2,
+			expectedResult:          false,
 		},
 		{
-			name:           "Should not send certificate at zero block",
-			block:          0,
-			epochSize:      1,
-			expectedResult: false,
+			name:                    "Should not send certificate at zero block",
+			block:                   0,
+			epochSize:               1,
+			blocksBeforeEpochEnding: 2,
+			expectedResult:          false,
 		},
 		{
-			name:                   "Should send certificate with large epoch size",
-			block:                  1998,
-			epochSize:              1000,
-			lastL1CertificateBlock: 998,
-			expectedResult:         true,
+			name:                    "Should send certificate with large epoch size",
+			block:                   1998,
+			epochSize:               1000,
+			lastL1CertificateBlock:  998,
+			blocksBeforeEpochEnding: 2,
+			expectedResult:          true,
 		},
 	}
 
@@ -824,7 +830,8 @@ func TestShouldSendCertificate(t *testing.T) {
 
 			aggSender := &AggSender{
 				cfg: Config{
-					EpochSize: tt.epochSize,
+					EpochSize:               tt.epochSize,
+					BlocksBeforeEpochEnding: tt.blocksBeforeEpochEnding,
 				},
 				lastL1CertificateBlock: tt.lastL1CertificateBlock,
 			}
@@ -1004,7 +1011,7 @@ func TestSendCertificate(t *testing.T) {
 		var (
 			aggsender = &AggSender{
 				log:          log.WithFields("aggsender", 1),
-				cfg:          Config{EpochSize: 10},
+				cfg:          Config{EpochSize: 10, BlocksBeforeEpochEnding: 2},
 				sequencerKey: cfg.sequencerKey,
 			}
 			mockL1Client         *EthClientMock

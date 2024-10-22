@@ -23,9 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-// defines number of blocks before epoch ending to send a certificate
-const numOfBlocksBeforeEpochEnding = 2
-
 var errNoBridgesAndClaims = errors.New("no bridges and claims to build certificate")
 
 // L1InfoTreeSyncer is an interface defining functions that an L1InfoTreeSyncer should implement
@@ -94,7 +91,7 @@ func New(
 		return nil, err
 	}
 
-	sequencerPrivateKey, err := cdkcommon.NewKeyFromKeystore(cfg.SequencerPrivateKey)
+	sequencerPrivateKey, err := cdkcommon.NewKeyFromKeystore(cfg.AggsenderPrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +210,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 	a.lastL1CertificateBlock = l1Block
 	a.lock.Unlock()
 
-	a.log.Infof("certificate: %s sent successfully for block: %d to block: %d", certificateHash, fromBlock, toBlock)
+	a.log.Infof("certificate: %s sent successfully for range of l2 blocks (from block: %d, to block: %d)",
+		certificateHash, fromBlock, toBlock)
 
 	return nil
 }
@@ -531,7 +529,7 @@ func (a *AggSender) shouldSendCertificate(block uint64) bool {
 	lastL1BlockSeen := a.lastL1CertificateBlock
 	a.lock.Unlock()
 
-	shouldSend := lastL1BlockSeen+a.cfg.EpochSize-numOfBlocksBeforeEpochEnding <= block
+	shouldSend := lastL1BlockSeen+a.cfg.EpochSize-a.cfg.BlocksBeforeEpochEnding <= block
 
 	return shouldSend
 }

@@ -17,5 +17,6 @@ type CertificateInfo struct {
 }
 
 func (c CertificateInfo) String() string {
-	return fmt.Sprintf("Height: %d, CertificateID: %s", c.Height, c.CertificateID.String())
+	return fmt.Sprintf("Height: %d, CertificateID: %s, FromBlock: %d, ToBlock: %d, NewLocalExitRoot: %s",
+		c.Height, c.CertificateID.String(), c.FromBlock, c.ToBlock, c.NewLocalExitRoot.String())
 }

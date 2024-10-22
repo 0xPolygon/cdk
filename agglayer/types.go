@@ -31,11 +31,11 @@ func (l LeafType) Uint8() uint8 {
 }
 
 const (
-	LeafTypeAsset   LeafType = 0
-	LeafTypeMessage LeafType = 1
+	LeafTypeAsset LeafType = iota
+	LeafTypeMessage
 )
 
-// Certificate is the data structure that will be sent to the aggLayer
+// Certificate is the data structure that will be sent to the agglayer
 type Certificate struct {
 	NetworkID           uint32                `json:"network_id"`
 	Height              uint64                `json:"height"`
@@ -178,5 +178,6 @@ type CertificateHeader struct {
 }
 
 func (c CertificateHeader) String() string {
-	return fmt.Sprintf("Height: %d, CertificateID: %s", c.Height, c.CertificateID.String())
+	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s",
+		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String())
 }
