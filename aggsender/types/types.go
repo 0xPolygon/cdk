@@ -29,6 +29,7 @@ type L2BridgeSyncer interface {
 	GetClaims(ctx context.Context, fromBlock, toBlock uint64) ([]bridgesync.Claim, error)
 	OriginNetwork() uint32
 	BlockFinality() etherman.BlockNumberFinality
+	GetLastProcessedBlock(ctx context.Context) (uint64, error)
 }
 
 // EthClient is an interface defining functions that an EthClient should implement

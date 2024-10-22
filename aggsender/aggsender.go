@@ -116,19 +116,23 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error getting block from l2: %w", err)
 	}
+	lasL2BlockSynced, err := a.l2Syncer.GetLastProcessedBlock(ctx)
+	if err != nil {
+		return fmt.Errorf("error getting last processed block from l2: %w", err)
+	}
+	log.Debugf("lastL2Block: %d, lasL2BlockSynced: %d", lastL2Block.Number.Uint64(), lasL2BlockSynced)
 
 	previousLocalExitRoot, previousHeight, lastCertificateBlock, err := a.getLastSentCertificateData(ctx)
 	if err != nil {
 		return err
 	}
-
-	if lastL2Block.Number.Uint64() <= lastCertificateBlock {
-		a.log.Info("no new blocks to send a certificate")
+	fromBlock := lastCertificateBlock + 1
+	toBlock, err := chooseToL2Block(lastL2Block.Number.Uint64(), lasL2BlockSynced, lastCertificateBlock)
+	if err != nil {
+		a.log.Errorf("no new blocks to send a certificate: %s", err.Error())
 		return nil
 	}
-
-	fromBlock := lastCertificateBlock + 1
-	toBlock := lastL2Block.Number.Uint64()
+	log.Infof("lastL2Block: %d, lasL2BlockSynced: %d  choose range:[%d,%d]", lastL2Block.Number.Uint64(), lasL2BlockSynced, fromBlock, toBlock)
 
 	bridges, err := a.l2Syncer.GetBridges(ctx, fromBlock, toBlock)
 	if err != nil {
@@ -180,6 +184,21 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		certificateHash, fromBlock, toBlock)
 
 	return nil
+}
+
+func chooseToL2Block(lastL2Block, lasL2BlockSynced, lastCertificateBlock uint64) (uint64, error) {
+	if lastL2Block <= lastCertificateBlock {
+		return lastCertificateBlock, fmt.Errorf("lastL2Block: %d (into RPC) is less than or equal to lastCertificateBlock: %d. So we can't send new cert", lastL2Block, lastCertificateBlock)
+	}
+	if lasL2BlockSynced <= lastCertificateBlock {
+		return lastCertificateBlock, fmt.Errorf("lasL2BlockSynced: %d (into L2 Syncer) is less than or equal to lastCertificateBlock: %d. So we can't send new cert", lastL2Block, lastCertificateBlock)
+	}
+	if lasL2BlockSynced <= lastL2Block {
+		// If lasL2BlockSynced is less than or equal to lastL2Block, means that syncer is not on top of block but
+		// we can use it to send a new certificate
+		return lasL2BlockSynced, nil
+	}
+	return lastL2Block, nil
 }
 
 // buildCertificate builds a certificate from the bridge events

@@ -201,7 +201,7 @@ func (p *processor) isBlockProcessed(tx db.Querier, blockNum uint64) error {
 		return err
 	}
 	if lpb < blockNum {
-		return ErrBlockNotProcessed
+		return fmt.Errorf("block %d not processed, last %d. Err:%w", blockNum, lpb, ErrBlockNotProcessed)
 	}
 	return nil
 }
