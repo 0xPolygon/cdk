@@ -1081,8 +1081,10 @@ func TestSendCertificate(t *testing.T) {
 			mockL2Client = mocks.NewEthClientMock(t)
 			mockL2Client.On("HeaderByNumber", mock.Anything, mock.Anything).Return(cfg.l2HeaderByNumber...).Once()
 			if cfg.l2HeaderByNumber[0] != nil {
-				hdr := cfg.l2HeaderByNumber[0].(*gethTypes.Header)
-				mockL2Syncer.On("GetLastProcessedBlock", mock.Anything).Return(hdr.Number.Uint64(), nil).Once()
+				hdr, ok := cfg.l2HeaderByNumber[0].(*gethTypes.Header)
+				if ok {
+					mockL2Syncer.On("GetLastProcessedBlock", mock.Anything).Return(hdr.Number.Uint64(), nil).Once()
+				}
 			}
 			aggsender.l2Client = mockL2Client
 		}
