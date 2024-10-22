@@ -16,8 +16,8 @@ IsValidiumMode = false
 L2Coinbase = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
 SequencerPrivateKeyPath = "/app/sequencer.keystore"
 SequencerPrivateKeyPassword = "test"
-RPCURL = "localhost:8123"
-WitnessURL = "localhost:8123"
+RPCURL = "http://localhost:8123"
+WitnessURL = "http://localhost:8123"
 AggLayerURL = "https://agglayer-dev.polygon.technology"
 
 AggregatorPrivateKeyPath = "/app/keystore/aggregator.keystore"
