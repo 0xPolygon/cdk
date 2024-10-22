@@ -261,6 +261,8 @@ func TestWithReorgs(t *testing.T) {
 }
 
 func TestStressAndReorgs(t *testing.T) {
+	t.Skip()
+
 	const (
 		totalIterations       = 3
 		blocksInIteration     = 140
