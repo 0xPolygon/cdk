@@ -322,7 +322,7 @@ func TestStressAndReorgs(t *testing.T) {
 		}
 	}
 
-	commitBlocks(t, client, 2, time.Millisecond*100)
+	commitBlocks(t, client, 1, time.Millisecond*10)
 
 	waitForSyncerToCatchUp(ctx, t, syncer, client)
 
