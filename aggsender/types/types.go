@@ -1,11 +1,49 @@
 package types
 
 import (
+	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/0xPolygon/cdk/agglayer"
+	"github.com/0xPolygon/cdk/bridgesync"
+	"github.com/0xPolygon/cdk/etherman"
+	"github.com/0xPolygon/cdk/l1infotreesync"
+	treeTypes "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
+
+// L1InfoTreeSyncer is an interface defining functions that an L1InfoTreeSyncer should implement
+type L1InfoTreeSyncer interface {
+	GetInfoByGlobalExitRoot(globalExitRoot common.Hash) (*l1infotreesync.L1InfoTreeLeaf, error)
+	GetL1InfoTreeMerkleProofFromIndexToRoot(ctx context.Context,
+		index uint32, root common.Hash) (treeTypes.Proof, error)
+}
+
+// L2BridgeSyncer is an interface defining functions that an L2BridgeSyncer should implement
+type L2BridgeSyncer interface {
+	GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error)
+	GetExitRootByIndex(ctx context.Context, index uint32) (treeTypes.Root, error)
+	GetBridges(ctx context.Context, fromBlock, toBlock uint64) ([]bridgesync.Bridge, error)
+	GetClaims(ctx context.Context, fromBlock, toBlock uint64) ([]bridgesync.Claim, error)
+	OriginNetwork() uint32
+	BlockFinality() etherman.BlockNumberFinality
+}
+
+// EthClient is an interface defining functions that an EthClient should implement
+type EthClient interface {
+	BlockNumber(ctx context.Context) (uint64, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+}
+
+// Logger is an interface that defines the methods to log messages
+type Logger interface {
+	Info(args ...interface{})
+	Infof(format string, args ...interface{})
+	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
+}
 
 type CertificateInfo struct {
 	Height           uint64                     `meddler:"height"`

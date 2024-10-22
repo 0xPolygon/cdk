@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"math/big"
 	"sync"
 	"time"
 
@@ -14,10 +13,8 @@ import (
 	aggsendertypes "github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/bridgesync"
 	cdkcommon "github.com/0xPolygon/cdk/common"
-	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
-	treeTypes "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -25,45 +22,14 @@ import (
 
 var errNoBridgesAndClaims = errors.New("no bridges and claims to build certificate")
 
-// L1InfoTreeSyncer is an interface defining functions that an L1InfoTreeSyncer should implement
-type L1InfoTreeSyncer interface {
-	GetInfoByGlobalExitRoot(globalExitRoot common.Hash) (*l1infotreesync.L1InfoTreeLeaf, error)
-	GetL1InfoTreeMerkleProofFromIndexToRoot(ctx context.Context,
-		index uint32, root common.Hash) (treeTypes.Proof, error)
-}
-
-// L2BridgeSyncer is an interface defining functions that an L2BridgeSyncer should implement
-type L2BridgeSyncer interface {
-	GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error)
-	GetExitRootByIndex(ctx context.Context, index uint32) (treeTypes.Root, error)
-	GetBridges(ctx context.Context, fromBlock, toBlock uint64) ([]bridgesync.Bridge, error)
-	GetClaims(ctx context.Context, fromBlock, toBlock uint64) ([]bridgesync.Claim, error)
-	OriginNetwork() uint32
-	BlockFinality() etherman.BlockNumberFinality
-}
-
-// EthClient is an interface defining functions that an EthClient should implement
-type EthClient interface {
-	BlockNumber(ctx context.Context) (uint64, error)
-	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
-}
-
-// Logger is an interface that defines the methods to log messages
-type Logger interface {
-	Info(args ...interface{})
-	Infof(format string, args ...interface{})
-	Error(args ...interface{})
-	Errorf(format string, args ...interface{})
-}
-
 // AggSender is a component that will send certificates to the aggLayer
 type AggSender struct {
-	log Logger
+	log aggsendertypes.Logger
 
-	l2Syncer         L2BridgeSyncer
-	l2Client         EthClient
-	l1infoTreeSyncer L1InfoTreeSyncer
-	l1Client         EthClient
+	l2Syncer         aggsendertypes.L2BridgeSyncer
+	l2Client         aggsendertypes.EthClient
+	l1infoTreeSyncer aggsendertypes.L1InfoTreeSyncer
+	l1Client         aggsendertypes.EthClient
 
 	storage        db.AggSenderStorage
 	aggLayerClient agglayer.AgglayerClientInterface
@@ -82,10 +48,10 @@ func New(
 	logger *log.Logger,
 	cfg Config,
 	aggLayerClient agglayer.AgglayerClientInterface,
-	l1Client EthClient,
+	l1Client aggsendertypes.EthClient,
 	l1InfoTreeSyncer *l1infotreesync.L1InfoTreeSync,
 	l2Syncer *bridgesync.BridgeSync,
-	l2Client EthClient) (*AggSender, error) {
+	l2Client aggsendertypes.EthClient) (*AggSender, error) {
 	storage, err := db.NewAggSenderSQLStorage(logger, cfg.DBPath)
 	if err != nil {
 		return nil, err

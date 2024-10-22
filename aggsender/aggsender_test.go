@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
-	"github.com/0xPolygon/cdk/aggsender/db"
+	"github.com/0xPolygon/cdk/aggsender/mocks"
 	aggsendertypes "github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/config/types"
@@ -340,7 +340,7 @@ func TestGetImportedBridgeExits(t *testing.T) {
 
 	mockProof := generateTestProof(t)
 
-	mockL1InfoTreeSyncer := NewL1InfoTreeSyncerMock(t)
+	mockL1InfoTreeSyncer := mocks.NewL1InfoTreeSyncerMock(t)
 	mockL1InfoTreeSyncer.On("GetInfoByGlobalExitRoot", mock.Anything).Return(&l1infotreesync.L1InfoTreeLeaf{
 		L1InfoTreeIndex:   1,
 		Timestamp:         123456789,
@@ -560,8 +560,8 @@ func TestGetImportedBridgeExits(t *testing.T) {
 }
 
 func TestBuildCertificate(t *testing.T) {
-	mockL2BridgeSyncer := NewL2BridgeSyncerMock(t)
-	mockL1InfoTreeSyncer := NewL1InfoTreeSyncerMock(t)
+	mockL2BridgeSyncer := mocks.NewL2BridgeSyncerMock(t)
+	mockL1InfoTreeSyncer := mocks.NewL1InfoTreeSyncerMock(t)
 	mockProof := generateTestProof(t)
 
 	tests := []struct {
@@ -926,9 +926,9 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			mockStorage := db.NewAggSenderStorageMock(t)
+			mockStorage := mocks.NewAggSenderStorageMock(t)
 			mockAggLayerClient := agglayer.NewAgglayerClientMock(t)
-			mockLogger := NewLoggerMock(t)
+			mockLogger := mocks.NewLoggerMock(t)
 
 			mockStorage.On("GetCertificatesByStatus", mock.Anything, []agglayer.CertificateStatus{agglayer.Pending}).Return(tt.pendingCertificates, tt.getFromDBError)
 			for certID, header := range tt.certificateHeaders {
@@ -1006,24 +1006,24 @@ func TestSendCertificate(t *testing.T) {
 		expectedError           string
 	}
 
-	setupTest := func(cfg testCfg) (*AggSender, *db.AggSenderStorageMock, *EthClientMock, *L2BridgeSyncerMock,
-		*EthClientMock, *agglayer.AgglayerClientMock, *L1InfoTreeSyncerMock) {
+	setupTest := func(cfg testCfg) (*AggSender, *mocks.AggSenderStorageMock, *mocks.EthClientMock, *mocks.L2BridgeSyncerMock,
+		*mocks.EthClientMock, *agglayer.AgglayerClientMock, *mocks.L1InfoTreeSyncerMock) {
 		var (
 			aggsender = &AggSender{
 				log:          log.WithFields("aggsender", 1),
 				cfg:          Config{EpochSize: 10, BlocksBeforeEpochEnding: 2},
 				sequencerKey: cfg.sequencerKey,
 			}
-			mockL1Client         *EthClientMock
-			mockStorage          *db.AggSenderStorageMock
-			mockL2Syncer         *L2BridgeSyncerMock
-			mockL2Client         *EthClientMock
+			mockL1Client         *mocks.EthClientMock
+			mockStorage          *mocks.AggSenderStorageMock
+			mockL2Syncer         *mocks.L2BridgeSyncerMock
+			mockL2Client         *mocks.EthClientMock
 			mockAggLayerClient   *agglayer.AgglayerClientMock
-			mockL1InfoTreeSyncer *L1InfoTreeSyncerMock
+			mockL1InfoTreeSyncer *mocks.L1InfoTreeSyncerMock
 		)
 
 		if cfg.l1BlockNumber != nil {
-			mockL1Client = NewEthClientMock(t)
+			mockL1Client = mocks.NewEthClientMock(t)
 			mockL1Client.On("BlockNumber", mock.Anything).Return(cfg.l1BlockNumber...).Once()
 
 			aggsender.l1Client = mockL1Client
@@ -1031,7 +1031,7 @@ func TestSendCertificate(t *testing.T) {
 
 		if cfg.getLastSentCertificate != nil || cfg.deleteCertificate != nil ||
 			cfg.getCertificateByHeight != nil || cfg.saveLastSentCertificate != nil {
-			mockStorage = db.NewAggSenderStorageMock(t)
+			mockStorage = mocks.NewAggSenderStorageMock(t)
 			mockStorage.On("GetLastSentCertificate", mock.Anything).Return(cfg.getLastSentCertificate...).Once()
 
 			if cfg.deleteCertificate != nil {
@@ -1051,7 +1051,7 @@ func TestSendCertificate(t *testing.T) {
 
 		if cfg.l2BlockFinality != nil || cfg.getBlockByLER != nil || cfg.originNetwork != nil ||
 			cfg.getBridges != nil || cfg.getClaims != nil || cfg.getInfoByGlobalExitRoot != nil {
-			mockL2Syncer = NewL2BridgeSyncerMock(t)
+			mockL2Syncer = mocks.NewL2BridgeSyncerMock(t)
 			mockL2Syncer.On("BlockFinality").Return(cfg.l2BlockFinality...).Once()
 
 			if cfg.getBlockByLER != nil {
@@ -1078,7 +1078,7 @@ func TestSendCertificate(t *testing.T) {
 		}
 
 		if cfg.l2HeaderByNumber != nil {
-			mockL2Client = NewEthClientMock(t)
+			mockL2Client = mocks.NewEthClientMock(t)
 			mockL2Client.On("HeaderByNumber", mock.Anything, mock.Anything).Return(cfg.l2HeaderByNumber...).Once()
 
 			aggsender.l2Client = mockL2Client
@@ -1096,7 +1096,7 @@ func TestSendCertificate(t *testing.T) {
 		}
 
 		if cfg.getInfoByGlobalExitRoot != nil {
-			mockL1InfoTreeSyncer = NewL1InfoTreeSyncerMock(t)
+			mockL1InfoTreeSyncer = mocks.NewL1InfoTreeSyncerMock(t)
 			mockL1InfoTreeSyncer.On("GetInfoByGlobalExitRoot", mock.Anything).Return(cfg.getInfoByGlobalExitRoot...).Once()
 
 			aggsender.l1infoTreeSyncer = mockL1InfoTreeSyncer
