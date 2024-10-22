@@ -16,6 +16,7 @@ IsValidiumMode = false
 L2Coinbase = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
 SequencerPrivateKeyPath = "/app/sequencer.keystore"
 SequencerPrivateKeyPassword = "test"
+RPCURL = "localhost:8123"
 WitnessURL = "localhost:8123"
 AggLayerURL = "https://agglayer-dev.polygon.technology"
 StreamServer = "localhost:6900"
@@ -133,13 +134,13 @@ SenderAddress = "{{SenderProofToL1Addr}}"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 GasOffset = 0
+RPCURL = "{{L2URL}}"
 WitnessURL = "{{WitnessURL}}"
 UseL1BatchData = true
 UseFullWitness = false
 SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
 AggLayerURL = "{{AggLayerURL}}"
-MaxWitnessRetrievalWorkers = 2
 SyncModeOnlyEnabled = false
 	[Aggregator.SequencerPrivateKey]
 		Path = "{{SequencerPrivateKeyPath}}"
@@ -156,8 +157,6 @@ SyncModeOnlyEnabled = false
 		Environment ="{{Log.Environment}}" # "production" or "development"
 		Level = "{{Log.Level}}"
 		Outputs = ["stderr"]
-	[Aggregator.StreamClient]
-		Server = "{{StreamServer}}"
 	[Aggregator.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2m"

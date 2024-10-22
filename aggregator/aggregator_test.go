@@ -20,6 +20,7 @@ import (
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
+	rpctypes "github.com/0xPolygon/cdk/rpc/types"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer"
 	"github.com/ethereum/go-ethereum/common"
@@ -54,6 +55,7 @@ type mox struct {
 	proverMock         *mocks.ProverInterfaceMock
 	aggLayerClientMock *mocks.AgglayerClientInterfaceMock
 	synchronizerMock   *mocks.SynchronizerInterfaceMock
+	rpcMock            *mocks.RPCInterfaceMock
 }
 
 func WaitUntil(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
@@ -88,7 +90,8 @@ func Test_handleReorg(t *testing.T) {
 	}
 
 	mockL1Syncr.On("GetLastestVirtualBatchNumber", mock.Anything).Return(uint64(100), nil).Once()
-	mockState.On("DeleteBatchesNewerThanBatchNumber", mock.Anything, uint64(100), mock.Anything).Return(nil).Once()
+	mockState.On("DeleteGeneratedProofs", mock.Anything, mock.Anything, mock.Anything, nil).Return(nil).Once()
+	mockState.On("DeleteUngeneratedProofs", mock.Anything, nil).Return(nil).Once()
 
 	go a.handleReorg(reorgData)
 	time.Sleep(3 * time.Second)
@@ -101,7 +104,6 @@ func Test_handleReorg(t *testing.T) {
 func Test_handleRollbackBatches(t *testing.T) {
 	t.Parallel()
 
-	mockStreamClient := new(mocks.StreamClientMock)
 	mockEtherman := new(mocks.EthermanMock)
 	mockState := new(mocks.StateInterfaceMock)
 
@@ -110,13 +112,9 @@ func Test_handleRollbackBatches(t *testing.T) {
 		LastBatchNumber: 100,
 	}
 
-	mockStreamClient.On("IsStarted").Return(true).Once()
-	mockStreamClient.On("ResetProcessEntryFunc").Return().Once()
-	mockStreamClient.On("SetProcessEntryFunc", mock.Anything).Return().Once()
-	mockStreamClient.On("ExecCommandStop").Return(nil).Once()
-	mockStreamClient.On("Start").Return(nil).Once()
-	mockStreamClient.On("ExecCommandStartBookmark", mock.Anything).Return(nil).Once()
 	mockEtherman.On("GetLatestVerifiedBatchNum").Return(uint64(90), nil).Once()
+	mockState.On("DeleteUngeneratedProofs", mock.Anything, mock.Anything).Return(nil).Once()
+	mockState.On("DeleteGeneratedProofs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	a := Aggregator{
 		ctx:      context.Background(),
@@ -130,7 +128,6 @@ func Test_handleRollbackBatches(t *testing.T) {
 	a.handleRollbackBatches(rollbackData)
 
 	assert.False(t, a.halted.Load())
-	mockStreamClient.AssertExpectations(t)
 	mockEtherman.AssertExpectations(t)
 	mockState.AssertExpectations(t)
 }
@@ -163,18 +160,14 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 				}
 				a.cfg = cfg
 
-				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-				}).Return(&state.DBBatch{
-					Batch: state.Batch{
-						LocalExitRoot: common.Hash{},
-						StateRoot:     common.Hash{},
-					},
-				}, nil).Once()
+				batch, err := rpctypes.NewRPCBatch(batchNumFinal, common.Hash{}, []string{}, []byte{}, common.Hash{}, common.Hash{}, common.Hash{}, common.Address{}, false)
+				require.NoError(err, "error creating batch")
+				m.rpcMock.On("GetBatch", batchNumFinal).Return(batch, err)
 
 				m.etherman.On("GetRollupId").Return(uint32(1)).Once()
 				testHash := common.BytesToHash([]byte("test hash"))
-				m.aggLayerClientMock.On("SendTx", mock.Anything).Return(testHash, nil).Once()
-				m.aggLayerClientMock.On("WaitTxToBeMined", testHash, mock.Anything).Return(nil).Once()
+				m.aggLayerClientMock.On("SendTx", mock.Anything).Return(testHash, nil)
+				m.aggLayerClientMock.On("WaitTxToBeMined", testHash, mock.Anything).Return(nil)
 			},
 			asserts: func(a *Aggregator) {
 				assert.False(a.verifyingProof)
@@ -193,13 +186,9 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 				}
 				a.cfg = cfg
 
-				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-				}).Return(&state.DBBatch{
-					Batch: state.Batch{
-						LocalExitRoot: common.Hash{},
-						StateRoot:     common.Hash{},
-					},
-				}, nil).Once()
+				batch, err := rpctypes.NewRPCBatch(batchNumFinal, common.Hash{}, []string{}, []byte{}, common.Hash{}, common.Hash{}, common.Hash{}, common.Address{}, false)
+				require.NoError(err, "error creating batch")
+				m.rpcMock.On("GetBatch", batchNumFinal).Return(batch, err)
 
 				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, mock.Anything, common.HexToAddress(senderAddr)).Return(&toAddr, data, nil).Once()
 				m.ethTxManager.On("Add", mock.Anything, &toAddr, big.NewInt(0), data, a.cfg.GasOffset, (*ethTypes.BlobTxSidecar)(nil)).Return(nil, nil).Once()
@@ -218,6 +207,7 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
 			aggLayerClient := mocks.NewAgglayerClientInterfaceMock(t)
+			rpcMock := mocks.NewRPCInterfaceMock(t)
 
 			curve := elliptic.P256()
 			privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
@@ -234,6 +224,7 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 				stateDBMutex:            &sync.Mutex{},
 				timeSendFinalProofMutex: &sync.RWMutex{},
 				sequencerPrivateKey:     privateKey,
+				rpcClient:               rpcMock,
 			}
 			a.ctx, a.exit = context.WithCancel(context.Background())
 
@@ -242,6 +233,7 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 				ethTxManager:       ethTxManager,
 				etherman:           etherman,
 				aggLayerClientMock: aggLayerClient,
+				rpcMock:            rpcMock,
 			}
 			if tc.setup != nil {
 				tc.setup(m, &a)
@@ -292,7 +284,7 @@ func Test_sendFinalProofError(t *testing.T) {
 		{
 			name: "Failed to settle on Agglayer: GetBatch error",
 			setup: func(m mox, a *Aggregator) {
-				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
+				m.rpcMock.On("GetBatch", batchNumFinal).Run(func(args mock.Arguments) {
 					// test is done, stop the sendFinalProof method
 					fmt.Println("Stopping sendFinalProof")
 					a.exit()
@@ -310,13 +302,9 @@ func Test_sendFinalProofError(t *testing.T) {
 				}
 				a.cfg = cfg
 
-				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-				}).Return(&state.DBBatch{
-					Batch: state.Batch{
-						LocalExitRoot: common.Hash{},
-						StateRoot:     common.Hash{},
-					},
-				}, nil).Once()
+				batch, err := rpctypes.NewRPCBatch(batchNumFinal, common.Hash{}, []string{}, []byte{}, common.Hash{}, common.Hash{}, common.Hash{}, common.Address{}, false)
+				require.NoError(err, "error creating batch")
+				m.rpcMock.On("GetBatch", batchNumFinal).Return(batch, err)
 
 				m.etherman.On("GetRollupId").Return(uint32(1)).Once()
 				m.aggLayerClientMock.On("SendTx", mock.Anything).Run(func(args mock.Arguments) {
@@ -339,13 +327,9 @@ func Test_sendFinalProofError(t *testing.T) {
 				}
 				a.cfg = cfg
 
-				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-				}).Return(&state.DBBatch{
-					Batch: state.Batch{
-						LocalExitRoot: common.Hash{},
-						StateRoot:     common.Hash{},
-					},
-				}, nil).Once()
+				batch, err := rpctypes.NewRPCBatch(batchNumFinal, common.Hash{}, []string{}, []byte{}, common.Hash{}, common.Hash{}, common.Hash{}, common.Address{}, false)
+				require.NoError(err, "error creating batch")
+				m.rpcMock.On("GetBatch", batchNumFinal).Return(batch, err)
 
 				m.etherman.On("GetRollupId").Return(uint32(1)).Once()
 				m.aggLayerClientMock.On("SendTx", mock.Anything).Return(common.Hash{}, nil).Once()
@@ -368,13 +352,9 @@ func Test_sendFinalProofError(t *testing.T) {
 				}
 				a.cfg = cfg
 
-				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-				}).Return(&state.DBBatch{
-					Batch: state.Batch{
-						LocalExitRoot: common.Hash{},
-						StateRoot:     common.Hash{},
-					},
-				}, nil).Once()
+				batch, err := rpctypes.NewRPCBatch(batchNumFinal, common.Hash{}, []string{}, []byte{}, common.Hash{}, common.Hash{}, common.Hash{}, common.Address{}, false)
+				require.NoError(err, "error creating batch")
+				m.rpcMock.On("GetBatch", batchNumFinal).Return(batch, err)
 
 				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, mock.Anything, sender).Run(func(args mock.Arguments) {
 					fmt.Println("Stopping sendFinalProof")
@@ -396,13 +376,9 @@ func Test_sendFinalProofError(t *testing.T) {
 				}
 				a.cfg = cfg
 
-				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Run(func(args mock.Arguments) {
-				}).Return(&state.DBBatch{
-					Batch: state.Batch{
-						LocalExitRoot: common.Hash{},
-						StateRoot:     common.Hash{},
-					},
-				}, nil).Once()
+				batch, err := rpctypes.NewRPCBatch(batchNumFinal, common.Hash{}, []string{}, []byte{}, common.Hash{}, common.Hash{}, common.Hash{}, common.Address{}, false)
+				require.NoError(err, "error creating batch")
+				m.rpcMock.On("GetBatch", batchNumFinal).Return(batch, err)
 
 				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, mock.Anything, sender).Return(nil, nil, nil).Once()
 				m.ethTxManager.On("Add", mock.Anything, mock.Anything, big.NewInt(0), mock.Anything, a.cfg.GasOffset, (*ethTypes.BlobTxSidecar)(nil)).Run(func(args mock.Arguments) {
@@ -424,6 +400,7 @@ func Test_sendFinalProofError(t *testing.T) {
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
 			aggLayerClient := mocks.NewAgglayerClientInterfaceMock(t)
+			rpcMock := mocks.NewRPCInterfaceMock(t)
 
 			curve := elliptic.P256()
 			privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
@@ -440,6 +417,7 @@ func Test_sendFinalProofError(t *testing.T) {
 				stateDBMutex:            &sync.Mutex{},
 				timeSendFinalProofMutex: &sync.RWMutex{},
 				sequencerPrivateKey:     privateKey,
+				rpcClient:               rpcMock,
 			}
 			a.ctx, a.exit = context.WithCancel(context.Background())
 
@@ -448,6 +426,7 @@ func Test_sendFinalProofError(t *testing.T) {
 				ethTxManager:       ethTxManager,
 				etherman:           etherman,
 				aggLayerClientMock: aggLayerClient,
+				rpcMock:            rpcMock,
 			}
 			if tc.setup != nil {
 				tc.setup(m, &a)
@@ -520,19 +499,13 @@ func Test_buildFinalProof(t *testing.T) {
 					},
 				}
 
-				finalDBBatch := &state.DBBatch{
-					Batch: state.Batch{
-						StateRoot:     common.BytesToHash([]byte("mock StateRoot")),
-						LocalExitRoot: common.BytesToHash([]byte("mock LocalExitRoot")),
-					},
-				}
-
 				m.proverMock.On("Name").Return("name").Once()
 				m.proverMock.On("ID").Return("id").Once()
 				m.proverMock.On("Addr").Return("addr").Once()
 				m.proverMock.On("FinalProof", recursiveProof.Proof, a.cfg.SenderAddress).Return(&finalProofID, nil).Once()
 				m.proverMock.On("WaitFinalProof", mock.Anything, finalProofID).Return(&finalProof, nil).Once()
-				m.stateMock.On("GetBatch", mock.Anything, batchNumFinal, nil).Return(finalDBBatch, nil).Once()
+				finalBatch, err := rpctypes.NewRPCBatch(batchNumFinal, common.Hash{}, []string{}, []byte{}, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
+				m.rpcMock.On("GetBatch", batchNumFinal).Return(finalBatch, err).Once()
 			},
 			asserts: func(err error, fProof *prover.FinalProof) {
 				assert.NoError(err)
@@ -549,9 +522,11 @@ func Test_buildFinalProof(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			proverMock := mocks.NewProverInterfaceMock(t)
 			stateMock := mocks.NewStateInterfaceMock(t)
+			rpcMock := mocks.NewRPCInterfaceMock(t)
 			m := mox{
 				proverMock: proverMock,
 				stateMock:  stateMock,
+				rpcMock:    rpcMock,
 			}
 			a := Aggregator{
 				state:  stateMock,
@@ -559,6 +534,7 @@ func Test_buildFinalProof(t *testing.T) {
 				cfg: Config{
 					SenderAddress: common.BytesToAddress([]byte("from")).Hex(),
 				},
+				rpcClient: rpcMock,
 			}
 
 			tc.setup(m, &a)
@@ -1354,13 +1330,19 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 		TxProfitabilityCheckerType:               ProfitabilityAcceptAll,
 		SenderAddress:                            from.Hex(),
 		IntervalAfterWhichBatchConsolidateAnyway: types.Duration{Duration: time.Second * 1},
+		ChainID:                                  uint64(1),
+		ForkId:                                   uint64(12),
 	}
 	lastVerifiedBatchNum := uint64(22)
+
 	batchNum := uint64(23)
+
 	batchToProve := state.Batch{
 		BatchNumber: batchNum,
 	}
+
 	proofID := "proofId"
+
 	proverName := "proverName"
 	proverID := "proverID"
 	recursiveProof := "recursiveProof"
@@ -1369,6 +1351,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == ownerProver }
 	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == ownerAggregator }
 	fixedTimestamp := time.Date(2023, 10, 13, 15, 0, 0, 0, time.UTC)
+
 	l1InfoTreeLeaf := []synchronizer.L1InfoTreeLeaf{
 		{
 			GlobalExitRoot:    common.Hash{},
@@ -1442,11 +1425,13 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					ChainID:     uint64(1),
 					ForkID:      uint64(12),
 				}
-				dbBatch := state.DBBatch{
-					Witness: []byte("witness"),
-					Batch:   batch,
+				virtualBatch := synchronizer.VirtualBatch{
+					BatchNumber: lastVerifiedBatchNum + 1,
+					BatchL2Data: batchL2Data,
+					L1InfoRoot:  &l1InfoRoot,
 				}
 
+				m.synchronizerMock.On("GetVirtualBatchByBatchNumber", mock.Anything, lastVerifiedBatchNum+1).Return(&virtualBatch, nil).Once()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
 				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
 				sequence := synchronizer.SequencedBatches{
@@ -1454,7 +1439,12 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					ToBatchNumber:   uint64(20),
 				}
 				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1).Return(&sequence, nil).Once()
-				m.stateMock.On("GetBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(&dbBatch, nil).Once()
+
+				rpcBatch, err := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
+				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, err)
+				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
+
 				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
@@ -1476,13 +1466,9 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					},
 				}, nil).Twice()
 
-				oldDBBatch := state.DBBatch{
-					Batch: state.Batch{
-						AccInputHash: common.Hash{},
-					},
-				}
-				m.stateMock.On("GetBatch", mock.Anything, lastVerifiedBatchNum, nil).Return(&oldDBBatch, nil).Twice()
-				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, dbBatch.Witness)
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, err)
+				// m.stateMock.On("GetBatch", mock.Anything, lastVerifiedBatchNum, nil).Return(&oldDBBatch, nil).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, []byte("witness"))
 				require.NoError(err)
 
 				m.proverMock.On("BatchProof", expectedInputProver).Return(nil, errTest).Once()
@@ -1493,7 +1479,6 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				assert.ErrorIs(err, errTest)
 			},
 		},
-		//nolint:dupl
 		{
 			name: "WaitRecursiveProof prover error",
 			setup: func(m mox, a *Aggregator) {
@@ -1513,10 +1498,14 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					ChainID:     uint64(1),
 					ForkID:      uint64(12),
 				}
-				dbBatch := state.DBBatch{
-					Witness: []byte("witness"),
-					Batch:   batch,
+
+				virtualBatch := synchronizer.VirtualBatch{
+					BatchNumber: lastVerifiedBatchNum + 1,
+					BatchL2Data: batchL2Data,
+					L1InfoRoot:  &l1InfoRoot,
 				}
+
+				m.synchronizerMock.On("GetVirtualBatchByBatchNumber", mock.Anything, lastVerifiedBatchNum+1).Return(&virtualBatch, nil).Once()
 
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
 				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
@@ -1525,7 +1514,10 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					ToBatchNumber:   uint64(20),
 				}
 				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1).Return(&sequence, nil).Once()
-				m.stateMock.On("GetBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(&dbBatch, nil).Once()
+				rpcBatch, err := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
+				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, err)
+				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
 				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
@@ -1548,13 +1540,8 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					},
 				}, nil).Twice()
 
-				oldDBBatch := state.DBBatch{
-					Batch: state.Batch{
-						AccInputHash: common.Hash{},
-					},
-				}
-				m.stateMock.On("GetBatch", mock.Anything, lastVerifiedBatchNum, nil).Return(&oldDBBatch, nil).Twice()
-				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, dbBatch.Witness)
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, err).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, []byte("witness"))
 				require.NoError(err)
 
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
@@ -1565,8 +1552,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				assert.False(result)
 				assert.ErrorIs(err, errTest)
 			},
-		}, //nolint:dupl
-		//nolint:dupl
+		},
 		{
 			name: "DeleteBatchProofs error after WaitRecursiveProof prover error",
 			setup: func(m mox, a *Aggregator) {
@@ -1586,10 +1572,6 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					ChainID:     uint64(1),
 					ForkID:      uint64(12),
 				}
-				dbBatch := state.DBBatch{
-					Witness: []byte("witness"),
-					Batch:   batch,
-				}
 
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
 				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
@@ -1598,7 +1580,9 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					ToBatchNumber:   uint64(20),
 				}
 				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1).Return(&sequence, nil).Once()
-				m.stateMock.On("GetBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(&dbBatch, nil).Once()
+				rpcBatch, err := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
+				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, err).Once()
 				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
@@ -1621,14 +1605,19 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					},
 				}, nil).Twice()
 
-				oldDBBatch := state.DBBatch{
-					Batch: state.Batch{
-						AccInputHash: common.Hash{},
-					},
-				}
-				m.stateMock.On("GetBatch", mock.Anything, lastVerifiedBatchNum, nil).Return(&oldDBBatch, nil).Twice()
-				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, dbBatch.Witness)
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, err).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, []byte("witness"))
 				require.NoError(err)
+
+				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
+
+				virtualBatch := synchronizer.VirtualBatch{
+					BatchNumber: lastVerifiedBatchNum + 1,
+					BatchL2Data: batchL2Data,
+					L1InfoRoot:  &l1InfoRoot,
+				}
+
+				m.synchronizerMock.On("GetVirtualBatchByBatchNumber", mock.Anything, lastVerifiedBatchNum+1).Return(&virtualBatch, nil).Once()
 
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
 				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return("", common.Hash{}, errTest).Once()
@@ -1638,7 +1627,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				assert.False(result)
 				assert.ErrorIs(err, errTest)
 			},
-		}, //nolint:dupl
+		},
 		{
 			name: "not time to send final ok",
 			setup: func(m mox, a *Aggregator) {
@@ -1659,10 +1648,6 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					ChainID:     uint64(1),
 					ForkID:      uint64(12),
 				}
-				dbBatch := state.DBBatch{
-					Witness: []byte("witness"),
-					Batch:   batch,
-				}
 
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
 				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
@@ -1671,7 +1656,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					ToBatchNumber:   uint64(20),
 				}
 				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1).Return(&sequence, nil).Once()
-				m.stateMock.On("GetBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(&dbBatch, nil).Once()
+
 				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
@@ -1694,13 +1679,23 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					},
 				}, nil).Twice()
 
-				oldDBBatch := state.DBBatch{
-					Batch: state.Batch{
-						AccInputHash: common.Hash{},
-					},
+				rpcBatch, err := rpctypes.NewRPCBatch(lastVerifiedBatchNum, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
+				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
+				rpcBatch2, err2 := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
+				rpcBatch2.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, err)
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch2, err2)
+				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
+
+				virtualBatch := synchronizer.VirtualBatch{
+					BatchNumber: lastVerifiedBatchNum + 1,
+					BatchL2Data: batchL2Data,
+					L1InfoRoot:  &l1InfoRoot,
 				}
-				m.stateMock.On("GetBatch", mock.Anything, lastVerifiedBatchNum, nil).Return(&oldDBBatch, nil).Twice()
-				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, dbBatch.Witness)
+
+				m.synchronizerMock.On("GetVirtualBatchByBatchNumber", mock.Anything, lastVerifiedBatchNum+1).Return(&virtualBatch, nil).Once()
+
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, []byte("witness"))
 				require.NoError(err)
 
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
@@ -1747,10 +1742,6 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					ChainID:     uint64(1),
 					ForkID:      uint64(12),
 				}
-				dbBatch := state.DBBatch{
-					Witness: []byte("witness"),
-					Batch:   batch,
-				}
 
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
 				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
@@ -1759,7 +1750,25 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					ToBatchNumber:   uint64(20),
 				}
 				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1).Return(&sequence, nil).Once()
-				m.stateMock.On("GetBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(&dbBatch, nil).Once()
+
+				rpcBatch, err := rpctypes.NewRPCBatch(lastVerifiedBatchNum, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
+				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
+				rpcBatch2, err2 := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
+				rpcBatch2.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, err)
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch2, err2)
+				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
+
+				virtualBatch := synchronizer.VirtualBatch{
+					BatchNumber: lastVerifiedBatchNum + 1,
+					BatchL2Data: batchL2Data,
+					L1InfoRoot:  &l1InfoRoot,
+				}
+
+				m.synchronizerMock.On("GetVirtualBatchByBatchNumber", mock.Anything, lastVerifiedBatchNum+1).Return(&virtualBatch, nil).Once()
+
+				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
+
 				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
@@ -1782,13 +1791,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					},
 				}, nil).Twice()
 
-				oldDBBatch := state.DBBatch{
-					Batch: state.Batch{
-						AccInputHash: common.Hash{},
-					},
-				}
-				m.stateMock.On("GetBatch", mock.Anything, lastVerifiedBatchNum, nil).Return(&oldDBBatch, nil).Twice()
-				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, dbBatch.Witness)
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, []byte("witness"))
 				require.NoError(err)
 
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
@@ -1824,6 +1827,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 			etherman := mocks.NewEthermanMock(t)
 			proverMock := mocks.NewProverInterfaceMock(t)
 			synchronizerMock := mocks.NewSynchronizerInterfaceMock(t)
+			mockRPC := mocks.NewRPCInterfaceMock(t)
 
 			a := Aggregator{
 				cfg:                     cfg,
@@ -1837,6 +1841,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				finalProof:              make(chan finalProofMsg),
 				profitabilityChecker:    NewTxProfitabilityCheckerAcceptAll(stateMock, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration),
 				l1Syncr:                 synchronizerMock,
+				rpcClient:               mockRPC,
 			}
 			aggregatorCtx := context.WithValue(context.Background(), "owner", ownerAggregator) //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
@@ -1847,6 +1852,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				etherman:         etherman,
 				proverMock:       proverMock,
 				synchronizerMock: synchronizerMock,
+				rpcMock:          mockRPC,
 			}
 			if tc.setup != nil {
 				tc.setup(m, &a)

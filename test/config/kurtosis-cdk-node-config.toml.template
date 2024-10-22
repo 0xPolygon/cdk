@@ -22,7 +22,7 @@ SenderProofToL1Addr = "{{.zkevm_l2_agglayer_address}}"
 
 
 
-
+RPCURL = "http://{{.l2_rpc_name}}{{.deployment_suffix}}:{{.zkevm_rpc_http_port}}"
 WitnessURL = "http://{{.l2_rpc_name}}{{.deployment_suffix}}:{{.zkevm_rpc_http_port}}"
 AggLayerURL = "http://agglayer:{{.agglayer_port}}"
 StreamServer = "{{.sequencer_name}}{{.deployment_suffix}}:{{.zkevm_data_streamer_port}}"

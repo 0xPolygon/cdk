@@ -124,9 +124,6 @@ type Config struct {
 	// DB is the database configuration
 	DB db.Config `mapstructure:"DB"`
 
-	// StreamClient is the config for the stream client
-	StreamClient StreamClientCfg `mapstructure:"StreamClient"`
-
 	// EthTxManager is the config for the ethtxmanager
 	EthTxManager ethtxmanager.Config `mapstructure:"EthTxManager"`
 
@@ -152,14 +149,6 @@ type Config struct {
 	// SyncModeOnlyEnabled is a flag that activates sync mode exclusively.
 	// When enabled, the aggregator will sync data only from L1 and will not generate or read the data stream.
 	SyncModeOnlyEnabled bool `mapstructure:"SyncModeOnlyEnabled"`
-}
-
-// StreamClientCfg contains the data streamer's configuration properties
-type StreamClientCfg struct {
-	// Datastream server to connect
-	Server string `mapstructure:"Server"`
-	// Log is the log configuration
-	Log log.Config `mapstructure:"Log"`
 }
 
 // newKeyFromKeystore creates a private key from a keystore file

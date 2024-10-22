@@ -70,6 +70,7 @@ type SequenceSender struct {
 	validStream              bool                       // Not valid while receiving data before the desired batch
 	seqSendingStopped        uint32                     // If there is a critical error
 	TxBuilder                txbuilder.TxBuilder
+	rpcClient                *rpc.BatchEndpoints
 }
 
 type sequenceData struct {
@@ -91,6 +92,7 @@ func New(cfg Config, logger *log.Logger,
 		sequenceData:    make(map[uint64]*sequenceData),
 		validStream:     false,
 		TxBuilder:       txBuilder,
+		rpcClient:       rpc.NewBatchEndpoints(cfg.RPCURL),
 	}
 
 	logger.Infof("TxBuilder configuration: %s", txBuilder.String())
@@ -163,7 +165,7 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 			return ctx.Err()
 		default:
 			// Try to retrieve batch from RPC
-			rpcBatch, err := rpc.GetBatchFromRPC(s.cfg.RPCURL, currentBatchNumber)
+			rpcBatch, err := s.rpcClient.GetBatch(currentBatchNumber)
 			if err != nil {
 				if errors.Is(err, ethtxmanager.ErrNotFound) {
 					s.logger.Infof("batch %d not found in RPC", currentBatchNumber)

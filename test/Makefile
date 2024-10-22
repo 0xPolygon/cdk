@@ -19,7 +19,6 @@ generate-mocks-sequencesender: ## Generates mocks for sequencesender, using mock
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../sequencesender/txbuilder --output ../sequencesender/txbuilder/mocks_txbuilder --outpkg mocks_txbuilder ${COMMON_MOCKERY_PARAMS}
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=EthTxMngrMock --filename=mock_ethtxmanager.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Etherman --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=StreamClient --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=StreamClientMock --filename=mock_streamclient.go
 
 .PHONY: generate-mocks-da
 generate-mocks-da: ## Generates mocks for dataavailability, using mockery tool
@@ -55,9 +54,10 @@ generate-mocks-aggregator: ## Generates mocks for aggregator, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=StateInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=StateInterfaceMock --filename=mock_state.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AgglayerClientInterface --dir=../aggregator/agglayer --output=../aggregator/mocks --outpkg=mocks --structname=AgglayerClientInterfaceMock --filename=mock_agglayer_client.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Synchronizer --srcpkg=github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer --output=../aggregator/mocks --outpkg=mocks --structname=SynchronizerInterfaceMock --filename=mock_synchronizer.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=StreamClient --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=StreamClientMock --filename=mock_streamclient.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManagerClient --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthTxManagerClientMock --filename=mock_eth_tx_manager.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../aggregator/mocks --outpkg=mocks --structname=DbTxMock --filename=mock_dbtx.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=RPCInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=RPCInterfaceMock --filename=mock_rpc.go
+
 
 .PHONY: test-e2e-fork9-validium
 test-e2e-fork9-validium: stop

@@ -6,17 +6,21 @@ import (
 
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/aggregator/prover"
+	"github.com/0xPolygon/cdk/rpc/types"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
-	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/jackc/pgx/v4"
 )
 
 // Consumer interfaces required by the package.
+type RPCInterface interface {
+	GetBatch(batchNumber uint64) (*types.RPCBatch, error)
+	GetWitness(batchNumber uint64, fullWitness bool) ([]byte, error)
+}
 
 type ProverInterface interface {
 	Name() string
@@ -37,9 +41,9 @@ type Etherman interface {
 	BuildTrustedVerifyBatchesTxData(
 		lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, beneficiary common.Address,
 	) (to *common.Address, data []byte, err error)
-	GetLatestBlockHeader(ctx context.Context) (*types.Header, error)
+	GetLatestBlockHeader(ctx context.Context) (*ethtypes.Header, error)
 	GetBatchAccInputHash(ctx context.Context, batchNumber uint64) (common.Hash, error)
-	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*ethtypes.Header, error)
 }
 
 // aggregatorTxProfitabilityChecker interface for different profitability
@@ -64,22 +68,6 @@ type StateInterface interface {
 	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
 }
 
-// StreamClient represents the stream client behaviour
-type StreamClient interface {
-	Start() error
-	ExecCommandStart(fromEntry uint64) error
-	ExecCommandStartBookmark(fromBookmark []byte) error
-	ExecCommandStop() error
-	ExecCommandGetHeader() (datastreamer.HeaderEntry, error)
-	ExecCommandGetEntry(fromEntry uint64) (datastreamer.FileEntry, error)
-	ExecCommandGetBookmark(fromBookmark []byte) (datastreamer.FileEntry, error)
-	GetFromStream() uint64
-	GetTotalEntries() uint64
-	SetProcessEntryFunc(f datastreamer.ProcessEntryFunc)
-	ResetProcessEntryFunc()
-	IsStarted() bool
-}
-
 // EthTxManagerClient represents the eth tx manager interface
 type EthTxManagerClient interface {
 	Add(
@@ -88,7 +76,7 @@ type EthTxManagerClient interface {
 		value *big.Int,
 		data []byte,
 		gasOffset uint64,
-		sidecar *types.BlobTxSidecar,
+		sidecar *ethtypes.BlobTxSidecar,
 	) (common.Hash, error)
 	AddWithGas(
 		ctx context.Context,
@@ -96,11 +84,11 @@ type EthTxManagerClient interface {
 		value *big.Int,
 		data []byte,
 		gasOffset uint64,
-		sidecar *types.BlobTxSidecar,
+		sidecar *ethtypes.BlobTxSidecar,
 		gas uint64,
 	) (common.Hash, error)
 	EncodeBlobData(data []byte) (kzg4844.Blob, error)
-	MakeBlobSidecar(blobs []kzg4844.Blob) *types.BlobTxSidecar
+	MakeBlobSidecar(blobs []kzg4844.Blob) *ethtypes.BlobTxSidecar
 	ProcessPendingMonitoredTxs(ctx context.Context, resultHandler ethtxmanager.ResultHandler)
 	Remove(ctx context.Context, id common.Hash) error
 	RemoveAll(ctx context.Context) error

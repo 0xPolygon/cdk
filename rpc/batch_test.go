@@ -102,7 +102,8 @@ func Test_getBatchFromRPC(t *testing.T) {
 			}))
 			defer srv.Close()
 
-			rpcBatch, err := GetBatchFromRPC(srv.URL, tt.batch)
+			rcpBatchClient := NewBatchEndpoints(srv.URL)
+			rpcBatch, err := rcpBatchClient.GetBatch(tt.batch)
 			if tt.expectErr != nil {
 				require.Equal(t, tt.expectErr.Error(), err.Error())
 			} else {

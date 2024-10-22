@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -12,7 +13,20 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func GetBatchFromRPC(addr string, batchNumber uint64) (*types.RPCBatch, error) {
+var (
+	// ErrBusy is returned when the witness server is busy
+	ErrBusy = errors.New("witness server is busy")
+)
+
+type BatchEndpoints struct {
+	url string
+}
+
+func NewBatchEndpoints(url string) *BatchEndpoints {
+	return &BatchEndpoints{url: url}
+}
+
+func (b *BatchEndpoints) GetBatch(batchNumber uint64) (*types.RPCBatch, error) {
 	type zkEVMBatch struct {
 		AccInputHash   string   `json:"accInputHash"`
 		Blocks         []string `json:"blocks"`
@@ -29,7 +43,7 @@ func GetBatchFromRPC(addr string, batchNumber uint64) (*types.RPCBatch, error) {
 
 	log.Infof("Getting batch %d from RPC", batchNumber)
 
-	response, err := rpc.JSONRPCCall(addr, "zkevm_getBatchByNumber", batchNumber)
+	response, err := rpc.JSONRPCCall(b.url, "zkevm_getBatchByNumber", batchNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +73,7 @@ func GetBatchFromRPC(addr string, batchNumber uint64) (*types.RPCBatch, error) {
 	}
 
 	if len(zkEVMBatchData.Blocks) > 0 {
-		lastL2BlockTimestamp, err := GetL2BlockTimestampFromRPC(addr, zkEVMBatchData.Blocks[len(zkEVMBatchData.Blocks)-1])
+		lastL2BlockTimestamp, err := b.GetL2BlockTimestamp(zkEVMBatchData.Blocks[len(zkEVMBatchData.Blocks)-1])
 		if err != nil {
 			return nil, fmt.Errorf("error getting the last l2 block timestamp from the rpc: %w", err)
 		}
@@ -72,14 +86,14 @@ func GetBatchFromRPC(addr string, batchNumber uint64) (*types.RPCBatch, error) {
 	return rpcBatch, nil
 }
 
-func GetL2BlockTimestampFromRPC(addr, blockHash string) (uint64, error) {
+func (b *BatchEndpoints) GetL2BlockTimestamp(blockHash string) (uint64, error) {
 	type zkeEVML2Block struct {
 		Timestamp string `json:"timestamp"`
 	}
 
 	log.Infof("Getting l2 block timestamp from RPC. Block hash: %s", blockHash)
 
-	response, err := rpc.JSONRPCCall(addr, "eth_getBlockByHash", blockHash, false)
+	response, err := rpc.JSONRPCCall(b.url, "eth_getBlockByHash", blockHash, false)
 	if err != nil {
 		return 0, err
 	}
@@ -97,4 +111,40 @@ func GetL2BlockTimestampFromRPC(addr, blockHash string) (uint64, error) {
 	}
 
 	return new(big.Int).SetBytes(common.FromHex(l2Block.Timestamp)).Uint64(), nil
+}
+
+func (b *BatchEndpoints) GetWitness(batchNumber uint64, fullWitness bool) ([]byte, error) {
+	var (
+		witness  string
+		response rpc.Response
+		err      error
+	)
+
+	witnessType := "trimmed"
+	if fullWitness {
+		witnessType = "full"
+	}
+
+	log.Infof("Requesting witness for batch %d of type %s", batchNumber, witnessType)
+
+	response, err = rpc.JSONRPCCall(b.url, "zkevm_getBatchWitness", batchNumber, witnessType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the response is an error
+	if response.Error != nil {
+		if response.Error.Message == "busy" {
+			return nil, ErrBusy
+		}
+
+		return nil, fmt.Errorf("error from witness for batch %d: %v", batchNumber, response.Error)
+	}
+
+	err = json.Unmarshal(response.Result, &witness)
+	if err != nil {
+		return nil, err
+	}
+
+	return common.FromHex(witness), nil
 }

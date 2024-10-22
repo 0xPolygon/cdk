@@ -14,7 +14,6 @@ import (
 	"time"
 	"unicode"
 
-	cdkRPC "github.com/0xPolygon/cdk-rpc/rpc"
 	cdkTypes "github.com/0xPolygon/cdk-rpc/types"
 	"github.com/0xPolygon/cdk/aggregator/agglayer"
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
@@ -44,10 +43,6 @@ const (
 	mockedStateRoot     = "0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"
 	mockedLocalExitRoot = "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"
 	maxDBBigIntValue    = 9223372036854775807
-)
-
-var (
-	errBusy = errors.New("witness server is busy")
 )
 
 type finalProofMsg struct {
@@ -87,6 +82,8 @@ type Aggregator struct {
 
 	sequencerPrivateKey *ecdsa.PrivateKey
 	aggLayerClient      agglayer.AgglayerClientInterface
+
+	rpcClient RPCInterface
 }
 
 // New creates a new aggregator.
@@ -167,6 +164,7 @@ func New(
 		aggLayerClient:          aggLayerClient,
 		sequencerPrivateKey:     sequencerPrivateKey,
 		witnessRetrievalChan:    make(chan state.DBBatch),
+		rpcClient:               rpc.NewBatchEndpoints(cfg.RPCURL),
 	}
 
 	if a.ctx == nil {
@@ -444,7 +442,7 @@ func (a *Aggregator) sendFinalProof() {
 			a.startProofVerification()
 
 			// Get Batch from RPC
-			rpcFinalBatch, err := rpc.GetBatchFromRPC(a.cfg.RPCURL, proof.BatchNumberFinal)
+			rpcFinalBatch, err := a.rpcClient.GetBatch(proof.BatchNumberFinal)
 			if err != nil {
 				a.logger.Errorf("error getting batch %d from RPC: %v.", proof.BatchNumberFinal, err)
 				a.endProofVerification()
@@ -604,7 +602,7 @@ func (a *Aggregator) buildFinalProof(
 		string(finalProof.Public.NewLocalExitRoot) == mockedLocalExitRoot {
 		// This local exit root and state root come from the mock
 		// prover, use the one captured by the executor instead
-		rpcFinalBatch, err := rpc.GetBatchFromRPC(a.cfg.RPCURL, proof.BatchNumberFinal)
+		rpcFinalBatch, err := a.rpcClient.GetBatch(proof.BatchNumberFinal)
 		if err != nil {
 			return nil, fmt.Errorf("error getting batch %d from RPC: %w", proof.BatchNumberFinal, err)
 		}
@@ -1078,7 +1076,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	}
 
 	// Get Batch from RPC
-	rpcBatch, err := rpc.GetBatchFromRPC(a.cfg.RPCURL, batchNumberToVerify)
+	rpcBatch, err := a.rpcClient.GetBatch(batchNumberToVerify)
 	if err != nil {
 		a.logger.Errorf("error getting batch %d from RPC: %v.", batchNumberToVerify, err)
 		return nil, nil, nil, err
@@ -1109,9 +1107,9 @@ func (a *Aggregator) getAndLockBatchToProve(
 	}
 
 	// Request the witness from the server, if it is busy just keep looping until it is available
-	witness, err := a.getWitness(batchNumberToVerify, a.cfg.WitnessURL, a.cfg.UseFullWitness)
+	witness, err := a.rpcClient.GetWitness(batchNumberToVerify, a.cfg.UseFullWitness)
 	for err != nil {
-		if errors.Is(err, errBusy) {
+		if errors.Is(err, rpc.ErrBusy) {
 			a.logger.Debugf(
 				"Witness server is busy, retrying get witness for batch %d in %v",
 				batchNumberToVerify, a.cfg.RetryTime.Duration,
@@ -1409,7 +1407,7 @@ func (a *Aggregator) buildInputProver(
 	}
 
 	// Get Old Acc Input Hash
-	rpcOldBatch, err := rpc.GetBatchFromRPC(a.cfg.RPCURL, batchToVerify.BatchNumber-1)
+	rpcOldBatch, err := a.rpcClient.GetBatch(batchToVerify.BatchNumber - 1)
 	if err != nil {
 		return nil, err
 	}
@@ -1433,42 +1431,6 @@ func (a *Aggregator) buildInputProver(
 
 	printInputProver(a.logger, inputProver)
 	return inputProver, nil
-}
-
-func (a *Aggregator) getWitness(batchNumber uint64, url string, fullWitness bool) ([]byte, error) {
-	var (
-		witness  string
-		response cdkRPC.Response
-		err      error
-	)
-
-	witnessType := "trimmed"
-	if fullWitness {
-		witnessType = "full"
-	}
-
-	a.logger.Infof("Requesting witness for batch %d of type %s", batchNumber, witnessType)
-
-	response, err = cdkRPC.JSONRPCCall(url, "zkevm_getBatchWitness", batchNumber, witnessType)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if the response is an error
-	if response.Error != nil {
-		if response.Error.Message == "busy" {
-			return nil, errBusy
-		}
-
-		return nil, fmt.Errorf("error from witness for batch %d: %v", batchNumber, response.Error)
-	}
-
-	err = json.Unmarshal(response.Result, &witness)
-	if err != nil {
-		return nil, err
-	}
-
-	return common.FromHex(witness), nil
 }
 
 func printInputProver(logger *log.Logger, inputProver *prover.StatelessInputProver) {
