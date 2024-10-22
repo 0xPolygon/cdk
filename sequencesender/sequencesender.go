@@ -51,6 +51,12 @@ type Etherman interface {
 	GetLatestBatchNumber() (uint64, error)
 }
 
+// RPCInterface represents the RPC interface
+type RPCInterface interface {
+	GetBatch(batchNumber uint64) (*types.RPCBatch, error)
+	GetWitness(batchNumber uint64, fullWitness bool) ([]byte, error)
+}
+
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
 	cfg                      Config
@@ -70,7 +76,7 @@ type SequenceSender struct {
 	validStream              bool                       // Not valid while receiving data before the desired batch
 	seqSendingStopped        uint32                     // If there is a critical error
 	TxBuilder                txbuilder.TxBuilder
-	rpcClient                *rpc.BatchEndpoints
+	rpcClient                RPCInterface
 }
 
 type sequenceData struct {
