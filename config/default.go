@@ -4,7 +4,7 @@ package config
 // environment / deployment
 const DefaultMandatoryVars = `
 L1URL = "http://localhost:8545"
-L2URL = "localhost:8123"
+L2URL = "http://localhost:8123"
 L1AggOracleURL = "http://test-aggoracle-l1:8545"
 L2AggOracleURL = "http://test-aggoracle-l2:8545"
 
@@ -16,7 +16,6 @@ IsValidiumMode = false
 L2Coinbase = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
 SequencerPrivateKeyPath = "/app/sequencer.keystore"
 SequencerPrivateKeyPassword = "test"
-RPCURL = "http://localhost:8123"
 WitnessURL = "http://localhost:8123"
 AggLayerURL = "https://agglayer-dev.polygon.technology"
 
