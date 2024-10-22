@@ -26,8 +26,8 @@ const (
 )
 
 var (
-	// ErrBlockNotProcessed indicates that the given block(s) have not been processed yet.
-	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
+	// errBlockNotProcessedFormat indicates that the given block(s) have not been processed yet.
+	errBlockNotProcessedFormat = fmt.Sprintf("block %%d not processed, last processed: %%d")
 )
 
 // Bridge is the representation of a bridge event
@@ -201,7 +201,7 @@ func (p *processor) isBlockProcessed(tx db.Querier, blockNum uint64) error {
 		return err
 	}
 	if lpb < blockNum {
-		return fmt.Errorf("block %d not processed, last %d. Err:%w", blockNum, lpb, ErrBlockNotProcessed)
+		return fmt.Errorf(errBlockNotProcessedFormat, blockNum, lpb)
 	}
 	return nil
 }

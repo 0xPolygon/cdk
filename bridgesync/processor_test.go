@@ -64,7 +64,7 @@ func TestProceessor(t *testing.T) {
 			fromBlock:      0,
 			toBlock:        2,
 			expectedClaims: nil,
-			expectedErr:    ErrBlockNotProcessed,
+			expectedErr:    fmt.Errorf(errBlockNotProcessedFormat, 2, 0),
 		},
 		&getBridges{
 			p:               p,
@@ -73,7 +73,7 @@ func TestProceessor(t *testing.T) {
 			fromBlock:       0,
 			toBlock:         2,
 			expectedBridges: nil,
-			expectedErr:     ErrBlockNotProcessed,
+			expectedErr:     fmt.Errorf(errBlockNotProcessedFormat, 2, 0),
 		},
 		&processBlockAction{
 			p:           p,
@@ -96,7 +96,7 @@ func TestProceessor(t *testing.T) {
 			fromBlock:      0,
 			toBlock:        2,
 			expectedClaims: nil,
-			expectedErr:    ErrBlockNotProcessed,
+			expectedErr:    fmt.Errorf(errBlockNotProcessedFormat, 2, 1),
 		},
 		&getBridges{
 			p:               p,
@@ -105,7 +105,7 @@ func TestProceessor(t *testing.T) {
 			fromBlock:       0,
 			toBlock:         2,
 			expectedBridges: nil,
-			expectedErr:     ErrBlockNotProcessed,
+			expectedErr:     fmt.Errorf(errBlockNotProcessedFormat, 2, 1),
 		},
 		&getClaims{
 			p:              p,
@@ -139,7 +139,7 @@ func TestProceessor(t *testing.T) {
 			fromBlock:      0,
 			toBlock:        2,
 			expectedClaims: nil,
-			expectedErr:    ErrBlockNotProcessed,
+			expectedErr:    fmt.Errorf(errBlockNotProcessedFormat, 2, 0),
 		},
 		&getBridges{
 			p:               p,
@@ -148,7 +148,7 @@ func TestProceessor(t *testing.T) {
 			fromBlock:       0,
 			toBlock:         2,
 			expectedBridges: nil,
-			expectedErr:     ErrBlockNotProcessed,
+			expectedErr:     fmt.Errorf(errBlockNotProcessedFormat, 2, 0),
 		},
 		&processBlockAction{
 			p:           p,
