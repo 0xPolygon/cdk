@@ -1,4 +1,4 @@
-package sequencesender
+package rpc
 
 import (
 	"encoding/json"
@@ -7,17 +7,20 @@ import (
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/log"
-	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes/rpcbatch"
+	"github.com/0xPolygon/cdk/rpc/types"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func getBatchFromRPC(addr string, batchNumber uint64) (*rpcbatch.RPCBatch, error) {
+func GetBatchFromRPC(addr string, batchNumber uint64) (*types.RPCBatch, error) {
 	type zkEVMBatch struct {
+		AccInputHash   string   `json:"accInputHash"`
 		Blocks         []string `json:"blocks"`
 		BatchL2Data    string   `json:"batchL2Data"`
 		Coinbase       string   `json:"coinbase"`
 		GlobalExitRoot string   `json:"globalExitRoot"`
+		LocalExitRoot  string   `json:"localExitRoot"`
+		StateRoot      string   `json:"stateRoot"`
 		Closed         bool     `json:"closed"`
 		Timestamp      string   `json:"timestamp"`
 	}
@@ -47,14 +50,15 @@ func getBatchFromRPC(addr string, batchNumber uint64) (*rpcbatch.RPCBatch, error
 		return nil, fmt.Errorf("error unmarshalling the batch from the response calling zkevm_getBatchByNumber: %w", err)
 	}
 
-	rpcBatch, err := rpcbatch.New(batchNumber, zkEVMBatchData.Blocks, common.FromHex(zkEVMBatchData.BatchL2Data),
-		common.HexToHash(zkEVMBatchData.GlobalExitRoot), common.HexToAddress(zkEVMBatchData.Coinbase), zkEVMBatchData.Closed)
+	rpcBatch, err := types.NewRPCBatch(batchNumber, common.HexToHash(zkEVMBatchData.AccInputHash), zkEVMBatchData.Blocks,
+		common.FromHex(zkEVMBatchData.BatchL2Data), common.HexToHash(zkEVMBatchData.GlobalExitRoot), common.HexToHash(zkEVMBatchData.LocalExitRoot),
+		common.HexToHash(zkEVMBatchData.StateRoot), common.HexToAddress(zkEVMBatchData.Coinbase), zkEVMBatchData.Closed)
 	if err != nil {
 		return nil, fmt.Errorf("error creating the rpc batch: %w", err)
 	}
 
 	if len(zkEVMBatchData.Blocks) > 0 {
-		lastL2BlockTimestamp, err := getL2BlockTimestampFromRPC(addr, zkEVMBatchData.Blocks[len(zkEVMBatchData.Blocks)-1])
+		lastL2BlockTimestamp, err := GetL2BlockTimestampFromRPC(addr, zkEVMBatchData.Blocks[len(zkEVMBatchData.Blocks)-1])
 		if err != nil {
 			return nil, fmt.Errorf("error getting the last l2 block timestamp from the rpc: %w", err)
 		}
@@ -67,7 +71,7 @@ func getBatchFromRPC(addr string, batchNumber uint64) (*rpcbatch.RPCBatch, error
 	return rpcBatch, nil
 }
 
-func getL2BlockTimestampFromRPC(addr, blockHash string) (uint64, error) {
+func GetL2BlockTimestampFromRPC(addr, blockHash string) (uint64, error) {
 	type zkeEVML2Block struct {
 		Timestamp string `json:"timestamp"`
 	}

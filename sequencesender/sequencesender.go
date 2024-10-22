@@ -12,15 +12,16 @@ import (
 
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/cdk/rpc"
+	"github.com/0xPolygon/cdk/rpc/types"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
-	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes/rpcbatch"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	ethtxlog "github.com/0xPolygon/zkevm-ethtx-manager/log"
 	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 const ten = 10
@@ -34,7 +35,7 @@ type EthTxManager interface {
 		value *big.Int,
 		data []byte,
 		gasOffset uint64,
-		sidecar *types.BlobTxSidecar,
+		sidecar *ethtypes.BlobTxSidecar,
 		gas uint64,
 	) (common.Hash, error)
 	Remove(ctx context.Context, hash common.Hash) error
@@ -45,7 +46,7 @@ type EthTxManager interface {
 // Etherman represents the etherman behaviour
 type Etherman interface {
 	CurrentNonce(ctx context.Context, address common.Address) (uint64, error)
-	GetLatestBlockHeader(ctx context.Context) (*types.Header, error)
+	GetLatestBlockHeader(ctx context.Context) (*ethtypes.Header, error)
 	EstimateGas(ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte) (uint64, error)
 	GetLatestBatchNumber() (uint64, error)
 }
@@ -162,7 +163,7 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 			return ctx.Err()
 		default:
 			// Try to retrieve batch from RPC
-			rpcBatch, err := getBatchFromRPC(s.cfg.RPCURL, currentBatchNumber)
+			rpcBatch, err := rpc.GetBatchFromRPC(s.cfg.RPCURL, currentBatchNumber)
 			if err != nil {
 				if errors.Is(err, ethtxmanager.ErrNotFound) {
 					s.logger.Infof("batch %d not found in RPC", currentBatchNumber)
@@ -191,7 +192,7 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 	}
 }
 
-func (s *SequenceSender) populateSequenceData(rpcBatch *rpcbatch.RPCBatch, batchNumber uint64) error {
+func (s *SequenceSender) populateSequenceData(rpcBatch *types.RPCBatch, batchNumber uint64) error {
 	s.mutexSequence.Lock()
 	defer s.mutexSequence.Unlock()
 

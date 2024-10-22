@@ -112,11 +112,11 @@ type Config struct {
 	// final gas: 1100
 	GasOffset uint64 `mapstructure:"GasOffset"`
 
+	// RPCURL is the URL of the RPC server
+	RPCURL string `mapstructure:"RPCURL"`
+
 	// WitnessURL is the URL of the witness server
 	WitnessURL string `mapstructure:"WitnessURL"`
-
-	// UseL1BatchData is a flag to enable the use of L1 batch data in the aggregator
-	UseL1BatchData bool `mapstructure:"UseL1BatchData"`
 
 	// UseFullWitness is a flag to enable the use of full witness in the aggregator
 	UseFullWitness bool `mapstructure:"UseFullWitness"`
@@ -148,9 +148,6 @@ type Config struct {
 
 	// AggLayerURL url of the agglayer service
 	AggLayerURL string `mapstructure:"AggLayerURL"`
-
-	// MaxWitnessRetrievalWorkers is the maximum number of workers that will be used to retrieve the witness
-	MaxWitnessRetrievalWorkers int `mapstructure:"MaxWitnessRetrievalWorkers"`
 
 	// SyncModeOnlyEnabled is a flag that activates sync mode exclusively.
 	// When enabled, the aggregator will sync data only from L1 and will not generate or read the data stream.

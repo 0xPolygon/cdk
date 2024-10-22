@@ -62,10 +62,10 @@ type StateInterface interface {
 	CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error)
 	CheckProofExistsForBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (bool, error)
 	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
-	AddBatch(ctx context.Context, dbBatch *state.DBBatch, dbTx pgx.Tx) error
-	GetBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.DBBatch, error)
-	DeleteBatchesOlderThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
-	DeleteBatchesNewerThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+	// AddBatch(ctx context.Context, dbBatch *state.DBBatch, dbTx pgx.Tx) error
+	// GetBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.DBBatch, error)
+	// DeleteBatchesOlderThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+	// DeleteBatchesNewerThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 }
 
 // StreamClient represents the stream client behaviour
