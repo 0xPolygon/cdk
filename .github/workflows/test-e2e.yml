@@ -99,5 +99,5 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: logs_${{ github.run_id }}
+        name: logs_${{ job.container.id }}
         path: ${{ github.workspace }}/kurtosis-cdk/ci_logs
