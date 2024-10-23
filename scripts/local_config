@@ -78,7 +78,7 @@ function export_key_from_toml_file_or_fatal(){
     local _KEY="$4"
     local _VALUE=$(get_value_from_toml_file $_FILE $_SECTION $_KEY)
     if [ -z "$_VALUE" ]; then
-       log_fatal  "$FUNCNAME: key $_KEY not found in section $_SECTION"
+       log_fatal  "$FUNCNAME: key $_KEY not found in section $_SECTION in file $_FILE"
     fi
     export $_EXPORTED_VAR_NAME="$_VALUE"
     log_debug "$_EXPORTED_VAR_NAME=${!_EXPORTED_VAR_NAME}  \t\t\t# file:$_FILE section:$_SECTION key:$_KEY"
@@ -348,6 +348,7 @@ echo "- Stop cdk-node:"
 echo "    kurtosis service stop cdk-v1 cdk-node-001"
 echo " "
 echo "- Add next configuration to vscode launch.json"
+echo " -----------------------------------------------------------"
 cat << EOF
          {
             "name": "Debug cdk",
@@ -367,3 +368,7 @@ cat << EOF
                 "-components", "aggsender",
 EOF
 
+echo " -----------------------------------------------------------"
+echo " "
+echo " - rembember to clean previous execution data: "
+echo "     rm -Rf ${path_rw_data}/*"
