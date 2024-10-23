@@ -74,6 +74,41 @@ func WaitUntil(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
 	}
 }
 
+func Test_Start(t *testing.T) {
+	mockState := new(mocks.StateInterfaceMock)
+	mockL1Syncr := new(mocks.SynchronizerInterfaceMock)
+	mockEtherman := new(mocks.EthermanMock)
+	mockEthTxManager := new(mocks.EthTxManagerClientMock)
+
+	mockL1Syncr.On("Sync", mock.Anything).Return(nil)
+	mockEtherman.On("GetLatestVerifiedBatchNum").Return(uint64(90), nil).Once()
+	mockState.On("DeleteUngeneratedProofs", mock.Anything, nil).Return(nil).Once()
+	mockState.On("CleanupLockedProofs", mock.Anything, "", nil).Return(int64(0), nil)
+
+	mockEthTxManager.On("Start").Return(nil)
+
+	ctx := context.Background()
+	a := &Aggregator{
+		state:                   mockState,
+		logger:                  log.GetDefaultLogger(),
+		halted:                  atomic.Bool{},
+		l1Syncr:                 mockL1Syncr,
+		etherman:                mockEtherman,
+		ethTxManager:            mockEthTxManager,
+		ctx:                     ctx,
+		stateDBMutex:            &sync.Mutex{},
+		timeSendFinalProofMutex: &sync.RWMutex{},
+		timeCleanupLockedProofs: types.Duration{Duration: 5 * time.Second},
+	}
+	go func() {
+		err := a.Start()
+		require.NoError(t, err)
+	}()
+	time.Sleep(time.Second)
+	a.ctx.Done()
+	time.Sleep(time.Second)
+}
+
 func Test_handleReorg(t *testing.T) {
 	t.Parallel()
 
