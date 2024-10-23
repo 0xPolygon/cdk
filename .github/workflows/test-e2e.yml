@@ -86,8 +86,8 @@ jobs:
       if: always()
       working-directory: ${{ github.workspace }}/kurtosis-cdk
       run: |
-        mkdir -p ci_logs
-        cd ci_logs
+        mkdir -p ci_logs/${{ github.run_id }}_${{ github.job }}_${{ github.run_attempt }}
+        cd ci_logs/${{ github.run_id }}_${{ github.job }}_${{ github.run_attempt }}
         kurtosis service logs cdk-v1 cdk-erigon-node-001 --all > cdk-erigon-node-001.log
         kurtosis service logs cdk-v1 cdk-erigon-sequencer-001 --all > cdk-erigon-sequencer-001.log
         kurtosis service logs cdk-v1 zkevm-agglayer-001 --all > zkevm-agglayer-001.log
@@ -99,5 +99,5 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: logs_${{ job.container.id }}
-        path: ${{ github.workspace }}/kurtosis-cdk/ci_logs
+        name: logs
+        path: ${{ github.workspace }}/kurtosis-cdk/ci_logs/${{ github.run_id }}_${{ github.job }}_${{ github.run_attempt }}
