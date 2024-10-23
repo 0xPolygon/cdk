@@ -132,14 +132,25 @@ func Test_getBatchWitnessRPC(t *testing.T) {
 		getBatchWitnessErr  error
 		expectData          []byte
 		expectErr           error
+		full                bool
 	}{
 		{
-			name:                "get batch witness success",
+			name:                "get batch trimmed witness success",
 			batch:               1,
 			getBatchWitnessResp: `{"jsonrpc":"2.0","id":1,"result":"0x0123456"}`,
 			getBatchWitnessErr:  nil,
 			expectData:          common.FromHex("0x0123456"),
 			expectErr:           nil,
+			full:                false,
+		},
+		{
+			name:                "get batch full witness success",
+			batch:               1,
+			getBatchWitnessResp: `{"jsonrpc":"2.0","id":1,"result":"0x0123456"}`,
+			getBatchWitnessErr:  nil,
+			expectData:          common.FromHex("0x0123456"),
+			expectErr:           nil,
+			full:                true,
 		},
 		{
 			name:                "get batch witness busy",
@@ -148,6 +159,7 @@ func Test_getBatchWitnessRPC(t *testing.T) {
 			getBatchWitnessErr:  nil,
 			expectData:          common.FromHex("busy"),
 			expectErr:           nil,
+			full:                false,
 		},
 	}
 
