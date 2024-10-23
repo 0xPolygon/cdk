@@ -545,6 +545,7 @@ func TestGetImportedBridgeExits(t *testing.T) {
 
 			aggSender := &AggSender{
 				l1infoTreeSyncer: mockL1InfoTreeSyncer,
+				log:              log.WithFields("test", "unittest"),
 			}
 			exits, err := aggSender.getImportedBridgeExits(context.Background(), tt.claims)
 
@@ -746,6 +747,7 @@ func TestBuildCertificate(t *testing.T) {
 			aggSender := &AggSender{
 				l2Syncer:         mockL2BridgeSyncer,
 				l1infoTreeSyncer: mockL1InfoTreeSyncer,
+				log:              log.WithFields("test", "unittest"),
 			}
 			cert, err := aggSender.buildCertificate(context.Background(), tt.bridges, tt.claims, tt.previousExit, tt.lastHeight)
 
@@ -1059,7 +1061,7 @@ func TestSendCertificate(t *testing.T) {
 			}
 
 			if cfg.getBridges != nil {
-				mockL2Syncer.On("GetBridges", mock.Anything, mock.Anything, mock.Anything).Return(cfg.getBridges...).Once()
+				mockL2Syncer.On("GetBridgesPublished", mock.Anything, mock.Anything, mock.Anything).Return(cfg.getBridges...).Once()
 			}
 
 			if cfg.getClaims != nil {

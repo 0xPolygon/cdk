@@ -25,7 +25,7 @@ type L1InfoTreeSyncer interface {
 type L2BridgeSyncer interface {
 	GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error)
 	GetExitRootByIndex(ctx context.Context, index uint32) (treeTypes.Root, error)
-	GetBridges(ctx context.Context, fromBlock, toBlock uint64) ([]bridgesync.Bridge, error)
+	GetBridgesPublished(ctx context.Context, fromBlock, toBlock uint64) ([]bridgesync.Bridge, error)
 	GetClaims(ctx context.Context, fromBlock, toBlock uint64) ([]bridgesync.Claim, error)
 	OriginNetwork() uint32
 	BlockFinality() etherman.BlockNumberFinality
@@ -44,6 +44,8 @@ type Logger interface {
 	Infof(format string, args ...interface{})
 	Error(args ...interface{})
 	Errorf(format string, args ...interface{})
+	Debug(args ...interface{})
+	Debugf(format string, args ...interface{})
 }
 
 type CertificateInfo struct {

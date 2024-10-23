@@ -135,7 +135,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 	a.log.Infof("lastL2Block: %d, lasL2BlockSynced: %d  choose range:[%d,%d]",
 		lastL2Block.Number.Uint64(), lasL2BlockSynced, fromBlock, toBlock)
 
-	bridges, err := a.l2Syncer.GetBridges(ctx, fromBlock, toBlock)
+	bridges, err := a.l2Syncer.GetBridgesPublished(ctx, fromBlock, toBlock)
 	if err != nil {
 		return fmt.Errorf("error getting bridges: %w", err)
 	}
@@ -371,7 +371,8 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 		blockHash               common.Hash
 	)
 
-	for _, claim := range claims {
+	for i, claim := range claims {
+		a.log.Debugf("claim[%d]: destAddr: %s GER:%s", i, claim.DestinationAddress.String(), claim.GlobalExitRoot.String())
 		info, err := a.l1infoTreeSyncer.GetInfoByGlobalExitRoot(claim.GlobalExitRoot)
 		if err != nil {
 			return nil, fmt.Errorf("error getting info by global exit root: %w", err)

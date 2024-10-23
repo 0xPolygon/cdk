@@ -39,6 +39,7 @@ func NewL1(
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
+	bridgeContract BridgeContractor,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -55,6 +56,7 @@ func NewL1(
 		maxRetryAttemptsAfterError,
 		originNetwork,
 		false,
+		bridgeContract,
 	)
 }
 
@@ -72,6 +74,7 @@ func NewL2(
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
+	bridgeContract BridgeContractor,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -88,6 +91,7 @@ func NewL2(
 		maxRetryAttemptsAfterError,
 		originNetwork,
 		true,
+		bridgeContract,
 	)
 }
 
@@ -106,8 +110,9 @@ func newBridgeSync(
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
 	syncFullClaims bool,
+	bridgeContract BridgeContractor,
 ) (*BridgeSync, error) {
-	processor, err := newProcessor(dbPath, l1OrL2ID)
+	processor, err := newProcessor(dbPath, l1OrL2ID, bridgeContract)
 	if err != nil {
 		return nil, err
 	}
@@ -180,6 +185,10 @@ func (s *BridgeSync) GetClaims(ctx context.Context, fromBlock, toBlock uint64) (
 
 func (s *BridgeSync) GetBridges(ctx context.Context, fromBlock, toBlock uint64) ([]Bridge, error) {
 	return s.processor.GetBridges(ctx, fromBlock, toBlock)
+}
+
+func (s *BridgeSync) GetBridgesPublished(ctx context.Context, fromBlock, toBlock uint64) ([]Bridge, error) {
+	return s.processor.GetBridgesPublished(ctx, fromBlock, toBlock)
 }
 
 func (s *BridgeSync) GetProof(ctx context.Context, depositCount uint32, localExitRoot common.Hash) (tree.Proof, error) {

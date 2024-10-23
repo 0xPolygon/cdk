@@ -26,7 +26,10 @@ func TestE2EL1toEVML2(t *testing.T) {
 	env := aggoraclehelpers.SetupAggoracleWithEVMChain(t)
 	dbPathBridgeSyncL1 := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	testClient := helpers.TestClient{ClientRenamed: env.L1Client.Client()}
-	bridgeSyncL1, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, env.BridgeL1Addr, 10, etherman.LatestBlock, env.ReorgDetector, testClient, 0, time.Millisecond*10, 0, 0, 1)
+	bridgeContract, err := bridgesync.NewBridgeContract(env.BridgeL1Addr, testClient)
+	require.NoError(t, err)
+
+	bridgeSyncL1, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, env.BridgeL1Addr, 10, etherman.LatestBlock, env.ReorgDetector, testClient, 0, time.Millisecond*10, 0, 0, 1, bridgeContract)
 	require.NoError(t, err)
 	go bridgeSyncL1.Start(ctx)
 
