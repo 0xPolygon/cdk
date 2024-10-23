@@ -83,7 +83,7 @@ jobs:
         BATS_LIB_PATH: /usr/lib/
 
     - name: Prepare logs
-      if: always()
+      if: failure()
       working-directory: ${{ github.workspace }}/kurtosis-cdk
       run: |
         mkdir -p ci_logs/${{ matrix.e2e-group }}
@@ -96,7 +96,7 @@ jobs:
         kurtosis service logs cdk zkevm-bridge-service-001 --all > zkevm-bridge-service-001.log
 
     - name: Upload logs
-      if: always()
+      if: failure()
       uses: actions/upload-artifact@v4
       with:
         name: logs_${{ matrix.e2e-group }}
