@@ -16,6 +16,10 @@ const (
 	downloadBufferSize = 1000
 )
 
+type ReorgDetector interface {
+	sync.ReorgDetector
+}
+
 // BridgeSync manages the state of the exit tree for the bridge contract by processing Ethereum blockchain events.
 type BridgeSync struct {
 	processor *processor
@@ -32,7 +36,7 @@ func NewL1(
 	bridge common.Address,
 	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
-	rd sync.ReorgDetector,
+	rd ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
 	waitForNewBlocksPeriod time.Duration,
@@ -67,7 +71,7 @@ func NewL2(
 	bridge common.Address,
 	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
-	rd sync.ReorgDetector,
+	rd ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
 	waitForNewBlocksPeriod time.Duration,
@@ -101,7 +105,7 @@ func newBridgeSync(
 	bridge common.Address,
 	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
-	rd sync.ReorgDetector,
+	rd ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
 	l1OrL2ID string,
