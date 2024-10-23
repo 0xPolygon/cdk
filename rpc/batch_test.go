@@ -104,6 +104,10 @@ func Test_getBatchFromRPC(t *testing.T) {
 
 			rcpBatchClient := NewBatchEndpoints(srv.URL)
 			rpcBatch, err := rcpBatchClient.GetBatch(tt.batch)
+			if rpcBatch != nil {
+				copiedrpcBatch := rpcBatch.DeepCopy()
+				require.NotNil(t, copiedrpcBatch)
+			}
 			if tt.expectErr != nil {
 				require.Equal(t, tt.expectErr.Error(), err.Error())
 			} else {
