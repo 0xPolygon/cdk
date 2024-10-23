@@ -301,7 +301,7 @@ func Test_sendFinalProofError(t *testing.T) {
 				a.cfg = cfg
 
 				batch := rpctypes.NewRPCBatch(batchNumFinal, common.Hash{}, []string{}, []byte{}, common.Hash{}, common.Hash{}, common.Hash{}, common.Address{}, false)
-				m.rpcMock.On("GetBatch", batchNumFinal).Return(batch)
+				m.rpcMock.On("GetBatch", batchNumFinal).Return(batch, nil)
 
 				m.etherman.On("GetRollupId").Return(uint32(1)).Once()
 				m.aggLayerClientMock.On("SendTx", mock.Anything).Run(func(args mock.Arguments) {
@@ -372,7 +372,7 @@ func Test_sendFinalProofError(t *testing.T) {
 				a.cfg = cfg
 
 				batch := rpctypes.NewRPCBatch(batchNumFinal, common.Hash{}, []string{}, []byte{}, common.Hash{}, common.Hash{}, common.Hash{}, common.Address{}, false)
-				m.rpcMock.On("GetBatch", batchNumFinal).Return(batch)
+				m.rpcMock.On("GetBatch", batchNumFinal).Return(batch, nil)
 
 				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, mock.Anything, sender).Return(nil, nil, nil).Once()
 				m.ethTxManager.On("Add", mock.Anything, mock.Anything, big.NewInt(0), mock.Anything, a.cfg.GasOffset, (*ethTypes.BlobTxSidecar)(nil)).Run(func(args mock.Arguments) {
@@ -1436,7 +1436,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 
 				rpcBatch := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
 				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
-				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, err)
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, nil)
 				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
 
 				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
@@ -1533,7 +1533,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					},
 				}, nil).Twice()
 
-				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, err).Twice()
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, []byte("witness"))
 				require.NoError(err)
 
