@@ -64,13 +64,10 @@ func (b *BatchEndpoints) GetBatch(batchNumber uint64) (*types.RPCBatch, error) {
 		return nil, fmt.Errorf("error unmarshalling the batch from the response calling zkevm_getBatchByNumber: %w", err)
 	}
 
-	rpcBatch, err := types.NewRPCBatch(batchNumber, common.HexToHash(zkEVMBatchData.AccInputHash), zkEVMBatchData.Blocks,
+	rpcBatch := types.NewRPCBatch(batchNumber, common.HexToHash(zkEVMBatchData.AccInputHash), zkEVMBatchData.Blocks,
 		common.FromHex(zkEVMBatchData.BatchL2Data), common.HexToHash(zkEVMBatchData.GlobalExitRoot),
 		common.HexToHash(zkEVMBatchData.LocalExitRoot), common.HexToHash(zkEVMBatchData.StateRoot),
 		common.HexToAddress(zkEVMBatchData.Coinbase), zkEVMBatchData.Closed)
-	if err != nil {
-		return nil, fmt.Errorf("error creating the rpc batch: %w", err)
-	}
 
 	if len(zkEVMBatchData.Blocks) > 0 {
 		lastL2BlockTimestamp, err := b.GetL2BlockTimestamp(zkEVMBatchData.Blocks[len(zkEVMBatchData.Blocks)-1])

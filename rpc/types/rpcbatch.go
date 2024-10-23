@@ -23,7 +23,7 @@ type RPCBatch struct {
 
 func NewRPCBatch(batchNumber uint64, accInputHash common.Hash, blockHashes []string, batchL2Data []byte,
 	globalExitRoot common.Hash, localExitRoot common.Hash, stateRoot common.Hash,
-	coinbase common.Address, closed bool) (*RPCBatch, error) {
+	coinbase common.Address, closed bool) *RPCBatch {
 	return &RPCBatch{
 		batchNumber:    batchNumber,
 		accInputHash:   accInputHash,
@@ -34,7 +34,7 @@ func NewRPCBatch(batchNumber uint64, accInputHash common.Hash, blockHashes []str
 		stateRoot:      stateRoot,
 		coinbase:       coinbase,
 		closed:         closed,
-	}, nil
+	}
 }
 
 // DeepCopy
