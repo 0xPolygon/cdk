@@ -1082,11 +1082,18 @@ func (a *Aggregator) getAndLockBatchToProve(
 		return nil, nil, nil, err
 	}
 
-	// Compare BatchL2Data from virtual batch and rpcBatch
-	if common.Bytes2Hex(virtualBatch.BatchL2Data) != common.Bytes2Hex(rpcBatch.L2Data()) {
+	// Compare BatchL2Data from virtual batch and rpcBatch (skipping injected batch (1))
+	if batchNumberToVerify != 1 && (common.Bytes2Hex(virtualBatch.BatchL2Data) != common.Bytes2Hex(rpcBatch.L2Data())) {
 		a.logger.Warnf("BatchL2Data from virtual batch %d does not match the one from RPC", batchNumberToVerify)
 		a.logger.Warnf("VirtualBatch BatchL2Data:%v", common.Bytes2Hex(virtualBatch.BatchL2Data))
 		a.logger.Warnf("RPC BatchL2Data:%v", common.Bytes2Hex(rpcBatch.L2Data()))
+	}
+
+	l1InfoRoot := common.Hash{}
+
+	if virtualBatch.L1InfoRoot == nil {
+		log.Debugf("L1InfoRoot is nil for batch %d", batchNumberToVerify)
+		virtualBatch.L1InfoRoot = &l1InfoRoot
 	}
 
 	// Create state batch
@@ -1107,6 +1114,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	}
 
 	// Request the witness from the server, if it is busy just keep looping until it is available
+	start := time.Now()
 	witness, err := a.rpcClient.GetWitness(batchNumberToVerify, a.cfg.UseFullWitness)
 	for err != nil {
 		if errors.Is(err, rpc.ErrBusy) {
@@ -1119,6 +1127,8 @@ func (a *Aggregator) getAndLockBatchToProve(
 		}
 		time.Sleep(a.cfg.RetryTime.Duration)
 	}
+	end := time.Now()
+	a.logger.Debugf("Time to get witness for batch %d: %v", batchNumberToVerify, end.Sub(start))
 
 	// Store the sequence in aggregator DB
 	err = a.state.AddSequence(ctx, stateSequence, nil)
