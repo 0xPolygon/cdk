@@ -155,10 +155,10 @@ func Test_getBatchWitnessRPC(t *testing.T) {
 		{
 			name:                "get batch witness busy",
 			batch:               1,
-			getBatchWitnessResp: `{"jsonrpc":"2.0","id":1,"result":"busy"}`,
+			getBatchWitnessResp: `{"jsonrpc":"2.0","id":1,"result":"", "error":{"code":-32000,"message":"busy"}}`,
 			getBatchWitnessErr:  nil,
-			expectData:          common.FromHex("busy"),
-			expectErr:           nil,
+			expectData:          []byte{},
+			expectErr:           ErrBusy,
 			full:                false,
 		},
 	}
