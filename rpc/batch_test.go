@@ -114,3 +114,68 @@ func Test_getBatchFromRPC(t *testing.T) {
 		})
 	}
 }
+
+func Test_getBatchWitnessRPC(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                string
+		batch               uint64
+		getBatchWitnessResp string
+		getBatchWitnessErr  error
+		expectData          []byte
+		expectErr           error
+	}{
+		{
+			name:                "get batch witness success",
+			batch:               1,
+			getBatchWitnessResp: `{"jsonrpc":"2.0","id":1,"result":"0x0123456"}`,
+			getBatchWitnessErr:  nil,
+			expectData:          common.FromHex("0x0123456"),
+			expectErr:           nil,
+		},
+		{
+			name:                "get batch witness busy",
+			batch:               1,
+			getBatchWitnessResp: `{"jsonrpc":"2.0","id":1,"result":"busy"}`,
+			getBatchWitnessErr:  nil,
+			expectData:          common.FromHex("busy"),
+			expectErr:           nil,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var req rpc.Request
+				err := json.NewDecoder(r.Body).Decode(&req)
+				require.NoError(t, err)
+
+				switch req.Method {
+				case "zkevm_getBatchWitness":
+					if tt.getBatchWitnessErr != nil {
+						http.Error(w, tt.getBatchWitnessErr.Error(), http.StatusInternalServerError)
+						return
+					}
+					_, _ = w.Write([]byte(tt.getBatchWitnessResp))
+				default:
+					http.Error(w, "method not found", http.StatusNotFound)
+				}
+			}))
+			defer srv.Close()
+
+			rcpBatchClient := NewBatchEndpoints(srv.URL)
+			witness, err := rcpBatchClient.GetWitness(tt.batch, false)
+			if tt.expectErr != nil {
+				require.Equal(t, tt.expectErr.Error(), err.Error())
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectData, witness)
+			}
+		})
+	}
+}
