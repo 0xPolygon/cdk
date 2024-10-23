@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/0xPolygon/cdk/db"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -113,7 +114,8 @@ func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) (ty
 		return types.Proof{}, err
 	}
 	if isErrNotFound {
-		return types.Proof{}, db.ErrNotFound
+		// TODO: Validate it. It returns a proof of a tree with missing leafs
+		log.Warnf("getSiblings returned proof with zero hashes for index %d and root %s", index, root.String())
 	}
 	return siblings, nil
 }
