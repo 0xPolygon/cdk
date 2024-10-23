@@ -107,6 +107,8 @@ func Test_getBatchFromRPC(t *testing.T) {
 			if rpcBatch != nil {
 				copiedrpcBatch := rpcBatch.DeepCopy()
 				require.NotNil(t, copiedrpcBatch)
+				str := copiedrpcBatch.String()
+				require.NotEmpty(t, str)
 			}
 			if tt.expectErr != nil {
 				require.Equal(t, tt.expectErr.Error(), err.Error())
