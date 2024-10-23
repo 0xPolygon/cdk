@@ -268,7 +268,7 @@ WriteTimeout = "2s"
 MaxRequestsPerIPAndSecond = 10
 
 [ClaimSponsor]
-DBPath = "/{{PathRWData}}/claimsopnsor"
+DBPath = "/{{PathRWData}}/claimsopnsor.sqlite"
 Enabled = true
 SenderAddr = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
 BridgeAddrL2 = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
@@ -300,7 +300,7 @@ GasOffset = 0
 				HTTPHeaders = []
 
 [BridgeL1Sync]
-DBPath = "{{PathRWData}}/bridgel1sync"
+DBPath = "{{PathRWData}}/bridgel1sync.sqlite"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
 BridgeAddr = "{{polygonBridgeAddr}}"
@@ -310,7 +310,7 @@ MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
 
 [BridgeL2Sync]
-DBPath = "{{PathRWData}}/bridgel2sync"
+DBPath = "{{PathRWData}}/bridgel2sync.sqlite"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
 BridgeAddr = "{{polygonBridgeAddr}}"
@@ -321,7 +321,7 @@ WaitForNewBlocksPeriod = "3s"
 
 [LastGERSync]
 # MDBX database path
-DBPath = "{{PathRWData}}/lastgersync"
+DBPath = "{{PathRWData}}/lastgersync.sqlite"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
 GlobalExitRootL2Addr = "{{L2Config.GlobalExitRootAddr}}"
