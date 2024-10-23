@@ -166,6 +166,38 @@ func Test_handleRollbackBatches(t *testing.T) {
 	mockEtherman.AssertExpectations(t)
 	mockState.AssertExpectations(t)
 }
+
+func Test_handleRollbackBatchesHalt(t *testing.T) {
+	t.Parallel()
+
+	mockEtherman := new(mocks.EthermanMock)
+	mockState := new(mocks.StateInterfaceMock)
+
+	mockEtherman.On("GetLatestVerifiedBatchNum").Return(uint64(110), nil).Once()
+	mockState.On("DeleteUngeneratedProofs", mock.Anything, mock.Anything).Return(nil).Once()
+	mockState.On("DeleteGeneratedProofs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Test data
+	rollbackData := synchronizer.RollbackBatchesData{
+		LastBatchNumber: 100,
+	}
+
+	a := Aggregator{
+		ctx:      context.Background(),
+		etherman: mockEtherman,
+		state:    mockState,
+		logger:   log.GetDefaultLogger(),
+		halted:   atomic.Bool{},
+	}
+
+	a.halted.Store(false)
+	go a.handleRollbackBatches(rollbackData)
+	time.Sleep(3 * time.Second)
+
+	assert.True(t, a.halted.Load())
+	mockEtherman.AssertExpectations(t)
+}
+
 func Test_sendFinalProofSuccess(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
