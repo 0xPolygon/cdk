@@ -243,12 +243,12 @@ func (a *AggSender) getLastSentCertificateData(ctx context.Context) (common.Hash
 
 			previousLocalExitRoot = lastValidCertificate.NewLocalExitRoot
 			previousHeight = lastValidCertificate.Height
+			lastCertificateBlock = lastValidCertificate.ToBlock
 		} else {
 			previousLocalExitRoot = lastSentCertificateHeader.NewLocalExitRoot
 			previousHeight = lastSentCertificateHeader.Height
+			lastCertificateBlock = lastSentCertificate.ToBlock
 		}
-
-		lastCertificateBlock = lastSentCertificate.ToBlock
 	}
 
 	return previousLocalExitRoot, previousHeight, lastCertificateBlock, nil
