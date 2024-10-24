@@ -924,7 +924,6 @@ func TestSendCertificate(t *testing.T) {
 		getCertificateHeader    []interface{}
 		deleteCertificate       []interface{}
 		getCertificateByHeight  []interface{}
-		getBlockByLER           []interface{}
 		getBridges              []interface{}
 		getClaims               []interface{}
 		getInfoByGlobalExitRoot []interface{}
@@ -974,16 +973,11 @@ func TestSendCertificate(t *testing.T) {
 			}
 		}
 
-		if cfg.lastL2BlockProcessed != nil ||
-			cfg.getBlockByLER != nil || cfg.originNetwork != nil ||
+		if cfg.lastL2BlockProcessed != nil || cfg.originNetwork != nil ||
 			cfg.getBridges != nil || cfg.getClaims != nil || cfg.getInfoByGlobalExitRoot != nil {
 			mockL2Syncer = mocks.NewL2BridgeSyncerMock(t)
 
 			mockL2Syncer.On("GetLastProcessedBlock", mock.Anything).Return(cfg.lastL2BlockProcessed...).Once()
-
-			if cfg.getBlockByLER != nil {
-				mockL2Syncer.On("GetBlockByLER", mock.Anything, mock.Anything).Return(cfg.getBlockByLER...).Once()
-			}
 
 			if cfg.getBridges != nil {
 				mockL2Syncer.On("GetBridges", mock.Anything, mock.Anything, mock.Anything).Return(cfg.getBridges...).Once()
@@ -1094,28 +1088,6 @@ func TestSendCertificate(t *testing.T) {
 			expectedError:          "error getting certificate by height",
 		},
 		{
-			name:                  "error getting block by LER",
-			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
-			lastL2BlockProcessed:  []interface{}{uint64(38), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
-				Height:           21,
-				CertificateID:    common.HexToHash("0x11"),
-				NewLocalExitRoot: common.HexToHash("0x1223"),
-				FromBlock:        29,
-				ToBlock:          38,
-			}, nil},
-			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
-				Status: agglayer.InError,
-			}, nil},
-			deleteCertificate: []interface{}{nil},
-			getCertificateByHeight: []interface{}{aggsendertypes.CertificateInfo{
-				NewLocalExitRoot: common.HexToHash("0x1222"),
-				Height:           20,
-			}, nil},
-			getBlockByLER: []interface{}{uint64(0), errors.New("error getting block by LER")},
-			expectedError: "error getting block by LER",
-		},
-		{
 			name:                  "no new blocks to send certificate",
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(41), nil},
@@ -1124,12 +1096,11 @@ func TestSendCertificate(t *testing.T) {
 				CertificateID:    common.HexToHash("0x111"),
 				NewLocalExitRoot: common.HexToHash("0x13223"),
 				FromBlock:        31,
-				ToBlock:          40,
+				ToBlock:          41,
 			}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status: agglayer.Settled,
 			}, nil},
-			getBlockByLER: []interface{}{uint64(41), nil},
 		},
 		{
 			name:                  "get bridges error",
@@ -1140,14 +1111,13 @@ func TestSendCertificate(t *testing.T) {
 				CertificateID:    common.HexToHash("0x1111"),
 				NewLocalExitRoot: common.HexToHash("0x132233"),
 				FromBlock:        40,
-				ToBlock:          49,
+				ToBlock:          41,
 			}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x1110"),
 				Height:        49,
 			}, nil},
-			getBlockByLER: []interface{}{uint64(41), nil},
 			getBridges:    []interface{}{nil, errors.New("error getting bridges")},
 			expectedError: "error getting bridges",
 		},
@@ -1160,15 +1130,14 @@ func TestSendCertificate(t *testing.T) {
 				CertificateID:    common.HexToHash("0x11111"),
 				NewLocalExitRoot: common.HexToHash("0x1322233"),
 				FromBlock:        50,
-				ToBlock:          59,
+				ToBlock:          51,
 			}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x1110"),
 				Height:        59,
 			}, nil},
-			getBlockByLER: []interface{}{uint64(51), nil},
-			getBridges:    []interface{}{[]bridgesync.Bridge{}, nil},
+			getBridges: []interface{}{[]bridgesync.Bridge{}, nil},
 		},
 		{
 			name:                  "get claims error",
@@ -1179,14 +1148,13 @@ func TestSendCertificate(t *testing.T) {
 				CertificateID:    common.HexToHash("0x121111"),
 				NewLocalExitRoot: common.HexToHash("0x13122233"),
 				FromBlock:        60,
-				ToBlock:          69,
+				ToBlock:          61,
 			}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x1110"),
 				Height:        69,
 			}, nil},
-			getBlockByLER: []interface{}{uint64(61), nil},
 			getBridges: []interface{}{[]bridgesync.Bridge{
 				{
 					BlockNum:      61,
@@ -1207,14 +1175,13 @@ func TestSendCertificate(t *testing.T) {
 				CertificateID:    common.HexToHash("0x1321111"),
 				NewLocalExitRoot: common.HexToHash("0x131122233"),
 				FromBlock:        70,
-				ToBlock:          79,
+				ToBlock:          71,
 			}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x1110"),
 				Height:        79,
 			}, nil},
-			getBlockByLER: []interface{}{uint64(71), nil},
 			getBridges: []interface{}{[]bridgesync.Bridge{
 				{
 					BlockNum:      71,
@@ -1240,14 +1207,13 @@ func TestSendCertificate(t *testing.T) {
 				CertificateID:    common.HexToHash("0x1121111"),
 				NewLocalExitRoot: common.HexToHash("0x111122211"),
 				FromBlock:        80,
-				ToBlock:          89,
+				ToBlock:          81,
 			}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x1110"),
 				Height:        89,
 			}, nil},
-			getBlockByLER: []interface{}{uint64(81), nil},
 			getBridges: []interface{}{[]bridgesync.Bridge{
 				{
 					BlockNum:      81,
@@ -1273,14 +1239,13 @@ func TestSendCertificate(t *testing.T) {
 				CertificateID:    common.HexToHash("0x11121111"),
 				NewLocalExitRoot: common.HexToHash("0x1211122211"),
 				FromBlock:        90,
-				ToBlock:          99,
+				ToBlock:          91,
 			}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x11110"),
 				Height:        99,
 			}, nil},
-			getBlockByLER: []interface{}{uint64(91), nil},
 			getBridges: []interface{}{[]bridgesync.Bridge{
 				{
 					BlockNum:      91,
@@ -1307,14 +1272,13 @@ func TestSendCertificate(t *testing.T) {
 				CertificateID:    common.HexToHash("0x12121111"),
 				NewLocalExitRoot: common.HexToHash("0x1221122211"),
 				FromBlock:        100,
-				ToBlock:          109,
+				ToBlock:          101,
 			}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x11110"),
 				Height:        109,
 			}, nil},
-			getBlockByLER: []interface{}{uint64(91), nil},
 			getBridges: []interface{}{[]bridgesync.Bridge{
 				{
 					BlockNum:      101,

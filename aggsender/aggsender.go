@@ -248,11 +248,7 @@ func (a *AggSender) getLastSentCertificateData(ctx context.Context) (common.Hash
 			previousHeight = lastSentCertificateHeader.Height
 		}
 
-		lastCertificateBlock, err = a.l2Syncer.GetBlockByLER(ctx, previousLocalExitRoot)
-		if err != nil {
-			return common.Hash{}, 0, 0, fmt.Errorf("error getting block by LER %s: %w",
-				lastSentCertificate.CertificateID, err)
-		}
+		lastCertificateBlock = lastSentCertificate.ToBlock
 	}
 
 	return previousLocalExitRoot, previousHeight, lastCertificateBlock, nil
