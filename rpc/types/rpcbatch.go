@@ -1,4 +1,4 @@
-package rpcbatch
+package types
 
 import (
 	"fmt"
@@ -8,35 +8,45 @@ import (
 )
 
 type RPCBatch struct {
-	batchNumber          uint64         `json:"batchNumber"`
-	blockHashes          []string       `json:"blocks"`
-	batchL2Data          []byte         `json:"batchL2Data"`
-	globalExitRoot       common.Hash    `json:"globalExitRoot"`
-	coinbase             common.Address `json:"coinbase"`
-	closed               bool           `json:"closed"`
-	lastL2BlockTimestamp uint64         `json:"lastL2BlockTimestamp"`
-	l1InfoTreeIndex      uint32         `json:"l1InfoTreeIndex"`
+	batchNumber          uint64
+	accInputHash         common.Hash
+	blockHashes          []string
+	batchL2Data          []byte
+	globalExitRoot       common.Hash
+	localExitRoot        common.Hash
+	stateRoot            common.Hash
+	coinbase             common.Address
+	closed               bool
+	lastL2BlockTimestamp uint64
+	l1InfoTreeIndex      uint32
 }
 
-func New(batchNumber uint64, blockHashes []string, batchL2Data []byte, globalExitRoot common.Hash,
-	coinbase common.Address, closed bool) (*RPCBatch, error) {
+func NewRPCBatch(batchNumber uint64, accInputHash common.Hash, blockHashes []string, batchL2Data []byte,
+	globalExitRoot common.Hash, localExitRoot common.Hash, stateRoot common.Hash,
+	coinbase common.Address, closed bool) *RPCBatch {
 	return &RPCBatch{
 		batchNumber:    batchNumber,
+		accInputHash:   accInputHash,
 		blockHashes:    blockHashes,
 		batchL2Data:    batchL2Data,
 		globalExitRoot: globalExitRoot,
+		localExitRoot:  localExitRoot,
+		stateRoot:      stateRoot,
 		coinbase:       coinbase,
 		closed:         closed,
-	}, nil
+	}
 }
 
 // DeepCopy
 func (b *RPCBatch) DeepCopy() seqsendertypes.Batch {
 	return &RPCBatch{
+		accInputHash:         b.accInputHash,
 		batchNumber:          b.batchNumber,
 		blockHashes:          b.blockHashes,
 		batchL2Data:          b.batchL2Data,
 		globalExitRoot:       b.globalExitRoot,
+		localExitRoot:        b.localExitRoot,
+		stateRoot:            b.stateRoot,
 		coinbase:             b.coinbase,
 		closed:               b.closed,
 		lastL2BlockTimestamp: b.lastL2BlockTimestamp,
@@ -82,6 +92,21 @@ func (b *RPCBatch) BatchNumber() uint64 {
 // GlobalExitRoot
 func (b *RPCBatch) GlobalExitRoot() common.Hash {
 	return b.globalExitRoot
+}
+
+// LocalExitRoot
+func (b *RPCBatch) LocalExitRoot() common.Hash {
+	return b.localExitRoot
+}
+
+// StateRoot
+func (b *RPCBatch) StateRoot() common.Hash {
+	return b.stateRoot
+}
+
+// AccInputHash
+func (b *RPCBatch) AccInputHash() common.Hash {
+	return b.accInputHash
 }
 
 // L1InfoTreeIndex

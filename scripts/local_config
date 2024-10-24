@@ -313,7 +313,7 @@ echo " "
 echo "- Add next configuration to vscode launch.json"
 cat << EOF
          {
-            "name": "Debug cdk"",
+            "name": "Debug cdk",
             "type": "go",
             "request": "launch",
             "mode": "auto",

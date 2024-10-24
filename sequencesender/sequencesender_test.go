@@ -10,6 +10,7 @@ import (
 	types2 "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
+	rpctypes "github.com/0xPolygon/cdk/rpc/types"
 	"github.com/0xPolygon/cdk/sequencesender/mocks"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
@@ -98,6 +99,7 @@ func Test_Start(t *testing.T) {
 		name                      string
 		getEthTxManager           func(t *testing.T) *mocks.EthTxManagerMock
 		getEtherman               func(t *testing.T) *mocks.EthermanMock
+		getRPC                    func(t *testing.T) *mocks.RPCInterfaceMock
 		batchWaitDuration         types2.Duration
 		expectNonce               uint64
 		expectLastVirtualBatch    uint64
@@ -122,6 +124,14 @@ func Test_Start(t *testing.T) {
 				mngr.On("ResultsByStatus", mock.Anything, []ethtxtypes.MonitoredTxStatus(nil)).Return(nil, nil)
 				return mngr
 			},
+			getRPC: func(t *testing.T) *mocks.RPCInterfaceMock {
+				t.Helper()
+
+				mngr := mocks.NewRPCInterfaceMock(t)
+				mngr.On("GetBatch", mock.Anything).Return(&rpctypes.RPCBatch{}, nil)
+				return mngr
+			},
+
 			batchWaitDuration:         types2.NewDuration(time.Millisecond),
 			expectNonce:               3,
 			expectLastVirtualBatch:    1,
@@ -149,7 +159,8 @@ func Test_Start(t *testing.T) {
 					GetBatchWaitInterval:   tt.batchWaitDuration,
 					WaitPeriodSendSequence: types2.NewDuration(1 * time.Millisecond),
 				},
-				logger: log.GetDefaultLogger(),
+				logger:    log.GetDefaultLogger(),
+				rpcClient: tt.getRPC(t),
 			}
 
 			ctx, cancel := context.WithCancel(context.Background())

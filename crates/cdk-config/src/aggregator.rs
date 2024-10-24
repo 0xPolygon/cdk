@@ -2,21 +2,6 @@ use ethers::types::Address;
 use serde::Deserialize;
 use url::Url;
 
-/// The StreamClient configuration.
-#[derive(Deserialize, Debug, Clone)]
-pub struct StreamClient {
-    #[serde(rename = "Server", default)]
-    pub server: String,
-}
-
-impl Default for StreamClient {
-    fn default() -> Self {
-        Self {
-            server: "localhost:9092".to_string(),
-        }
-    }
-}
-
 #[derive(Deserialize, Debug, Clone)]
 pub struct EthTxManager {
     #[serde(rename = "Etherman")]
@@ -74,6 +59,8 @@ pub struct Aggregator {
     pub generating_proof_cleanup_threshold: String,
     #[serde(rename = "GasOffset", default)]
     pub gas_offset: u64,
+    #[serde(rename = "RPCURL", default = "default_url")]
+    pub rpc_url: Url,
     #[serde(rename = "WitnessURL", default = "default_url")]
     pub witness_url: Url,
     #[serde(rename = "SenderAddress", default = "default_address")]
@@ -84,17 +71,10 @@ pub struct Aggregator {
     pub agg_layer_tx_timeout: String,
     #[serde(rename = "AggLayerURL", default = "default_url")]
     pub agg_layer_url: Url,
-    #[serde(rename = "UseL1BatchData", default)]
-    pub use_l1_batch_data: bool,
     #[serde(rename = "UseFullWitness", default)]
     pub use_full_witness: bool,
-    #[serde(rename = "MaxWitnessRetrievalWorkers", default)]
-    pub max_witness_retrieval_workers: u32,
     #[serde(rename = "SyncModeOnlyEnabled", default)]
     pub sync_mode_only_enabled: bool,
-
-    #[serde(rename = "StreamClient", default)]
-    pub stream_client: StreamClient,
 
     #[serde(rename = "EthTxManager", default)]
     pub eth_tx_manager: EthTxManager,
@@ -127,18 +107,14 @@ impl Default for Aggregator {
             cleanup_locked_proofs_interval: "1h".to_string(),
             generating_proof_cleanup_threshold: "10m".to_string(),
             gas_offset: 0,
+            rpc_url: default_url(),
             witness_url: default_url(),
             sender_address: default_address(),
             settlement_backend: "default".to_string(),
             agg_layer_tx_timeout: "30s".to_string(),
             agg_layer_url: Url::parse("http://localhost:8547").unwrap(),
-            use_l1_batch_data: true,
             use_full_witness: false,
-            max_witness_retrieval_workers: 4,
             sync_mode_only_enabled: false,
-            stream_client: StreamClient {
-                server: "localhost:9092".to_string(),
-            },
             eth_tx_manager: EthTxManager {
                 etherman: Etherman {
                     url: "http://localhost:9093".to_string(),

@@ -23,8 +23,4 @@ type storage interface {
 	CleanupGeneratedProofs(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error)
 	CheckProofExistsForBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (bool, error)
-	AddBatch(ctx context.Context, dbBatch *DBBatch, dbTx pgx.Tx) error
-	GetBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*DBBatch, error)
-	DeleteBatchesOlderThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
-	DeleteBatchesNewerThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 }

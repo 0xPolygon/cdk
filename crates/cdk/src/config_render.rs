@@ -93,7 +93,6 @@ fn render_yaml(config: &Config, res: Rendered) -> String {
 chain: dynamic-{chain_id}
 zkevm.l2-chain-id: {chain_id}
 zkevm.l2-sequencer-rpc-url: {l2_sequencer_rpc_url}
-zkevm.l2-datastreamer-url: {datastreamer_host}
 zkevm.l1-chain-id: {l1_chain_id}
 zkevm.l1-rpc-url: {l1_rpc_url}
 zkevm.address-sequencer: {sequencer_address}
@@ -117,7 +116,6 @@ ws: true
 "#,
         chain_id = config.aggregator.chain_id.clone(),
         l2_sequencer_rpc_url = config.aggregator.witness_url.to_string(),
-        datastreamer_host = config.aggregator.stream_client.server,
         l1_rpc_url = config.aggregator.eth_tx_manager.etherman.url,
         l1_chain_id = config.network_config.l1.l1_chain_id,
         sequencer_address = config.sequence_sender.l2_coinbase,

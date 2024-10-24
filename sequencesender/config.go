@@ -71,11 +71,3 @@ type Config struct {
 	// GetBatchWaitInterval is the time to wait to query for a new batch when there are no more batches available
 	GetBatchWaitInterval types.Duration `mapstructure:"GetBatchWaitInterval"`
 }
-
-// StreamClientCfg contains the data streamer's configuration properties
-type StreamClientCfg struct {
-	// Datastream server to connect
-	Server string `mapstructure:"Server"`
-	// Log is the log configuration
-	Log log.Config `mapstructure:"Log"`
-}
