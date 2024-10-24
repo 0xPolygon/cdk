@@ -18,7 +18,12 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-var errNoBridgesAndClaims = errors.New("no bridges and claims to build certificate")
+const signatureSize = 65
+
+var (
+	errNoBridgesAndClaims   = errors.New("no bridges and claims to build certificate")
+	errInvalidSignatureSize = errors.New("invalid signature size")
+)
 
 // AggSender is a component that will send certificates to the aggLayer
 type AggSender struct {
@@ -344,49 +349,50 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 	for i, ibe := range importedBridgeExits {
 		gerToL1Proof, err := a.l1infoTreeSyncer.GetL1InfoTreeMerkleProofFromIndexToRoot(ctx, ibe.GlobalIndex.LeafIndex, ger)
 		if err != nil {
-			return nil, fmt.Errorf("error getting L1 Info tree merkle proof: %w", err)
+			return nil, fmt.Errorf("error getting L1 Info tree merkle proof for leaf index: %d. GER: %s. Error: %w",
+				ibe.GlobalIndex.LeafIndex, ger, err)
 		}
 
 		claim := claims[i]
 		if ibe.GlobalIndex.MainnetFlag {
 			ibe.ClaimData = &agglayer.ClaimFromMainnnet{
-				L1Leaf: agglayer.L1InfoTreeLeaf{
+				L1Leaf: &agglayer.L1InfoTreeLeaf{
 					L1InfoTreeIndex: ibe.GlobalIndex.LeafIndex,
 					RollupExitRoot:  claims[i].RollupExitRoot,
 					MainnetExitRoot: claims[i].MainnetExitRoot,
-					Inner: agglayer.L1InfoTreeLeafInner{
+					Inner: &agglayer.L1InfoTreeLeafInner{
 						GlobalExitRoot: ger,
 						Timestamp:      timestamp,
 						BlockHash:      blockHash,
 					},
 				},
-				ProofLeafMER: agglayer.MerkleProof{
+				ProofLeafMER: &agglayer.MerkleProof{
 					Root:  claim.MainnetExitRoot,
 					Proof: claim.ProofLocalExitRoot,
 				},
-				ProofGERToL1Root: agglayer.MerkleProof{
+				ProofGERToL1Root: &agglayer.MerkleProof{
 					Root:  ger,
 					Proof: gerToL1Proof,
 				},
 			}
 		} else {
 			ibe.ClaimData = &agglayer.ClaimFromRollup{
-				L1Leaf: agglayer.L1InfoTreeLeaf{
+				L1Leaf: &agglayer.L1InfoTreeLeaf{
 					L1InfoTreeIndex: ibe.GlobalIndex.LeafIndex,
 					RollupExitRoot:  claim.RollupExitRoot,
 					MainnetExitRoot: claim.MainnetExitRoot,
-					Inner: agglayer.L1InfoTreeLeafInner{
+					Inner: &agglayer.L1InfoTreeLeafInner{
 						GlobalExitRoot: ger,
 						Timestamp:      timestamp,
 						BlockHash:      blockHash,
 					},
 				},
-				ProofLeafLER: agglayer.MerkleProof{
+				ProofLeafLER: &agglayer.MerkleProof{
 					Root:  claim.MainnetExitRoot,
 					Proof: claim.ProofLocalExitRoot,
 				},
-				ProofLERToRER: agglayer.MerkleProof{},
-				ProofGERToL1Root: agglayer.MerkleProof{
+				ProofLERToRER: &agglayer.MerkleProof{},
+				ProofGERToL1Root: &agglayer.MerkleProof{
 					Root:  ger,
 					Proof: gerToL1Proof,
 				},
@@ -406,9 +412,18 @@ func (a *AggSender) signCertificate(certificate *agglayer.Certificate) (*agglaye
 		return nil, err
 	}
 
+	r, s, isOddParity, err := extractSignatureData(sig)
+	if err != nil {
+		return nil, err
+	}
+
 	return &agglayer.SignedCertificate{
 		Certificate: certificate,
-		Signature:   sig,
+		Signature: &agglayer.Signature{
+			R:         r,
+			S:         s,
+			OddParity: isOddParity,
+		},
 	}, nil
 }
 
@@ -463,4 +478,18 @@ func (a *AggSender) shouldSendCertificate(ctx context.Context) (bool, error) {
 	}
 
 	return len(pendingCertificates) == 0, nil
+}
+
+// extractSignatureData extracts the R, S, and V from a 65-byte signature
+func extractSignatureData(signature []byte) (r, s common.Hash, isOddParity bool, err error) {
+	if len(signature) != signatureSize {
+		err = errInvalidSignatureSize
+		return
+	}
+
+	r = common.BytesToHash(signature[:32])   // First 32 bytes are R
+	s = common.BytesToHash(signature[32:64]) // Next 32 bytes are S
+	isOddParity = signature[64]%2 == 1       // Last byte is V
+
+	return
 }

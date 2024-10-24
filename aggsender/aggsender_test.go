@@ -3,9 +3,11 @@ package aggsender
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
@@ -235,104 +237,6 @@ func TestGetBridgeExits(t *testing.T) {
 	}
 }
 
-func TestSignCertificate(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name          string
-		certificate   *agglayer.Certificate
-		sequencerKey  *ecdsa.PrivateKey
-		expectedError bool
-	}{
-		{
-			name: "Valid certificate",
-			certificate: &agglayer.Certificate{
-				NetworkID:         1,
-				PrevLocalExitRoot: common.HexToHash("0x123"),
-				NewLocalExitRoot:  common.HexToHash("0x456"),
-				BridgeExits: []*agglayer.BridgeExit{
-					{
-						LeafType: agglayer.LeafTypeAsset,
-						TokenInfo: &agglayer.TokenInfo{
-							OriginNetwork:      1,
-							OriginTokenAddress: common.HexToAddress("0x789"),
-						},
-						DestinationNetwork: 2,
-						DestinationAddress: common.HexToAddress("0xabc"),
-						Amount:             big.NewInt(100),
-						Metadata:           []byte("metadata"),
-					},
-				},
-				ImportedBridgeExits: []*agglayer.ImportedBridgeExit{},
-				Height:              1,
-			},
-			sequencerKey: func() *ecdsa.PrivateKey {
-				key, _ := crypto.GenerateKey()
-				return key
-			}(),
-			expectedError: false,
-		},
-		{
-			name: "Invalid certificate",
-			certificate: &agglayer.Certificate{
-				NetworkID:         1,
-				PrevLocalExitRoot: common.HexToHash("0x123"),
-				NewLocalExitRoot:  common.HexToHash("0x456"),
-				BridgeExits:       []*agglayer.BridgeExit{},
-				ImportedBridgeExits: []*agglayer.ImportedBridgeExit{
-					{
-						BridgeExit: &agglayer.BridgeExit{
-							LeafType: agglayer.LeafTypeAsset,
-							TokenInfo: &agglayer.TokenInfo{
-								OriginNetwork:      1,
-								OriginTokenAddress: common.HexToAddress("0x789"),
-							},
-							DestinationNetwork: 2,
-							DestinationAddress: common.HexToAddress("0xabc"),
-							Amount:             big.NewInt(100),
-							Metadata:           []byte("metadata"),
-						},
-						GlobalIndex: &agglayer.GlobalIndex{
-							MainnetFlag: false,
-							RollupIndex: 0,
-							LeafIndex:   1,
-						},
-					},
-				},
-				Height: 1,
-			},
-			sequencerKey: func() *ecdsa.PrivateKey {
-				key, _ := crypto.GenerateKey()
-				return key
-			}(),
-			expectedError: false,
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			aggSender := &AggSender{
-				sequencerKey: tt.sequencerKey,
-			}
-			signedCert, err := aggSender.signCertificate(tt.certificate)
-
-			if tt.expectedError {
-				require.Error(t, err)
-				require.Nil(t, signedCert)
-			} else {
-				require.NoError(t, err)
-				require.NotNil(t, signedCert)
-				require.Equal(t, tt.certificate, signedCert.Certificate)
-				require.NotEmpty(t, signedCert.Signature)
-			}
-		})
-	}
-}
-
 //nolint:dupl
 func TestGetImportedBridgeExits(t *testing.T) {
 	t.Parallel()
@@ -392,22 +296,22 @@ func TestGetImportedBridgeExits(t *testing.T) {
 						LeafIndex:   1,
 					},
 					ClaimData: &agglayer.ClaimFromRollup{
-						L1Leaf: agglayer.L1InfoTreeLeaf{
+						L1Leaf: &agglayer.L1InfoTreeLeaf{
 							L1InfoTreeIndex: 1,
 							RollupExitRoot:  common.HexToHash("0xaaab"),
 							MainnetExitRoot: common.HexToHash("0xbbba"),
-							Inner: agglayer.L1InfoTreeLeafInner{
+							Inner: &agglayer.L1InfoTreeLeafInner{
 								GlobalExitRoot: common.HexToHash("0x7891"),
 								Timestamp:      123456789,
 								BlockHash:      common.HexToHash("0xabc"),
 							},
 						},
-						ProofLeafLER: agglayer.MerkleProof{
+						ProofLeafLER: &agglayer.MerkleProof{
 							Root:  common.HexToHash("0xbbba"),
 							Proof: mockProof,
 						},
-						ProofLERToRER: agglayer.MerkleProof{},
-						ProofGERToL1Root: agglayer.MerkleProof{
+						ProofLERToRER: &agglayer.MerkleProof{},
+						ProofGERToL1Root: &agglayer.MerkleProof{
 							Root:  common.HexToHash("0x7891"),
 							Proof: mockProof,
 						},
@@ -467,22 +371,22 @@ func TestGetImportedBridgeExits(t *testing.T) {
 						LeafIndex:   1,
 					},
 					ClaimData: &agglayer.ClaimFromRollup{
-						L1Leaf: agglayer.L1InfoTreeLeaf{
+						L1Leaf: &agglayer.L1InfoTreeLeaf{
 							L1InfoTreeIndex: 1,
 							RollupExitRoot:  common.HexToHash("0xaaa"),
 							MainnetExitRoot: common.HexToHash("0xbbb"),
-							Inner: agglayer.L1InfoTreeLeafInner{
+							Inner: &agglayer.L1InfoTreeLeafInner{
 								GlobalExitRoot: common.HexToHash("0x789"),
 								Timestamp:      123456789,
 								BlockHash:      common.HexToHash("0xabc"),
 							},
 						},
-						ProofLeafLER: agglayer.MerkleProof{
+						ProofLeafLER: &agglayer.MerkleProof{
 							Root:  common.HexToHash("0xbbb"),
 							Proof: mockProof,
 						},
-						ProofLERToRER: agglayer.MerkleProof{},
-						ProofGERToL1Root: agglayer.MerkleProof{
+						ProofLERToRER: &agglayer.MerkleProof{},
+						ProofGERToL1Root: &agglayer.MerkleProof{
 							Root:  common.HexToHash("0x789"),
 							Proof: mockProof,
 						},
@@ -506,21 +410,21 @@ func TestGetImportedBridgeExits(t *testing.T) {
 						LeafIndex:   2,
 					},
 					ClaimData: &agglayer.ClaimFromMainnnet{
-						L1Leaf: agglayer.L1InfoTreeLeaf{
+						L1Leaf: &agglayer.L1InfoTreeLeaf{
 							L1InfoTreeIndex: 2,
 							RollupExitRoot:  common.HexToHash("0xbbb"),
 							MainnetExitRoot: common.HexToHash("0xccc"),
-							Inner: agglayer.L1InfoTreeLeafInner{
+							Inner: &agglayer.L1InfoTreeLeafInner{
 								GlobalExitRoot: common.HexToHash("0x789"),
 								Timestamp:      123456789,
 								BlockHash:      common.HexToHash("0xabc"),
 							},
 						},
-						ProofLeafMER: agglayer.MerkleProof{
+						ProofLeafMER: &agglayer.MerkleProof{
 							Root:  common.HexToHash("0xccc"),
 							Proof: mockProof,
 						},
-						ProofGERToL1Root: agglayer.MerkleProof{
+						ProofGERToL1Root: &agglayer.MerkleProof{
 							Root:  common.HexToHash("0x789"),
 							Proof: mockProof,
 						},
@@ -641,22 +545,22 @@ func TestBuildCertificate(t *testing.T) {
 							LeafIndex:   1,
 						},
 						ClaimData: &agglayer.ClaimFromRollup{
-							L1Leaf: agglayer.L1InfoTreeLeaf{
+							L1Leaf: &agglayer.L1InfoTreeLeaf{
 								L1InfoTreeIndex: 1,
 								RollupExitRoot:  common.HexToHash("0xaaab"),
 								MainnetExitRoot: common.HexToHash("0xbbba"),
-								Inner: agglayer.L1InfoTreeLeafInner{
+								Inner: &agglayer.L1InfoTreeLeafInner{
 									GlobalExitRoot: common.HexToHash("0x7891"),
 									Timestamp:      123456789,
 									BlockHash:      common.HexToHash("0xabc"),
 								},
 							},
-							ProofLeafLER: agglayer.MerkleProof{
+							ProofLeafLER: &agglayer.MerkleProof{
 								Root:  common.HexToHash("0xbbba"),
 								Proof: mockProof,
 							},
-							ProofLERToRER: agglayer.MerkleProof{},
-							ProofGERToL1Root: agglayer.MerkleProof{
+							ProofLERToRER: &agglayer.MerkleProof{},
+							ProofGERToL1Root: &agglayer.MerkleProof{
 								Root:  common.HexToHash("0x7891"),
 								Proof: mockProof,
 							},
@@ -1331,4 +1235,151 @@ func TestSendCertificate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExtractSignatureData(t *testing.T) {
+	t.Parallel()
+
+	testR := common.HexToHash("0x1")
+	testV := common.HexToHash("0x2")
+
+	tests := []struct {
+		name              string
+		signature         []byte
+		expectedR         common.Hash
+		expectedS         common.Hash
+		expectedOddParity bool
+		expectedError     error
+	}{
+		{
+			name:              "Valid signature - odd parity",
+			signature:         append(append(testR.Bytes(), testV.Bytes()...), 1),
+			expectedR:         testR,
+			expectedS:         testV,
+			expectedOddParity: true,
+			expectedError:     nil,
+		},
+		{
+			name:              "Valid signature - even parity",
+			signature:         append(append(testR.Bytes(), testV.Bytes()...), 2),
+			expectedR:         testR,
+			expectedS:         testV,
+			expectedOddParity: false,
+			expectedError:     nil,
+		},
+		{
+			name:          "Invalid signature size",
+			signature:     make([]byte, 64), // Invalid size
+			expectedError: errInvalidSignatureSize,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			r, s, isOddParity, err := extractSignatureData(tt.signature)
+
+			if tt.expectedError != nil {
+				require.Error(t, err)
+				require.Equal(t, tt.expectedError, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedR, r)
+				require.Equal(t, tt.expectedS, s)
+				require.Equal(t, tt.expectedOddParity, isOddParity)
+			}
+		})
+	}
+}
+
+func TestBre(t *testing.T) {
+	//agglayerClient := agglayer.AggLayerClient{}
+
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	signature, err := crypto.Sign(common.HexToHash("0x1").Bytes(), key)
+	require.NoError(t, err)
+
+	r, s, v, err := extractSignatureData(signature)
+	require.NoError(t, err)
+
+	certificate := &agglayer.SignedCertificate{
+		Certificate: &agglayer.Certificate{
+			NetworkID:         1,
+			Height:            1,
+			PrevLocalExitRoot: common.HexToHash("0x1"),
+			NewLocalExitRoot:  common.HexToHash("0x2"),
+			BridgeExits: []*agglayer.BridgeExit{
+				{
+					LeafType: agglayer.LeafTypeAsset,
+					TokenInfo: &agglayer.TokenInfo{
+						OriginNetwork:      1,
+						OriginTokenAddress: common.HexToAddress("0x11"),
+					},
+					DestinationNetwork: 2,
+					DestinationAddress: common.HexToAddress("0x22"),
+					Amount:             big.NewInt(100),
+					Metadata:           []byte("metadata"),
+				},
+			},
+			ImportedBridgeExits: []*agglayer.ImportedBridgeExit{
+				{
+					GlobalIndex: &agglayer.GlobalIndex{
+						MainnetFlag: false,
+						RollupIndex: 1,
+						LeafIndex:   11,
+					},
+					BridgeExit: &agglayer.BridgeExit{
+						LeafType: agglayer.LeafTypeAsset,
+						TokenInfo: &agglayer.TokenInfo{
+							OriginNetwork:      1,
+							OriginTokenAddress: common.HexToAddress("0x11"),
+						},
+						DestinationNetwork: 2,
+						DestinationAddress: common.HexToAddress("0x22"),
+						Amount:             big.NewInt(100),
+						Metadata:           []byte("metadata"),
+					},
+					ClaimData: &agglayer.ClaimFromMainnnet{
+						ProofLeafMER: &agglayer.MerkleProof{
+							Root:  common.HexToHash("0x1"),
+							Proof: [32]common.Hash{},
+						},
+						ProofGERToL1Root: &agglayer.MerkleProof{
+							Root:  common.HexToHash("0x3"),
+							Proof: [32]common.Hash{},
+						},
+						L1Leaf: &agglayer.L1InfoTreeLeaf{
+							L1InfoTreeIndex: 1,
+							RollupExitRoot:  common.HexToHash("0x4"),
+							MainnetExitRoot: common.HexToHash("0x5"),
+							Inner: &agglayer.L1InfoTreeLeafInner{
+								GlobalExitRoot: common.HexToHash("0x6"),
+								BlockHash:      common.HexToHash("0x7"),
+								Timestamp:      1231,
+							},
+						},
+					},
+				},
+			},
+		},
+		Signature: &agglayer.Signature{
+			R:         r,
+			S:         s,
+			OddParity: v,
+		},
+	}
+
+	file, err := os.Create("test.json")
+	require.NoError(t, err)
+
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	require.NoError(t, encoder.Encode(certificate))
 }
