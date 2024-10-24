@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
@@ -16,7 +15,6 @@ import (
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -27,9 +25,7 @@ type AggSender struct {
 	log aggsendertypes.Logger
 
 	l2Syncer         aggsendertypes.L2BridgeSyncer
-	l2Client         aggsendertypes.EthClient
 	l1infoTreeSyncer aggsendertypes.L1InfoTreeSyncer
-	l1Client         aggsendertypes.EthClient
 
 	storage        db.AggSenderStorage
 	aggLayerClient agglayer.AgglayerClientInterface
@@ -37,9 +33,6 @@ type AggSender struct {
 	cfg Config
 
 	sequencerKey *ecdsa.PrivateKey
-
-	lock                   sync.Mutex
-	lastL1CertificateBlock uint64
 }
 
 // New returns a new AggSender
@@ -48,10 +41,8 @@ func New(
 	logger *log.Logger,
 	cfg Config,
 	aggLayerClient agglayer.AgglayerClientInterface,
-	l1Client aggsendertypes.EthClient,
 	l1InfoTreeSyncer *l1infotreesync.L1InfoTreeSync,
-	l2Syncer *bridgesync.BridgeSync,
-	l2Client aggsendertypes.EthClient) (*AggSender, error) {
+	l2Syncer *bridgesync.BridgeSync) (*AggSender, error) {
 	storage, err := db.NewAggSenderSQLStorage(logger, cfg.DBPath)
 	if err != nil {
 		return nil, err
@@ -67,8 +58,6 @@ func New(
 		log:              logger,
 		storage:          storage,
 		l2Syncer:         l2Syncer,
-		l2Client:         l2Client,
-		l1Client:         l1Client,
 		aggLayerClient:   aggLayerClient,
 		l1infoTreeSyncer: l1InfoTreeSyncer,
 		sequencerKey:     sequencerPrivateKey,
@@ -102,38 +91,34 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 func (a *AggSender) sendCertificate(ctx context.Context) error {
 	a.log.Infof("trying to send a new certificate...")
 
-	l1Block, err := a.l1Client.BlockNumber(ctx)
+	shouldSend, err := a.shouldSendCertificate(ctx)
 	if err != nil {
-		return fmt.Errorf("error getting l1 block number: %w", err)
+		return err
 	}
 
-	if !a.shouldSendCertificate(l1Block) {
-		a.log.Infof("block %d on L1 not near epoch ending, so we don't send a certificate", l1Block)
+	if !shouldSend {
+		a.log.Infof("waiting for pending certificates to be settled")
 		return nil
 	}
 
-	lastL2Block, err := a.getLastL2Block(ctx)
-	if err != nil {
-		return fmt.Errorf("error getting block from l2: %w", err)
-	}
 	lasL2BlockSynced, err := a.l2Syncer.GetLastProcessedBlock(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting last processed block from l2: %w", err)
 	}
-	log.Debugf("lastL2Block: %d, lasL2BlockSynced: %d", lastL2Block.Number.Uint64(), lasL2BlockSynced)
 
 	previousLocalExitRoot, previousHeight, lastCertificateBlock, err := a.getLastSentCertificateData(ctx)
 	if err != nil {
 		return err
 	}
-	fromBlock := lastCertificateBlock + 1
-	toBlock, err := chooseToL2Block(lastL2Block.Number.Uint64(), lasL2BlockSynced, lastCertificateBlock)
-	if err != nil {
-		a.log.Errorf("no new blocks to send a certificate: %s", err.Error())
+
+	if lastCertificateBlock >= lasL2BlockSynced {
+		a.log.Infof("no new blocks to send a certificate, last certificate block: %d, last L2 block: %d",
+			lastCertificateBlock, lasL2BlockSynced)
 		return nil
 	}
-	a.log.Infof("lastL2Block: %d, lasL2BlockSynced: %d  choose range:[%d,%d]",
-		lastL2Block.Number.Uint64(), lasL2BlockSynced, fromBlock, toBlock)
+
+	fromBlock := lastCertificateBlock + 1
+	toBlock := lasL2BlockSynced
 
 	bridges, err := a.l2Syncer.GetBridges(ctx, fromBlock, toBlock)
 	if err != nil {
@@ -177,31 +162,10 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		return fmt.Errorf("error saving last sent certificate in db: %w", err)
 	}
 
-	a.lock.Lock()
-	a.lastL1CertificateBlock = l1Block
-	a.lock.Unlock()
-
 	a.log.Infof("certificate: %s sent successfully for range of l2 blocks (from block: %d, to block: %d)",
 		certificateHash, fromBlock, toBlock)
 
 	return nil
-}
-
-func chooseToL2Block(lastL2Block, lasL2BlockSynced, lastCertificateBlock uint64) (uint64, error) {
-	if lastL2Block <= lastCertificateBlock {
-		return lastCertificateBlock, fmt.Errorf("lastL2Block: %d (into RPC) is <= to lastCertificateBlock: %d",
-			lastL2Block, lastCertificateBlock)
-	}
-	if lasL2BlockSynced <= lastCertificateBlock {
-		return lastCertificateBlock, fmt.Errorf("lasL2BlockSynced: %d (into L2 Syncer) is <= to lastCertificateBlock: %d",
-			lastL2Block, lastCertificateBlock)
-	}
-	if lasL2BlockSynced <= lastL2Block {
-		// If lasL2BlockSynced is less than or equal to lastL2Block, means that syncer is not on top of block but
-		// we can use it to send a new certificate
-		return lasL2BlockSynced, nil
-	}
-	return lastL2Block, nil
 }
 
 // buildCertificate builds a certificate from the bridge events
@@ -292,17 +256,6 @@ func (a *AggSender) getLastSentCertificateData(ctx context.Context) (common.Hash
 	}
 
 	return previousLocalExitRoot, previousHeight, lastCertificateBlock, nil
-}
-
-// getLastL2Block gets the last L2 block based on the finality configured for l2 bridge syncer
-func (a *AggSender) getLastL2Block(ctx context.Context) (*types.Header, error) {
-	finality := a.l2Syncer.BlockFinality()
-	blockFinality, err := finality.ToBlockNum()
-	if err != nil {
-		return nil, fmt.Errorf("error getting block finality: %w", err)
-	}
-
-	return a.l2Client.HeaderByNumber(ctx, blockFinality)
 }
 
 // convertClaimToImportedBridgeExit converts a claim to an ImportedBridgeExit object
@@ -505,19 +458,13 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
 	}
 }
 
-// shouldSendCertificate checks if a certificate should be sent at given L1 block
-// we send certificates at two blocks before the epoch ending so we get most of the
-// bridges and claims in that epoch
-func (a *AggSender) shouldSendCertificate(block uint64) bool {
-	if block == 0 {
-		return false
+// shouldSendCertificate checks if a certificate should be sent at given time
+// if we have pending certificates, then we wait until they are settled
+func (a *AggSender) shouldSendCertificate(ctx context.Context) (bool, error) {
+	pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, []agglayer.CertificateStatus{agglayer.Pending})
+	if err != nil {
+		return false, fmt.Errorf("error getting pending certificates: %w", err)
 	}
 
-	a.lock.Lock()
-	lastL1BlockSeen := a.lastL1CertificateBlock
-	a.lock.Unlock()
-
-	shouldSend := lastL1BlockSeen+a.cfg.EpochSize-a.cfg.BlocksBeforeEpochEnding <= block
-
-	return shouldSend
+	return len(pendingCertificates) == 0, nil
 }

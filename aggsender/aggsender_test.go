@@ -14,12 +14,10 @@ import (
 	aggsendertypes "github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/config/types"
-	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
 	treeTypes "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
-	gethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -133,6 +131,7 @@ func TestConvertClaimToImportedBridgeExit(t *testing.T) {
 		})
 	}
 }
+
 func TestGetBridgeExits(t *testing.T) {
 	t.Parallel()
 
@@ -772,75 +771,6 @@ func generateTestProof(t *testing.T) treeTypes.Proof {
 	return proof
 }
 
-func TestShouldSendCertificate(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name                    string
-		block                   uint64
-		epochSize               uint64
-		blocksBeforeEpochEnding uint64
-		lastL1CertificateBlock  uint64
-		expectedResult          bool
-	}{
-		{
-			name:                    "Should send certificate",
-			block:                   8,
-			epochSize:               10,
-			blocksBeforeEpochEnding: 2,
-			expectedResult:          true,
-		},
-		{
-			name:                    "Should send certificate - another case",
-			block:                   9,
-			epochSize:               10,
-			blocksBeforeEpochEnding: 1,
-			expectedResult:          true,
-		},
-		{
-			name:                    "Should not send certificate",
-			block:                   25,
-			epochSize:               10,
-			lastL1CertificateBlock:  18,
-			blocksBeforeEpochEnding: 2,
-			expectedResult:          false,
-		},
-		{
-			name:                    "Should not send certificate at zero block",
-			block:                   0,
-			epochSize:               1,
-			blocksBeforeEpochEnding: 2,
-			expectedResult:          false,
-		},
-		{
-			name:                    "Should send certificate with large epoch size",
-			block:                   1998,
-			epochSize:               1000,
-			lastL1CertificateBlock:  998,
-			blocksBeforeEpochEnding: 2,
-			expectedResult:          true,
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			aggSender := &AggSender{
-				cfg: Config{
-					EpochSize:               tt.epochSize,
-					BlocksBeforeEpochEnding: tt.blocksBeforeEpochEnding,
-				},
-				lastL1CertificateBlock: tt.lastL1CertificateBlock,
-			}
-			result := aggSender.shouldSendCertificate(tt.block)
-			require.Equal(t, tt.expectedResult, result)
-		})
-	}
-}
-
 func TestCheckIfCertificatesAreSettled(t *testing.T) {
 	t.Parallel()
 
@@ -988,10 +918,9 @@ func TestSendCertificate(t *testing.T) {
 	type testCfg struct {
 		name                    string
 		sequencerKey            *ecdsa.PrivateKey
-		l1BlockNumber           []interface{}
+		shouldSendCertificate   []interface{}
 		getLastSentCertificate  []interface{}
-		l2BlockFinality         []interface{}
-		l2HeaderByNumber        []interface{}
+		lastL2BlockProcessed    []interface{}
 		getCertificateHeader    []interface{}
 		deleteCertificate       []interface{}
 		getCertificateByHeight  []interface{}
@@ -1006,33 +935,31 @@ func TestSendCertificate(t *testing.T) {
 		expectedError           string
 	}
 
-	setupTest := func(cfg testCfg) (*AggSender, *mocks.AggSenderStorageMock, *mocks.EthClientMock, *mocks.L2BridgeSyncerMock,
-		*mocks.EthClientMock, *agglayer.AgglayerClientMock, *mocks.L1InfoTreeSyncerMock) {
+	setupTest := func(cfg testCfg) (*AggSender, *mocks.AggSenderStorageMock, *mocks.L2BridgeSyncerMock,
+		*agglayer.AgglayerClientMock, *mocks.L1InfoTreeSyncerMock) {
 		var (
 			aggsender = &AggSender{
 				log:          log.WithFields("aggsender", 1),
 				cfg:          Config{EpochSize: 10, BlocksBeforeEpochEnding: 2},
 				sequencerKey: cfg.sequencerKey,
 			}
-			mockL1Client         *mocks.EthClientMock
 			mockStorage          *mocks.AggSenderStorageMock
 			mockL2Syncer         *mocks.L2BridgeSyncerMock
-			mockL2Client         *mocks.EthClientMock
 			mockAggLayerClient   *agglayer.AgglayerClientMock
 			mockL1InfoTreeSyncer *mocks.L1InfoTreeSyncerMock
 		)
 
-		if cfg.l1BlockNumber != nil {
-			mockL1Client = mocks.NewEthClientMock(t)
-			mockL1Client.On("BlockNumber", mock.Anything).Return(cfg.l1BlockNumber...).Once()
-
-			aggsender.l1Client = mockL1Client
-		}
-
-		if cfg.getLastSentCertificate != nil || cfg.deleteCertificate != nil ||
+		if cfg.shouldSendCertificate != nil || cfg.getLastSentCertificate != nil || cfg.deleteCertificate != nil ||
 			cfg.getCertificateByHeight != nil || cfg.saveLastSentCertificate != nil {
 			mockStorage = mocks.NewAggSenderStorageMock(t)
-			mockStorage.On("GetLastSentCertificate", mock.Anything).Return(cfg.getLastSentCertificate...).Once()
+			mockStorage.On("GetCertificatesByStatus", mock.Anything, []agglayer.CertificateStatus{agglayer.Pending}).
+				Return(cfg.shouldSendCertificate...).Once()
+
+			aggsender.storage = mockStorage
+
+			if cfg.getLastSentCertificate != nil {
+				mockStorage.On("GetLastSentCertificate", mock.Anything).Return(cfg.getLastSentCertificate...).Once()
+			}
 
 			if cfg.deleteCertificate != nil {
 				mockStorage.On("DeleteCertificate", mock.Anything, mock.Anything).Return(cfg.deleteCertificate...).Once()
@@ -1045,14 +972,14 @@ func TestSendCertificate(t *testing.T) {
 			if cfg.saveLastSentCertificate != nil {
 				mockStorage.On("SaveLastSentCertificate", mock.Anything, mock.Anything).Return(cfg.saveLastSentCertificate...).Once()
 			}
-
-			aggsender.storage = mockStorage
 		}
 
-		if cfg.l2BlockFinality != nil || cfg.getBlockByLER != nil || cfg.originNetwork != nil ||
+		if cfg.lastL2BlockProcessed != nil ||
+			cfg.getBlockByLER != nil || cfg.originNetwork != nil ||
 			cfg.getBridges != nil || cfg.getClaims != nil || cfg.getInfoByGlobalExitRoot != nil {
 			mockL2Syncer = mocks.NewL2BridgeSyncerMock(t)
-			mockL2Syncer.On("BlockFinality").Return(cfg.l2BlockFinality...).Once()
+
+			mockL2Syncer.On("GetLastProcessedBlock", mock.Anything).Return(cfg.lastL2BlockProcessed...).Once()
 
 			if cfg.getBlockByLER != nil {
 				mockL2Syncer.On("GetBlockByLER", mock.Anything, mock.Anything).Return(cfg.getBlockByLER...).Once()
@@ -1077,18 +1004,6 @@ func TestSendCertificate(t *testing.T) {
 			aggsender.l2Syncer = mockL2Syncer
 		}
 
-		if cfg.l2HeaderByNumber != nil {
-			mockL2Client = mocks.NewEthClientMock(t)
-			mockL2Client.On("HeaderByNumber", mock.Anything, mock.Anything).Return(cfg.l2HeaderByNumber...).Once()
-			if cfg.l2HeaderByNumber[0] != nil {
-				hdr, ok := cfg.l2HeaderByNumber[0].(*gethTypes.Header)
-				if ok {
-					mockL2Syncer.On("GetLastProcessedBlock", mock.Anything).Return(hdr.Number.Uint64(), nil).Once()
-				}
-			}
-			aggsender.l2Client = mockL2Client
-		}
-
 		if cfg.getCertificateHeader != nil || cfg.sendCertificate != nil {
 			mockAggLayerClient = agglayer.NewAgglayerClientMock(t)
 			mockAggLayerClient.On("GetCertificateHeader", mock.Anything).Return(cfg.getCertificateHeader...).Once()
@@ -1107,43 +1022,32 @@ func TestSendCertificate(t *testing.T) {
 			aggsender.l1infoTreeSyncer = mockL1InfoTreeSyncer
 		}
 
-		return aggsender, mockStorage, mockL1Client, mockL2Syncer, mockL2Client, mockAggLayerClient, mockL1InfoTreeSyncer
+		return aggsender, mockStorage, mockL2Syncer, mockAggLayerClient, mockL1InfoTreeSyncer
 	}
 
 	tests := []testCfg{
 		{
-			name:          "error getting L1 block",
-			l1BlockNumber: []interface{}{uint64(0), errors.New("error getting block")},
-			expectedError: "error getting block",
+			name:                  "error getting pending certificates",
+			shouldSendCertificate: []interface{}{nil, errors.New("error getting pending")},
+			expectedError:         "error getting pending",
 		},
 		{
-			name:          "should not send certificate",
-			l1BlockNumber: []interface{}{uint64(1), nil},
+			name: "should not send certificate",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{
+				{Status: agglayer.Pending},
+			}, nil},
 		},
 		{
 			name:                   "error getting last sent certificate",
-			l1BlockNumber:          []interface{}{uint64(8), nil},
-			l2BlockFinality:        []interface{}{etherman.FinalizedBlock},
-			l2HeaderByNumber:       []interface{}{&gethTypes.Header{Number: big.NewInt(8)}, nil},
+			shouldSendCertificate:  []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:   []interface{}{uint64(8), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{}, errors.New("error getting last sent certificate")},
 			expectedError:          "error getting last sent certificate",
 		},
 		{
-			name:            "error getting block finality",
-			l1BlockNumber:   []interface{}{uint64(8), nil},
-			l2BlockFinality: []interface{}{etherman.BlockNumberFinality("invalid")},
-			expectedError:   "error getting block finality",
-		},
-		{
-			name:             "error getting last l2 block",
-			l1BlockNumber:    []interface{}{uint64(8), nil},
-			l2BlockFinality:  []interface{}{etherman.FinalizedBlock},
-			l2HeaderByNumber: []interface{}{nil, errors.New("error getting block")},
-			expectedError:    "error getting block from l2",
-		},
-		{
-			name:          "error getting last certificate header",
-			l1BlockNumber: []interface{}{uint64(18), nil},
+			name:                  "error getting last certificate header",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(8), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           1,
 				CertificateID:    common.HexToHash("0x1"),
@@ -1151,14 +1055,13 @@ func TestSendCertificate(t *testing.T) {
 				FromBlock:        1,
 				ToBlock:          10,
 			}, nil},
-			l2BlockFinality:      []interface{}{etherman.FinalizedBlock},
-			l2HeaderByNumber:     []interface{}{&gethTypes.Header{Number: big.NewInt(20)}, nil},
 			getCertificateHeader: []interface{}{nil, errors.New("error getting certificate header")},
 			expectedError:        "error getting certificate",
 		},
 		{
-			name:          "error deleting in error certificate",
-			l1BlockNumber: []interface{}{uint64(18), nil},
+			name:                  "error deleting in error certificate",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(20), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           1,
 				CertificateID:    common.HexToHash("0x1"),
@@ -1166,8 +1069,6 @@ func TestSendCertificate(t *testing.T) {
 				FromBlock:        1,
 				ToBlock:          10,
 			}, nil},
-			l2BlockFinality:  []interface{}{etherman.FinalizedBlock},
-			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(20)}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status: agglayer.InError,
 			}, nil},
@@ -1175,8 +1076,9 @@ func TestSendCertificate(t *testing.T) {
 			expectedError:     "error deleting certificate",
 		},
 		{
-			name:          "error getting certificate by height",
-			l1BlockNumber: []interface{}{uint64(28), nil},
+			name:                  "error getting certificate by height",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(29), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           11,
 				CertificateID:    common.HexToHash("0x1"),
@@ -1184,8 +1086,6 @@ func TestSendCertificate(t *testing.T) {
 				FromBlock:        19,
 				ToBlock:          28,
 			}, nil},
-			l2BlockFinality:  []interface{}{etherman.FinalizedBlock},
-			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(29)}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status: agglayer.InError,
 			}, nil},
@@ -1194,8 +1094,9 @@ func TestSendCertificate(t *testing.T) {
 			expectedError:          "error getting certificate by height",
 		},
 		{
-			name:          "error getting block by LER",
-			l1BlockNumber: []interface{}{uint64(38), nil},
+			name:                  "error getting block by LER",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(38), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           21,
 				CertificateID:    common.HexToHash("0x11"),
@@ -1203,8 +1104,6 @@ func TestSendCertificate(t *testing.T) {
 				FromBlock:        29,
 				ToBlock:          38,
 			}, nil},
-			l2BlockFinality:  []interface{}{etherman.PendingBlock},
-			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(38)}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status: agglayer.InError,
 			}, nil},
@@ -1217,8 +1116,9 @@ func TestSendCertificate(t *testing.T) {
 			expectedError: "error getting block by LER",
 		},
 		{
-			name:          "no new blocks to send certificate",
-			l1BlockNumber: []interface{}{uint64(38), nil},
+			name:                  "no new blocks to send certificate",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(41), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           41,
 				CertificateID:    common.HexToHash("0x111"),
@@ -1226,16 +1126,15 @@ func TestSendCertificate(t *testing.T) {
 				FromBlock:        31,
 				ToBlock:          40,
 			}, nil},
-			l2BlockFinality:  []interface{}{etherman.FinalizedBlock},
-			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(41)}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status: agglayer.Settled,
 			}, nil},
 			getBlockByLER: []interface{}{uint64(41), nil},
 		},
 		{
-			name:          "get bridges error",
-			l1BlockNumber: []interface{}{uint64(98), nil},
+			name:                  "get bridges error",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(59), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           50,
 				CertificateID:    common.HexToHash("0x1111"),
@@ -1243,8 +1142,6 @@ func TestSendCertificate(t *testing.T) {
 				FromBlock:        40,
 				ToBlock:          49,
 			}, nil},
-			l2BlockFinality:  []interface{}{etherman.FinalizedBlock},
-			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(59)}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x1110"),
@@ -1255,8 +1152,9 @@ func TestSendCertificate(t *testing.T) {
 			expectedError: "error getting bridges",
 		},
 		{
-			name:          "no bridges",
-			l1BlockNumber: []interface{}{uint64(198), nil},
+			name:                  "no bridges",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(69), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           60,
 				CertificateID:    common.HexToHash("0x11111"),
@@ -1264,8 +1162,6 @@ func TestSendCertificate(t *testing.T) {
 				FromBlock:        50,
 				ToBlock:          59,
 			}, nil},
-			l2BlockFinality:  []interface{}{etherman.PendingBlock},
-			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(69)}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x1110"),
@@ -1275,8 +1171,9 @@ func TestSendCertificate(t *testing.T) {
 			getBridges:    []interface{}{[]bridgesync.Bridge{}, nil},
 		},
 		{
-			name:          "get claims error",
-			l1BlockNumber: []interface{}{uint64(158), nil},
+			name:                  "get claims error",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(79), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           70,
 				CertificateID:    common.HexToHash("0x121111"),
@@ -1284,8 +1181,6 @@ func TestSendCertificate(t *testing.T) {
 				FromBlock:        60,
 				ToBlock:          69,
 			}, nil},
-			l2BlockFinality:  []interface{}{etherman.FinalizedBlock},
-			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(79)}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x1110"),
@@ -1304,8 +1199,9 @@ func TestSendCertificate(t *testing.T) {
 			expectedError: "error getting claims",
 		},
 		{
-			name:          "error building certificate",
-			l1BlockNumber: []interface{}{uint64(148), nil},
+			name:                  "error building certificate",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(89), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           80,
 				CertificateID:    common.HexToHash("0x1321111"),
@@ -1313,8 +1209,6 @@ func TestSendCertificate(t *testing.T) {
 				FromBlock:        70,
 				ToBlock:          79,
 			}, nil},
-			l2BlockFinality:  []interface{}{etherman.PendingBlock},
-			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(89)}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x1110"),
@@ -1338,8 +1232,9 @@ func TestSendCertificate(t *testing.T) {
 			expectedError:           "error building certificate",
 		},
 		{
-			name:          "send certificate error",
-			l1BlockNumber: []interface{}{uint64(138), nil},
+			name:                  "send certificate error",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(99), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           90,
 				CertificateID:    common.HexToHash("0x1121111"),
@@ -1347,8 +1242,6 @@ func TestSendCertificate(t *testing.T) {
 				FromBlock:        80,
 				ToBlock:          89,
 			}, nil},
-			l2BlockFinality:  []interface{}{etherman.FinalizedBlock},
-			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(99)}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x1110"),
@@ -1372,8 +1265,9 @@ func TestSendCertificate(t *testing.T) {
 			expectedError:      "error sending certificate",
 		},
 		{
-			name:          "store last sent certificate error",
-			l1BlockNumber: []interface{}{uint64(128), nil},
+			name:                  "store last sent certificate error",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(109), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           100,
 				CertificateID:    common.HexToHash("0x11121111"),
@@ -1381,8 +1275,6 @@ func TestSendCertificate(t *testing.T) {
 				FromBlock:        90,
 				ToBlock:          99,
 			}, nil},
-			l2BlockFinality:  []interface{}{etherman.FinalizedBlock},
-			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(109)}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x11110"),
@@ -1407,8 +1299,9 @@ func TestSendCertificate(t *testing.T) {
 			expectedError:           "error saving last sent certificate in db",
 		},
 		{
-			name:          "successful sending of certificate",
-			l1BlockNumber: []interface{}{uint64(178), nil},
+			name:                  "successful sending of certificate",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(119), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
 				Height:           110,
 				CertificateID:    common.HexToHash("0x12121111"),
@@ -1416,8 +1309,6 @@ func TestSendCertificate(t *testing.T) {
 				FromBlock:        100,
 				ToBlock:          109,
 			}, nil},
-			l2BlockFinality:  []interface{}{etherman.FinalizedBlock},
-			l2HeaderByNumber: []interface{}{&gethTypes.Header{Number: big.NewInt(119)}, nil},
 			getCertificateHeader: []interface{}{&agglayer.CertificateHeader{
 				Status:        agglayer.Settled,
 				CertificateID: common.HexToHash("0x11110"),
@@ -1448,7 +1339,7 @@ func TestSendCertificate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			aggsender, mockStorage, mockL1Client, mockL2Syncer, mockL2Client,
+			aggsender, mockStorage, mockL2Syncer,
 				mockAggLayerClient, mockL1InfoTreeSyncer := setupTest(tt)
 
 			err := aggsender.sendCertificate(context.Background())
@@ -1463,16 +1354,8 @@ func TestSendCertificate(t *testing.T) {
 				mockStorage.AssertExpectations(t)
 			}
 
-			if mockL1Client != nil {
-				mockL1Client.AssertExpectations(t)
-			}
-
 			if mockL2Syncer != nil {
 				mockL2Syncer.AssertExpectations(t)
-			}
-
-			if mockL2Client != nil {
-				mockL2Client.AssertExpectations(t)
 			}
 
 			if mockAggLayerClient != nil {
