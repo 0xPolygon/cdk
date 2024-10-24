@@ -39,7 +39,6 @@ import (
 )
 
 const (
-	dataStreamType      = 1
 	mockedStateRoot     = "0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"
 	mockedLocalExitRoot = "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"
 	maxDBBigIntValue    = 9223372036854775807
@@ -222,8 +221,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 	var err error
 
 	// Get new last verified batch number from L1
-	var lastVerifiedBatchNumber uint64
-	lastVerifiedBatchNumber, err = a.etherman.GetLatestVerifiedBatchNum()
+	lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
 	if err != nil {
 		a.logger.Errorf("Error getting latest verified batch number: %v", err)
 	}

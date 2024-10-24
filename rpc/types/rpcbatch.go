@@ -8,17 +8,17 @@ import (
 )
 
 type RPCBatch struct {
-	batchNumber          uint64         `json:"batchNumber"`
-	accInputHash         common.Hash    `json:"accInputHash"`
-	blockHashes          []string       `json:"blocks"`
-	batchL2Data          []byte         `json:"batchL2Data"`
-	globalExitRoot       common.Hash    `json:"globalExitRoot"`
-	localExitRoot        common.Hash    `json:"localExitRoot"`
-	stateRoot            common.Hash    `json:"stateRoot"`
-	coinbase             common.Address `json:"coinbase"`
-	closed               bool           `json:"closed"`
-	lastL2BlockTimestamp uint64         `json:"lastL2BlockTimestamp"`
-	l1InfoTreeIndex      uint32         `json:"l1InfoTreeIndex"`
+	batchNumber          uint64
+	accInputHash         common.Hash
+	blockHashes          []string
+	batchL2Data          []byte
+	globalExitRoot       common.Hash
+	localExitRoot        common.Hash
+	stateRoot            common.Hash
+	coinbase             common.Address
+	closed               bool
+	lastL2BlockTimestamp uint64
+	l1InfoTreeIndex      uint32
 }
 
 func NewRPCBatch(batchNumber uint64, accInputHash common.Hash, blockHashes []string, batchL2Data []byte,

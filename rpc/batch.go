@@ -18,6 +18,8 @@ var (
 	ErrBusy = errors.New("witness server is busy")
 )
 
+const busyResponse = "busy"
+
 type BatchEndpoints struct {
 	url string
 }
@@ -131,7 +133,7 @@ func (b *BatchEndpoints) GetWitness(batchNumber uint64, fullWitness bool) ([]byt
 
 	// Check if the response is an error
 	if response.Error != nil {
-		if response.Error.Message == "busy" {
+		if response.Error.Message == busyResponse {
 			return nil, ErrBusy
 		}
 
