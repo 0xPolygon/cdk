@@ -2,7 +2,7 @@
 generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-mocks-sequencesender \
 	generate-mocks-da generate-mocks-l1infotreesync generate-mocks-helpers \
 	generate-mocks-sync generate-mocks-l1infotreesync generate-mocks-aggregator \
-	generate-mocks-aggsender generate-mocks-agglayer
+	generate-mocks-aggsender generate-mocks-agglayer generate-mocks-bridgesync
 
 .PHONY: generate-mocks-bridgesync
 generate-mocks-bridgesync: ## Generates mocks for bridgesync, using mockery tool
@@ -69,6 +69,12 @@ generate-mocks-aggsender: ## Generates mocks for aggsender, using mockery tool
 .PHONY: generate-mocks-agglayer
 generate-mocks-agglayer: ## Generates mocks for agglayer, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AgglayerClientInterface --dir=../agglayer --output=../agglayer --outpkg=agglayer --inpackage --structname=AgglayerClientMock --filename=mock_agglayer_client.go
+
+.PHONY: generate-mocks-bridgesync
+generate-mocks-bridgesync: ## Generates mocks for bridgesync, using mockery tool
+	rm -Rf ../bridgesync/mocks
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../bridgesync --output ../bridgesync/mocks --outpkg mocks_bridgesync ${COMMON_MOCKERY_PARAMS}
+	
 
 .PHONY: test-e2e-fork9-validium
 test-e2e-fork9-validium: stop

@@ -34,7 +34,7 @@ func TestProceessor(t *testing.T) {
 	log.Debugf("sqlite path: %s", path)
 	err := migrationsBridge.RunMigrations(path)
 	require.NoError(t, err)
-	p, err := newProcessor(path, "foo")
+	p, err := newProcessor(path, "foo", nil)
 	require.NoError(t, err)
 	actions := []processAction{
 		// processed: ~
@@ -687,7 +687,7 @@ func TestInsertAndGetClaim(t *testing.T) {
 	log.Debugf("sqlite path: %s", path)
 	err := migrationsBridge.RunMigrations(path)
 	require.NoError(t, err)
-	p, err := newProcessor(path, "foo")
+	p, err := newProcessor(path, "foo", nil)
 	require.NoError(t, err)
 
 	tx, err := p.db.BeginTx(context.Background(), nil)

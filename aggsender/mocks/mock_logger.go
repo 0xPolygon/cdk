@@ -17,6 +17,92 @@ func (_m *LoggerMock) EXPECT() *LoggerMock_Expecter {
 	return &LoggerMock_Expecter{mock: &_m.Mock}
 }
 
+// Debug provides a mock function with given fields: args
+func (_m *LoggerMock) Debug(args ...interface{}) {
+	var _ca []interface{}
+	_ca = append(_ca, args...)
+	_m.Called(_ca...)
+}
+
+// LoggerMock_Debug_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Debug'
+type LoggerMock_Debug_Call struct {
+	*mock.Call
+}
+
+// Debug is a helper method to define mock.On call
+//   - args ...interface{}
+func (_e *LoggerMock_Expecter) Debug(args ...interface{}) *LoggerMock_Debug_Call {
+	return &LoggerMock_Debug_Call{Call: _e.mock.On("Debug",
+		append([]interface{}{}, args...)...)}
+}
+
+func (_c *LoggerMock_Debug_Call) Run(run func(args ...interface{})) *LoggerMock_Debug_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]interface{}, len(args)-0)
+		for i, a := range args[0:] {
+			if a != nil {
+				variadicArgs[i] = a.(interface{})
+			}
+		}
+		run(variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *LoggerMock_Debug_Call) Return() *LoggerMock_Debug_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *LoggerMock_Debug_Call) RunAndReturn(run func(...interface{})) *LoggerMock_Debug_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Debugf provides a mock function with given fields: format, args
+func (_m *LoggerMock) Debugf(format string, args ...interface{}) {
+	var _ca []interface{}
+	_ca = append(_ca, format)
+	_ca = append(_ca, args...)
+	_m.Called(_ca...)
+}
+
+// LoggerMock_Debugf_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Debugf'
+type LoggerMock_Debugf_Call struct {
+	*mock.Call
+}
+
+// Debugf is a helper method to define mock.On call
+//   - format string
+//   - args ...interface{}
+func (_e *LoggerMock_Expecter) Debugf(format interface{}, args ...interface{}) *LoggerMock_Debugf_Call {
+	return &LoggerMock_Debugf_Call{Call: _e.mock.On("Debugf",
+		append([]interface{}{format}, args...)...)}
+}
+
+func (_c *LoggerMock_Debugf_Call) Run(run func(format string, args ...interface{})) *LoggerMock_Debugf_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]interface{}, len(args)-1)
+		for i, a := range args[1:] {
+			if a != nil {
+				variadicArgs[i] = a.(interface{})
+			}
+		}
+		run(args[0].(string), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *LoggerMock_Debugf_Call) Return() *LoggerMock_Debugf_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *LoggerMock_Debugf_Call) RunAndReturn(run func(string, ...interface{})) *LoggerMock_Debugf_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Error provides a mock function with given fields: args
 func (_m *LoggerMock) Error(args ...interface{}) {
 	var _ca []interface{}
