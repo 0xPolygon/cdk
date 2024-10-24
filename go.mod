@@ -8,7 +8,7 @@ require (
 	github.com/0xPolygon/cdk-rpc v0.0.0-20241004114257-6c3cb6eebfb6
 	github.com/0xPolygon/zkevm-ethtx-manager v0.2.0
 	github.com/0xPolygonHermez/zkevm-data-streamer v0.2.7
-	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.4
+	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.5
 	github.com/ethereum/go-ethereum v1.14.8
 	github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3
 	github.com/hermeznetwork/tracerr v0.3.2
