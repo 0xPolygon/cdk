@@ -36,12 +36,14 @@ type rollupElderberryValidiumContractor interface {
 	) (*types.Transaction, error)
 }
 
-func NewTxBuilderElderberryValidium(zkevm contracts.RollupElderberryType,
+func NewTxBuilderElderberryValidium(
+	logger *log.Logger,
+	zkevm contracts.RollupElderberryType,
 	da dataavailability.SequenceSenderElderberry,
 	opts bind.TransactOpts, maxBatchesForL1 uint64) *TxBuilderElderberryValidium {
 	return &TxBuilderElderberryValidium{
 		da:                      da,
-		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(opts),
+		TxBuilderElderberryBase: *NewTxBuilderElderberryBase(logger, opts),
 		condNewSeq:              NewConditionalNewSequenceNumBatches(maxBatchesForL1),
 		rollupContract:          zkevm,
 	}
@@ -68,12 +70,12 @@ func (t *TxBuilderElderberryValidium) BuildSequenceBatchesTx(
 	batchesData := convertToBatchesData(sequences)
 	dataAvailabilityMessage, err := t.da.PostSequenceElderberry(ctx, batchesData)
 	if err != nil {
-		log.Error("error posting sequences to the data availability protocol: ", err)
+		t.logger.Error("error posting sequences to the data availability protocol: ", err)
 		return nil, err
 	}
 	if dataAvailabilityMessage == nil {
 		err := fmt.Errorf("data availability message is nil")
-		log.Error("error posting sequences to the data availability protocol: ", err.Error())
+		t.logger.Error("error posting sequences to the data availability protocol: ", err.Error())
 		return nil, err
 	}
 	newopts := t.opts
@@ -103,7 +105,7 @@ func (t *TxBuilderElderberryValidium) buildSequenceBatchesTxValidium(opts *bind.
 		}
 	}
 	lastSequencedBatchNumber := getLastSequencedBatchNumber(sequences)
-	log.Infof("SequenceBatchesValidium(from=%s, len(batches)=%d, MaxSequenceTimestamp=%d, "+
+	t.logger.Infof("SequenceBatchesValidium(from=%s, len(batches)=%d, MaxSequenceTimestamp=%d, "+
 		"lastSequencedBatchNumber=%d, L2Coinbase=%s, dataAvailabilityMessage=%s)",
 		t.opts.From.String(), len(batches), sequences.MaxSequenceTimestamp(), lastSequencedBatchNumber,
 		sequences.L2Coinbase().String(), hex.EncodeToString(dataAvailabilityMessage),

@@ -7,14 +7,18 @@ import (
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	"github.com/0xPolygon/cdk/state"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
+	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/jackc/pgx/v4"
 )
 
 // Consumer interfaces required by the package.
 
-type proverInterface interface {
+type ProverInterface interface {
 	Name() string
 	ID() string
 	Addr() string
@@ -26,8 +30,8 @@ type proverInterface interface {
 	WaitFinalProof(ctx context.Context, proofID string) (*prover.FinalProof, error)
 }
 
-// etherman contains the methods required to interact with ethereum
-type etherman interface {
+// Etherman contains the methods required to interact with ethereum
+type Etherman interface {
 	GetRollupId() uint32
 	GetLatestVerifiedBatchNum() (uint64, error)
 	BuildTrustedVerifyBatchesTxData(
@@ -35,6 +39,7 @@ type etherman interface {
 	) (to *common.Address, data []byte, err error)
 	GetLatestBlockHeader(ctx context.Context) (*types.Header, error)
 	GetBatchAccInputHash(ctx context.Context, batchNumber uint64) (common.Hash, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 }
 
 // aggregatorTxProfitabilityChecker interface for different profitability
@@ -43,8 +48,8 @@ type aggregatorTxProfitabilityChecker interface {
 	IsProfitable(context.Context, *big.Int) (bool, error)
 }
 
-// stateInterface gathers the methods to interact with the state.
-type stateInterface interface {
+// StateInterface gathers the methods to interact with the state.
+type StateInterface interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	CheckProofContainsCompleteSequences(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) (bool, error)
 	GetProofReadyToVerify(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Proof, error)
@@ -61,4 +66,50 @@ type stateInterface interface {
 	GetBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.DBBatch, error)
 	DeleteBatchesOlderThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	DeleteBatchesNewerThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+}
+
+// StreamClient represents the stream client behaviour
+type StreamClient interface {
+	Start() error
+	ExecCommandStart(fromEntry uint64) error
+	ExecCommandStartBookmark(fromBookmark []byte) error
+	ExecCommandStop() error
+	ExecCommandGetHeader() (datastreamer.HeaderEntry, error)
+	ExecCommandGetEntry(fromEntry uint64) (datastreamer.FileEntry, error)
+	ExecCommandGetBookmark(fromBookmark []byte) (datastreamer.FileEntry, error)
+	GetFromStream() uint64
+	GetTotalEntries() uint64
+	SetProcessEntryFunc(f datastreamer.ProcessEntryFunc)
+	ResetProcessEntryFunc()
+	IsStarted() bool
+}
+
+// EthTxManagerClient represents the eth tx manager interface
+type EthTxManagerClient interface {
+	Add(
+		ctx context.Context,
+		to *common.Address,
+		value *big.Int,
+		data []byte,
+		gasOffset uint64,
+		sidecar *types.BlobTxSidecar,
+	) (common.Hash, error)
+	AddWithGas(
+		ctx context.Context,
+		to *common.Address,
+		value *big.Int,
+		data []byte,
+		gasOffset uint64,
+		sidecar *types.BlobTxSidecar,
+		gas uint64,
+	) (common.Hash, error)
+	EncodeBlobData(data []byte) (kzg4844.Blob, error)
+	MakeBlobSidecar(blobs []kzg4844.Blob) *types.BlobTxSidecar
+	ProcessPendingMonitoredTxs(ctx context.Context, resultHandler ethtxmanager.ResultHandler)
+	Remove(ctx context.Context, id common.Hash) error
+	RemoveAll(ctx context.Context) error
+	Result(ctx context.Context, id common.Hash) (ethtxtypes.MonitoredTxResult, error)
+	ResultsByStatus(ctx context.Context, statuses []ethtxtypes.MonitoredTxStatus) ([]ethtxtypes.MonitoredTxResult, error)
+	Start()
+	Stop()
 }

@@ -34,6 +34,7 @@ var (
 
 // Prover abstraction of the grpc prover client.
 type Prover struct {
+	logger                    *log.Logger
 	name                      string
 	id                        string
 	address                   net.Addr
@@ -42,10 +43,10 @@ type Prover struct {
 }
 
 // New returns a new Prover instance.
-func New(
-	stream AggregatorService_ChannelServer, addr net.Addr, proofStatePollingInterval types.Duration,
-) (*Prover, error) {
+func New(logger *log.Logger, stream AggregatorService_ChannelServer,
+	addr net.Addr, proofStatePollingInterval types.Duration) (*Prover, error) {
 	p := &Prover{
+		logger:                    logger,
 		stream:                    stream,
 		address:                   addr,
 		proofStatePollingInterval: proofStatePollingInterval,
@@ -108,12 +109,11 @@ func (p *Prover) IsIdle() (bool, error) {
 func (p *Prover) SupportsForkID(forkID uint64) bool {
 	status, err := p.Status()
 	if err != nil {
-		log.Warnf("Error asking status for prover ID %s: %v", p.ID(), err)
-
+		p.logger.Warnf("Error asking status for prover ID %s: %v", p.ID(), err)
 		return false
 	}
 
-	log.Debugf("Prover %s supports fork ID %d", p.ID(), status.ForkId)
+	p.logger.Debugf("Prover %s supports fork ID %d", p.ID(), status.ForkId)
 
 	return status.ForkId == forkID
 }
@@ -296,13 +296,13 @@ func (p *Prover) WaitRecursiveProof(ctx context.Context, proofID string) (string
 		)
 	}
 
-	sr, err := GetStateRootFromProof(resProof.RecursiveProof)
+	sr, err := GetStateRootFromProof(p.logger, resProof.RecursiveProof)
 	if err != nil && sr != (common.Hash{}) {
-		log.Errorf("Error getting state root from proof: %v", err)
+		p.logger.Errorf("Error getting state root from proof: %v", err)
 	}
 
 	if sr == (common.Hash{}) {
-		log.Info("Recursive proof does not contain state root. Possibly mock prover is in use.")
+		p.logger.Info("Recursive proof does not contain state root. Possibly mock prover is in use.")
 	}
 
 	return resProof.RecursiveProof, sr, nil
@@ -396,9 +396,9 @@ func (p *Prover) call(req *AggregatorMessage) (*ProverMessage, error) {
 }
 
 // GetStateRootFromProof returns the state root from the proof.
-func GetStateRootFromProof(proof string) (common.Hash, error) {
+func GetStateRootFromProof(logger *log.Logger, proof string) (common.Hash, error) {
 	// Log received proof
-	log.Debugf("Received proof to get SR from: %s", proof)
+	logger.Debugf("Received proof to get SR from: %s", proof)
 
 	type Publics struct {
 		Publics []string `mapstructure:"publics"`
@@ -412,17 +412,18 @@ func GetStateRootFromProof(proof string) (common.Hash, error) {
 	var publics Publics
 	err := json.Unmarshal([]byte(proof), &publics)
 	if err != nil {
-		log.Errorf("Error unmarshalling proof: %v", err)
-
+		logger.Errorf("Error unmarshalling proof: %v", err)
 		return common.Hash{}, err
 	}
 
-	var v [8]uint64
-	var j = 0
+	var (
+		v [8]uint64
+		j = 0
+	)
 	for i := stateRootStartIndex; i < stateRootFinalIndex; i++ {
 		u64, err := strconv.ParseInt(publics.Publics[i], 10, 64)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
 		v[j] = uint64(u64)
 		j++
@@ -442,13 +443,13 @@ func fea2scalar(v []uint64) *big.Int {
 		return big.NewInt(0)
 	}
 	res := new(big.Int).SetUint64(v[0])
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[1]), 32))  //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[2]), 64))  //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[3]), 96))  //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[4]), 128)) //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[5]), 160)) //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[6]), 192)) //nolint:gomnd
-	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[7]), 224)) //nolint:gomnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[1]), 32))  //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[2]), 64))  //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[3]), 96))  //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[4]), 128)) //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[5]), 160)) //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[6]), 192)) //nolint:mnd
+	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[7]), 224)) //nolint:mnd
 
 	return res
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/0xPolygon/cdk/etherman"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -11,12 +12,14 @@ import (
 )
 
 type TxBuilderElderberryBase struct {
-	opts bind.TransactOpts
+	logger *log.Logger
+	opts   bind.TransactOpts
 }
 
-func NewTxBuilderElderberryBase(opts bind.TransactOpts) *TxBuilderElderberryBase {
+func NewTxBuilderElderberryBase(logger *log.Logger, opts bind.TransactOpts) *TxBuilderElderberryBase {
 	return &TxBuilderElderberryBase{
-		opts: opts,
+		logger: logger,
+		opts:   opts,
 	}
 }
 

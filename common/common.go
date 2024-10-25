@@ -41,6 +41,7 @@ func BytesToUint32(bytes []byte) uint32 {
 
 // CalculateAccInputHash computes the hash of accumulated input data for a given batch.
 func CalculateAccInputHash(
+	logger *log.Logger,
 	oldAccInputHash common.Hash,
 	batchData []byte,
 	l1InfoRoot common.Hash,
@@ -78,12 +79,12 @@ func CalculateAccInputHash(
 
 	v2 = keccak256.Hash(v2)
 
-	log.Debugf("OldAccInputHash: %v", oldAccInputHash)
-	log.Debugf("BatchHashData: %v", common.Bytes2Hex(v2))
-	log.Debugf("L1InfoRoot: %v", l1InfoRoot)
-	log.Debugf("TimeStampLimit: %v", timestampLimit)
-	log.Debugf("Sequencer Address: %v", sequencerAddr)
-	log.Debugf("Forced BlockHashL1: %v", forcedBlockhashL1)
+	logger.Debugf("OldAccInputHash: %v", oldAccInputHash)
+	logger.Debugf("BatchHashData: %v", common.Bytes2Hex(v2))
+	logger.Debugf("L1InfoRoot: %v", l1InfoRoot)
+	logger.Debugf("TimeStampLimit: %v", timestampLimit)
+	logger.Debugf("Sequencer Address: %v", sequencerAddr)
+	logger.Debugf("Forced BlockHashL1: %v", forcedBlockhashL1)
 
 	return common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6))
 }

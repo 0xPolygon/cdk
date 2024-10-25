@@ -9,6 +9,7 @@ import (
 
 // L1InfoTree provides methods to compute L1InfoTree
 type L1InfoTree struct {
+	logger      *log.Logger
 	height      uint8
 	zeroHashes  [][32]byte
 	count       uint32
@@ -17,8 +18,9 @@ type L1InfoTree struct {
 }
 
 // NewL1InfoTree creates new L1InfoTree.
-func NewL1InfoTree(height uint8, initialLeaves [][32]byte) (*L1InfoTree, error) {
+func NewL1InfoTree(logger *log.Logger, height uint8, initialLeaves [][32]byte) (*L1InfoTree, error) {
 	mt := &L1InfoTree{
+		logger:     logger,
 		zeroHashes: generateZeroHashes(height),
 		height:     height,
 		count:      uint32(len(initialLeaves)),
@@ -26,20 +28,19 @@ func NewL1InfoTree(height uint8, initialLeaves [][32]byte) (*L1InfoTree, error) 
 	var err error
 	mt.siblings, mt.currentRoot, err = mt.initSiblings(initialLeaves)
 	if err != nil {
-		log.Error("error initializing siblings. Error: ", err)
+		mt.logger.Error("error initializing siblings. Error: ", err)
 
 		return nil, err
 	}
-	log.Debug("Initial count: ", mt.count)
-	log.Debug("Initial root: ", mt.currentRoot)
-
+	mt.logger.Debug("Initial count: ", mt.count)
+	mt.logger.Debug("Initial root: ", mt.currentRoot)
 	return mt, nil
 }
 
 // ResetL1InfoTree resets the L1InfoTree.
 func (mt *L1InfoTree) ResetL1InfoTree(initialLeaves [][32]byte) (*L1InfoTree, error) {
 	const defaultTreeHeight = 32
-	log.Info("Resetting L1InfoTree...")
+	mt.logger.Info("Resetting L1InfoTree...")
 	newMT := &L1InfoTree{
 		zeroHashes: generateZeroHashes(defaultTreeHeight),
 		height:     defaultTreeHeight,
@@ -48,13 +49,12 @@ func (mt *L1InfoTree) ResetL1InfoTree(initialLeaves [][32]byte) (*L1InfoTree, er
 	var err error
 	newMT.siblings, newMT.currentRoot, err = newMT.initSiblings(initialLeaves)
 	if err != nil {
-		log.Error("error initializing siblings. Error: ", err)
+		mt.logger.Error("error initializing siblings. Error: ", err)
 
 		return nil, err
 	}
-	log.Debug("Reset initial count: ", newMT.count)
-	log.Debug("Reset initial root: ", newMT.currentRoot)
-
+	mt.logger.Debug("Reset initial count: ", newMT.count)
+	mt.logger.Debug("Reset initial root: ", newMT.currentRoot)
 	return newMT, nil
 }
 
@@ -112,7 +112,7 @@ func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint32, leaves [][32]byte) ([]
 		if index >= uint32(len(leaves)) {
 			siblings = append(siblings, mt.zeroHashes[h])
 		} else {
-			if index%2 == 1 { //If it is odd
+			if index%2 == 1 { // If it is odd
 				siblings = append(siblings, leaves[index-1])
 			} else { // It is even
 				siblings = append(siblings, leaves[index+1])
@@ -130,7 +130,7 @@ func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint32, leaves [][32]byte) ([]
 		}
 		// Find the index of the leaf in the next level of the tree.
 		// Divide the index by 2 to find the position in the upper level
-		index = uint32(float64(index) / 2) //nolint:gomnd
+		index = uint32(float64(index) / 2) //nolint:mnd
 		ns = nsi
 		leaves = hashes
 	}
@@ -190,8 +190,7 @@ func (mt *L1InfoTree) initSiblings(initialLeaves [][32]byte) ([][32]byte, common
 		}
 		root, err := mt.BuildL1InfoRoot(initialLeaves)
 		if err != nil {
-			log.Error("error calculating initial root: ", err)
-
+			mt.logger.Error("error calculating initial root: ", err)
 			return nil, [32]byte{}, err
 		}
 

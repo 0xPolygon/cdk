@@ -13,7 +13,11 @@ jobs:
       matrix:
         go-version: [ 1.22.x ]
         goarch: [ "amd64" ]
-        e2e-group: [ "elderberry-validium", "elderberry-rollup" ]
+        e2e-group:
+          - "fork9-validium"
+          - "fork11-rollup"
+          - "fork12-validium"
+          - "fork12-rollup"
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -35,7 +39,7 @@ jobs:
       run: |
         echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
         sudo apt update
-        sudo apt install kurtosis-cli=0.90.1
+        sudo apt install kurtosis-cli=1.3.0
         kurtosis version
 
     - name: Disable kurtosis analytics
@@ -48,6 +52,16 @@ jobs:
         pip3 install yq
         yq --version
 
+    - name: Install polycli
+      run: |
+        POLYCLI_VERSION="${{ vars.POLYCLI_VERSION }}"
+        tmp_dir=$(mktemp -d) 
+        curl -L "https://github.com/0xPolygon/polygon-cli/releases/download/${POLYCLI_VERSION}/polycli_${POLYCLI_VERSION}_linux_amd64.tar.gz" | tar -xz -C "$tmp_dir" 
+        mv "$tmp_dir"/* /usr/local/bin/polycli 
+        rm -rf "$tmp_dir"
+        sudo chmod +x /usr/local/bin/polycli
+        /usr/local/bin/polycli version
+
     - name: Install foundry
       uses: foundry-rs/foundry-toolchain@v1
 
@@ -56,9 +70,33 @@ jobs:
       with:
         repository: 0xPolygon/kurtosis-cdk
         path: "kurtosis-cdk"
+        ref: "v0.2.15"
+
+    - name: Setup Bats and bats libs
+      uses: bats-core/bats-action@2.0.0
 
     - name: Test
       run: make test-e2e-${{ matrix.e2e-group }}
       working-directory: test
       env:
         KURTOSIS_FOLDER: ${{ github.workspace }}/kurtosis-cdk
+        BATS_LIB_PATH: /usr/lib/
+    
+    - name: Dump enclave logs
+      if: failure()
+      run: kurtosis dump ./dump
+
+    - name: Generate archive name
+      if: failure()
+      run: |
+        archive_name="dump_run_with_args_${{matrix.e2e-group}}_${{ github.run_id }}"
+        echo "ARCHIVE_NAME=${archive_name}" >> "$GITHUB_ENV"
+        echo "Generated archive name: ${archive_name}"
+        kurtosis service exec cdk cdk-node-001 'cat /etc/cdk/cdk-node-config.toml' > ./dump/cdk-node-config.toml
+
+    - name: Upload logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARCHIVE_NAME }}
+        path: ./dump

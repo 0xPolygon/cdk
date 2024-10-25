@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
 	rpcTypes "github.com/0xPolygon/cdk-rpc/types"
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/sync"
 	tree "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum"
@@ -150,8 +151,6 @@ func setClaimCalldata(client EthClienter, bridge common.Address, txHash common.H
 	}
 
 	// find the claim linked to the event using DFS
-	// TODO: take into account potential reverts that may be found on the path,
-	// and other edge cases
 	callStack := stack.New()
 	callStack.Push(*c)
 	for {
@@ -181,7 +180,7 @@ func setClaimCalldata(client EthClienter, bridge common.Address, txHash common.H
 			callStack.Push(c)
 		}
 	}
-	return ErrNotFound
+	return db.ErrNotFound
 }
 
 func setClaimIfFoundOnInput(input []byte, claim *Claim) (bool, error) {

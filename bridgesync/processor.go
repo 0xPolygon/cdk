@@ -23,7 +23,6 @@ import (
 var (
 	// ErrBlockNotProcessed indicates that the given block(s) have not been processed yet.
 	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
-	ErrNotFound          = errors.New("not found")
 )
 
 // Bridge is the representation of a bridge event
@@ -184,7 +183,7 @@ func (p *processor) queryBlockRange(tx db.Querier, fromBlock, toBlock uint64, ta
 	`, table), fromBlock, toBlock)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, db.ErrNotFound
 		}
 		return nil, err
 	}

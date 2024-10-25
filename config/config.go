@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"path/filepath"
+	"os"
 	"strings"
 
 	jRPC "github.com/0xPolygon/cdk-rpc/rpc"
@@ -14,14 +14,13 @@ import (
 	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/common"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
-	"github.com/0xPolygon/cdk/l1bridge2infoindexsync"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/sequencesender"
-	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/mitchellh/mapstructure"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
 )
@@ -52,24 +51,82 @@ const (
 	FlagOutputFile = "output"
 	// FlagMaxAmount is the flag to avoid to use the flag FlagAmount
 	FlagMaxAmount = "max-amount"
+	// FlagSaveConfigPath is the flag to save the final configuration file
+	FlagSaveConfigPath = "save-config-path"
+	// FlagDisableDefaultConfigVars is the flag to force all variables to be set on config-files
+	FlagDisableDefaultConfigVars = "disable-default-config-vars"
+	// FlagAllowDeprecatedFields is the flag to allow deprecated fields
+	FlagAllowDeprecatedFields = "allow-deprecated-fields"
+
+	deprecatedFieldSyncDB = "Aggregator.Synchronizer.DB is deprecated. Use Aggregator.Synchronizer.SQLDB instead."
+
+	deprecatedFieldPersistenceFilename = "EthTxManager.PersistenceFilename is deprecated." +
+		" Use EthTxManager.StoragePath instead."
+
+	EnvVarPrefix       = "CDK"
+	ConfigType         = "toml"
+	SaveConfigFileName = "cdk_config.toml"
+
+	DefaultCreationFilePermissions = os.FileMode(0600)
+)
+
+type DeprecatedFieldsError struct {
+	// key is the rule and the value is the field's name that matches the rule
+	Fields map[DeprecatedField][]string
+}
+
+func NewErrDeprecatedFields() *DeprecatedFieldsError {
+	return &DeprecatedFieldsError{
+		Fields: make(map[DeprecatedField][]string),
+	}
+}
+
+func (e *DeprecatedFieldsError) AddDeprecatedField(fieldName string, rule DeprecatedField) {
+	p := e.Fields[rule]
+	e.Fields[rule] = append(p, fieldName)
+}
+
+func (e *DeprecatedFieldsError) Error() string {
+	res := "found deprecated fields:"
+	for rule, fieldsMatches := range e.Fields {
+		res += fmt.Sprintf("\n\t- %s: %s", rule.Reason, strings.Join(fieldsMatches, ", "))
+	}
+	return res
+}
+
+type DeprecatedField struct {
+	// If the field name ends with a dot means that match a section
+	FieldNamePattern string
+	Reason           string
+}
+
+var (
+	deprecatedFieldsOnConfig = []DeprecatedField{
+		{
+			FieldNamePattern: "sequencesender.ethtxmanager.persistencefilename",
+			Reason:           deprecatedFieldPersistenceFilename,
+		},
+		{
+			FieldNamePattern: "aggregator.synchronizer.db.",
+			Reason:           deprecatedFieldSyncDB,
+		},
+
+		{
+			FieldNamePattern: "aggregator.ethtxmanager.persistencefilename",
+			Reason:           deprecatedFieldPersistenceFilename,
+		},
+	}
 )
 
 /*
-Config represents the configuration of the entire Hermez Node
+Config represents the configuration of the entire CDK Node
 The file is [TOML format]
-You could find some examples:
-  - `config/environments/local/local.node.config.toml`: running a permisionless node
-  - `config/environments/mainnet/node.config.toml`
-  - `config/environments/public/node.config.toml`
-  - `test/config/test.node.config.toml`: configuration for a trusted node used in CI
 
 [TOML format]: https://en.wikipedia.org/wiki/TOML
 */
 type Config struct {
 	// Configuration of the etherman (client for access L1)
 	Etherman ethermanconfig.Config
-	// Configuration for ethereum transaction manager
-	EthTxManager ethtxmanager.Config
 	// Configuration of the aggregator
 	Aggregator aggregator.Config
 	// Configure Log level for all the services, allow also to store the logs in a file
@@ -96,10 +153,6 @@ type Config struct {
 	// ClaimSponsor is the config for the claim sponsor
 	ClaimSponsor claimsponsor.EVMClaimSponsorConfig
 
-	// L1Bridge2InfoIndexSync is the config for the synchronizers that maintains the relation of
-	// bridge from L1 --> L1 Info tree index. Needed for the bridge service (RPC)
-	L1Bridge2InfoIndexSync l1bridge2infoindexsync.Config
-
 	// BridgeL1Sync is the configuration for the synchronizer of the bridge of the L1
 	BridgeL1Sync bridgesync.Config
 
@@ -111,76 +164,179 @@ type Config struct {
 	LastGERSync lastgersync.Config
 }
 
-// Default parses the default configuration values.
-func Default() (*Config, error) {
-	var cfg Config
-	viper.SetConfigType("toml")
-
-	err := viper.ReadConfig(bytes.NewBuffer([]byte(DefaultValues)))
+// Load loads the configuration
+func Load(ctx *cli.Context) (*Config, error) {
+	configFilePath := ctx.StringSlice(FlagCfg)
+	filesData, err := readFiles(configFilePath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading files:  Err:%w", err)
 	}
+	saveConfigPath := ctx.String(FlagSaveConfigPath)
+	defaultConfigVars := !ctx.Bool(FlagDisableDefaultConfigVars)
+	allowDeprecatedFields := ctx.Bool(FlagAllowDeprecatedFields)
+	return LoadFile(filesData, saveConfigPath, defaultConfigVars, allowDeprecatedFields)
+}
 
-	err = viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
-	if err != nil {
-		return nil, err
+func readFiles(files []string) ([]FileData, error) {
+	result := make([]FileData, 0, len(files))
+	for _, file := range files {
+		fileContent, err := readFileToString(file)
+		if err != nil {
+			return nil, fmt.Errorf("error reading file content: %s. Err:%w", file, err)
+		}
+		fileExtension := getFileExtension(file)
+		if fileExtension != ConfigType {
+			fileContent, err = convertFileToToml(fileContent, fileExtension)
+			if err != nil {
+				return nil, fmt.Errorf("error converting file: %s from %s to TOML. Err:%w", file, fileExtension, err)
+			}
+		}
+		result = append(result, FileData{Name: file, Content: fileContent})
 	}
+	return result, nil
+}
 
-	return &cfg, nil
+func getFileExtension(fileName string) string {
+	return fileName[strings.LastIndex(fileName, ".")+1:]
 }
 
 // Load loads the configuration
-func Load(ctx *cli.Context) (*Config, error) {
-	cfg, err := Default()
+func LoadFileFromString(configFileData string, configType string) (*Config, error) {
+	cfg := &Config{}
+	err := loadString(cfg, configFileData, configType, true, EnvVarPrefix)
+	if err != nil {
+		return cfg, err
+	}
+	return cfg, nil
+}
+
+func SaveConfigToFile(cfg *Config, saveConfigPath string) error {
+	marshaled, err := toml.Marshal(cfg)
+	if err != nil {
+		log.Errorf("Can't marshal config to toml. Err: %w", err)
+		return err
+	}
+	return SaveDataToFile(saveConfigPath, "final config file", marshaled)
+}
+
+func SaveDataToFile(fullPath, reason string, data []byte) error {
+	log.Infof("Writing %s to: %s", reason, fullPath)
+	err := os.WriteFile(fullPath, data, DefaultCreationFilePermissions)
+	if err != nil {
+		err = fmt.Errorf("error writing %s to file %s. Err: %w", reason, fullPath, err)
+		log.Error(err)
+		return err
+	}
+	return nil
+}
+
+// Load loads the configuration
+func LoadFile(files []FileData, saveConfigPath string,
+	setDefaultVars bool, allowDeprecatedFields bool) (*Config, error) {
+	log.Infof("Loading configuration: saveConfigPath: %s, setDefaultVars: %t, allowDeprecatedFields: %t",
+		saveConfigPath, setDefaultVars, allowDeprecatedFields)
+	fileData := make([]FileData, 0)
+	if setDefaultVars {
+		log.Info("Setting default vars")
+		fileData = append(fileData, FileData{Name: "default_mandatory_vars", Content: DefaultMandatoryVars})
+	}
+	fileData = append(fileData, FileData{Name: "default_vars", Content: DefaultVars})
+	fileData = append(fileData, FileData{Name: "default_values", Content: DefaultValues})
+	fileData = append(fileData, files...)
+
+	merger := NewConfigRender(fileData, EnvVarPrefix)
+
+	renderedCfg, err := merger.Render()
 	if err != nil {
 		return nil, err
 	}
-
-	configFilePath := ctx.String(FlagCfg)
-	if configFilePath != "" {
-		dirName, fileName := filepath.Split(configFilePath)
-
-		fileExtension := strings.TrimPrefix(filepath.Ext(fileName), ".")
-		fileNameWithoutExtension := strings.TrimSuffix(fileName, "."+fileExtension)
-
-		viper.AddConfigPath(dirName)
-		viper.SetConfigName(fileNameWithoutExtension)
-		viper.SetConfigType(fileExtension)
-	}
-
-	viper.AutomaticEnv()
-	replacer := strings.NewReplacer(".", "_")
-	viper.SetEnvKeyReplacer(replacer)
-	viper.SetEnvPrefix("CDK")
-
-	err = viper.ReadInConfig()
-	if err != nil {
-		var configNotFoundError viper.ConfigFileNotFoundError
-		if errors.As(err, &configNotFoundError) {
-			log.Infof("config file not found")
-		} else {
-			log.Infof("error reading config file: ", err)
-
+	if saveConfigPath != "" {
+		fullPath := saveConfigPath + "/" + SaveConfigFileName + ".merged"
+		err = SaveDataToFile(fullPath, "merged config file", []byte(renderedCfg))
+		if err != nil {
 			return nil, err
 		}
 	}
+	cfg, err := LoadFileFromString(renderedCfg, ConfigType)
+	// If allowDeprecatedFields is true, we ignore the deprecated fields
+	if err != nil && allowDeprecatedFields {
+		var customErr *DeprecatedFieldsError
+		if errors.As(err, &customErr) {
+			log.Warnf("detected deprecated fields: %s", err.Error())
+			err = nil
+		}
+	}
 
+	if err != nil {
+		return nil, err
+	}
+	if saveConfigPath != "" {
+		fullPath := saveConfigPath + "/" + SaveConfigFileName
+		err = SaveConfigToFile(cfg, fullPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return cfg, nil
+}
+
+// Load loads the configuration
+func loadString(cfg *Config, configData string, configType string,
+	allowEnvVars bool, envPrefix string) error {
+	viper.SetConfigType(configType)
+	if allowEnvVars {
+		replacer := strings.NewReplacer(".", "_")
+		viper.SetEnvKeyReplacer(replacer)
+		viper.SetEnvPrefix(envPrefix)
+		viper.AutomaticEnv()
+	}
+	err := viper.ReadConfig(bytes.NewBuffer([]byte(configData)))
+	if err != nil {
+		return err
+	}
 	decodeHooks := []viper.DecoderConfigOption{
 		// this allows arrays to be decoded from env var separated by ",", example: MY_VAR="value1,value2,value3"
-		viper.DecodeHook(
-			mapstructure.ComposeDecodeHookFunc(
-				mapstructure.TextUnmarshallerHookFunc(),
-				mapstructure.StringToSliceHookFunc(","),
-			),
-		),
+		viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
+			mapstructure.TextUnmarshallerHookFunc(), mapstructure.StringToSliceHookFunc(","))),
 	}
 
 	err = viper.Unmarshal(&cfg, decodeHooks...)
 	if err != nil {
-		return nil, err
+		return err
+	}
+	configKeys := viper.AllKeys()
+	err = checkDeprecatedFields(configKeys)
+	if err != nil {
+		return err
 	}
 
-	fmt.Println("cfg", cfg.NetworkConfig.L1Config)
+	return nil
+}
 
-	return cfg, nil
+func checkDeprecatedFields(keysOnConfig []string) error {
+	err := NewErrDeprecatedFields()
+	for _, key := range keysOnConfig {
+		forbbidenInfo := getDeprecatedField(key)
+		if forbbidenInfo != nil {
+			err.AddDeprecatedField(key, *forbbidenInfo)
+		}
+	}
+	if len(err.Fields) > 0 {
+		return err
+	}
+	return nil
+}
+
+func getDeprecatedField(fieldName string) *DeprecatedField {
+	for _, deprecatedField := range deprecatedFieldsOnConfig {
+		if deprecatedField.FieldNamePattern == fieldName {
+			return &deprecatedField
+		}
+		// If the field name ends with a dot, it means FieldNamePattern*
+		if deprecatedField.FieldNamePattern[len(deprecatedField.FieldNamePattern)-1] == '.' &&
+			strings.HasPrefix(fieldName, deprecatedField.FieldNamePattern) {
+			return &deprecatedField
+		}
+	}
+	return nil
 }

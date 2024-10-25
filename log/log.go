@@ -30,17 +30,18 @@ type Logger struct {
 // root logger
 var log atomic.Pointer[Logger]
 
-func getDefaultLog() *Logger {
+func GetDefaultLogger() *Logger {
 	l := log.Load()
 	if l != nil {
 		return l
 	}
 	// default level: debug
-	zapLogger, _, err := NewLogger(Config{
-		Environment: EnvironmentDevelopment,
-		Level:       "debug",
-		Outputs:     []string{"stderr"},
-	})
+	zapLogger, _, err := NewLogger(
+		Config{
+			Environment: EnvironmentDevelopment,
+			Level:       "debug",
+			Outputs:     []string{"stderr"},
+		})
 	if err != nil {
 		panic(err)
 	}
@@ -96,14 +97,14 @@ func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 	defer logger.Sync() //nolint:errcheck
 
 	// skip 2 callers: one for our wrapper methods and one for the package functions
-	withOptions := logger.WithOptions(zap.AddCallerSkip(2)) //nolint:gomnd
+	withOptions := logger.WithOptions(zap.AddCallerSkip(2)) //nolint:mnd
 	return withOptions.Sugar(), &level, nil
 }
 
 // WithFields returns a new Logger (derived from the root one) with additional
 // fields as per keyValuePairs.  The root Logger instance is not affected.
 func WithFields(keyValuePairs ...interface{}) *Logger {
-	l := getDefaultLog().WithFields(keyValuePairs...)
+	l := GetDefaultLogger().WithFields(keyValuePairs...)
 
 	// since we are returning a new instance, remove one caller from the
 	// stack, because we'll be calling the retruned Logger methods
@@ -119,6 +120,11 @@ func (l *Logger) WithFields(keyValuePairs ...interface{}) *Logger {
 	return &Logger{
 		x: l.x.With(keyValuePairs...),
 	}
+}
+
+// GetSugaredLogger is a getter function that returns instance of already built zap.SugaredLogger.
+func (l *Logger) GetSugaredLogger() *zap.SugaredLogger {
+	return l.x
 }
 
 func sprintStackTrace(st []tracerr.Frame) string {
@@ -199,72 +205,57 @@ func (l *Logger) Errorf(template string, args ...interface{}) {
 
 // Debug calls log.Debug on the root Logger.
 func Debug(args ...interface{}) {
-	getDefaultLog().Debug(args...)
+	GetDefaultLogger().Debug(args...)
 }
 
 // Info calls log.Info on the root Logger.
 func Info(args ...interface{}) {
-	getDefaultLog().Info(args...)
+	GetDefaultLogger().Info(args...)
 }
 
 // Warn calls log.Warn on the root Logger.
 func Warn(args ...interface{}) {
-	getDefaultLog().Warn(args...)
+	GetDefaultLogger().Warn(args...)
 }
 
 // Error calls log.Error on the root Logger.
 func Error(args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	getDefaultLog().Error(args...)
+	GetDefaultLogger().Error(args...)
 }
 
 // Fatal calls log.Fatal on the root Logger.
 func Fatal(args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	getDefaultLog().Fatal(args...)
+	GetDefaultLogger().Fatal(args...)
 }
 
 // Debugf calls log.Debugf on the root Logger.
 func Debugf(template string, args ...interface{}) {
-	getDefaultLog().Debugf(template, args...)
+	GetDefaultLogger().Debugf(template, args...)
 }
 
 // Infof calls log.Infof on the root Logger.
 func Infof(template string, args ...interface{}) {
-	getDefaultLog().Infof(template, args...)
+	GetDefaultLogger().Infof(template, args...)
 }
 
 // Warnf calls log.Warnf on the root Logger.
 func Warnf(template string, args ...interface{}) {
-	getDefaultLog().Warnf(template, args...)
+	GetDefaultLogger().Warnf(template, args...)
 }
 
 // Fatalf calls log.Fatalf on the root Logger.
 func Fatalf(template string, args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	getDefaultLog().Fatalf(template, args...)
+	GetDefaultLogger().Fatalf(template, args...)
 }
 
 // Errorf calls log.Errorf on the root logger and stores the error message into
 // the ErrorFile.
 func Errorf(template string, args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	getDefaultLog().Errorf(template, args...)
-}
-
-// appendStackTraceMaybeKV will append the stacktrace to the KV
-func appendStackTraceMaybeKV(msg string, kv []interface{}) string {
-	for i := range kv {
-		if i%2 == 0 {
-			continue
-		}
-		if err, ok := kv[i].(error); ok {
-			err = tracerr.Wrap(err)
-			st := tracerr.StackTrace(err)
-			return fmt.Sprintf("%v: %v%v\n", msg, err, sprintStackTrace(st))
-		}
-	}
-	return msg
+	GetDefaultLogger().Errorf(template, args...)
 }
 
 // Debugw calls log.Debugw
@@ -294,27 +285,46 @@ func (l *Logger) Fatalw(msg string, kv ...interface{}) {
 
 // Debugw calls log.Debugw on the root Logger.
 func Debugw(msg string, kv ...interface{}) {
-	getDefaultLog().Debugw(msg, kv...)
+	GetDefaultLogger().Debugw(msg, kv...)
 }
 
 // Infow calls log.Infow on the root Logger.
 func Infow(msg string, kv ...interface{}) {
-	getDefaultLog().Infow(msg, kv...)
+	GetDefaultLogger().Infow(msg, kv...)
 }
 
 // Warnw calls log.Warnw on the root Logger.
 func Warnw(msg string, kv ...interface{}) {
-	getDefaultLog().Warnw(msg, kv...)
+	GetDefaultLogger().Warnw(msg, kv...)
 }
 
 // Errorw calls log.Errorw on the root Logger.
 func Errorw(msg string, kv ...interface{}) {
 	msg = appendStackTraceMaybeKV(msg, kv)
-	getDefaultLog().Errorw(msg, kv...)
+	GetDefaultLogger().Errorw(msg, kv...)
 }
 
 // Fatalw calls log.Fatalw on the root Logger.
 func Fatalw(msg string, kv ...interface{}) {
 	msg = appendStackTraceMaybeKV(msg, kv)
-	getDefaultLog().Fatalw(msg, kv...)
+	GetDefaultLogger().Fatalw(msg, kv...)
+}
+
+// appendStackTraceMaybeKV will append the stacktrace to the KV
+func appendStackTraceMaybeKV(msg string, kv []interface{}) string {
+	for i := range kv {
+		if i%2 == 0 {
+			continue
+		}
+		if err, ok := kv[i].(error); ok {
+			err = tracerr.Wrap(err)
+			st := tracerr.StackTrace(err)
+			return fmt.Sprintf("%v: %v%v\n", msg, err, sprintStackTrace(st))
+		}
+	}
+	return msg
+}
+
+func (l *Logger) IsEnabledLogLevel(lvl zapcore.Level) bool {
+	return l.x.Level().Enabled(lvl)
 }

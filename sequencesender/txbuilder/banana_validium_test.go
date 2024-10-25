@@ -9,6 +9,7 @@ import (
 
 	"github.com/0xPolygon/cdk/dataavailability/mocks_da"
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder/mocks_txbuilder"
@@ -33,6 +34,8 @@ func TestBananaValidiumBuildSequenceBatchesTxSequenceErrorsFromDA(t *testing.T) 
 		Return(&types.Header{Number: big.NewInt(69)}, nil)
 	testData.l1InfoTreeSync.On("GetLatestInfoUntilBlock", mock.Anything, mock.Anything).
 		Return(&l1infotreesync.L1InfoTreeLeaf{L1InfoTreeIndex: 7}, nil)
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, nil)
+
 	seq, err := newSequenceBananaValidiumForTest(testData)
 	require.NoError(t, err)
 	ctx := context.TODO()
@@ -52,6 +55,8 @@ func TestBananaValidiumBuildSequenceBatchesTxSequenceDAOk(t *testing.T) {
 		Return(&types.Header{Number: big.NewInt(69)}, nil)
 	testData.l1InfoTreeSync.On("GetLatestInfoUntilBlock", mock.Anything, mock.Anything).
 		Return(&l1infotreesync.L1InfoTreeLeaf{L1InfoTreeIndex: 7}, nil)
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, nil)
+
 	seq, err := newSequenceBananaValidiumForTest(testData)
 	require.NoError(t, err)
 	ctx := context.TODO()
@@ -90,6 +95,7 @@ func newBananaValidiumTestData(t *testing.T, maxBatchesForL1 uint64) *testDataBa
 
 	opts := bind.TransactOpts{}
 	sut := txbuilder.NewTxBuilderBananaValidium(
+		log.GetDefaultLogger(),
 		zkevmContractMock,
 		gerContractMock,
 		daMock,

@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"time"
 
@@ -24,7 +25,7 @@ type EVMDownloaderInterface interface {
 	WaitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64)
 	GetEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) []EVMBlock
 	GetLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log
-	GetBlockHeader(ctx context.Context, blockNum uint64) EVMBlockHeader
+	GetBlockHeader(ctx context.Context, blockNum uint64) (EVMBlockHeader, bool)
 }
 
 type LogAppenderMap map[common.Hash]func(b *EVMBlock, l types.Log) error
@@ -101,8 +102,13 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 		if len(blocks) == 0 || blocks[len(blocks)-1].Num < toBlock {
 			// Indicate the last downloaded block if there are not events on it
 			d.log.Debugf("sending block %d to the driver (without events)", toBlock)
+			header, isCanceled := d.GetBlockHeader(ctx, toBlock)
+			if isCanceled {
+				return
+			}
+
 			downloadedCh <- EVMBlock{
-				EVMBlockHeader: d.GetBlockHeader(ctx, toBlock),
+				EVMBlockHeader: header,
 			}
 		}
 		fromBlock = toBlock + 1
@@ -170,44 +176,53 @@ func (d *EVMDownloaderImplementation) WaitForNewBlocks(
 }
 
 func (d *EVMDownloaderImplementation) GetEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) []EVMBlock {
-	blocks := []EVMBlock{}
-	logs := d.GetLogs(ctx, fromBlock, toBlock)
-	for _, l := range logs {
-		if len(blocks) == 0 || blocks[len(blocks)-1].Num < l.BlockNumber {
-			b := d.GetBlockHeader(ctx, l.BlockNumber)
-			if b.Hash != l.BlockHash {
-				d.log.Infof(
-					"there has been a block hash change between the event query and the block query "+
-						"for block %d: %s vs %s. Retrying.",
-					l.BlockNumber, b.Hash, l.BlockHash,
-				)
-				return d.GetEventsByBlockRange(ctx, fromBlock, toBlock)
+	select {
+	case <-ctx.Done():
+		return nil
+	default:
+		blocks := []EVMBlock{}
+		logs := d.GetLogs(ctx, fromBlock, toBlock)
+		for _, l := range logs {
+			if len(blocks) == 0 || blocks[len(blocks)-1].Num < l.BlockNumber {
+				b, canceled := d.GetBlockHeader(ctx, l.BlockNumber)
+				if canceled {
+					return nil
+				}
+
+				if b.Hash != l.BlockHash {
+					d.log.Infof(
+						"there has been a block hash change between the event query and the block query "+
+							"for block %d: %s vs %s. Retrying.",
+						l.BlockNumber, b.Hash, l.BlockHash,
+					)
+					return d.GetEventsByBlockRange(ctx, fromBlock, toBlock)
+				}
+				blocks = append(blocks, EVMBlock{
+					EVMBlockHeader: EVMBlockHeader{
+						Num:        l.BlockNumber,
+						Hash:       l.BlockHash,
+						Timestamp:  b.Timestamp,
+						ParentHash: b.ParentHash,
+					},
+					Events: []interface{}{},
+				})
 			}
-			blocks = append(blocks, EVMBlock{
-				EVMBlockHeader: EVMBlockHeader{
-					Num:        l.BlockNumber,
-					Hash:       l.BlockHash,
-					Timestamp:  b.Timestamp,
-					ParentHash: b.ParentHash,
-				},
-				Events: []interface{}{},
-			})
+
+			for {
+				attempts := 0
+				err := d.appender[l.Topics[0]](&blocks[len(blocks)-1], l)
+				if err != nil {
+					attempts++
+					d.log.Error("error trying to append log: ", err)
+					d.rh.Handle("getLogs", attempts)
+					continue
+				}
+				break
+			}
 		}
 
-		for {
-			attempts := 0
-			err := d.appender[l.Topics[0]](&blocks[len(blocks)-1], l)
-			if err != nil {
-				attempts++
-				d.log.Error("error trying to append log: ", err)
-				d.rh.Handle("getLogs", attempts)
-				continue
-			}
-			break
-		}
+		return blocks
 	}
-
-	return blocks
 }
 
 func (d *EVMDownloaderImplementation) GetLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log {
@@ -224,6 +239,11 @@ func (d *EVMDownloaderImplementation) GetLogs(ctx context.Context, fromBlock, to
 	for {
 		unfilteredLogs, err = d.ethClient.FilterLogs(ctx, query)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				// context is canceled, we don't want to fatal on max attempts in this case
+				return nil
+			}
+
 			attempts++
 			d.log.Error("error calling FilterLogs to eth client: ", err)
 			d.rh.Handle("getLogs", attempts)
@@ -243,11 +263,16 @@ func (d *EVMDownloaderImplementation) GetLogs(ctx context.Context, fromBlock, to
 	return logs
 }
 
-func (d *EVMDownloaderImplementation) GetBlockHeader(ctx context.Context, blockNum uint64) EVMBlockHeader {
+func (d *EVMDownloaderImplementation) GetBlockHeader(ctx context.Context, blockNum uint64) (EVMBlockHeader, bool) {
 	attempts := 0
 	for {
-		header, err := d.ethClient.HeaderByNumber(ctx, big.NewInt(int64(blockNum)))
+		header, err := d.ethClient.HeaderByNumber(ctx, new(big.Int).SetUint64(blockNum))
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				// context is canceled, we don't want to fatal on max attempts in this case
+				return EVMBlockHeader{}, true
+			}
+
 			attempts++
 			d.log.Errorf("error getting block header for block %d, err: %v", blockNum, err)
 			d.rh.Handle("getBlockHeader", attempts)
@@ -258,6 +283,6 @@ func (d *EVMDownloaderImplementation) GetBlockHeader(ctx context.Context, blockN
 			Hash:       header.Hash(),
 			ParentHash: header.ParentHash,
 			Timestamp:  header.Time,
-		}
+		}, false
 	}
 }

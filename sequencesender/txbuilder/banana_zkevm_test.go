@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder/mocks_txbuilder"
@@ -39,6 +40,8 @@ func TestBananaZkevmBuildSequenceBatchesTxOk(t *testing.T) {
 		Return(&types.Header{Number: big.NewInt(69)}, nil)
 	testData.l1InfoTreeSync.On("GetLatestInfoUntilBlock", mock.Anything, mock.Anything).
 		Return(&l1infotreesync.L1InfoTreeLeaf{L1InfoTreeIndex: 7}, nil)
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, nil)
+
 	seq, err := newSequenceBananaZKEVMForTest(testData)
 	require.NoError(t, err)
 
@@ -60,6 +63,8 @@ func TestBananaZkevmBuildSequenceBatchesTxErr(t *testing.T) {
 		Return(&types.Header{Number: big.NewInt(69)}, nil)
 	testData.l1InfoTreeSync.On("GetLatestInfoUntilBlock", mock.Anything, mock.Anything).
 		Return(&l1infotreesync.L1InfoTreeLeaf{L1InfoTreeIndex: 7}, nil)
+	testData.l1InfoTreeSync.EXPECT().GetInitL1InfoRootMap(mock.Anything).Return(nil, nil)
+
 	seq, err := newSequenceBananaZKEVMForTest(testData)
 	require.NoError(t, err)
 
@@ -90,6 +95,7 @@ func newBananaZKEVMTestData(t *testing.T, maxTxSizeForL1 uint64) *testDataBanana
 	l1Client := mocks_txbuilder.NewL1Client(t)
 	l1InfoSyncer := mocks_txbuilder.NewL1InfoSyncer(t)
 	sut := txbuilder.NewTxBuilderBananaZKEVM(
+		log.GetDefaultLogger(),
 		zkevmContractMock,
 		gerContractMock,
 		opts,

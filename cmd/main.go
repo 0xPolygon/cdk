@@ -4,6 +4,7 @@ import (
 	"os"
 
 	zkevm "github.com/0xPolygon/cdk"
+	"github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/config"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/urfave/cli/v2"
@@ -12,26 +13,15 @@ import (
 const appName = "cdk"
 
 const (
-	// SEQUENCE_SENDER name to identify the sequence-sender component
-	SEQUENCE_SENDER = "sequence-sender" //nolint:stylecheck
-	// AGGREGATOR name to identify the aggregator component
-	AGGREGATOR = "aggregator"
-	// AGGORACLE name to identify the aggoracle component
-	AGGORACLE = "aggoracle"
-	// RPC name to identify the rpc component
-	RPC = "rpc"
-)
-
-const (
-	// NetworkConfigFile name to identify the network_custom (genesis) config-file
-	NetworkConfigFile = "custom_network"
+	// NETWORK_CONFIGFILE name to identify the network_custom (genesis) config-file
+	NETWORK_CONFIGFILE = "custom_network" //nolint:stylecheck
 )
 
 var (
-	configFileFlag = cli.StringFlag{
+	configFileFlag = cli.StringSliceFlag{
 		Name:     config.FlagCfg,
 		Aliases:  []string{"c"},
-		Usage:    "Configuration `FILE`",
+		Usage:    "Configuration file(s)",
 		Required: true,
 	}
 	customNetworkFlag = cli.StringFlag{
@@ -51,7 +41,25 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(SEQUENCE_SENDER, AGGREGATOR, AGGORACLE, RPC),
+		Value:    cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR, common.AGGORACLE, common.RPC),
+	}
+	saveConfigFlag = cli.StringFlag{
+		Name:     config.FlagSaveConfigPath,
+		Aliases:  []string{"s"},
+		Usage:    "Save final configuration into to the indicated path (name: cdk-node-config.toml)",
+		Required: false,
+	}
+	disableDefaultConfigVars = cli.BoolFlag{
+		Name:     config.FlagDisableDefaultConfigVars,
+		Aliases:  []string{"d"},
+		Usage:    "Disable default configuration variables, all of them must be defined on config files",
+		Required: false,
+	}
+
+	allowDeprecatedFields = cli.BoolFlag{
+		Name:     config.FlagAllowDeprecatedFields,
+		Usage:    "Allow that config-files contains deprecated fields",
+		Required: false,
 	}
 )
 
@@ -63,6 +71,9 @@ func main() {
 		&configFileFlag,
 		&yesFlag,
 		&componentsFlag,
+		&saveConfigFlag,
+		&disableDefaultConfigVars,
+		&allowDeprecatedFields,
 	}
 	app.Commands = []*cli.Command{
 		{

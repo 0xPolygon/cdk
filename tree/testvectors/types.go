@@ -21,9 +21,9 @@ type DepositVectorRaw struct {
 }
 
 func (d *DepositVectorRaw) Hash() common.Hash {
-	origNet := make([]byte, 4) //nolint:gomnd
+	origNet := make([]byte, 4) //nolint:mnd
 	binary.BigEndian.PutUint32(origNet, d.OriginNetwork)
-	destNet := make([]byte, 4) //nolint:gomnd
+	destNet := make([]byte, 4) //nolint:mnd
 	binary.BigEndian.PutUint32(destNet, d.DestinationNetwork)
 
 	metaHash := keccak256.Hash(common.FromHex(d.Metadata))

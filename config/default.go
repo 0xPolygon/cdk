@@ -1,77 +1,149 @@
 package config
 
+// This values doesnt have a default value because depend on the
+// environment / deployment
+const DefaultMandatoryVars = `
+L1URL = "http://localhost:8545"
+L2URL = "localhost:8123"
+L1AggOracleURL = "http://test-aggoracle-l1:8545"
+L2AggOracleURL = "http://test-aggoracle-l2:8545"
+
+
+ForkId = 9
+ContractVersions = "elderberry"
+IsValidiumMode = false
+
+L2Coinbase = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
+SequencerPrivateKeyPath = "/app/sequencer.keystore"
+SequencerPrivateKeyPassword = "test"
+WitnessURL = "localhost:8123"
+AggLayerURL = "https://agglayer-dev.polygon.technology"
+StreamServer = "localhost:6900"
+
+AggregatorPrivateKeyPath = "/app/keystore/aggregator.keystore"
+AggregatorPrivateKeyPassword = "testonly"
+# Who send Proof to L1? AggLayer addr, or aggregator addr?
+SenderProofToL1Addr = "0x0000000000000000000000000000000000000000"
+
+
+
+# This values can be override directly from genesis.json
+rollupCreationBlockNumber = 0
+rollupManagerCreationBlockNumber = 0
+genesisBlockNumber = 0
+[L1Config]
+	chainId = 0
+	polygonZkEVMGlobalExitRootAddress = "0x0000000000000000000000000000000000000000"
+	polygonRollupManagerAddress = "0x0000000000000000000000000000000000000000"
+	polTokenAddress = "0x0000000000000000000000000000000000000000"
+	polygonZkEVMAddress = "0x0000000000000000000000000000000000000000"
+	polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
+
+[L2Config]
+	GlobalExitRootAddr = "0x0000000000000000000000000000000000000000"
+
+`
+
+// This doesnt below to config, but are the vars used
+// to avoid repetition in config-files
+const DefaultVars = `
+PathRWData = "/tmp/cdk"
+L1URLSyncChunkSize = 100
+
+`
+
 // DefaultValues is the default configuration
 const DefaultValues = `
 ForkUpgradeBatchNumber = 0
 ForkUpgradeNewForkId = 0
 
-[Common]
-NetworkID = 1
-IsValidiumMode = false
-ContractVersions = "banana"
 
 [Log]
 Environment = "development" # "production" or "development"
 Level = "info"
 Outputs = ["stderr"]
 
+[Etherman]
+	URL="{{L1URL}}"
+	ForkIDChunkSize={{L1URLSyncChunkSize}}
+	[Etherman.EthermanConfig]
+		URL="{{L1URL}}"
+		MultiGasProvider=false
+		L1ChainID={{NetworkConfig.L1.L1ChainID}}
+		HTTPHeaders=[]
+		[Etherman.EthermanConfig.Etherscan]
+			ApiKey=""
+			Url="https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey="
+
+[Common]
+NetworkID = 1
+IsValidiumMode = {{IsValidiumMode}}
+ContractVersions = "{{ContractVersions}}"
+
 [SequenceSender]
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 L1BlockTimestampMargin = "30s"
 MaxTxSizeForL1 = 131072
-L2Coinbase = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
-PrivateKey = {Path = "./test/sequencer.keystore", Password = "testonly"}
+L2Coinbase = "{{L2Coinbase}}"
+PrivateKey = { Path = "{{SequencerPrivateKeyPath}}", Password = "{{SequencerPrivateKeyPassword}}"}
 SequencesTxFileName = "sequencesender.json"
 GasOffset = 80000
 WaitPeriodPurgeTxFile = "15m"
 MaxPendingTx = 1
 MaxBatchesForL1 = 300
 BlockFinality = "FinalizedBlock"
-	[SequenceSender.StreamClient]
-		Server = "127.0.0.1:6900"
+RPCURL = "{{L2URL}}"
+GetBatchWaitInterval = "10s"
 	[SequenceSender.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2m"
 		GetReceiptMaxTime = "250ms"
 		GetReceiptWaitInterval = "1s"
 		PrivateKeys = [
-			{Path = "./test/sequencer.keystore", Password = "testonly"},
+			{Path = "{{SequencerPrivateKeyPath}}", Password = "{{SequencerPrivateKeyPassword}}"},
 		]
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
 		MaxGasPriceLimit = 0
-		PersistenceFilename = "ethtxmanager.json"
+		StoragePath = "ethtxmanager.sqlite"
 		ReadPendingL1Txs = false
 		SafeStatusL1NumberOfBlocks = 0
 		FinalizedStatusL1NumberOfBlocks = 0
 			[SequenceSender.EthTxManager.Etherman]
-				URL = "http://127.0.0.1:8545"
+				URL = "{{L1URL}}"
 				MultiGasProvider = false
-				L1ChainID = 1337
+				L1ChainID = {{NetworkConfig.L1.L1ChainID}}
 [Aggregator]
+# GRPC server host
 Host = "0.0.0.0"
+# GRPC server port
 Port = 50081
 RetryTime = "5s"
 VerifyProofInterval = "10s"
+ProofStatePollingInterval = "5s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
-ProofStatePollingInterval = "5s"
-SenderAddress = ""
+IntervalAfterWhichBatchConsolidateAnyway="0s"
+BatchProofSanityCheckEnabled = true
+#  ChainID is L2ChainID. Is populated on runtimme
+ChainID = 0
+ForkId = {{ForkId}}
+SenderAddress = "{{SenderProofToL1Addr}}"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
-BatchProofSanityCheckEnabled = true
-ForkId = 9
 GasOffset = 0
-WitnessURL = "localhost:8123"
+WitnessURL = "{{WitnessURL}}"
 UseL1BatchData = true
 UseFullWitness = false
 SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
-AggLayerURL = ""
+AggLayerURL = "{{AggLayerURL}}"
 MaxWitnessRetrievalWorkers = 2
 SyncModeOnlyEnabled = false
-SequencerPrivateKey = {}
+	[Aggregator.SequencerPrivateKey]
+		Path = "{{SequencerPrivateKeyPath}}"
+		Password = "{{SequencerPrivateKeyPassword}}"
 	[Aggregator.DB]
 		Name = "aggregator_db"
 		User = "aggregator_user"
@@ -81,73 +153,89 @@ SequencerPrivateKey = {}
 		EnableLog = false	
 		MaxConns = 200
 	[Aggregator.Log]
-		Environment = "development" # "production" or "development"
-		Level = "info"
+		Environment ="{{Log.Environment}}" # "production" or "development"
+		Level = "{{Log.Level}}"
 		Outputs = ["stderr"]
 	[Aggregator.StreamClient]
-		Server = "localhost:6900"
+		Server = "{{StreamServer}}"
 	[Aggregator.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2m"
 		GetReceiptMaxTime = "250ms"
 		GetReceiptWaitInterval = "1s"
 		PrivateKeys = [
-			{Path = "/pk/aggregator.keystore", Password = "testonly"},
+			{Path = "{{AggregatorPrivateKeyPath}}", Password = "{{AggregatorPrivateKeyPassword}}"},
 		]
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
 		MaxGasPriceLimit = 0
-		PersistenceFilename = ""
+		StoragePath = ""
 		ReadPendingL1Txs = false
 		SafeStatusL1NumberOfBlocks = 0
 		FinalizedStatusL1NumberOfBlocks = 0
 			[Aggregator.EthTxManager.Etherman]
-				URL = ""
-				L1ChainID = 11155111
+				URL = "{{L1URL}}"
+				L1ChainID = {{NetworkConfig.L1.L1ChainID}}
 				HTTPHeaders = []
 	[Aggregator.Synchronizer]
-		[Aggregator.Synchronizer.DB]
-			Name = "sync_db"
-			User = "sync_user"
-			Password = "sync_password"
-			Host = "cdk-l1-sync-db"
-			Port = "5432"
-			EnableLog = false
-			MaxConns = 10
+		[Aggregator.Synchronizer.Log]
+			Environment = "{{Log.Environment}}" # "production" or "development"
+			Level = "{{Log.Level}}"
+			Outputs = ["stderr"]
+		[Aggregator.Synchronizer.SQLDB]
+			DriverName = "sqlite3"
+			DataSource = "file:{{PathRWData}}/aggregator_sync_db.sqlite"
 		[Aggregator.Synchronizer.Synchronizer]
 			SyncInterval = "10s"
 			SyncChunkSize = 1000
-			GenesisBlockNumber = 5511080
+			GenesisBlockNumber = {{genesisBlockNumber}}
 			SyncUpToBlock = "finalized"
 			BlockFinality = "finalized"
 			OverrideStorageCheck = false
 		[Aggregator.Synchronizer.Etherman]
+			L1URL = "{{L1URL}}"
+			ForkIDChunkSize = 100
+			L1ChainID = {{NetworkConfig.L1.L1ChainID}}
+			PararellBlockRequest = false
+			[Aggregator.Synchronizer.Etherman.Contracts]
+				GlobalExitRootManagerAddr = "{{NetworkConfig.L1.GlobalExitRootManagerAddr}}"
+				RollupManagerAddr = "{{NetworkConfig.L1.RollupManagerAddr}}"
+				ZkEVMAddr = "{{NetworkConfig.L1.ZkEVMAddr}}"
 			[Aggregator.Synchronizer.Etherman.Validium]
-				Enabled = false
-
+				Enabled = {{IsValidiumMode}}
+				# L2URL, empty ask to contract
+				TrustedSequencerURL = ""
+				RetryOnDACErrorInterval = "1m"
+				DataSourcePriority = ["trusted", "external"]
+			[Aggregator.Synchronizer.Etherman.Validium.Translator]
+				FullMatchRules = []
+			[Aggregator.Synchronizer.Etherman.Validium.RateLimit]
+				NumRequests = 1000
+				Interval = "1s"
 [ReorgDetectorL1]
-DBPath = "/tmp/reorgdetectorl1"
+DBPath = "{{PathRWData}}/reorgdetectorl1"
 
 [ReorgDetectorL2]
-DBPath = "/tmp/reorgdetectorl2"
+DBPath = "{{PathRWData}}/reorgdetectorl2"
 
 [L1InfoTreeSync]
-DBPath = "/tmp/L1InfoTreeSync"
-GlobalExitRootAddr="0x8464135c8F25Da09e49BC8782676a84730C318bC"
+DBPath = "{{PathRWData}}/L1InfoTreeSync.sqlite"
+GlobalExitRootAddr="{{NetworkConfig.L1.GlobalExitRootManagerAddr}}"
+RollupManagerAddr = "{{NetworkConfig.L1.RollupManagerAddr}}"
 SyncBlockChunkSize=10
 BlockFinality="LatestBlock"
-URLRPCL1="http://test-aggoracle-l1:8545"
+URLRPCL1="{{L1AggOracleURL}}"
 WaitForNewBlocksPeriod="100ms"
 InitialBlock=0
 
 [AggOracle]
 TargetChainType="EVM"
-URLRPCL1="http://test-aggoracle-l1:8545"
+URLRPCL1="{{L1AggOracleURL}}"
 BlockFinality="FinalizedBlock"
 WaitPeriodNextGER="100ms"
 	[AggOracle.EVMSender]
-		GlobalExitRootL2="0x8464135c8F25Da09e49BC8782676a84730C318bC"
-		URLRPCL2="http://test-aggoracle-l2:8545"
+		GlobalExitRootL2="{{L2Config.GlobalExitRootAddr}}"
+		URLRPCL2="{{L2AggOracleURL}}"
 		ChainIDL2=1337
 		GasOffset=0
 		WaitPeriodMonitorTx="100ms"
@@ -163,14 +251,14 @@ WaitPeriodNextGER="100ms"
 				ForcedGas = 0
 				GasPriceMarginFactor = 1
 				MaxGasPriceLimit = 0
-				PersistenceFilename = "/tmp/ethtxmanager-sequencesender.json"
+				StoragePath = "/{{PathRWData}}/ethtxmanager-sequencesender.sqlite"
 				ReadPendingL1Txs = false
 				SafeStatusL1NumberOfBlocks = 5
 				FinalizedStatusL1NumberOfBlocks = 10
 					[AggOracle.EVMSender.EthTxManager.Etherman]
-						URL = "http://test-aggoracle-l2"
+						URL = "{{L2AggOracleURL}}"
 						MultiGasProvider = false
-						L1ChainID = 1337
+						L1ChainID = {{NetworkConfig.L1.L1ChainID}}
 						HTTPHeaders = []
 
 [RPC]
@@ -181,7 +269,7 @@ WriteTimeout = "2s"
 MaxRequestsPerIPAndSecond = 10
 
 [ClaimSponsor]
-DBPath = "/tmp/claimsopnsor"
+DBPath = "/{{PathRWData}}/claimsopnsor"
 Enabled = true
 SenderAddr = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
 BridgeAddrL2 = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
@@ -202,49 +290,53 @@ GasOffset = 0
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
 		MaxGasPriceLimit = 0
-		PersistenceFilename = "/tmp/ethtxmanager-claimsopnsor.json"
+		StoragePath = "/{{PathRWData}}/ethtxmanager-claimsponsor.sqlite"
 		ReadPendingL1Txs = false
 		SafeStatusL1NumberOfBlocks = 5
 		FinalizedStatusL1NumberOfBlocks = 10
 			[ClaimSponsor.EthTxManager.Etherman]
-				URL = "http://test-aggoracle-l2"
+				URL = "{{L2AggOracleURL}}"
 				MultiGasProvider = false
-				L1ChainID = 1337
+				L1ChainID = {{NetworkConfig.L1.L1ChainID}}
 				HTTPHeaders = []
 
-[L1Bridge2InfoIndexSync]
-DBPath = "/tmp/l1bridge2infoindexsync"
-RetryAfterErrorPeriod = "1s"
-MaxRetryAttemptsAfterError = -1
-WaitForSyncersPeriod = "3s"
-
 [BridgeL1Sync]
-DBPath = "/tmp/bridgel1sync"
+DBPath = "{{PathRWData}}/bridgel1sync"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
-BridgeAddr = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
+BridgeAddr = "{{L1Config.polygonBridgeAddr}}"
 SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
 
 [BridgeL2Sync]
-DBPath = "/tmp/bridgel2sync"
+DBPath = "{{PathRWData}}/bridgel2sync"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
-BridgeAddr = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
+BridgeAddr = "{{L1Config.polygonBridgeAddr}}"
 SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
 
 [LastGERSync]
-DBPath = "/tmp/lastgersync"
+# MDBX database path
+DBPath = "{{PathRWData}}/lastgersync"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
-GlobalExitRootL2Addr = "0xa40d5f56745a118d0906a34e69aec8c0db1cb8fa"
+GlobalExitRootL2Addr = "{{L2Config.GlobalExitRootAddr}}"
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "1s"
 DownloadBufferSize = 100
+
+[NetworkConfig.L1]
+L1ChainID = {{L1Config.chainId}}
+PolAddr = "{{L1Config.polTokenAddress}}"
+ZkEVMAddr = "{{L1Config.polygonZkEVMAddress}}"
+RollupManagerAddr = "{{L1Config.polygonRollupManagerAddress}}"
+GlobalExitRootManagerAddr = "{{L1Config.polygonZkEVMGlobalExitRootAddress}}"
+
+
 `
