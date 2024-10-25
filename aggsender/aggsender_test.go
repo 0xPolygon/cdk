@@ -1295,8 +1295,8 @@ func TestExtractSignatureData(t *testing.T) {
 	}
 }
 
-func TestBre(t *testing.T) {
-	//agglayerClient := agglayer.AggLayerClient{}
+func TestExploratoryGenerateCert(t *testing.T) {
+	t.Skip()
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)

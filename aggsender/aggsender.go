@@ -489,7 +489,7 @@ func extractSignatureData(signature []byte) (r, s common.Hash, isOddParity bool,
 
 	r = common.BytesToHash(signature[:32])   // First 32 bytes are R
 	s = common.BytesToHash(signature[32:64]) // Next 32 bytes are S
-	isOddParity = signature[64]%2 == 1       // Last byte is V
+	isOddParity = signature[64]%2 == 1       //nolint:mnd // Last byte is V
 
 	return
 }
