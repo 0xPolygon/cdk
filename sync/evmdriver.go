@@ -97,7 +97,7 @@ reset:
 			cancel()
 			return
 		case b := <-downloadCh:
-			d.log.Debug("handleNewBlock", " blockNum: ", b.Num, " blockHash: ", b.Hash)
+			d.log.Debugf("handleNewBlock, blockNum: %d, blockHash: %s", b.Num, b.Hash)
 			d.handleNewBlock(ctx, b)
 		case firstReorgedBlock := <-d.reorgSub.ReorgedBlock:
 			d.log.Debug("handleReorg from block: ", firstReorgedBlock)

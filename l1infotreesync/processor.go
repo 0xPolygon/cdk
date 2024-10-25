@@ -28,6 +28,8 @@ type processor struct {
 	db             *sql.DB
 	l1InfoTree     *tree.AppendOnlyTree
 	rollupExitTree *tree.UpdatableTree
+	halted         bool
+	haltedReason   string
 }
 
 // UpdateL1InfoTree representation of the UpdateL1InfoTree event
@@ -37,6 +39,13 @@ type UpdateL1InfoTree struct {
 	RollupExitRoot  common.Hash
 	ParentHash      common.Hash
 	Timestamp       uint64
+}
+
+type UpdateL1InfoTreeV2 struct {
+	CurrentL1InfoRoot [32]byte
+	LeafCount         uint32
+	Blockhash         common.Hash
+	MinTimestamp      uint64
 }
 
 // VerifyBatches representation of the VerifyBatches and VerifyBatchesTrustedAggregator events
@@ -70,9 +79,10 @@ func (i *InitL1InfoRootMap) String() string {
 }
 
 type Event struct {
-	UpdateL1InfoTree  *UpdateL1InfoTree
-	VerifyBatches     *VerifyBatches
-	InitL1InfoRootMap *InitL1InfoRootMap
+	UpdateL1InfoTree   *UpdateL1InfoTree
+	UpdateL1InfoTreeV2 *UpdateL1InfoTreeV2
+	VerifyBatches      *VerifyBatches
+	InitL1InfoRootMap  *InitL1InfoRootMap
 }
 
 // L1InfoTreeLeaf representation of a leaf of the L1 Info tree
@@ -227,15 +237,16 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err != nil {
 		return err
 	}
+	shouldRollback := true
 	defer func() {
-		if err != nil {
+		if shouldRollback {
 			if errRllbck := tx.Rollback(); errRllbck != nil {
 				log.Errorf("error while rolling back tx %v", errRllbck)
 			}
 		}
 	}()
 
-	_, err = tx.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
+	res, err := tx.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
 	if err != nil {
 		return err
 	}
@@ -247,19 +258,36 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err = p.rollupExitTree.Reorg(tx, firstReorgedBlock); err != nil {
 		return err
 	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected > 0 {
+		p.halted = false
+		p.haltedReason = ""
+	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	shouldRollback = false
+	return nil
 }
 
 // ProcessBlock process the events of the block to build the rollup exit tree and the l1 info tree
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
+	if p.halted {
+		log.Errorf("processsor is halted due to: %s", p.haltedReason)
+		return nil
+	}
 	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
 	}
+	shouldRollback := true
 	defer func() {
-		if err != nil {
+		if shouldRollback {
 			if errRllbck := tx.Rollback(); errRllbck != nil {
 				log.Errorf("error while rolling back tx %v", errRllbck)
 			}
@@ -316,6 +344,37 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			log.Infof("inserted L1InfoTreeLeaf %s", info.String())
 			l1InfoLeavesAdded++
 		}
+		if event.UpdateL1InfoTreeV2 != nil {
+			root, err := p.l1InfoTree.GetLastRoot(tx)
+			if err != nil {
+				return fmt.Errorf("GetLastRoot(). err: %w", err)
+			}
+			// If the sanity check fails, halt the syncer and rollback. The sanity check could have
+			// failed due to a reorg. Hopefully, this is the case, eventually the reorg will get detected,
+			// and the syncer will get unhalted. Otherwise, this means that the syncer has an inconsistent state
+			// compared to the contracts, and this will need manual intervention.
+			// Do not return an error to give the driver the opportunity to detect a reorg
+			if root.Hash != event.UpdateL1InfoTreeV2.CurrentL1InfoRoot {
+				errStr := fmt.Sprintf(
+					"unexpected root when checking UpdateL1InfoTreeV2: %s vs %s. Happened on block %d",
+					root.Hash, common.Bytes2Hex(event.UpdateL1InfoTreeV2.CurrentL1InfoRoot[:]), block.Num,
+				)
+				log.Error(errStr)
+				p.haltedReason = errStr
+				p.halted = true
+				return nil
+			}
+			if root.Index+1 != event.UpdateL1InfoTreeV2.LeafCount {
+				errStr := fmt.Sprintf(
+					"unexpected index when checking UpdateL1InfoTreeV2: %d vs %d. Happened on block %d",
+					root.Index, event.UpdateL1InfoTreeV2.LeafCount, block.Num,
+				)
+				log.Error(errStr)
+				p.haltedReason = errStr
+				p.halted = true
+				return nil
+			}
+		}
 		if event.VerifyBatches != nil {
 			log.Debugf("handle VerifyBatches event %s", event.VerifyBatches.String())
 			err = p.processVerifyBatches(tx, block.Num, event.VerifyBatches)
@@ -340,6 +399,8 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("err: %w", err)
 	}
+	shouldRollback = false
+
 	log.Infof("block %d processed with %d events", block.Num, len(block.Events))
 	return nil
 }

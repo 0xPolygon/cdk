@@ -13,6 +13,7 @@ import (
 	cdktypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/test/contracts/verifybatchesmock"
 	"github.com/0xPolygon/cdk/test/helpers"
@@ -310,6 +311,7 @@ func TestStressAndReorgs(t *testing.T) {
 				require.NoError(t, err)
 
 				block, err := client.Client().BlockByNumber(ctx, big.NewInt(int64(currentBlockNum-reorgSizeInBlocks)))
+				log.Debugf("reorging until block %d. Current block %d (before reorg)", block.NumberU64(), currentBlockNum)
 				require.NoError(t, err)
 				reorgFrom := block.Hash()
 				err = client.Fork(reorgFrom)
