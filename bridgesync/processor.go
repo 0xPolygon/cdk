@@ -138,7 +138,7 @@ func (p *processor) GetBridgesPublished(
 	if er != nil {
 		return nil, er
 	}
-	p.log.Debugf("last updated deposit count: %d in block %d", lastCount, toBlock)
+	p.log.Debugf("last updated deposit count: %d in block %d. Num bridges: %d", lastCount, toBlock, len(allBridges))
 	var bridges []Bridge
 	for _, bridge := range allBridges {
 		if bridge.DepositCount <= lastCount {
