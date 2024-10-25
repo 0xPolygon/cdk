@@ -724,3 +724,120 @@ func TestInsertAndGetClaim(t *testing.T) {
 	require.Len(t, claims, 1)
 	require.Equal(t, testClaim, &claims[0])
 }
+
+type mockBridgeContract struct {
+	lastUpdatedDepositCount uint32
+	err                     error
+}
+
+func (m *mockBridgeContract) LastUpdatedDepositCount(ctx context.Context, blockNumber uint64) (uint32, error) {
+	return m.lastUpdatedDepositCount, m.err
+}
+
+func TestGetBridgesPublished(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                    string
+		fromBlock               uint64
+		toBlock                 uint64
+		bridges                 []Bridge
+		lastUpdatedDepositCount uint32
+		expectedBridges         []Bridge
+		expectedError           error
+	}{
+		{
+			name:                    "no bridges",
+			fromBlock:               1,
+			toBlock:                 10,
+			bridges:                 []Bridge{},
+			lastUpdatedDepositCount: 0,
+			expectedBridges:         nil,
+			expectedError:           nil,
+		},
+		{
+			name:      "bridges within deposit count",
+			fromBlock: 1,
+			toBlock:   10,
+			bridges: []Bridge{
+				{DepositCount: 1, BlockNum: 1, Amount: big.NewInt(1)},
+				{DepositCount: 2, BlockNum: 2, Amount: big.NewInt(1)},
+			},
+			lastUpdatedDepositCount: 2,
+			expectedBridges: []Bridge{
+				{DepositCount: 1, BlockNum: 1, Amount: big.NewInt(1)},
+				{DepositCount: 2, BlockNum: 2, Amount: big.NewInt(1)},
+			},
+			expectedError: nil,
+		},
+		{
+			name:      "bridges exceeding deposit count",
+			fromBlock: 1,
+			toBlock:   10,
+			bridges: []Bridge{
+				{DepositCount: 1, BlockNum: 1, Amount: big.NewInt(1)},
+				{DepositCount: 2, BlockNum: 2, Amount: big.NewInt(1)},
+				{DepositCount: 3, BlockNum: 3, Amount: big.NewInt(1)},
+			},
+			lastUpdatedDepositCount: 2,
+			expectedBridges: []Bridge{
+				{DepositCount: 1, BlockNum: 1, Amount: big.NewInt(1)},
+				{DepositCount: 2, BlockNum: 2, Amount: big.NewInt(1)},
+			},
+			expectedError: nil,
+		},
+		{
+			name:      "error fetching last updated deposit count",
+			fromBlock: 1,
+			toBlock:   10,
+			bridges: []Bridge{
+				{DepositCount: 1, BlockNum: 1, Amount: big.NewInt(1)},
+			},
+			lastUpdatedDepositCount: 0,
+			expectedBridges:         nil,
+			expectedError:           errors.New("mock error"),
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			mockBridgeContract := &mockBridgeContract{
+				lastUpdatedDepositCount: tc.lastUpdatedDepositCount,
+				err:                     tc.expectedError,
+			}
+
+			path := path.Join(t.TempDir(), "file::memory:?cache=shared")
+			require.NoError(t, migrationsBridge.RunMigrations(path))
+			p, err := newProcessor(path, "foo", mockBridgeContract)
+			require.NoError(t, err)
+
+			tx, err := p.db.BeginTx(context.Background(), nil)
+			require.NoError(t, err)
+
+			for i := tc.fromBlock; i <= tc.toBlock; i++ {
+				_, err = tx.Exec(`INSERT INTO block (num) VALUES ($1)`, i)
+				require.NoError(t, err)
+			}
+
+			for _, bridge := range tc.bridges {
+				require.NoError(t, meddler.Insert(tx, "bridge", &bridge))
+			}
+
+			require.NoError(t, tx.Commit())
+
+			ctx := context.Background()
+			bridges, err := p.GetBridgesPublished(ctx, tc.fromBlock, tc.toBlock)
+
+			if tc.expectedError != nil {
+				require.Equal(t, tc.expectedError, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedBridges, bridges)
+			}
+		})
+	}
+}
