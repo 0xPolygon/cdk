@@ -139,6 +139,26 @@ type MerkleProof struct {
 	Proof [types.DefaultHeight]common.Hash `json:"proof"`
 }
 
+func (m SignedCertificate) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		NetworkID           uint32                `json:"network_id"`
+		Height              uint64                `json:"height"`
+		PrevLocalExitRoot   [32]byte              `json:"prev_local_exit_root"`
+		NewLocalExitRoot    [32]byte              `json:"new_local_exit_root"`
+		BridgeExits         []*BridgeExit         `json:"bridge_exits"`
+		ImportedBridgeExits []*ImportedBridgeExit `json:"imported_bridge_exits"`
+		Signature           *Signature            `json:"signature"`
+	}{
+		NetworkID:           m.NetworkID,
+		Height:              m.Height,
+		PrevLocalExitRoot:   m.PrevLocalExitRoot,
+		NewLocalExitRoot:    m.NewLocalExitRoot,
+		BridgeExits:         m.BridgeExits,
+		ImportedBridgeExits: m.ImportedBridgeExits,
+		Signature:           m.Signature,
+	})
+}
+
 func (m Certificate) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		NetworkID           uint32                `json:"network_id"`
@@ -157,21 +177,30 @@ func (m Certificate) MarshalJSON() ([]byte, error) {
 	})
 }
 
+func bytesToUints(data []byte) []uint {
+	uints := make([]uint, len(data))
+	for i, b := range data {
+		uints[i] = uint(b)
+	}
+	return uints
+}
+
 func (m BridgeExit) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
-		LeafType           LeafType       `json:"leaf_type"`
+		LeafType           string         `json:"leaf_type"`
 		TokenInfo          *TokenInfo     `json:"token_info"`
 		DestinationNetwork uint32         `json:"dest_network"`
 		DestinationAddress common.Address `json:"dest_address"`
-		Amount             *big.Int       `json:"amount"`
-		Metadata           []byte         `json:"metadata"`
+		Amount             string         `json:"amount"`
+		Metadata           []uint         `json:"metadata"`
 	}{
 		LeafType:           m.LeafType.String(),
 		TokenInfo:          m.TokenInfo,
 		DestinationNetwork: m.DestinationNetwork,
 		DestinationAddress: m.DestinationAddress,
-		Amount:             m.Amount,
-		Metadata:           m.Metadata,
+		Amount:             m.Amount.String(),
+		// If []byte is marshaled as a string base64 encoded
+		Metadata: bytesToUints(m.Metadata),
 	})
 }
 
