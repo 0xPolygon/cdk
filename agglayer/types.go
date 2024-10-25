@@ -25,6 +25,28 @@ func (c CertificateStatus) String() string {
 	return [...]string{"Pending", "InError", "Settled"}[c]
 }
 
+// UnmarshalJSON is the implementation of the json.Unmarshaler interface
+func (c CertificateStatus) UnmarshalJSON(data []byte) error {
+	var status string
+	err := json.Unmarshal(data, &status)
+	if err != nil {
+		return err
+	}
+
+	switch status {
+	case "Pending":
+		c = Pending
+	case "InError":
+		c = InError
+	case "Settled":
+		c = Settled
+	default:
+		return fmt.Errorf("invalid status: %s", status)
+	}
+
+	return nil
+}
+
 type LeafType uint8
 
 func (l LeafType) Uint8() uint8 {
