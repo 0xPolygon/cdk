@@ -278,7 +278,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if p.halted {
-		log.Errorf("processsor is halted due to: %s", p.haltedReason)
+		log.Errorf("processor is halted due to: %s", p.haltedReason)
 		return nil
 	}
 	tx, err := db.NewTx(ctx, p.db)
@@ -305,7 +305,6 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	switch {
 	case errors.Is(err, db.ErrNotFound):
 		initialL1InfoIndex = 0
-		err = nil
 	case err != nil:
 		return fmt.Errorf("getLastIndex err: %w", err)
 	default:

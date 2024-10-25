@@ -130,8 +130,7 @@ func buildAppender(client EthClienter, globalExitRoot,
 		return nil
 	}
 
-	// TODO: integrate this event to perform sanity checks
-	appender[updateL1InfoTreeSignatureV2] = func(b *sync.EVMBlock, l types.Log) error { //nolint:unparam
+	appender[updateL1InfoTreeSignatureV2] = func(b *sync.EVMBlock, l types.Log) error {
 		l1InfoTreeUpdateV2, err := ger.ParseUpdateL1InfoTreeV2(l)
 		if err != nil {
 			return fmt.Errorf(
