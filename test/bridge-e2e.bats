@@ -143,7 +143,7 @@ setup() {
     claim_frequency="10"
     destination_net=$l1_rpc_network_id
     run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url"
-    # assert_success
+    assert_success
 
     # Validate that the token of receiver on L1 has increased by the bridge tokens amount
     run verify_balance "$l1_rpc_url" "$gas_token_addr" "$destination_addr" "$initial_receiver_balance" "$ether_value"

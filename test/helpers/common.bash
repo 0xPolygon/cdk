@@ -296,7 +296,7 @@ function check_balances() {
 
 function verify_balance() {
     local rpc_url="$1"             # RPC URL
-    local token_addr="$2"      # gas token contract address
+    local token_addr="$2"          # gas token contract address
     local account="$3"             # account address
     local initial_balance_wei="$4" # initial balance in Wei (decimal)
     local ether_amount="$5"        # amount to be added (in Ether, decimal)
