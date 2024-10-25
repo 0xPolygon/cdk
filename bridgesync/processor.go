@@ -141,7 +141,7 @@ func (p *processor) GetBridgesPublished(
 	p.log.Debugf("last updated deposit count: %d in block %d", lastCount, toBlock)
 	var bridges []Bridge
 	for _, bridge := range allBridges {
-		if bridge.DepositCount < lastCount {
+		if bridge.DepositCount <= lastCount {
 			bridges = append(bridges, bridge)
 		}
 	}
