@@ -140,14 +140,14 @@ func (b *BridgeExit) MarshalJSON() ([]byte, error) {
 		TokenInfo          *TokenInfo     `json:"token_info"`
 		DestinationNetwork uint32         `json:"dest_network"`
 		DestinationAddress common.Address `json:"dest_address"`
-		Amount             *big.Int       `json:"amount"`
+		Amount             string         `json:"amount"`
 		Metadata           []uint         `json:"metadata"`
 	}{
 		LeafType:           b.LeafType.String(),
 		TokenInfo:          b.TokenInfo,
 		DestinationNetwork: b.DestinationNetwork,
 		DestinationAddress: b.DestinationAddress,
-		Amount:             b.Amount,
+		Amount:             b.Amount.String(),
 		Metadata:           bytesToUints(b.Metadata),
 	})
 }
