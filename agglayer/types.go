@@ -44,8 +44,8 @@ const (
 type Certificate struct {
 	NetworkID           uint32                `json:"network_id"`
 	Height              uint64                `json:"height"`
-	PrevLocalExitRoot   common.Hash           `json:"prev_local_exit_root"`
-	NewLocalExitRoot    common.Hash           `json:"new_local_exit_root"`
+	PrevLocalExitRoot   [32]byte              `json:"prev_local_exit_root"`
+	NewLocalExitRoot    [32]byte              `json:"new_local_exit_root"`
 	BridgeExits         []*BridgeExit         `json:"bridge_exits"`
 	ImportedBridgeExits []*ImportedBridgeExit `json:"imported_bridge_exits"`
 }
@@ -68,8 +68,8 @@ func (c *Certificate) Hash() common.Hash {
 	return crypto.Keccak256Hash(
 		cdkcommon.Uint32ToBytes(c.NetworkID),
 		cdkcommon.Uint64ToBytes(c.Height),
-		c.PrevLocalExitRoot.Bytes(),
-		c.NewLocalExitRoot.Bytes(),
+		c.PrevLocalExitRoot[:],
+		c.NewLocalExitRoot[:],
 		bridgeExitsPart,
 		importedBridgeExitsPart,
 	)
@@ -117,66 +117,42 @@ type BridgeExit struct {
 }
 
 // Hash returns a hash that uniquely identifies the bridge exit
-func (c *BridgeExit) Hash() common.Hash {
-	if c.Amount == nil {
-		c.Amount = big.NewInt(0)
+func (b *BridgeExit) Hash() common.Hash {
+	if b.Amount == nil {
+		b.Amount = big.NewInt(0)
 	}
 
 	return crypto.Keccak256Hash(
-		[]byte{c.LeafType.Uint8()},
-		cdkcommon.Uint32ToBytes(c.TokenInfo.OriginNetwork),
-		c.TokenInfo.OriginTokenAddress.Bytes(),
-		cdkcommon.Uint32ToBytes(c.DestinationNetwork),
-		c.DestinationAddress.Bytes(),
-		c.Amount.Bytes(),
-		crypto.Keccak256(c.Metadata),
+		[]byte{b.LeafType.Uint8()},
+		cdkcommon.Uint32ToBytes(b.TokenInfo.OriginNetwork),
+		b.TokenInfo.OriginTokenAddress.Bytes(),
+		cdkcommon.Uint32ToBytes(b.DestinationNetwork),
+		b.DestinationAddress.Bytes(),
+		b.Amount.Bytes(),
+		crypto.Keccak256(b.Metadata),
 	)
 }
 
-// MerkleProof represents an inclusion proof of a leaf in a Merkle tree
-type MerkleProof struct {
-	Root  common.Hash                      `json:"root"`
-	Proof [types.DefaultHeight]common.Hash `json:"proof"`
-}
-
-func (m SignedCertificate) MarshalJSON() ([]byte, error) {
+// MarshalJSON is the implementation of the json.Marshaler interface
+func (b *BridgeExit) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
-		NetworkID           uint32                `json:"network_id"`
-		Height              uint64                `json:"height"`
-		PrevLocalExitRoot   [32]byte              `json:"prev_local_exit_root"`
-		NewLocalExitRoot    [32]byte              `json:"new_local_exit_root"`
-		BridgeExits         []*BridgeExit         `json:"bridge_exits"`
-		ImportedBridgeExits []*ImportedBridgeExit `json:"imported_bridge_exits"`
-		Signature           *Signature            `json:"signature"`
+		LeafType           string         `json:"leaf_type"`
+		TokenInfo          *TokenInfo     `json:"token_info"`
+		DestinationNetwork uint32         `json:"dest_network"`
+		DestinationAddress common.Address `json:"dest_address"`
+		Amount             *big.Int       `json:"amount"`
+		Metadata           []uint         `json:"metadata"`
 	}{
-		NetworkID:           m.NetworkID,
-		Height:              m.Height,
-		PrevLocalExitRoot:   m.PrevLocalExitRoot,
-		NewLocalExitRoot:    m.NewLocalExitRoot,
-		BridgeExits:         m.BridgeExits,
-		ImportedBridgeExits: m.ImportedBridgeExits,
-		Signature:           m.Signature,
+		LeafType:           b.LeafType.String(),
+		TokenInfo:          b.TokenInfo,
+		DestinationNetwork: b.DestinationNetwork,
+		DestinationAddress: b.DestinationAddress,
+		Amount:             b.Amount,
+		Metadata:           bytesToUints(b.Metadata),
 	})
 }
 
-func (m Certificate) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		NetworkID           uint32                `json:"network_id"`
-		Height              uint64                `json:"height"`
-		PrevLocalExitRoot   [32]byte              `json:"prev_local_exit_root"`
-		NewLocalExitRoot    [32]byte              `json:"new_local_exit_root"`
-		BridgeExits         []*BridgeExit         `json:"bridge_exits"`
-		ImportedBridgeExits []*ImportedBridgeExit `json:"imported_bridge_exits"`
-	}{
-		NetworkID:           m.NetworkID,
-		Height:              m.Height,
-		PrevLocalExitRoot:   m.PrevLocalExitRoot,
-		NewLocalExitRoot:    m.NewLocalExitRoot,
-		BridgeExits:         m.BridgeExits,
-		ImportedBridgeExits: m.ImportedBridgeExits,
-	})
-}
-
+// bytesToUints converts a byte slice to a slice of uints
 func bytesToUints(data []byte) []uint {
 	uints := make([]uint, len(data))
 	for i, b := range data {
@@ -185,34 +161,26 @@ func bytesToUints(data []byte) []uint {
 	return uints
 }
 
-func (m BridgeExit) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		LeafType           string         `json:"leaf_type"`
-		TokenInfo          *TokenInfo     `json:"token_info"`
-		DestinationNetwork uint32         `json:"dest_network"`
-		DestinationAddress common.Address `json:"dest_address"`
-		Amount             string         `json:"amount"`
-		Metadata           []uint         `json:"metadata"`
-	}{
-		LeafType:           m.LeafType.String(),
-		TokenInfo:          m.TokenInfo,
-		DestinationNetwork: m.DestinationNetwork,
-		DestinationAddress: m.DestinationAddress,
-		Amount:             m.Amount.String(),
-		// If []byte is marshaled as a string base64 encoded
-		Metadata: bytesToUints(m.Metadata),
-	})
+// MerkleProof represents an inclusion proof of a leaf in a Merkle tree
+type MerkleProof struct {
+	Root  common.Hash                      `json:"root"`
+	Proof [types.DefaultHeight]common.Hash `json:"proof"`
 }
 
 // MarshalJSON is the implementation of the json.Marshaler interface
 func (m *MerkleProof) MarshalJSON() ([]byte, error) {
+	proofsAsBytes := [types.DefaultHeight][types.DefaultHeight]byte{}
+	for i, proof := range m.Proof {
+		proofsAsBytes[i] = proof
+	}
+
 	return json.Marshal(&struct {
-		Root  common.Hash                                 `json:"root"`
-		Proof map[string][types.DefaultHeight]common.Hash `json:"proof"`
+		Root  [types.DefaultHeight]byte                                 `json:"root"`
+		Proof map[string][types.DefaultHeight][types.DefaultHeight]byte `json:"proof"`
 	}{
 		Root: m.Root,
-		Proof: map[string][types.DefaultHeight]common.Hash{
-			"siblings": m.Proof,
+		Proof: map[string][types.DefaultHeight][types.DefaultHeight]byte{
+			"siblings": proofsAsBytes,
 		},
 	})
 }
@@ -247,11 +215,24 @@ func (l *L1InfoTreeLeafInner) Hash() common.Hash {
 	)
 }
 
+// MarshalJSON is the implementation of the json.Marshaler interface
+func (l *L1InfoTreeLeafInner) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		GlobalExitRoot [types.DefaultHeight]byte `json:"global_exit_root"`
+		BlockHash      [types.DefaultHeight]byte `json:"block_hash"`
+		Timestamp      uint64                    `json:"timestamp"`
+	}{
+		GlobalExitRoot: l.GlobalExitRoot,
+		BlockHash:      l.BlockHash,
+		Timestamp:      l.Timestamp,
+	})
+}
+
 // L1InfoTreeLeaf represents the leaf of the L1 info tree
 type L1InfoTreeLeaf struct {
 	L1InfoTreeIndex uint32               `json:"l1_info_tree_index"`
-	RollupExitRoot  common.Hash          `json:"rer"`
-	MainnetExitRoot common.Hash          `json:"mer"`
+	RollupExitRoot  [32]byte             `json:"rer"`
+	MainnetExitRoot [32]byte             `json:"mer"`
 	Inner           *L1InfoTreeLeafInner `json:"inner"`
 }
 

@@ -1298,7 +1298,7 @@ func TestExtractSignatureData(t *testing.T) {
 }
 
 func TestExploratoryGenerateCert(t *testing.T) {
-	t.Skip()
+	t.Skip("This test is only for exploratory purposes, to generate json format of the certificate")
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
