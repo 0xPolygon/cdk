@@ -3,8 +3,10 @@ package aggsender
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
@@ -151,11 +153,13 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error signing certificate: %w", err)
 	}
+	a.saveCertificate(signedCertificate)
 
 	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
 	if err != nil {
 		return fmt.Errorf("error sending certificate: %w", err)
 	}
+	log.Infof("certificate send: Height: %d hash: %s", signedCertificate.Height, certificateHash.String())
 
 	if err := a.storage.SaveLastSentCertificate(ctx, aggsendertypes.CertificateInfo{
 		Height:           certificate.Height,
@@ -171,6 +175,19 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		certificateHash, fromBlock, toBlock)
 
 	return nil
+}
+func (a *AggSender) saveCertificate(signedCertificate *agglayer.SignedCertificate) {
+	fn := "/tmp/certificate.json"
+	a.log.Infof("saving certificate in db")
+	jsonData, err := json.Marshal(signedCertificate)
+	if err != nil {
+		a.log.Errorf("error marshalling certificate: %w", err)
+	}
+	// write json data to file
+	err = ioutil.WriteFile(fn, jsonData, 0644)
+	if err != nil {
+		a.log.Errorf("error writing certificate to file: %w", err)
+	}
 }
 
 // buildCertificate builds a certificate from the bridge events
