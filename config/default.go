@@ -345,6 +345,4 @@ AggsenderPrivateKey = {Path = "{{SequencerPrivateKeyPath}}", Password = "{{Seque
 BlockGetInterval = "2s"
 URLRPCL2="{{L2URL}}"
 CheckSettledInterval = "2s"
-EpochSize = 10
-BlocksBeforeEpochEnding = 2
 `

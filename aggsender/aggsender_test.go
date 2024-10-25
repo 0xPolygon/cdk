@@ -843,7 +843,7 @@ func TestSendCertificate(t *testing.T) {
 		var (
 			aggsender = &AggSender{
 				log:          log.WithFields("aggsender", 1),
-				cfg:          Config{EpochSize: 10, BlocksBeforeEpochEnding: 2},
+				cfg:          Config{},
 				sequencerKey: cfg.sequencerKey,
 			}
 			mockStorage          *mocks.AggSenderStorageMock

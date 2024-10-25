@@ -18,9 +18,4 @@ type Config struct {
 	AggsenderPrivateKey types.KeystoreFileConfig `mapstructure:"AggsenderPrivateKey"`
 	// URLRPCL2 is the URL of the L2 RPC node
 	URLRPCL2 string `mapstructure:"URLRPCL2"`
-	// EpochSize is the size of the epoch on L1 (configured on agglayer) in blocks
-	EpochSize uint64 `mapstructure:"EpochSize"`
-	// BlocksBeforeEpochEnding indicates how many blocks before the epoch ending
-	// the AggSender should send the certificate
-	BlocksBeforeEpochEnding uint64 `mapstructure:"BlocksBeforeEpochEnding"`
 }
