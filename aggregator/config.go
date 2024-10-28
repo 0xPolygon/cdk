@@ -108,20 +108,17 @@ type Config struct {
 	// final gas: 1100
 	GasOffset uint64 `mapstructure:"GasOffset"`
 
+	// RPCURL is the URL of the RPC server
+	RPCURL string `mapstructure:"RPCURL"`
+
 	// WitnessURL is the URL of the witness server
 	WitnessURL string `mapstructure:"WitnessURL"`
-
-	// UseL1BatchData is a flag to enable the use of L1 batch data in the aggregator
-	UseL1BatchData bool `mapstructure:"UseL1BatchData"`
 
 	// UseFullWitness is a flag to enable the use of full witness in the aggregator
 	UseFullWitness bool `mapstructure:"UseFullWitness"`
 
 	// DB is the database configuration
 	DB db.Config `mapstructure:"DB"`
-
-	// StreamClient is the config for the stream client
-	StreamClient StreamClientCfg `mapstructure:"StreamClient"`
 
 	// EthTxManager is the config for the ethtxmanager
 	EthTxManager ethtxmanager.Config `mapstructure:"EthTxManager"`
@@ -145,18 +142,7 @@ type Config struct {
 	// AggLayerURL url of the agglayer service
 	AggLayerURL string `mapstructure:"AggLayerURL"`
 
-	// MaxWitnessRetrievalWorkers is the maximum number of workers that will be used to retrieve the witness
-	MaxWitnessRetrievalWorkers int `mapstructure:"MaxWitnessRetrievalWorkers"`
-
 	// SyncModeOnlyEnabled is a flag that activates sync mode exclusively.
 	// When enabled, the aggregator will sync data only from L1 and will not generate or read the data stream.
 	SyncModeOnlyEnabled bool `mapstructure:"SyncModeOnlyEnabled"`
-}
-
-// StreamClientCfg contains the data streamer's configuration properties
-type StreamClientCfg struct {
-	// Datastream server to connect
-	Server string `mapstructure:"Server"`
-	// Log is the log configuration
-	Log log.Config `mapstructure:"Log"`
 }
