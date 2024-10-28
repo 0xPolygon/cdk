@@ -23,6 +23,8 @@ const signatureSize = 65
 var (
 	errNoBridgesAndClaims   = errors.New("no bridges and claims to build certificate")
 	errInvalidSignatureSize = errors.New("invalid signature size")
+
+	zeroLER = common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
 )
 
 // AggSender is a component that will send certificates to the aggLayer
@@ -199,13 +201,21 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting exit root by index: %d. Error: %w", depositCount, err)
 	}
 
+	height := lastHeight + 1
+	previousLER := previousExitRoot
+	if previousExitRoot == (common.Hash{}) {
+		// meaning this is the first certificate
+		height = 0
+		previousLER = zeroLER
+	}
+
 	return &agglayer.Certificate{
 		NetworkID:           a.l2Syncer.OriginNetwork(),
-		PrevLocalExitRoot:   previousExitRoot,
+		PrevLocalExitRoot:   previousLER,
 		NewLocalExitRoot:    exitRoot.Hash,
 		BridgeExits:         bridgeExits,
 		ImportedBridgeExits: importedBridgeExits,
-		Height:              lastHeight + 1,
+		Height:              height,
 	}, nil
 }
 
