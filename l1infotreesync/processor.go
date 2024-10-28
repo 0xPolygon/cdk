@@ -42,7 +42,7 @@ type UpdateL1InfoTree struct {
 }
 
 type UpdateL1InfoTreeV2 struct {
-	CurrentL1InfoRoot [32]byte
+	CurrentL1InfoRoot common.Hash
 	LeafCount         uint32
 	Blockhash         common.Hash
 	MinTimestamp      uint64
