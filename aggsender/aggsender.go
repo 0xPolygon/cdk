@@ -115,7 +115,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		return fmt.Errorf("error getting last processed block from l2: %w", err)
 	}
 
-	lastSentCertificateInfo, err := a.getLastSentCertificateData(ctx)
+	lastSentCertificateInfo, err := a.storage.GetLastSentCertificate(ctx)
 	if err != nil {
 		return err
 	}
@@ -240,17 +240,6 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		ImportedBridgeExits: importedBridgeExits,
 		Height:              height,
 	}, nil
-}
-
-// getLastSentCertificateData gets the previous local exit root, previous certificate height
-// and last certificate block sent (gotten from the last sent certificate in db)
-func (a *AggSender) getLastSentCertificateData(ctx context.Context) (types.CertificateInfo, error) {
-	lastSentCertificate, err := a.storage.GetLastSentCertificate(ctx)
-	if err != nil {
-		return types.CertificateInfo{}, fmt.Errorf("error getting last sent certificate: %w", err)
-	}
-
-	return lastSentCertificate, nil
 }
 
 // convertClaimToImportedBridgeExit converts a claim to an ImportedBridgeExit object

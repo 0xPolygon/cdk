@@ -99,12 +99,11 @@ func (a *AggSenderSQLStorage) GetCertificateByHeight(ctx context.Context,
 	return certificateInfo, nil
 }
 
-// GetLastSentCertificate returns the last certificate sent to the aggLayer that is still Pending
+// GetLastSentCertificate returns the last certificate sent to the aggLayer
 func (a *AggSenderSQLStorage) GetLastSentCertificate(ctx context.Context) (types.CertificateInfo, error) {
 	var certificateInfo types.CertificateInfo
 	if err := meddler.QueryRow(a.db, &certificateInfo,
-		"SELECT * FROM certificate_info WHERE status = $1 ORDER BY height DESC LIMIT 1;",
-		agglayer.Pending); err != nil {
+		"SELECT * FROM certificate_info ORDER BY height DESC LIMIT 1;"); err != nil {
 		return types.CertificateInfo{}, getSelectQueryError(0, err)
 	}
 
