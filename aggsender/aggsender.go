@@ -3,12 +3,14 @@ package aggsender
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
 	"github.com/0xPolygon/cdk/aggsender/db"
+	"github.com/0xPolygon/cdk/aggsender/types"
 	aggsendertypes "github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/bridgesync"
 	cdkcommon "github.com/0xPolygon/cdk/common"
@@ -113,18 +115,25 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		return fmt.Errorf("error getting last processed block from l2: %w", err)
 	}
 
-	previousLocalExitRoot, previousHeight, lastCertificateBlock, err := a.getLastSentCertificateData(ctx)
+	lastSentCertificateInfo, err := a.getLastSentCertificateData(ctx)
 	if err != nil {
 		return err
 	}
 
-	if lastCertificateBlock >= lasL2BlockSynced {
+	previousToBlock := lastSentCertificateInfo.ToBlock
+	if lastSentCertificateInfo.Status == agglayer.InError {
+		// if the last certificate was in error, we need to resend it
+		// from the block before the error
+		previousToBlock = lastSentCertificateInfo.FromBlock - 1
+	}
+
+	if previousToBlock >= lasL2BlockSynced {
 		a.log.Infof("no new blocks to send a certificate, last certificate block: %d, last L2 block: %d",
-			lastCertificateBlock, lasL2BlockSynced)
+			previousToBlock, lasL2BlockSynced)
 		return nil
 	}
 
-	fromBlock := lastCertificateBlock + 1
+	fromBlock := previousToBlock + 1
 	toBlock := lasL2BlockSynced
 
 	bridges, err := a.l2Syncer.GetBridgesPublished(ctx, fromBlock, toBlock)
@@ -144,7 +153,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 
 	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
 
-	certificate, err := a.buildCertificate(ctx, bridges, claims, previousLocalExitRoot, previousHeight)
+	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo)
 	if err != nil {
 		return fmt.Errorf("error building certificate: %w", err)
 	}
@@ -153,6 +162,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error signing certificate: %w", err)
 	}
+
+	a.logJSONCertificate(signedCertificate)
 
 	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
 	if err != nil {
@@ -176,11 +187,23 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 	return nil
 }
 
+// logJSONCertificate logs the certificate in JSON format to the logs
+func (a *AggSender) logJSONCertificate(certificate *agglayer.SignedCertificate) {
+	raw, err := json.Marshal(certificate)
+	if err != nil {
+		a.log.Errorf("error marshalling certificate: %w", err)
+		return
+	}
+
+	a.log.Debug("JSON certificate:")
+	a.log.Debug(string(raw))
+}
+
 // buildCertificate builds a certificate from the bridge events
 func (a *AggSender) buildCertificate(ctx context.Context,
 	bridges []bridgesync.Bridge,
 	claims []bridgesync.Claim,
-	previousExitRoot common.Hash, lastHeight uint64) (*agglayer.Certificate, error) {
+	lastSentCertificateInfo types.CertificateInfo) (*agglayer.Certificate, error) {
 	if len(bridges) == 0 && len(claims) == 0 {
 		return nil, errNoBridgesAndClaims
 	}
@@ -201,9 +224,9 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting exit root by index: %d. Error: %w", depositCount, err)
 	}
 
-	height := lastHeight + 1
-	previousLER := previousExitRoot
-	if previousExitRoot == (common.Hash{}) {
+	height := lastSentCertificateInfo.Height + 1
+	previousLER := lastSentCertificateInfo.NewLocalExitRoot
+	if lastSentCertificateInfo.NewLocalExitRoot == (common.Hash{}) {
 		// meaning this is the first certificate
 		height = 0
 		previousLER = zeroLER
@@ -221,53 +244,13 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 
 // getLastSentCertificateData gets the previous local exit root, previous certificate height
 // and last certificate block sent (gotten from the last sent certificate in db)
-func (a *AggSender) getLastSentCertificateData(ctx context.Context) (common.Hash, uint64, uint64, error) {
+func (a *AggSender) getLastSentCertificateData(ctx context.Context) (types.CertificateInfo, error) {
 	lastSentCertificate, err := a.storage.GetLastSentCertificate(ctx)
 	if err != nil {
-		return common.Hash{}, 0, 0, fmt.Errorf("error getting last sent certificate: %w", err)
+		return types.CertificateInfo{}, fmt.Errorf("error getting last sent certificate: %w", err)
 	}
 
-	a.log.Infof("last sent certificate: %s", lastSentCertificate.String())
-
-	var (
-		previousLocalExitRoot common.Hash
-		previousHeight        uint64
-		lastCertificateBlock  uint64
-	)
-
-	if lastSentCertificate.CertificateID != (common.Hash{}) {
-		// we have sent a certificate before, get the last certificate header
-		lastSentCertificateHeader, err := a.aggLayerClient.GetCertificateHeader(lastSentCertificate.CertificateID)
-		if err != nil {
-			return common.Hash{}, 0, 0, fmt.Errorf("error getting certificate %s header: %w",
-				lastSentCertificate.CertificateID, err)
-		}
-
-		if lastSentCertificateHeader.Status == agglayer.InError {
-			// last sent certificate had errors, we need to remove it from the db
-			// and build a new certificate from that block
-			if err := a.storage.DeleteCertificate(ctx, lastSentCertificateHeader.CertificateID); err != nil {
-				return common.Hash{}, 0, 0, fmt.Errorf("error deleting certificate %s: %w",
-					lastSentCertificate.CertificateID, err)
-			}
-
-			lastValidCertificate, err := a.storage.GetCertificateByHeight(ctx, lastSentCertificateHeader.Height-1)
-			if err != nil {
-				return common.Hash{}, 0, 0, fmt.Errorf("error getting certificate by height %d: %w",
-					lastSentCertificateHeader.Height, err)
-			}
-
-			previousLocalExitRoot = lastValidCertificate.NewLocalExitRoot
-			previousHeight = lastValidCertificate.Height
-			lastCertificateBlock = lastValidCertificate.ToBlock
-		} else {
-			previousLocalExitRoot = lastSentCertificateHeader.NewLocalExitRoot
-			previousHeight = lastSentCertificateHeader.Height
-			lastCertificateBlock = lastSentCertificate.ToBlock
-		}
-	}
-
-	return previousLocalExitRoot, previousHeight, lastCertificateBlock, nil
+	return lastSentCertificate, nil
 }
 
 // convertClaimToImportedBridgeExit converts a claim to an ImportedBridgeExit object
@@ -334,9 +317,11 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 		ger                     common.Hash
 		timestamp               uint64
 		blockHash               common.Hash
+		greatestClaimIndex      = 0
 	)
 
-	for i, claim := range claims {
+	l1Infos := make([]*l1infotreesync.L1InfoTreeLeaf, 0, len(claims))
+	for i, claim := range claims[:] {
 		a.log.Debugf("claim[%d]: destAddr: %s GER:%s", i, claim.DestinationAddress.String(), claim.GlobalExitRoot.String())
 		info, err := a.l1infoTreeSyncer.GetInfoByGlobalExitRoot(claim.GlobalExitRoot)
 		if err != nil {
@@ -348,6 +333,7 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 			ger = claim.GlobalExitRoot
 			timestamp = info.Timestamp
 			blockHash = info.PreviousBlockHash
+			greatestClaimIndex = i
 		}
 
 		importedBridgeExit, err := a.convertClaimToImportedBridgeExit(claim)
@@ -356,22 +342,25 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 		}
 
 		importedBridgeExits = append(importedBridgeExits, importedBridgeExit)
+		l1Infos = append(l1Infos, info)
 	}
 
 	for i, ibe := range importedBridgeExits {
-		gerToL1Proof, err := a.l1infoTreeSyncer.GetL1InfoTreeMerkleProofFromIndexToRoot(ctx, ibe.GlobalIndex.LeafIndex, ger)
+		l1Info := l1Infos[i]
+
+		gerToL1Proof, err := a.l1infoTreeSyncer.GetL1InfoTreeMerkleProofFromIndexToRoot(ctx, l1Info.L1InfoTreeIndex, ger)
 		if err != nil {
 			return nil, fmt.Errorf("error getting L1 Info tree merkle proof for leaf index: %d. GER: %s. Error: %w",
-				ibe.GlobalIndex.LeafIndex, ger, err)
+				l1Info.L1InfoTreeIndex, ger, err)
 		}
 
 		claim := claims[i]
 		if ibe.GlobalIndex.MainnetFlag {
 			ibe.ClaimData = &agglayer.ClaimFromMainnnet{
 				L1Leaf: &agglayer.L1InfoTreeLeaf{
-					L1InfoTreeIndex: ibe.GlobalIndex.LeafIndex,
-					RollupExitRoot:  claims[i].RollupExitRoot,
-					MainnetExitRoot: claims[i].MainnetExitRoot,
+					L1InfoTreeIndex: greatestL1InfoTreeIndex,
+					RollupExitRoot:  claims[greatestClaimIndex].RollupExitRoot,
+					MainnetExitRoot: claims[greatestClaimIndex].MainnetExitRoot,
 					Inner: &agglayer.L1InfoTreeLeafInner{
 						GlobalExitRoot: ger,
 						Timestamp:      timestamp,
@@ -379,8 +368,8 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 					},
 				},
 				ProofLeafMER: &agglayer.MerkleProof{
-					Root:  claim.MainnetExitRoot,
-					Proof: claim.ProofLocalExitRoot,
+					Root:  claims[greatestClaimIndex].MainnetExitRoot,
+					Proof: claims[greatestClaimIndex].ProofLocalExitRoot,
 				},
 				ProofGERToL1Root: &agglayer.MerkleProof{
 					Root:  ger,
@@ -390,20 +379,23 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 		} else {
 			ibe.ClaimData = &agglayer.ClaimFromRollup{
 				L1Leaf: &agglayer.L1InfoTreeLeaf{
-					L1InfoTreeIndex: ibe.GlobalIndex.LeafIndex,
-					RollupExitRoot:  claim.RollupExitRoot,
-					MainnetExitRoot: claim.MainnetExitRoot,
+					L1InfoTreeIndex: greatestL1InfoTreeIndex,
+					RollupExitRoot:  claims[greatestClaimIndex].RollupExitRoot,
+					MainnetExitRoot: claims[greatestClaimIndex].MainnetExitRoot,
 					Inner: &agglayer.L1InfoTreeLeafInner{
-						GlobalExitRoot: ger,
+						GlobalExitRoot: claim.GlobalExitRoot,
 						Timestamp:      timestamp,
 						BlockHash:      blockHash,
 					},
 				},
 				ProofLeafLER: &agglayer.MerkleProof{
-					Root:  claim.MainnetExitRoot,
-					Proof: claim.ProofLocalExitRoot,
+					Root:  claims[greatestClaimIndex].MainnetExitRoot,
+					Proof: claims[greatestClaimIndex].ProofLocalExitRoot,
 				},
-				ProofLERToRER: &agglayer.MerkleProof{},
+				ProofLERToRER: &agglayer.MerkleProof{
+					Root:  claims[greatestClaimIndex].RollupExitRoot,
+					Proof: claims[greatestClaimIndex].ProofRollupExitRoot,
+				},
 				ProofGERToL1Root: &agglayer.MerkleProof{
 					Root:  ger,
 					Proof: gerToL1Proof,

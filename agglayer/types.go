@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/0xPolygon/cdk/bridgesync"
 	cdkcommon "github.com/0xPolygon/cdk/common"
@@ -16,30 +17,42 @@ type CertificateStatus int
 
 const (
 	Pending CertificateStatus = iota
+	Proven
+	Candidate
 	InError
 	Settled
 )
 
 // String representation of the enum
 func (c CertificateStatus) String() string {
-	return [...]string{"Pending", "InError", "Settled"}[c]
+	return [...]string{"Pending", "Proven", "Candidate", "InError", "Settled"}[c]
 }
 
 // UnmarshalJSON is the implementation of the json.Unmarshaler interface
-func (c CertificateStatus) UnmarshalJSON(data []byte) error {
+func (c *CertificateStatus) UnmarshalJSON(data []byte) error {
+	dataStr := string(data)
+
 	var status string
-	err := json.Unmarshal(data, &status)
-	if err != nil {
-		return err
+	if strings.Contains(dataStr, "InError") {
+		status = "InError"
+	} else {
+		err := json.Unmarshal(data, &status)
+		if err != nil {
+			return err
+		}
 	}
 
 	switch status {
 	case "Pending":
-		c = Pending
+		*c = Pending
 	case "InError":
-		c = InError
+		*c = InError
+	case "Proven":
+		*c = Proven
+	case "Candidate":
+		*c = Candidate
 	case "Settled":
-		c = Settled
+		*c = Settled
 	default:
 		return fmt.Errorf("invalid status: %s", status)
 	}
