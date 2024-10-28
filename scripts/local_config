@@ -33,7 +33,7 @@ function get_value_from_toml_file(){
     local _TMP_FILE=$(mktemp)
     cat $_FILE > $_TMP_FILE
     # Maybe the file doesnt end with a new line so we added just in case
-    echo " " >> $_TMP_FILE
+    echo  >> $_TMP_FILE
     while read -r _LINE; do
         # Clean up line from spaces and tabs
         _LINE=$(echo $_LINE | tr -d '[:space:]')
