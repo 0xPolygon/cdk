@@ -25,6 +25,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestExploratoryGetCertificateHeader(t *testing.T) {
+	t.Skip("This test is exploratory and should be skipped")
+	aggLayerClient := agglayer.NewAggLayerClient("http://localhost:32795")
+	certificateID := common.HexToHash("0xf153e75e24591432ac5deafaeaafba3fec0fd851261c86051b9c0d540b38c369")
+	certificateHeader, err := aggLayerClient.GetCertificateHeader(certificateID)
+	require.NoError(t, err)
+	fmt.Print(certificateHeader)
+}
+
 func TestConvertClaimToImportedBridgeExit(t *testing.T) {
 	t.Parallel()
 

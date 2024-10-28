@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
@@ -164,6 +165,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 	}
 
 	a.logJSONCertificate(signedCertificate)
+	a.saveCertificate(signedCertificate)
 
 	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
 	if err != nil {
@@ -185,6 +187,22 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		certificateHash, fromBlock, toBlock)
 
 	return nil
+}
+func (a *AggSender) saveCertificate(signedCertificate *agglayer.SignedCertificate) {
+	if signedCertificate == nil {
+		return
+	}
+	fn := fmt.Sprintf("/tmp/certificate_%04d.json", signedCertificate.Height)
+	a.log.Infof("saving certificate to file: %s", fn)
+	jsonData, err := json.Marshal(signedCertificate)
+	if err != nil {
+		a.log.Errorf("error marshalling certificate: %w", err)
+	}
+	// write json data to file
+	err = os.WriteFile(fn, jsonData, 0644)
+	if err != nil {
+		a.log.Errorf("error writing certificate to file: %w", err)
+	}
 }
 
 // logJSONCertificate logs the certificate in JSON format to the logs
