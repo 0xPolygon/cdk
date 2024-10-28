@@ -16,24 +16,6 @@ type StateInterfaceMock struct {
 	mock.Mock
 }
 
-// AddBatch provides a mock function with given fields: ctx, dbBatch, dbTx
-func (_m *StateInterfaceMock) AddBatch(ctx context.Context, dbBatch *state.DBBatch, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, dbBatch, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for AddBatch")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *state.DBBatch, pgx.Tx) error); ok {
-		r0 = rf(ctx, dbBatch, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // AddGeneratedProof provides a mock function with given fields: ctx, proof, dbTx
 func (_m *StateInterfaceMock) AddGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, proof, dbTx)
@@ -202,42 +184,6 @@ func (_m *StateInterfaceMock) CleanupLockedProofs(ctx context.Context, duration 
 	return r0, r1
 }
 
-// DeleteBatchesNewerThanBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *StateInterfaceMock) DeleteBatchesNewerThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteBatchesNewerThanBatchNumber")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// DeleteBatchesOlderThanBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *StateInterfaceMock) DeleteBatchesOlderThanBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteBatchesOlderThanBatchNumber")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // DeleteGeneratedProofs provides a mock function with given fields: ctx, batchNumber, batchNumberFinal, dbTx
 func (_m *StateInterfaceMock) DeleteGeneratedProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNumber, batchNumberFinal, dbTx)
@@ -272,36 +218,6 @@ func (_m *StateInterfaceMock) DeleteUngeneratedProofs(ctx context.Context, dbTx 
 	}
 
 	return r0
-}
-
-// GetBatch provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *StateInterfaceMock) GetBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.DBBatch, error) {
-	ret := _m.Called(ctx, batchNumber, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetBatch")
-	}
-
-	var r0 *state.DBBatch
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.DBBatch, error)); ok {
-		return rf(ctx, batchNumber, dbTx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.DBBatch); ok {
-		r0 = rf(ctx, batchNumber, dbTx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*state.DBBatch)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, dbTx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
 }
 
 // GetProofReadyToVerify provides a mock function with given fields: ctx, lastVerfiedBatchNumber, dbTx
