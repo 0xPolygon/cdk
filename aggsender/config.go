@@ -6,8 +6,8 @@ import (
 
 // Config is the configuration for the AggSender
 type Config struct {
-	// DBPath is the path of the sqlite db on which the AggSender will store the data
-	DBPath string `mapstructure:"DBPath"`
+	// StoragePath is the path of the sqlite db on which the AggSender will store the data
+	StoragePath string `mapstructure:"StoragePath"`
 	// AggLayerURL is the URL of the AggLayer
 	AggLayerURL string `mapstructure:"AggLayerURL"`
 	// BlockGetInterval is the interval at which the AggSender will get the blocks from L1
@@ -18,4 +18,6 @@ type Config struct {
 	AggsenderPrivateKey types.KeystoreFileConfig `mapstructure:"AggsenderPrivateKey"`
 	// URLRPCL2 is the URL of the L2 RPC node
 	URLRPCL2 string `mapstructure:"URLRPCL2"`
+	// SaveCertificatesToFiles is a flag which tells the AggSender to save the certificates to a file
+	SaveCertificatesToFiles bool `mapstructure:"SaveCertificatesToFiles"`
 }
