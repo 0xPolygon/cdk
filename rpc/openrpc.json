@@ -1,0 +1,386 @@
+{
+  "openrpc": "1.0.0",
+  "info": {
+    "title": "CDK Endpoints",
+    "version": "0.0.1"
+  },
+  "methods": [
+      {
+        "name": "bridge_l1InfoTreeIndexForBridge",
+        "summary": "Returns the first L1 Info Tree index in which the bridge was included. NetworkID represents the origin network. This call needs to be done to a client of the same network were the bridge tx was sent",
+        "params": [
+          {
+            "$ref": "#/components/contentDescriptors/NetworkID"
+          },
+          {
+              "$ref": "#/components/contentDescriptors/DepositCount"
+          }
+        ],
+        "result": {
+          "$ref": "#/components/contentDescriptors/L1InfoTreeIndex"
+        },
+        "examples": [
+          {
+              "name": "example",
+              "params": [],
+              "result": {
+                  "name": "exampleResult",
+                  "value": "0x1"
+              }
+          }
+        ]
+      },
+      {
+        "name": "bridge_injectedInfoAfterIndex",
+        "summary": "Return the first GER injected onto the network that is linked to the given index or greater. This call is useful to understand when a bridge is ready to be claimed on its destination network",
+        "params": [
+          {
+            "$ref": "#/components/contentDescriptors/NetworkID"
+          },
+          {
+              "$ref": "#/components/contentDescriptors/L1InfoTreeIndex"
+          }
+        ],
+        "result": {
+          "$ref": "#/components/contentDescriptors/L1InfoTreeLeaf"
+        },
+        "examples": [ ]
+      },
+      {
+        "name": "bridge_getProof",
+        "summary": "Gets the proof needed to perform a claim for a given bridge",
+        "params": [
+          {
+            "$ref": "#/components/contentDescriptors/NetworkID"
+          },
+          {
+            "$ref": "#/components/contentDescriptors/DepositCount"
+          },
+          {
+              "$ref": "#/components/contentDescriptors/L1InfoTreeIndex"
+          }
+        ],
+        "result": {
+          "$ref": "#/components/contentDescriptors/Proof"
+        },
+        "examples": []
+      },
+      {
+        "name": "bridge_sponsorClaim",
+        "summary": "Request to sponsor the claim tx for a given bridge",
+        "params": [
+          {
+            "$ref": "#/components/contentDescriptors/SponsorClaim"
+          }
+        ],
+        "result": {
+			"name": "empty",
+			"schema": {"type": "null"}
+		},
+        "examples": []
+      },
+      {
+        "name": "bridge_getSponsoredClaimStatus",
+        "summary": "Gets the proof needed to perform a claim for a given bridge",
+        "params": [
+          {
+            "$ref": "#/components/contentDescriptors/GlobalIndex"
+          }
+        ],
+        "result": {
+          "$ref": "#/components/contentDescriptors/ClaimStatus"
+        },
+        "examples": []
+      }
+  ],
+  "components": {
+    "contentDescriptors": {
+      "NetworkID": {
+        "name": "networkID",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/NetworkID"
+        }
+      },
+      "DepositCount": {
+        "name": "depositCount",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/DepositCount"
+        }
+      },
+      "L1InfoTreeIndex": {
+        "name": "l1InfoTreeIndex",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/L1InfoTreeIndex"
+        }
+      },
+      "L1InfoTreeLeaf": {
+        "name": "l1InfoTreeLeaf",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/L1InfoTreeLeaf"
+        }
+      },
+      "Proof": {
+        "name": "proof",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/Proof"
+        }
+      },
+      "SponsorClaim": {
+        "name": "sponsorClaim",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/SponsorClaim"
+        }
+      },
+      "GlobalIndex": {
+        "name": "globalIndex",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/GlobalIndex"
+        }
+      },
+      "ClaimStatus": {
+        "name": "claimStatus",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/ClaimStatus"
+        }
+      }
+    },
+    "schemas": {
+      "Bytes": {
+        "title": "bytes",
+        "type": "string",
+        "description": "Hex representation of a variable length byte array",
+        "pattern": "^0x([a-fA-F0-9]?)+$"
+      },
+      "Integer": {
+        "title": "integer",
+        "type": "string",
+        "pattern": "^0x[a-fA-F0-9]+$",
+        "description": "Hex representation of the integer"
+      },
+      "Keccak": {
+        "title": "keccak",
+        "type": "string",
+        "description": "Hex representation of a Keccak 256 hash",
+        "pattern": "^0x[a-fA-F\\d]{64}$"
+      },
+      "Address": {
+        "title": "address",
+        "type": "string",
+        "pattern": "^0x[a-fA-F\\d]{40}$"
+      },
+      "BlockHash": {
+        "title": "blockHash",
+        "type": "string",
+        "pattern": "^0x[a-fA-F\\d]{64}$",
+        "description": "The hex representation of the Keccak 256 of the RLP encoded block"
+      },
+      "BlockNumber": {
+        "title": "blockNumber",
+        "type": "string",
+        "description": "The hex representation of the block's height",
+        "$ref": "#/components/schemas/Integer"
+      },
+      "BlockPosition": {
+        "title": "blockPosition",
+        "type": "string",
+        "description": "The hex representation of the position inside the block",
+        "$ref": "#/components/schemas/Integer"
+      },
+      "NetworkID": {
+        "title": "networkID",
+        "type": "string",
+        "description": "The hex representation of the network ID",
+        "$ref": "#/components/schemas/Integer"
+      },
+      "DepositCount": {
+        "title": "depositCount",
+        "type": "string",
+        "description": "The hex representation of the deposit count",
+        "$ref": "#/components/schemas/Integer"
+      },
+      "L1InfoTreeIndex": {
+        "title": "l1InfoTreeIndex",
+        "type": "string",
+        "description": "The hex representation of the L1 info tree index",
+        "$ref": "#/components/schemas/Integer"
+      },
+      "L1InfoTreeLeaf": {
+        "title": "l1InfoTreeLeaf",
+        "type": "object",
+        "readOnly": true,
+        "properties": {
+          "blockNumber": {
+            "$ref": "#/components/schemas/BlockNumber"
+          },
+          "blockPosition": {
+            "$ref": "#/components/schemas/BlockPosition"
+          },
+          "previousBlockHash": {
+            "$ref": "#/components/schemas/Keccak"
+          },
+          "timestamp": {
+            "title": "blockTimeStamp",
+            "type": "string",
+            "description": "The unix timestamp for when the block was collated"
+          },
+          "l1InfoTreeIndex": {
+            "$ref": "#/components/schemas/L1InfoTreeIndex"
+          },
+          "mainnetExitRoot": {
+            "$ref": "#/components/schemas/Keccak"
+          },
+          "rollupExitRoot": {
+            "$ref": "#/components/schemas/Keccak"
+          },
+          "globalExitRoot": {
+            "$ref": "#/components/schemas/Keccak"
+          },
+          "hash": {
+            "$ref": "#/components/schemas/Keccak"
+          }
+        }
+      },
+      "MerkleProof": {
+        "title": "merkleProof",
+        "type": "array",
+        "description": "Array of hashes that constitute a merkle proof",
+        "items": {
+          "$ref": "#/components/schemas/Keccak"
+        }
+      },
+      "ProofLocalExitRoot": {
+        "title": "proofLocalExitRoot",
+        "description": "Merkle Proof that proofs the existance of a deposit in the local exit tree of a network",
+        "$ref": "#/components/schemas/MerkleProof"
+      },
+      "ProofRollupExitRoot": {
+        "title": "proofLocalExitRoot",
+        "description": "Merkle Proof that proofs the existance of a deposit in the local exit tree of a network",
+        "$ref": "#/components/schemas/MerkleProof"
+      },
+      "Proof": {
+        "title": "proof",
+        "type": "object",
+        "readOnly": true,
+        "properties": {
+          "l1InfoTreeLeaf": {
+            "$ref": "#/components/schemas/L1InfoTreeLeaf"
+          },
+          "proofLocalExitRoot": {
+            "$ref": "#/components/schemas/ProofLocalExitRoot"
+          },
+          "proofRollupExitRoot": {
+            "$ref": "#/components/schemas/ProofRollupExitRoot"
+          }
+        }
+      },
+      "LeafType": {
+        "title": "leafType",
+        "type": "string",
+        "description": "The hex representation of the leaf type",
+        "$ref": "#/components/schemas/Integer"
+      },
+      "GlobalIndex": {
+        "title": "globalIndex",
+        "type": "string",
+        "description": "The hex representation of the global index",
+        "$ref": "#/components/schemas/Integer"
+      },
+      "OriginNetwork": {
+        "title": "originNetwork",
+        "type": "string",
+        "description": "The hex representation of the origin network ID of the token",
+        "$ref": "#/components/schemas/Integer"
+      },
+      "OriginTokenAddress": {
+        "title": "originTokenAddress",
+        "type": "string",
+        "description": "address of the token on it's origin network",
+        "$ref": "#/components/schemas/Address"
+      },
+      "DestinationNetwork": {
+        "title": "destinationNetwork",
+        "type": "string",
+        "description": "The hex representation of the destination network ID",
+        "$ref": "#/components/schemas/Integer"
+      },
+      "DestinationAddress": {
+        "title": "destinationAddress",
+        "type": "string",
+        "description": "address of the receiver of the bridge",
+        "$ref": "#/components/schemas/Address"
+      },
+      "Amount": {
+        "title": "amount",
+        "description": "Amount of tokens being bridged",
+        "$ref": "#/components/schemas/Keccak"
+      },
+      "Metadata": {
+        "title": "metadata",
+        "description": "Extra data included in the bridge",
+        "$ref": "#/components/schemas/Bytes"
+      },
+      "SponsorClaim": {
+        "title": "sponsorClaim",
+        "type": "object",
+        "readOnly": true,
+        "properties": {
+          "leafType": {
+            "$ref": "#/components/schemas/LeafType"
+          },
+          "proofLocalExitRoot": {
+            "$ref": "#/components/schemas/ProofLocalExitRoot"
+          },
+          "proofRollupExitRoot": {
+            "$ref": "#/components/schemas/ProofRollupExitRoot"
+          },
+          "globalIndex": {
+            "$ref": "#/components/schemas/GlobalIndex"
+          },
+          "mainnetExitRoot": {
+            "$ref": "#/components/schemas/Keccak"
+          },
+          "rollupExitRoot": {
+            "$ref": "#/components/schemas/Keccak"
+          },
+          "originNetwork": {
+            "$ref": "#/components/schemas/OriginNetwork"
+          },
+          "originTokenAddress": {
+            "$ref": "#/components/schemas/OriginTokenAddress"
+          },
+          "destinationNetwork": {
+            "$ref": "#/components/schemas/DestinationNetwork"
+          },
+          "destinationAddress": {
+            "$ref": "#/components/schemas/DestinationAddress"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Amount"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          }
+        }
+      },
+      "ClaimStatus": {
+        "title": "claimStatus",
+        "description": "The status of a claim",
+        "type": "string",
+        "enum": [
+          "pending",
+          "failed",
+          "success"
+        ]
+      }
+    }
+  }
+}

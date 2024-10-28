@@ -148,10 +148,10 @@ func (b *BridgeEndpoints) InjectedInfoAfterIndex(networkID uint32, l1InfoTreeInd
 	)
 }
 
-// ClaimProof returns the proofs needed to claim a bridge. NetworkID and depositCount refere to the bridge origin
+// GetProof returns the proofs needed to claim a bridge. NetworkID and depositCount refere to the bridge origin
 // while globalExitRoot should be already injected on the destination network.
 // This call needs to be done to a client of the same network were the bridge tx was sent
-func (b *BridgeEndpoints) ClaimProof(
+func (b *BridgeEndpoints) GetProof(
 	networkID uint32, depositCount uint32, l1InfoTreeIndex uint32,
 ) (interface{}, rpc.Error) {
 	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
