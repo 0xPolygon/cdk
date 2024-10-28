@@ -200,7 +200,7 @@ func (a *AggSender) saveCertificateToFile(signedCertificate *agglayer.SignedCert
 		a.log.Errorf("error marshalling certificate: %w", err)
 	}
 
-	if err = os.WriteFile(fn, jsonData, 0644); err != nil {
+	if err = os.WriteFile(fn, jsonData, 0644); err != nil { //nolint:gosec,mnd // we are writing to a tmp file
 		a.log.Errorf("error writing certificate to file: %w", err)
 	}
 }
@@ -322,7 +322,8 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 
 		importedBridgeExits = append(importedBridgeExits, ibe)
 
-		gerToL1Proof, err := a.l1infoTreeSyncer.GetL1InfoTreeMerkleProofFromIndexToRoot(ctx, l1Info.L1InfoTreeIndex, l1Info.GlobalExitRoot)
+		gerToL1Proof, err := a.l1infoTreeSyncer.GetL1InfoTreeMerkleProofFromIndexToRoot(ctx,
+			l1Info.L1InfoTreeIndex, l1Info.GlobalExitRoot)
 		if err != nil {
 			return nil, fmt.Errorf("error getting L1 Info tree merkle proof for leaf index: %d. GER: %s. Error: %w",
 				l1Info.L1InfoTreeIndex, l1Info.GlobalExitRoot, err)
