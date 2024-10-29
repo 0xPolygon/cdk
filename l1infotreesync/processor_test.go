@@ -1,10 +1,15 @@
 package l1infotreesync
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/0xPolygon/cdk/db"
+	"github.com/0xPolygon/cdk/l1infotree"
+	"github.com/0xPolygon/cdk/l1infotreesync/migrations"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
+	"github.com/0xPolygon/cdk/tree"
 	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -262,4 +267,84 @@ func Test_processor_Reorg(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProofsFromDifferentTrees(t *testing.T) {
+	t.Skip("This is an experiment")
+
+	l1Tree, err := l1infotree.NewL1InfoTree(log.WithFields("test"), types.DefaultHeight, [][32]byte{})
+	require.NoError(t, err)
+
+	leaves := createTestLeaves(1)
+
+	aLeaves := make([][32]byte, len(leaves))
+	for i, leaf := range leaves {
+		aLeaves[i] = l1infotree.HashLeafData(
+			leaf.GlobalExitRoot,
+			leaf.PreviousBlockHash,
+			leaf.Timestamp)
+	}
+
+	proof, root, err := l1Tree.ComputeMerkleProof(leaves[0].L1InfoTreeIndex, aLeaves)
+	require.NoError(t, err)
+
+	hashProof := make([]common.Hash, len(proof))
+	for i, p := range proof {
+		hashProof[i] = common.BytesToHash(p[:])
+	}
+
+	fmt.Println(root)
+	fmt.Println(hashProof)
+	fmt.Println("===========================================================================================================")
+
+	dbPath := "file:l1InfoTreeTest?mode=memory&cache=shared"
+	require.NoError(t, migrations.RunMigrations(dbPath))
+
+	dbe, err := db.NewSQLiteDB(dbPath)
+	require.NoError(t, err)
+
+	l1InfoTree := tree.NewAppendOnlyTree(dbe, migrations.L1InfoTreePrefix)
+
+	tx, err := db.NewTx(context.Background(), dbe)
+	require.NoError(t, err)
+
+	for _, leaf := range leaves {
+		err = l1InfoTree.AddLeaf(tx, leaf.BlockNumber, leaf.BlockPosition, types.Leaf{
+			Index: leaf.L1InfoTreeIndex,
+			Hash:  leaf.Hash,
+		})
+
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, tx.Commit())
+
+	pro, err := l1InfoTree.GetProof(context.Background(), leaves[0].L1InfoTreeIndex, leaves[0].GlobalExitRoot)
+	require.NoError(t, err)
+
+	fmt.Println(leaves[0].GlobalExitRoot)
+	fmt.Println(pro)
+}
+
+func createTestLeaves(numOfLeaves int) []*L1InfoTreeLeaf {
+	leaves := make([]*L1InfoTreeLeaf, 0, numOfLeaves)
+
+	for i := 0; i < numOfLeaves; i++ {
+		leaf := &L1InfoTreeLeaf{
+			L1InfoTreeIndex:   uint32(i),
+			Timestamp:         uint64(i),
+			BlockNumber:       uint64(i),
+			BlockPosition:     uint64(i),
+			PreviousBlockHash: common.HexToHash(fmt.Sprintf("0x%x", i)),
+			MainnetExitRoot:   common.HexToHash(fmt.Sprintf("0x%x", i)),
+			RollupExitRoot:    common.HexToHash(fmt.Sprintf("0x%x", i)),
+		}
+
+		leaf.GlobalExitRoot = leaf.globalExitRoot()
+		leaf.Hash = leaf.hash()
+
+		leaves = append(leaves, leaf)
+	}
+
+	return leaves
 }
