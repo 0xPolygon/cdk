@@ -144,7 +144,7 @@ func TestHandleNewBlock(t *testing.T) {
 		Return(nil)
 	pm.On("ProcessBlock", ctx, Block{Num: b1.Num, Events: b1.Events}).
 		Return(nil)
-	driver.handleNewBlock(ctx, b1)
+	driver.handleNewBlock(ctx, nil, b1)
 
 	// reorg deteector fails once
 	b2 := EVMBlock{
@@ -161,7 +161,7 @@ func TestHandleNewBlock(t *testing.T) {
 		Return(nil).Once()
 	pm.On("ProcessBlock", ctx, Block{Num: b2.Num, Events: b2.Events}).
 		Return(nil)
-	driver.handleNewBlock(ctx, b2)
+	driver.handleNewBlock(ctx, nil, b2)
 
 	// processor fails once
 	b3 := EVMBlock{
@@ -177,7 +177,7 @@ func TestHandleNewBlock(t *testing.T) {
 		Return(errors.New("foo")).Once()
 	pm.On("ProcessBlock", ctx, Block{Num: b3.Num, Events: b3.Events}).
 		Return(nil).Once()
-	driver.handleNewBlock(ctx, b3)
+	driver.handleNewBlock(ctx, nil, b3)
 }
 
 func TestHandleReorg(t *testing.T) {

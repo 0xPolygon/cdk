@@ -98,7 +98,7 @@ reset:
 			return
 		case b := <-downloadCh:
 			d.log.Debugf("handleNewBlock, blockNum: %d, blockHash: %s", b.Num, b.Hash)
-			d.handleNewBlock(ctx, b)
+			d.handleNewBlock(ctx, cancel, b)
 		case firstReorgedBlock := <-d.reorgSub.ReorgedBlock:
 			d.log.Debug("handleReorg from block: ", firstReorgedBlock)
 			d.handleReorg(ctx, cancel, firstReorgedBlock)
@@ -107,7 +107,7 @@ reset:
 	}
 }
 
-func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
+func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFunc, b EVMBlock) {
 	attempts := 0
 	for {
 		err := d.reorgDetector.AddBlockToTrack(ctx, d.reorgDetectorID, b.Num, b.Hash)
@@ -127,6 +127,11 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
 		}
 		err := d.processor.ProcessBlock(ctx, blockToProcess)
 		if err != nil {
+			if err == ErrInconsistentState {
+				log.Warn("state got inconsistent after processing this block. Stopping downloader until there is a reorg")
+				cancel()
+				return
+			}
 			attempts++
 			d.log.Errorf("error processing events for block %d, err: ", b.Num, err)
 			d.rh.Handle("handleNewBlock", attempts)

@@ -279,7 +279,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if p.halted {
 		log.Errorf("processor is halted due to: %s", p.haltedReason)
-		return nil
+		return sync.ErrInconsistentState
 	}
 	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
@@ -352,7 +352,6 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			// failed due to a reorg. Hopefully, this is the case, eventually the reorg will get detected,
 			// and the syncer will get unhalted. Otherwise, this means that the syncer has an inconsistent state
 			// compared to the contracts, and this will need manual intervention.
-			// Do not return an error to give the driver the opportunity to detect a reorg
 			if root.Hash != event.UpdateL1InfoTreeV2.CurrentL1InfoRoot {
 				errStr := fmt.Sprintf(
 					"unexpected root when checking UpdateL1InfoTreeV2: %s vs %s. Happened on block %d",
@@ -361,7 +360,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 				log.Error(errStr)
 				p.haltedReason = errStr
 				p.halted = true
-				return nil
+				return sync.ErrInconsistentState
 			}
 			if root.Index+1 != event.UpdateL1InfoTreeV2.LeafCount {
 				errStr := fmt.Sprintf(
@@ -371,7 +370,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 				log.Error(errStr)
 				p.haltedReason = errStr
 				p.halted = true
-				return nil
+				return sync.ErrInconsistentState
 			}
 		}
 		if event.VerifyBatches != nil {
