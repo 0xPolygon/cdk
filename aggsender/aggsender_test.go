@@ -456,7 +456,7 @@ func TestGetImportedBridgeExits(t *testing.T) {
 			name:          "No claims",
 			claims:        []bridgesync.Claim{},
 			expectedError: false,
-			expectedExits: []*agglayer.ImportedBridgeExit{},
+			expectedExits: nil,
 		},
 	}
 
