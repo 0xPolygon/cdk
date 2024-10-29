@@ -270,12 +270,10 @@ func Test_processor_Reorg(t *testing.T) {
 }
 
 func TestProofsFromDifferentTrees(t *testing.T) {
-	t.Skip("This is an experiment")
-
 	l1Tree, err := l1infotree.NewL1InfoTree(log.WithFields("test"), types.DefaultHeight, [][32]byte{})
 	require.NoError(t, err)
 
-	leaves := createTestLeaves(1)
+	leaves := createTestLeaves(2)
 
 	aLeaves := make([][32]byte, len(leaves))
 	for i, leaf := range leaves {
@@ -319,8 +317,13 @@ func TestProofsFromDifferentTrees(t *testing.T) {
 
 	require.NoError(t, tx.Commit())
 
-	pro, err := l1InfoTree.GetProof(context.Background(), leaves[0].L1InfoTreeIndex, leaves[0].GlobalExitRoot)
+	rootToProof, err := l1InfoTree.GetRootByIndex(context.Background(), leaves[1].L1InfoTreeIndex)
 	require.NoError(t, err)
+	pro, err := l1InfoTree.GetProof(context.Background(), leaves[0].L1InfoTreeIndex, rootToProof.Hash)
+	require.NoError(t, err)
+	for i, l := range proof {
+		require.Equal(t, common.Hash(l), pro[i])
+	}
 
 	fmt.Println(leaves[0].GlobalExitRoot)
 	fmt.Println(pro)

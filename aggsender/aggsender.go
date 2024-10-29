@@ -304,17 +304,31 @@ func (a *AggSender) getBridgeExits(bridges []bridgesync.Bridge) []*agglayer.Brid
 }
 
 // getImportedBridgeExits converts claims to agglayer.ImportedBridgeExit objects and calculates necessary proofs
-func (a *AggSender) getImportedBridgeExits(ctx context.Context,
-	claims []bridgesync.Claim) ([]*agglayer.ImportedBridgeExit, error) {
+func (a *AggSender) getImportedBridgeExits(
+	ctx context.Context, claims []bridgesync.Claim,
+) ([]*agglayer.ImportedBridgeExit, error) {
 	importedBridgeExits := make([]*agglayer.ImportedBridgeExit, 0, len(claims))
-
-	for i, claim := range claims {
-		a.log.Debugf("claim[%d]: destAddr: %s GER:%s", i, claim.DestinationAddress.String(), claim.GlobalExitRoot.String())
-		l1Info, err := a.l1infoTreeSyncer.GetInfoByGlobalExitRoot(claim.GlobalExitRoot)
+	claimL1Info := make([]*l1infotreesync.L1InfoTreeLeaf, 0, len(claims))
+	var (
+		greatestL1InfoTreeIndexUsed uint32
+	)
+	for _, claim := range claims {
+		info, err := a.l1infoTreeSyncer.GetInfoByGlobalExitRoot(claim.GlobalExitRoot)
 		if err != nil {
 			return nil, fmt.Errorf("error getting info by global exit root: %w", err)
 		}
+		claimL1Info = append(claimL1Info, info)
+		if info.L1InfoTreeIndex > greatestL1InfoTreeIndexUsed {
+			greatestL1InfoTreeIndexUsed = info.L1InfoTreeIndex
+		}
+	}
+	rootToProve, err := a.l1infoTreeSyncer.GetL1InfoTreeRootByIndex(ctx, greatestL1InfoTreeIndexUsed)
+	if err != nil {
+		return nil, err
+	}
 
+	for i, claim := range claims {
+		a.log.Debugf("claim[%d]: destAddr: %s GER:%s", i, claim.DestinationAddress.String(), claim.GlobalExitRoot.String())
 		ibe, err := a.convertClaimToImportedBridgeExit(claim)
 		if err != nil {
 			return nil, fmt.Errorf("error converting claim to imported bridge exit: %w", err)
@@ -322,24 +336,27 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 
 		importedBridgeExits = append(importedBridgeExits, ibe)
 
-		gerToL1Proof, err := a.l1infoTreeSyncer.GetL1InfoTreeMerkleProofFromIndexToRoot(ctx,
-			l1Info.L1InfoTreeIndex, l1Info.GlobalExitRoot)
+		gerToL1Proof, err := a.l1infoTreeSyncer.GetL1InfoTreeMerkleProofFromIndexToRoot(
+			ctx, claimL1Info[i].L1InfoTreeIndex, rootToProve.Hash,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("error getting L1 Info tree merkle proof for leaf index: %d. GER: %s. Error: %w",
-				l1Info.L1InfoTreeIndex, l1Info.GlobalExitRoot, err)
+			return nil, fmt.Errorf(
+				"error getting L1 Info tree merkle proof for leaf index: %d and root: %s. Error: %w",
+				claimL1Info[i].L1InfoTreeIndex, rootToProve.Hash, err,
+			)
 		}
 
 		claim := claims[i]
 		if ibe.GlobalIndex.MainnetFlag {
 			ibe.ClaimData = &agglayer.ClaimFromMainnnet{
 				L1Leaf: &agglayer.L1InfoTreeLeaf{
-					L1InfoTreeIndex: l1Info.L1InfoTreeIndex,
+					L1InfoTreeIndex: claimL1Info[i].L1InfoTreeIndex,
 					RollupExitRoot:  claim.RollupExitRoot,
 					MainnetExitRoot: claim.MainnetExitRoot,
 					Inner: &agglayer.L1InfoTreeLeafInner{
-						GlobalExitRoot: l1Info.GlobalExitRoot,
-						Timestamp:      l1Info.Timestamp,
-						BlockHash:      l1Info.PreviousBlockHash,
+						GlobalExitRoot: claimL1Info[i].GlobalExitRoot,
+						Timestamp:      claimL1Info[i].Timestamp,
+						BlockHash:      claimL1Info[i].PreviousBlockHash,
 					},
 				},
 				ProofLeafMER: &agglayer.MerkleProof{
@@ -347,20 +364,20 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 					Proof: claim.ProofLocalExitRoot,
 				},
 				ProofGERToL1Root: &agglayer.MerkleProof{
-					Root:  l1Info.GlobalExitRoot,
+					Root:  claimL1Info[i].GlobalExitRoot,
 					Proof: gerToL1Proof,
 				},
 			}
 		} else {
 			ibe.ClaimData = &agglayer.ClaimFromRollup{
 				L1Leaf: &agglayer.L1InfoTreeLeaf{
-					L1InfoTreeIndex: l1Info.L1InfoTreeIndex,
+					L1InfoTreeIndex: claimL1Info[i].L1InfoTreeIndex,
 					RollupExitRoot:  claim.RollupExitRoot,
 					MainnetExitRoot: claim.MainnetExitRoot,
 					Inner: &agglayer.L1InfoTreeLeafInner{
-						GlobalExitRoot: l1Info.GlobalExitRoot,
-						Timestamp:      l1Info.Timestamp,
-						BlockHash:      l1Info.PreviousBlockHash,
+						GlobalExitRoot: claimL1Info[i].GlobalExitRoot,
+						Timestamp:      claimL1Info[i].Timestamp,
+						BlockHash:      claimL1Info[i].PreviousBlockHash,
 					},
 				},
 				ProofLeafLER: &agglayer.MerkleProof{
@@ -372,7 +389,7 @@ func (a *AggSender) getImportedBridgeExits(ctx context.Context,
 					Proof: claim.ProofRollupExitRoot,
 				},
 				ProofGERToL1Root: &agglayer.MerkleProof{
-					Root:  l1Info.GlobalExitRoot,
+					Root:  claimL1Info[i].GlobalExitRoot,
 					Proof: gerToL1Proof,
 				},
 			}
