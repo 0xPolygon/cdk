@@ -150,20 +150,17 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 	}
 
 	// READ CHAIN ID FROM POE SC
-	l2ChainID, err := etherman.GetL2ChainID()
-	if err != nil {
-		logger.Fatal(err)
+
+	if c.Aggregator.ChainID == 0 {
+		l2ChainID, err := etherman.GetL2ChainID()
+		if err != nil {
+			logger.Fatal(err)
+		}
+		log.Infof("Autodiscover L2ChainID: %d", l2ChainID)
+		c.Aggregator.ChainID = l2ChainID
 	}
 
-	st := newState(&c, l2ChainID, stateSQLDB)
-
-	c.Aggregator.ChainID = l2ChainID
-
-	// Populate Network config
-	c.Aggregator.Synchronizer.Etherman.Contracts.GlobalExitRootManagerAddr =
-		c.NetworkConfig.L1Config.GlobalExitRootManagerAddr
-	c.Aggregator.Synchronizer.Etherman.Contracts.RollupManagerAddr = c.NetworkConfig.L1Config.RollupManagerAddr
-	c.Aggregator.Synchronizer.Etherman.Contracts.ZkEVMAddr = c.NetworkConfig.L1Config.ZkEVMAddr
+	st := newState(&c, c.Aggregator.ChainID, stateSQLDB)
 
 	aggregator, err := aggregator.New(ctx, c.Aggregator, logger, st, etherman)
 	if err != nil {

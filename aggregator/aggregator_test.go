@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,12 +39,24 @@ var (
 	proverID   = "proverID"
 )
 
+const (
+	ownerProver     = "prover"
+	ownerAggregator = "aggregator"
+
+	// changeL2Block + deltaTimeStamp + indexL1InfoTree
+	codedL2BlockHeader = "0b73e6af6f00000001"
+	// 2 x [ tx coded in RLP + r,s,v,efficiencyPercentage]
+	codedRLP2Txs1 = "ee02843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e88080bff0e780ba7db409339fd3f71969fa2cbf1b8535f6c725a1499d3318d3ef9c2b6340ddfab84add2c188f9efddb99771db1fe621c981846394ea4f035c85bcdd51bffee03843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880805b346aa02230b22e62f73608de9ff39a162a6c24be9822209c770e3685b92d0756d5316ef954eefc58b068231ccea001fb7ac763ebe03afd009ad71cab36861e1bff"
+	codedL2Block1 = codedL2BlockHeader + codedRLP2Txs1
+)
+
 type mox struct {
 	stateMock          *mocks.StateInterfaceMock
 	ethTxManager       *mocks.EthTxManagerClientMock
 	etherman           *mocks.EthermanMock
 	proverMock         *mocks.ProverInterfaceMock
 	aggLayerClientMock *mocks.AgglayerClientInterfaceMock
+	synchronizerMock   *mocks.SynchronizerInterfaceMock
 }
 
 func WaitUntil(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
@@ -828,9 +841,9 @@ func Test_tryBuildFinalProof(t *testing.T) {
 		BatchNumberFinal: uint64(456),
 	}
 
-	proverCtx := context.WithValue(context.Background(), "owner", "prover") //nolint:staticcheck
-	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "prover" }
-	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "aggregator" }
+	proverCtx := context.WithValue(context.Background(), "owner", ownerProver) //nolint:staticcheck
+	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == ownerProver }
+	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == ownerAggregator }
 	testCases := []struct {
 		name           string
 		proof          *state.Proof
@@ -1046,7 +1059,7 @@ func Test_tryBuildFinalProof(t *testing.T) {
 				finalProof:              make(chan finalProofMsg),
 			}
 
-			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator") //nolint:staticcheck
+			aggregatorCtx := context.WithValue(context.Background(), "owner", ownerAggregator) //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
 			m := mox{
 				stateMock:    stateMock,
@@ -1092,9 +1105,9 @@ func Test_tryAggregateProofs(t *testing.T) {
 	}
 
 	recursiveProof := "recursiveProof"
-	proverCtx := context.WithValue(context.Background(), "owner", "prover") //nolint:staticcheck
-	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "prover" }
-	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == "aggregator" }
+	proverCtx := context.WithValue(context.Background(), "owner", ownerProver) //nolint:staticcheck
+	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == ownerProver }
+	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == ownerAggregator }
 	batchNum := uint64(23)
 	batchNumFinal := uint64(42)
 	proof1 := state.Proof{
@@ -1550,7 +1563,7 @@ func Test_tryAggregateProofs(t *testing.T) {
 				timeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
 				finalProof:              make(chan finalProofMsg),
 			}
-			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator") //nolint:staticcheck
+			aggregatorCtx := context.WithValue(context.Background(), "owner", ownerAggregator) //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
 			m := mox{
 				stateMock:    stateMock,
@@ -1564,6 +1577,523 @@ func Test_tryAggregateProofs(t *testing.T) {
 			a.resetVerifyProofTime()
 
 			result, err := a.tryAggregateProofs(proverCtx, proverMock)
+
+			if tc.asserts != nil {
+				tc.asserts(result, &a, err)
+			}
+		})
+	}
+}
+
+func Test_tryGenerateBatchProof(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+	from := common.BytesToAddress([]byte("from"))
+	cfg := Config{
+		VerifyProofInterval:                      types.Duration{Duration: time.Duration(10000000)},
+		TxProfitabilityCheckerType:               ProfitabilityAcceptAll,
+		SenderAddress:                            from.Hex(),
+		IntervalAfterWhichBatchConsolidateAnyway: types.Duration{Duration: time.Second * 1},
+	}
+	lastVerifiedBatchNum := uint64(22)
+	batchNum := uint64(23)
+	batchToProve := state.Batch{
+		BatchNumber: batchNum,
+	}
+	proofID := "proofId"
+	proverName := "proverName"
+	proverID := "proverID"
+	recursiveProof := "recursiveProof"
+	errTest := errors.New("test error")
+	proverCtx := context.WithValue(context.Background(), "owner", ownerProver) //nolint:staticcheck
+	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == ownerProver }
+	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == ownerAggregator }
+	fixedTimestamp := time.Date(2023, 10, 13, 15, 0, 0, 0, time.UTC)
+	l1InfoTreeLeaf := []synchronizer.L1InfoTreeLeaf{
+		{
+			GlobalExitRoot:    common.Hash{},
+			PreviousBlockHash: common.Hash{},
+			Timestamp:         fixedTimestamp,
+		},
+		{
+			GlobalExitRoot:    common.Hash{},
+			PreviousBlockHash: common.Hash{},
+			Timestamp:         fixedTimestamp,
+		},
+		{
+			GlobalExitRoot:    common.Hash{},
+			PreviousBlockHash: common.Hash{},
+			Timestamp:         fixedTimestamp,
+		},
+		{
+			GlobalExitRoot:    common.Hash{},
+			PreviousBlockHash: common.Hash{},
+			Timestamp:         fixedTimestamp,
+		},
+	}
+
+	testCases := []struct {
+		name    string
+		setup   func(mox, *Aggregator)
+		asserts func(bool, *Aggregator, error)
+	}{
+		{
+			name: "getAndLockBatchToProve returns generic error",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr")
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(uint64(0), errTest).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errTest)
+			},
+		},
+		{
+			name: "getAndLockBatchToProve returns ErrNotFound",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr")
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(uint64(0), state.ErrNotFound).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.NoError(err)
+			},
+		},
+		{
+			name: "BatchProof prover error",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr").Twice()
+
+				batchL2Data, err := hex.DecodeString(codedL2Block1)
+				require.NoError(err)
+				l1InfoRoot := common.HexToHash("0x057e9950fbd39b002e323f37c2330d0c096e66919e24cc96fb4b2dfa8f4af782")
+				batch := state.Batch{
+					BatchNumber: lastVerifiedBatchNum + 1,
+					BatchL2Data: batchL2Data,
+					L1InfoRoot:  l1InfoRoot,
+					Timestamp:   time.Now(),
+					Coinbase:    common.Address{},
+					ChainID:     uint64(1),
+					ForkID:      uint64(12),
+				}
+				dbBatch := state.DBBatch{
+					Witness: []byte("witness"),
+					Batch:   batch,
+				}
+
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
+				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
+				sequence := synchronizer.SequencedBatches{
+					FromBatchNumber: uint64(10),
+					ToBatchNumber:   uint64(20),
+				}
+				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1).Return(&sequence, nil).Once()
+				m.stateMock.On("GetBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(&dbBatch, nil).Once()
+				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
+					func(args mock.Arguments) {
+						proof, ok := args[1].(*state.Proof)
+						if !ok {
+							t.Fatalf("expected args[1] to be of type *state.Proof, got %T", args[1])
+						}
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
+						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
+					},
+				).Return(nil).Once()
+				m.synchronizerMock.On("GetLeafsByL1InfoRoot", mock.Anything, l1InfoRoot).Return(l1InfoTreeLeaf, nil).Twice()
+				m.synchronizerMock.On("GetL1InfoTreeLeaves", mock.Anything, mock.Anything).Return(map[uint32]synchronizer.L1InfoTreeLeaf{
+					1: {
+						BlockNumber: uint64(35),
+					},
+				}, nil).Twice()
+
+				oldDBBatch := state.DBBatch{
+					Batch: state.Batch{
+						AccInputHash: common.Hash{},
+					},
+				}
+				m.stateMock.On("GetBatch", mock.Anything, lastVerifiedBatchNum, nil).Return(&oldDBBatch, nil).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, dbBatch.Witness)
+				require.NoError(err)
+
+				m.proverMock.On("BatchProof", expectedInputProver).Return(nil, errTest).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), batchToProve.BatchNumber, batchToProve.BatchNumber, nil).Return(nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errTest)
+			},
+		},
+		//nolint:dupl
+		{
+			name: "WaitRecursiveProof prover error",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr").Twice()
+
+				batchL2Data, err := hex.DecodeString(codedL2Block1)
+				require.NoError(err)
+				l1InfoRoot := common.HexToHash("0x057e9950fbd39b002e323f37c2330d0c096e66919e24cc96fb4b2dfa8f4af782")
+				batch := state.Batch{
+					BatchNumber: lastVerifiedBatchNum + 1,
+					BatchL2Data: batchL2Data,
+					L1InfoRoot:  l1InfoRoot,
+					Timestamp:   time.Now(),
+					Coinbase:    common.Address{},
+					ChainID:     uint64(1),
+					ForkID:      uint64(12),
+				}
+				dbBatch := state.DBBatch{
+					Witness: []byte("witness"),
+					Batch:   batch,
+				}
+
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
+				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
+				sequence := synchronizer.SequencedBatches{
+					FromBatchNumber: uint64(10),
+					ToBatchNumber:   uint64(20),
+				}
+				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1).Return(&sequence, nil).Once()
+				m.stateMock.On("GetBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(&dbBatch, nil).Once()
+				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
+					func(args mock.Arguments) {
+						proof, ok := args[1].(*state.Proof)
+						if !ok {
+							t.Fatalf("expected args[1] to be of type *state.Proof, got %T", args[1])
+						}
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
+						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
+					},
+				).Return(nil).Once()
+
+				m.synchronizerMock.On("GetLeafsByL1InfoRoot", mock.Anything, l1InfoRoot).Return(l1InfoTreeLeaf, nil).Twice()
+				m.synchronizerMock.On("GetL1InfoTreeLeaves", mock.Anything, mock.Anything).Return(map[uint32]synchronizer.L1InfoTreeLeaf{
+					1: {
+						BlockNumber: uint64(35),
+					},
+				}, nil).Twice()
+
+				oldDBBatch := state.DBBatch{
+					Batch: state.Batch{
+						AccInputHash: common.Hash{},
+					},
+				}
+				m.stateMock.On("GetBatch", mock.Anything, lastVerifiedBatchNum, nil).Return(&oldDBBatch, nil).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, dbBatch.Witness)
+				require.NoError(err)
+
+				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return("", common.Hash{}, errTest).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), batchToProve.BatchNumber, batchToProve.BatchNumber, nil).Return(nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errTest)
+			},
+		}, //nolint:dupl
+		//nolint:dupl
+		{
+			name: "DeleteBatchProofs error after WaitRecursiveProof prover error",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr").Twice()
+
+				batchL2Data, err := hex.DecodeString(codedL2Block1)
+				require.NoError(err)
+				l1InfoRoot := common.HexToHash("0x057e9950fbd39b002e323f37c2330d0c096e66919e24cc96fb4b2dfa8f4af782")
+				batch := state.Batch{
+					BatchNumber: lastVerifiedBatchNum + 1,
+					BatchL2Data: batchL2Data,
+					L1InfoRoot:  l1InfoRoot,
+					Timestamp:   time.Now(),
+					Coinbase:    common.Address{},
+					ChainID:     uint64(1),
+					ForkID:      uint64(12),
+				}
+				dbBatch := state.DBBatch{
+					Witness: []byte("witness"),
+					Batch:   batch,
+				}
+
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
+				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
+				sequence := synchronizer.SequencedBatches{
+					FromBatchNumber: uint64(10),
+					ToBatchNumber:   uint64(20),
+				}
+				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1).Return(&sequence, nil).Once()
+				m.stateMock.On("GetBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(&dbBatch, nil).Once()
+				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
+					func(args mock.Arguments) {
+						proof, ok := args[1].(*state.Proof)
+						if !ok {
+							t.Fatalf("expected args[1] to be of type *state.Proof, got %T", args[1])
+						}
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
+						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
+					},
+				).Return(nil).Once()
+
+				m.synchronizerMock.On("GetLeafsByL1InfoRoot", mock.Anything, l1InfoRoot).Return(l1InfoTreeLeaf, nil).Twice()
+				m.synchronizerMock.On("GetL1InfoTreeLeaves", mock.Anything, mock.Anything).Return(map[uint32]synchronizer.L1InfoTreeLeaf{
+					1: {
+						BlockNumber: uint64(35),
+					},
+				}, nil).Twice()
+
+				oldDBBatch := state.DBBatch{
+					Batch: state.Batch{
+						AccInputHash: common.Hash{},
+					},
+				}
+				m.stateMock.On("GetBatch", mock.Anything, lastVerifiedBatchNum, nil).Return(&oldDBBatch, nil).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, dbBatch.Witness)
+				require.NoError(err)
+
+				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return("", common.Hash{}, errTest).Once()
+				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), batchToProve.BatchNumber, batchToProve.BatchNumber, nil).Return(errTest).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errTest)
+			},
+		}, //nolint:dupl
+		{
+			name: "not time to send final ok",
+			setup: func(m mox, a *Aggregator) {
+				a.cfg.BatchProofSanityCheckEnabled = false
+				m.proverMock.On("Name").Return(proverName).Times(3)
+				m.proverMock.On("ID").Return(proverID).Times(3)
+				m.proverMock.On("Addr").Return("addr").Times(3)
+
+				batchL2Data, err := hex.DecodeString(codedL2Block1)
+				require.NoError(err)
+				l1InfoRoot := common.HexToHash("0x057e9950fbd39b002e323f37c2330d0c096e66919e24cc96fb4b2dfa8f4af782")
+				batch := state.Batch{
+					BatchNumber: lastVerifiedBatchNum + 1,
+					BatchL2Data: batchL2Data,
+					L1InfoRoot:  l1InfoRoot,
+					Timestamp:   time.Now(),
+					Coinbase:    common.Address{},
+					ChainID:     uint64(1),
+					ForkID:      uint64(12),
+				}
+				dbBatch := state.DBBatch{
+					Witness: []byte("witness"),
+					Batch:   batch,
+				}
+
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
+				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
+				sequence := synchronizer.SequencedBatches{
+					FromBatchNumber: uint64(10),
+					ToBatchNumber:   uint64(20),
+				}
+				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1).Return(&sequence, nil).Once()
+				m.stateMock.On("GetBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(&dbBatch, nil).Once()
+				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
+					func(args mock.Arguments) {
+						proof, ok := args[1].(*state.Proof)
+						if !ok {
+							t.Fatalf("expected args[1] to be of type *state.Proof, got %T", args[1])
+						}
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
+						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
+					},
+				).Return(nil).Once()
+
+				m.synchronizerMock.On("GetLeafsByL1InfoRoot", mock.Anything, l1InfoRoot).Return(l1InfoTreeLeaf, nil).Twice()
+				m.synchronizerMock.On("GetL1InfoTreeLeaves", mock.Anything, mock.Anything).Return(map[uint32]synchronizer.L1InfoTreeLeaf{
+					1: {
+						BlockNumber: uint64(35),
+					},
+				}, nil).Twice()
+
+				oldDBBatch := state.DBBatch{
+					Batch: state.Batch{
+						AccInputHash: common.Hash{},
+					},
+				}
+				m.stateMock.On("GetBatch", mock.Anything, lastVerifiedBatchNum, nil).Return(&oldDBBatch, nil).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, dbBatch.Witness)
+				require.NoError(err)
+
+				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, common.Hash{}, nil).Once()
+				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
+					func(args mock.Arguments) {
+						proof, ok := args[1].(*state.Proof)
+						if !ok {
+							t.Fatalf("expected args[1] to be of type *state.Proof, got %T", args[1])
+						}
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
+						assert.Equal("", proof.InputProver)
+						assert.Equal(recursiveProof, proof.Proof)
+						assert.Nil(proof.GeneratingSince)
+					},
+				).Return(nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.True(result)
+				assert.NoError(err)
+			},
+		},
+		{
+			name: "time to send final, state error ok",
+			setup: func(m mox, a *Aggregator) {
+				a.cfg.VerifyProofInterval = types.NewDuration(0)
+				a.cfg.BatchProofSanityCheckEnabled = false
+				m.proverMock.On("Name").Return(proverName).Times(3)
+				m.proverMock.On("ID").Return(proverID).Times(3)
+				m.proverMock.On("Addr").Return("addr").Times(3)
+
+				batchL2Data, err := hex.DecodeString(codedL2Block1)
+				require.NoError(err)
+				l1InfoRoot := common.HexToHash("0x057e9950fbd39b002e323f37c2330d0c096e66919e24cc96fb4b2dfa8f4af782")
+				batch := state.Batch{
+					BatchNumber: lastVerifiedBatchNum + 1,
+					BatchL2Data: batchL2Data,
+					L1InfoRoot:  l1InfoRoot,
+					Timestamp:   time.Now(),
+					Coinbase:    common.Address{},
+					ChainID:     uint64(1),
+					ForkID:      uint64(12),
+				}
+				dbBatch := state.DBBatch{
+					Witness: []byte("witness"),
+					Batch:   batch,
+				}
+
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
+				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
+				sequence := synchronizer.SequencedBatches{
+					FromBatchNumber: uint64(10),
+					ToBatchNumber:   uint64(20),
+				}
+				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1).Return(&sequence, nil).Once()
+				m.stateMock.On("GetBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(&dbBatch, nil).Once()
+				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
+				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
+					func(args mock.Arguments) {
+						proof, ok := args[1].(*state.Proof)
+						if !ok {
+							t.Fatalf("expected args[1] to be of type *state.Proof, got %T", args[1])
+						}
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
+						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
+					},
+				).Return(nil).Once()
+
+				m.synchronizerMock.On("GetLeafsByL1InfoRoot", mock.Anything, l1InfoRoot).Return(l1InfoTreeLeaf, nil).Twice()
+				m.synchronizerMock.On("GetL1InfoTreeLeaves", mock.Anything, mock.Anything).Return(map[uint32]synchronizer.L1InfoTreeLeaf{
+					1: {
+						BlockNumber: uint64(35),
+					},
+				}, nil).Twice()
+
+				oldDBBatch := state.DBBatch{
+					Batch: state.Batch{
+						AccInputHash: common.Hash{},
+					},
+				}
+				m.stateMock.On("GetBatch", mock.Anything, lastVerifiedBatchNum, nil).Return(&oldDBBatch, nil).Twice()
+				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, dbBatch.Witness)
+				require.NoError(err)
+
+				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
+				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, common.Hash{}, nil).Once()
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(uint64(42), errTest).Once()
+				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
+					func(args mock.Arguments) {
+						proof, ok := args[1].(*state.Proof)
+						if !ok {
+							t.Fatalf("expected args[1] to be of type *state.Proof, got %T", args[1])
+						}
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumber)
+						assert.Equal(batchToProve.BatchNumber, proof.BatchNumberFinal)
+						assert.Equal(&proverName, proof.Prover)
+						assert.Equal(&proverID, proof.ProverID)
+						assert.Equal("", proof.InputProver)
+						assert.Equal(recursiveProof, proof.Proof)
+						assert.Nil(proof.GeneratingSince)
+					},
+				).Return(nil).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.True(result)
+				assert.NoError(err)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stateMock := mocks.NewStateInterfaceMock(t)
+			ethTxManager := mocks.NewEthTxManagerClientMock(t)
+			etherman := mocks.NewEthermanMock(t)
+			proverMock := mocks.NewProverInterfaceMock(t)
+			synchronizerMock := mocks.NewSynchronizerInterfaceMock(t)
+
+			a := Aggregator{
+				cfg:                     cfg,
+				state:                   stateMock,
+				etherman:                etherman,
+				ethTxManager:            ethTxManager,
+				logger:                  log.GetDefaultLogger(),
+				stateDBMutex:            &sync.Mutex{},
+				timeSendFinalProofMutex: &sync.RWMutex{},
+				timeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
+				finalProof:              make(chan finalProofMsg),
+				profitabilityChecker:    NewTxProfitabilityCheckerAcceptAll(stateMock, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration),
+				l1Syncr:                 synchronizerMock,
+			}
+			aggregatorCtx := context.WithValue(context.Background(), "owner", ownerAggregator) //nolint:staticcheck
+			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
+
+			m := mox{
+				stateMock:        stateMock,
+				ethTxManager:     ethTxManager,
+				etherman:         etherman,
+				proverMock:       proverMock,
+				synchronizerMock: synchronizerMock,
+			}
+			if tc.setup != nil {
+				tc.setup(m, &a)
+			}
+			a.resetVerifyProofTime()
+
+			result, err := a.tryGenerateBatchProof(proverCtx, proverMock)
 
 			if tc.asserts != nil {
 				tc.asserts(result, &a, err)

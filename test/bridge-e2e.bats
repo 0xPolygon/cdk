@@ -13,15 +13,26 @@ setup() {
         bridge_default_address=$(echo "$combined_json_output" | jq -r .polygonZkEVMBridgeAddress)
         BRIDGE_ADDRESS=$bridge_default_address
     fi
-
     echo "Bridge address=$BRIDGE_ADDRESS" >&3
 
     readonly sender_private_key=${SENDER_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
+    readonly sender_addr="$(cast wallet address --private-key $sender_private_key)"
     destination_net=${DESTINATION_NET:-"1"}
     destination_addr=${DESTINATION_ADDRESS:-"0x0bb7AA0b4FdC2D2862c088424260e99ed6299148"}
     ether_value=${ETHER_VALUE:-"0.0200000054"}
     amount=$(cast to-wei $ether_value ether)
-    token_addr=${TOKEN_ADDRESS:-"0x0000000000000000000000000000000000000000"}
+    readonly native_token_addr=${NATIVE_TOKEN_ADDRESS:-"0x0000000000000000000000000000000000000000"}
+    if [[ -n "$GAS_TOKEN_ADDR" ]]; then
+        echo "Using provided GAS_TOKEN_ADDR: $GAS_TOKEN_ADDR" >&3
+        gas_token_addr="$GAS_TOKEN_ADDR"
+    else
+        echo "GAS_TOKEN_ADDR not provided, retrieving from rollup parameters file." >&3
+        readonly rollup_params_file=/opt/zkevm/create_rollup_parameters.json
+        run bash -c "$contracts_service_wrapper 'cat $rollup_params_file' | tail -n +2 | jq -r '.gasTokenAddress'"
+        assert_success
+        assert_output --regexp "0x[a-fA-F0-9]{40}"
+        gas_token_addr=$output
+    fi
     readonly is_forced=${IS_FORCED:-"true"}
     readonly bridge_addr=$BRIDGE_ADDRESS
     readonly meta_bytes=${META_BYTES:-"0x"}
@@ -30,47 +41,39 @@ setup() {
     readonly bridge_api_url=${BRIDGE_API_URL:-"$(kurtosis port print $enclave zkevm-bridge-service-001 rpc)"}
 
     readonly dry_run=${DRY_RUN:-"false"}
-    readonly sender_addr="$(cast wallet address --private-key $sender_private_key)"
     readonly l1_rpc_network_id=$(cast call --rpc-url $l1_rpc_url $bridge_addr 'networkID() (uint32)')
     readonly l2_rpc_network_id=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'networkID() (uint32)')
     gas_price=$(cast gas-price --rpc-url "$l2_rpc_url")
+    readonly weth_token_addr=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'WETHToken()' | cast parse-bytes32-address)
 }
 
-@test "Run deposit" {
+@test "Native gas token deposit to WETH" {
+    local initial_receiver_balance=$(cast call --rpc-url "$l2_rpc_url" "$weth_token_addr" "$balance_of_fn_sig" "$destination_addr" | awk '{print $1}')
+    echo "Initial receiver balance of native token on L2 $initial_receiver_balance" >&3
+
     echo "Running LxLy deposit" >&3
-    run deposit
+    run bridgeAsset "$native_token_addr" "$l1_rpc_url"
     assert_success
-    assert_output --partial 'transactionHash'
-}
 
-@test "Run claim" {
     echo "Running LxLy claim" >&3
-
     timeout="120"
     claim_frequency="10"
-    run wait_for_claim "$timeout" "$claim_frequency"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url"
+    assert_success
+
+    run verify_balance "$l2_rpc_url" "$weth_token_addr" "$destination_addr" "$initial_receiver_balance" "$ether_value"
+    if [ $status -eq 0 ]; then
+        break
+    fi
     assert_success
 }
 
-@test "Custom native token transfer" {
-    # Use GAS_TOKEN_ADDR if provided, otherwise retrieve from file
-    if [[ -n "$GAS_TOKEN_ADDR" ]]; then
-        echo "Using provided GAS_TOKEN_ADDR: $GAS_TOKEN_ADDR" >&3
-        local gas_token_addr="$GAS_TOKEN_ADDR"
-    else
-        echo "GAS_TOKEN_ADDR not provided, retrieving from rollup parameters file." >&3
-        readonly rollup_params_file=/opt/zkevm/create_rollup_parameters.json
-        run bash -c "$contracts_service_wrapper 'cat $rollup_params_file' | tail -n +2 | jq -r '.gasTokenAddress'"
-        assert_success
-        assert_output --regexp "0x[a-fA-F0-9]{40}"
-        local gas_token_addr=$output
-    fi
-
+@test "Custom gas token deposit" {
     echo "Gas token addr $gas_token_addr, L1 RPC: $l1_rpc_url" >&3
 
     # Set receiver address and query for its initial native token balance on the L2
     receiver=${RECEIVER:-"0x85dA99c8a7C2C95964c8EfD687E95E632Fc533D6"}
-    local initial_receiver_balance=$(cast balance --ether "$receiver" --rpc-url "$l2_rpc_url")
+    local initial_receiver_balance=$(cast balance "$receiver" --rpc-url "$l2_rpc_url")
     echo "Initial receiver balance of native token on L2 $initial_receiver_balance" >&3
 
     # Query for initial sender balance
@@ -106,20 +109,46 @@ setup() {
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
     # Deposit
-    token_addr=$gas_token_addr
     destination_addr=$receiver
     destination_net=$l2_rpc_network_id
     amount=$wei_amount
-    run deposit
+    run bridgeAsset "$gas_token_addr" "$l1_rpc_url"
     assert_success
 
     # Claim deposits (settle them on the L2)
     timeout="120"
     claim_frequency="10"
-    run wait_for_claim "$timeout" "$claim_frequency"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url"
     assert_success
 
     # Validate that the native token of receiver on L2 has increased by the bridge tokens amount
-    run verify_native_token_balance "$l2_rpc_url" "$receiver" "$initial_receiver_balance" "$tokens_amount"
+    run verify_balance "$l2_rpc_url" "$native_token_addr" "$receiver" "$initial_receiver_balance" "$tokens_amount"
+    assert_success
+}
+
+@test "Custom gas token withdrawal" {
+    echo "Running LxLy withdrawal" >&3
+    echo "Gas token addr $gas_token_addr, L1 RPC: $l1_rpc_url" >&3
+
+    local initial_receiver_balance=$(cast call --rpc-url "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$destination_addr" | awk '{print $1}')
+    assert_success
+    echo "Receiver balance of gas token on L1 $initial_receiver_balance" >&3
+
+    destination_net=$l1_rpc_network_id
+    run bridgeAsset "$native_token_addr" "$l2_rpc_url"
+    assert_success
+
+    # Claim withdrawals (settle them on the L1)
+    timeout="360"
+    claim_frequency="10"
+    destination_net=$l1_rpc_network_id
+    run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url"
+    assert_success
+
+    # Validate that the token of receiver on L1 has increased by the bridge tokens amount
+    run verify_balance "$l1_rpc_url" "$gas_token_addr" "$destination_addr" "$initial_receiver_balance" "$ether_value"
+    if [ $status -eq 0 ]; then
+        break
+    fi
     assert_success
 }
