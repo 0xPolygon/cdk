@@ -145,6 +145,63 @@ func (_c *L1InfoTreeSyncerMock_GetL1InfoTreeMerkleProofFromIndexToRoot_Call) Run
 	return _c
 }
 
+// GetL1InfoTreeRootByIndex provides a mock function with given fields: ctx, index
+func (_m *L1InfoTreeSyncerMock) GetL1InfoTreeRootByIndex(ctx context.Context, index uint32) (treetypes.Root, error) {
+	ret := _m.Called(ctx, index)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetL1InfoTreeRootByIndex")
+	}
+
+	var r0 treetypes.Root
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint32) (treetypes.Root, error)); ok {
+		return rf(ctx, index)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint32) treetypes.Root); ok {
+		r0 = rf(ctx, index)
+	} else {
+		r0 = ret.Get(0).(treetypes.Root)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint32) error); ok {
+		r1 = rf(ctx, index)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// L1InfoTreeSyncerMock_GetL1InfoTreeRootByIndex_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetL1InfoTreeRootByIndex'
+type L1InfoTreeSyncerMock_GetL1InfoTreeRootByIndex_Call struct {
+	*mock.Call
+}
+
+// GetL1InfoTreeRootByIndex is a helper method to define mock.On call
+//   - ctx context.Context
+//   - index uint32
+func (_e *L1InfoTreeSyncerMock_Expecter) GetL1InfoTreeRootByIndex(ctx interface{}, index interface{}) *L1InfoTreeSyncerMock_GetL1InfoTreeRootByIndex_Call {
+	return &L1InfoTreeSyncerMock_GetL1InfoTreeRootByIndex_Call{Call: _e.mock.On("GetL1InfoTreeRootByIndex", ctx, index)}
+}
+
+func (_c *L1InfoTreeSyncerMock_GetL1InfoTreeRootByIndex_Call) Run(run func(ctx context.Context, index uint32)) *L1InfoTreeSyncerMock_GetL1InfoTreeRootByIndex_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint32))
+	})
+	return _c
+}
+
+func (_c *L1InfoTreeSyncerMock_GetL1InfoTreeRootByIndex_Call) Return(_a0 treetypes.Root, _a1 error) *L1InfoTreeSyncerMock_GetL1InfoTreeRootByIndex_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *L1InfoTreeSyncerMock_GetL1InfoTreeRootByIndex_Call) RunAndReturn(run func(context.Context, uint32) (treetypes.Root, error)) *L1InfoTreeSyncerMock_GetL1InfoTreeRootByIndex_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewL1InfoTreeSyncerMock creates a new instance of L1InfoTreeSyncerMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewL1InfoTreeSyncerMock(t interface {
