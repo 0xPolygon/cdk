@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	migrationsBridge "github.com/0xPolygon/cdk/bridgesync/migrations"
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree/testvectors"
@@ -27,6 +28,53 @@ func TestBigIntString(t *testing.T) {
 
 	_, ok := new(big.Int).SetString(globalIndex.String(), 10)
 	require.True(t, ok)
+
+	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+
+	err := migrationsBridge.RunMigrations(dbPath)
+	require.NoError(t, err)
+	db, err := db.NewSQLiteDB(dbPath)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+
+	claim := &Claim{
+		BlockNum:            1,
+		BlockPos:            0,
+		GlobalIndex:         GenerateGlobalIndex(true, 0, 1093),
+		OriginNetwork:       11,
+		Amount:              big.NewInt(11),
+		OriginAddress:       common.HexToAddress("0x11"),
+		DestinationAddress:  common.HexToAddress("0x11"),
+		ProofLocalExitRoot:  types.Proof{},
+		ProofRollupExitRoot: types.Proof{},
+		MainnetExitRoot:     common.Hash{},
+		RollupExitRoot:      common.Hash{},
+		GlobalExitRoot:      common.Hash{},
+		DestinationNetwork:  12,
+	}
+
+	_, err = tx.Exec(`INSERT INTO block (num) VALUES ($1)`, claim.BlockNum)
+	require.NoError(t, err)
+	require.NoError(t, meddler.Insert(tx, "claim", claim))
+
+	require.NoError(t, tx.Commit())
+
+	tx, err = db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+
+	rows, err := tx.Query(`
+		SELECT * FROM claim
+		WHERE block_num >= $1 AND block_num <= $2;
+	`, claim.BlockNum, claim.BlockNum)
+	require.NoError(t, err)
+
+	claimsFromDB := []*Claim{}
+	require.NoError(t, meddler.ScanAll(rows, &claimsFromDB))
+	require.Len(t, claimsFromDB, 1)
+	require.Equal(t, claim, claimsFromDB[0])
 }
 
 func TestProceessor(t *testing.T) {
