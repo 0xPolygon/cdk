@@ -270,10 +270,12 @@ func Test_processor_Reorg(t *testing.T) {
 }
 
 func TestProofsFromDifferentTrees(t *testing.T) {
+	fmt.Println("aggregator L1InfoTree ===============================================")
+
 	l1Tree, err := l1infotree.NewL1InfoTree(log.WithFields("test"), types.DefaultHeight, [][32]byte{})
 	require.NoError(t, err)
 
-	leaves := createTestLeaves(2)
+	leaves := createTestLeaves(t, 2)
 
 	aLeaves := make([][32]byte, len(leaves))
 	for i, leaf := range leaves {
@@ -283,17 +285,17 @@ func TestProofsFromDifferentTrees(t *testing.T) {
 			leaf.Timestamp)
 	}
 
-	proof, root, err := l1Tree.ComputeMerkleProof(leaves[0].L1InfoTreeIndex, aLeaves)
+	aggregatorL1InfoTree, aggregatorRoot, err := l1Tree.ComputeMerkleProof(leaves[0].L1InfoTreeIndex, aLeaves)
 	require.NoError(t, err)
 
-	hashProof := make([]common.Hash, len(proof))
-	for i, p := range proof {
-		hashProof[i] = common.BytesToHash(p[:])
+	aggregatorProof := types.Proof{}
+	for i, p := range aggregatorL1InfoTree {
+		aggregatorProof[i] = common.BytesToHash(p[:])
 	}
 
-	fmt.Println(root)
-	fmt.Println(hashProof)
-	fmt.Println("===========================================================================================================")
+	fmt.Println(aggregatorRoot)
+	fmt.Println(aggregatorProof)
+	fmt.Println("l1 info tree syncer L1InfoTree ===============================================")
 
 	dbPath := "file:l1InfoTreeTest?mode=memory&cache=shared"
 	require.NoError(t, migrations.RunMigrations(dbPath))
@@ -317,19 +319,24 @@ func TestProofsFromDifferentTrees(t *testing.T) {
 
 	require.NoError(t, tx.Commit())
 
-	rootToProof, err := l1InfoTree.GetRootByIndex(context.Background(), leaves[1].L1InfoTreeIndex)
+	l1InfoTreeSyncerRoot, err := l1InfoTree.GetRootByIndex(context.Background(), leaves[1].L1InfoTreeIndex)
 	require.NoError(t, err)
-	pro, err := l1InfoTree.GetProof(context.Background(), leaves[0].L1InfoTreeIndex, rootToProof.Hash)
+	l1InfoTreeSyncerProof, err := l1InfoTree.GetProof(context.Background(), leaves[0].L1InfoTreeIndex, l1InfoTreeSyncerRoot.Hash)
 	require.NoError(t, err)
-	for i, l := range proof {
-		require.Equal(t, common.Hash(l), pro[i])
+	for i, l := range aggregatorL1InfoTree {
+		require.Equal(t, common.Hash(l), l1InfoTreeSyncerProof[i])
 	}
 
 	fmt.Println(leaves[0].GlobalExitRoot)
-	fmt.Println(pro)
+	fmt.Println(l1InfoTreeSyncerProof)
+
+	require.Equal(t, aggregatorRoot, l1InfoTreeSyncerRoot.Hash)
+	require.Equal(t, aggregatorProof, l1InfoTreeSyncerProof)
 }
 
-func createTestLeaves(numOfLeaves int) []*L1InfoTreeLeaf {
+func createTestLeaves(t *testing.T, numOfLeaves int) []*L1InfoTreeLeaf {
+	t.Helper()
+
 	leaves := make([]*L1InfoTreeLeaf, 0, numOfLeaves)
 
 	for i := 0; i < numOfLeaves; i++ {
