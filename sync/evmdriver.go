@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
@@ -127,7 +128,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFun
 		}
 		err := d.processor.ProcessBlock(ctx, blockToProcess)
 		if err != nil {
-			if err == ErrInconsistentState {
+			if errors.Is(err, ErrInconsistentState) {
 				log.Warn("state got inconsistent after processing this block. Stopping downloader until there is a reorg")
 				cancel()
 				return
