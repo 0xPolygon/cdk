@@ -307,27 +307,38 @@ func (a *AggSender) getBridgeExits(bridges []bridgesync.Bridge) []*agglayer.Brid
 func (a *AggSender) getImportedBridgeExits(
 	ctx context.Context, claims []bridgesync.Claim,
 ) ([]*agglayer.ImportedBridgeExit, error) {
-	importedBridgeExits := make([]*agglayer.ImportedBridgeExit, 0, len(claims))
-	claimL1Info := make([]*l1infotreesync.L1InfoTreeLeaf, 0, len(claims))
+	if len(claims) == 0 {
+		// no claims to convert
+		return nil, nil
+	}
+
 	var (
 		greatestL1InfoTreeIndexUsed uint32
+		importedBridgeExits         = make([]*agglayer.ImportedBridgeExit, 0, len(claims))
+		claimL1Info                 = make([]*l1infotreesync.L1InfoTreeLeaf, 0, len(claims))
 	)
+
 	for _, claim := range claims {
 		info, err := a.l1infoTreeSyncer.GetInfoByGlobalExitRoot(claim.GlobalExitRoot)
 		if err != nil {
 			return nil, fmt.Errorf("error getting info by global exit root: %w", err)
 		}
+
 		claimL1Info = append(claimL1Info, info)
+
 		if info.L1InfoTreeIndex > greatestL1InfoTreeIndexUsed {
 			greatestL1InfoTreeIndexUsed = info.L1InfoTreeIndex
 		}
 	}
+
 	rootToProve, err := a.l1infoTreeSyncer.GetL1InfoTreeRootByIndex(ctx, greatestL1InfoTreeIndexUsed)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting L1 Info tree root by index: %d. Error: %w", greatestL1InfoTreeIndexUsed, err)
 	}
 
 	for i, claim := range claims {
+		l1Info := claimL1Info[i]
+
 		a.log.Debugf("claim[%d]: destAddr: %s GER:%s", i, claim.DestinationAddress.String(), claim.GlobalExitRoot.String())
 		ibe, err := a.convertClaimToImportedBridgeExit(claim)
 		if err != nil {
@@ -337,12 +348,12 @@ func (a *AggSender) getImportedBridgeExits(
 		importedBridgeExits = append(importedBridgeExits, ibe)
 
 		gerToL1Proof, err := a.l1infoTreeSyncer.GetL1InfoTreeMerkleProofFromIndexToRoot(
-			ctx, claimL1Info[i].L1InfoTreeIndex, rootToProve.Hash,
+			ctx, l1Info.L1InfoTreeIndex, rootToProve.Hash,
 		)
 		if err != nil {
 			return nil, fmt.Errorf(
 				"error getting L1 Info tree merkle proof for leaf index: %d and root: %s. Error: %w",
-				claimL1Info[i].L1InfoTreeIndex, rootToProve.Hash, err,
+				l1Info.L1InfoTreeIndex, rootToProve.Hash, err,
 			)
 		}
 
@@ -350,13 +361,13 @@ func (a *AggSender) getImportedBridgeExits(
 		if ibe.GlobalIndex.MainnetFlag {
 			ibe.ClaimData = &agglayer.ClaimFromMainnnet{
 				L1Leaf: &agglayer.L1InfoTreeLeaf{
-					L1InfoTreeIndex: claimL1Info[i].L1InfoTreeIndex,
+					L1InfoTreeIndex: l1Info.L1InfoTreeIndex,
 					RollupExitRoot:  claim.RollupExitRoot,
 					MainnetExitRoot: claim.MainnetExitRoot,
 					Inner: &agglayer.L1InfoTreeLeafInner{
-						GlobalExitRoot: claimL1Info[i].GlobalExitRoot,
-						Timestamp:      claimL1Info[i].Timestamp,
-						BlockHash:      claimL1Info[i].PreviousBlockHash,
+						GlobalExitRoot: l1Info.GlobalExitRoot,
+						Timestamp:      l1Info.Timestamp,
+						BlockHash:      l1Info.PreviousBlockHash,
 					},
 				},
 				ProofLeafMER: &agglayer.MerkleProof{
@@ -364,20 +375,20 @@ func (a *AggSender) getImportedBridgeExits(
 					Proof: claim.ProofLocalExitRoot,
 				},
 				ProofGERToL1Root: &agglayer.MerkleProof{
-					Root:  claimL1Info[i].GlobalExitRoot,
+					Root:  rootToProve.Hash,
 					Proof: gerToL1Proof,
 				},
 			}
 		} else {
 			ibe.ClaimData = &agglayer.ClaimFromRollup{
 				L1Leaf: &agglayer.L1InfoTreeLeaf{
-					L1InfoTreeIndex: claimL1Info[i].L1InfoTreeIndex,
+					L1InfoTreeIndex: l1Info.L1InfoTreeIndex,
 					RollupExitRoot:  claim.RollupExitRoot,
 					MainnetExitRoot: claim.MainnetExitRoot,
 					Inner: &agglayer.L1InfoTreeLeafInner{
-						GlobalExitRoot: claimL1Info[i].GlobalExitRoot,
-						Timestamp:      claimL1Info[i].Timestamp,
-						BlockHash:      claimL1Info[i].PreviousBlockHash,
+						GlobalExitRoot: l1Info.GlobalExitRoot,
+						Timestamp:      l1Info.Timestamp,
+						BlockHash:      l1Info.PreviousBlockHash,
 					},
 				},
 				ProofLeafLER: &agglayer.MerkleProof{
@@ -389,7 +400,7 @@ func (a *AggSender) getImportedBridgeExits(
 					Proof: claim.ProofRollupExitRoot,
 				},
 				ProofGERToL1Root: &agglayer.MerkleProof{
-					Root:  claimL1Info[i].GlobalExitRoot,
+					Root:  rootToProve.Hash,
 					Proof: gerToL1Proof,
 				},
 			}

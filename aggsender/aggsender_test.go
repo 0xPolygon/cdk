@@ -258,6 +258,8 @@ func TestGetImportedBridgeExits(t *testing.T) {
 		PreviousBlockHash: common.HexToHash("0xabc"),
 		GlobalExitRoot:    common.HexToHash("0x7891"),
 	}, nil)
+	mockL1InfoTreeSyncer.On("GetL1InfoTreeRootByIndex", mock.Anything, mock.Anything).Return(
+		treeTypes.Root{Hash: common.HexToHash("0x7891")}, nil)
 	mockL1InfoTreeSyncer.On("GetL1InfoTreeMerkleProofFromIndexToRoot", mock.Anything,
 		mock.Anything, mock.Anything).Return(mockProof, nil)
 
@@ -481,207 +483,221 @@ func TestGetImportedBridgeExits(t *testing.T) {
 	}
 }
 
-// func TestBuildCertificate(t *testing.T) {
-// 	mockL2BridgeSyncer := mocks.NewL2BridgeSyncerMock(t)
-// 	mockL1InfoTreeSyncer := mocks.NewL1InfoTreeSyncerMock(t)
-// 	mockProof := generateTestProof(t)
+func TestBuildCertificate(t *testing.T) {
+	mockL2BridgeSyncer := mocks.NewL2BridgeSyncerMock(t)
+	mockL1InfoTreeSyncer := mocks.NewL1InfoTreeSyncerMock(t)
+	mockProof := generateTestProof(t)
 
-// 	tests := []struct {
-// 		name          string
-// 		bridges       []bridgesync.Bridge
-// 		claims        []bridgesync.Claim
-// 		previousExit  common.Hash
-// 		lastHeight    uint64
-// 		mockFn        func()
-// 		expectedCert  *agglayer.Certificate
-// 		expectedError bool
-// 	}{
-// 		{
-// 			name: "Valid certificate with bridges and claims",
-// 			bridges: []bridgesync.Bridge{
-// 				{
-// 					LeafType:           agglayer.LeafTypeAsset.Uint8(),
-// 					OriginNetwork:      1,
-// 					OriginAddress:      common.HexToAddress("0x123"),
-// 					DestinationNetwork: 2,
-// 					DestinationAddress: common.HexToAddress("0x456"),
-// 					Amount:             big.NewInt(100),
-// 					Metadata:           []byte("metadata"),
-// 					DepositCount:       1,
-// 				},
-// 			},
-// 			claims: []bridgesync.Claim{
-// 				{
-// 					IsMessage:          false,
-// 					OriginNetwork:      1,
-// 					OriginAddress:      common.HexToAddress("0x1234"),
-// 					DestinationNetwork: 2,
-// 					DestinationAddress: common.HexToAddress("0x4567"),
-// 					Amount:             big.NewInt(111),
-// 					Metadata:           []byte("metadata1"),
-// 					GlobalIndex:        big.NewInt(1),
-// 					GlobalExitRoot:     common.HexToHash("0x7891"),
-// 					RollupExitRoot:     common.HexToHash("0xaaab"),
-// 					MainnetExitRoot:    common.HexToHash("0xbbba"),
-// 					ProofLocalExitRoot: mockProof,
-// 				},
-// 			},
-// 			previousExit: common.HexToHash("0x123"),
-// 			lastHeight:   1,
-// 			expectedCert: &agglayer.Certificate{
-// 				NetworkID:         1,
-// 				PrevLocalExitRoot: common.HexToHash("0x123"),
-// 				NewLocalExitRoot:  common.HexToHash("0x789"),
-// 				BridgeExits: []*agglayer.BridgeExit{
-// 					{
-// 						LeafType: agglayer.LeafTypeAsset,
-// 						TokenInfo: &agglayer.TokenInfo{
-// 							OriginNetwork:      1,
-// 							OriginTokenAddress: common.HexToAddress("0x123"),
-// 						},
-// 						DestinationNetwork: 2,
-// 						DestinationAddress: common.HexToAddress("0x456"),
-// 						Amount:             big.NewInt(100),
-// 						Metadata:           []byte("metadata"),
-// 					},
-// 				},
-// 				ImportedBridgeExits: []*agglayer.ImportedBridgeExit{
-// 					{
-// 						BridgeExit: &agglayer.BridgeExit{
-// 							LeafType: agglayer.LeafTypeAsset,
-// 							TokenInfo: &agglayer.TokenInfo{
-// 								OriginNetwork:      1,
-// 								OriginTokenAddress: common.HexToAddress("0x1234"),
-// 							},
-// 							DestinationNetwork: 2,
-// 							DestinationAddress: common.HexToAddress("0x4567"),
-// 							Amount:             big.NewInt(111),
-// 							Metadata:           []byte("metadata1"),
-// 						},
-// 						GlobalIndex: &agglayer.GlobalIndex{
-// 							MainnetFlag: false,
-// 							RollupIndex: 0,
-// 							LeafIndex:   1,
-// 						},
-// 						ClaimData: &agglayer.ClaimFromRollup{
-// 							L1Leaf: &agglayer.L1InfoTreeLeaf{
-// 								L1InfoTreeIndex: 1,
-// 								RollupExitRoot:  common.HexToHash("0xaaab"),
-// 								MainnetExitRoot: common.HexToHash("0xbbba"),
-// 								Inner: &agglayer.L1InfoTreeLeafInner{
-// 									GlobalExitRoot: common.HexToHash("0x7891"),
-// 									Timestamp:      123456789,
-// 									BlockHash:      common.HexToHash("0xabc"),
-// 								},
-// 							},
-// 							ProofLeafLER: &agglayer.MerkleProof{
-// 								Root:  common.HexToHash("0xbbba"),
-// 								Proof: mockProof,
-// 							},
-// 							ProofLERToRER: &agglayer.MerkleProof{},
-// 							ProofGERToL1Root: &agglayer.MerkleProof{
-// 								Root:  common.HexToHash("0x7891"),
-// 								Proof: mockProof,
-// 							},
-// 						},
-// 					},
-// 				},
-// 				Height: 2,
-// 			},
-// 			mockFn: func() {
-// 				mockL2BridgeSyncer.On("OriginNetwork").Return(uint32(1))
-// 				mockL2BridgeSyncer.On("GetExitRootByIndex", mock.Anything, mock.Anything).Return(treeTypes.Root{Hash: common.HexToHash("0x789")}, nil)
+	tests := []struct {
+		name                    string
+		bridges                 []bridgesync.Bridge
+		claims                  []bridgesync.Claim
+		lastSentCertificateInfo aggsendertypes.CertificateInfo
+		mockFn                  func()
+		expectedCert            *agglayer.Certificate
+		expectedError           bool
+	}{
+		{
+			name: "Valid certificate with bridges and claims",
+			bridges: []bridgesync.Bridge{
+				{
+					LeafType:           agglayer.LeafTypeAsset.Uint8(),
+					OriginNetwork:      1,
+					OriginAddress:      common.HexToAddress("0x123"),
+					DestinationNetwork: 2,
+					DestinationAddress: common.HexToAddress("0x456"),
+					Amount:             big.NewInt(100),
+					Metadata:           []byte("metadata"),
+					DepositCount:       1,
+				},
+			},
+			claims: []bridgesync.Claim{
+				{
+					IsMessage:           false,
+					OriginNetwork:       1,
+					OriginAddress:       common.HexToAddress("0x1234"),
+					DestinationNetwork:  2,
+					DestinationAddress:  common.HexToAddress("0x4567"),
+					Amount:              big.NewInt(111),
+					Metadata:            []byte("metadata1"),
+					GlobalIndex:         big.NewInt(1),
+					GlobalExitRoot:      common.HexToHash("0x7891"),
+					RollupExitRoot:      common.HexToHash("0xaaab"),
+					MainnetExitRoot:     common.HexToHash("0xbbba"),
+					ProofLocalExitRoot:  mockProof,
+					ProofRollupExitRoot: mockProof,
+				},
+			},
+			lastSentCertificateInfo: aggsendertypes.CertificateInfo{
+				NewLocalExitRoot: common.HexToHash("0x123"),
+				Height:           1,
+			},
+			expectedCert: &agglayer.Certificate{
+				NetworkID:         1,
+				PrevLocalExitRoot: common.HexToHash("0x123"),
+				NewLocalExitRoot:  common.HexToHash("0x789"),
+				BridgeExits: []*agglayer.BridgeExit{
+					{
+						LeafType: agglayer.LeafTypeAsset,
+						TokenInfo: &agglayer.TokenInfo{
+							OriginNetwork:      1,
+							OriginTokenAddress: common.HexToAddress("0x123"),
+						},
+						DestinationNetwork: 2,
+						DestinationAddress: common.HexToAddress("0x456"),
+						Amount:             big.NewInt(100),
+						Metadata:           []byte("metadata"),
+					},
+				},
+				ImportedBridgeExits: []*agglayer.ImportedBridgeExit{
+					{
+						BridgeExit: &agglayer.BridgeExit{
+							LeafType: agglayer.LeafTypeAsset,
+							TokenInfo: &agglayer.TokenInfo{
+								OriginNetwork:      1,
+								OriginTokenAddress: common.HexToAddress("0x1234"),
+							},
+							DestinationNetwork: 2,
+							DestinationAddress: common.HexToAddress("0x4567"),
+							Amount:             big.NewInt(111),
+							Metadata:           []byte("metadata1"),
+						},
+						GlobalIndex: &agglayer.GlobalIndex{
+							MainnetFlag: false,
+							RollupIndex: 0,
+							LeafIndex:   1,
+						},
+						ClaimData: &agglayer.ClaimFromRollup{
+							L1Leaf: &agglayer.L1InfoTreeLeaf{
+								L1InfoTreeIndex: 1,
+								RollupExitRoot:  common.HexToHash("0xaaab"),
+								MainnetExitRoot: common.HexToHash("0xbbba"),
+								Inner: &agglayer.L1InfoTreeLeafInner{
+									GlobalExitRoot: common.HexToHash("0x7891"),
+									Timestamp:      123456789,
+									BlockHash:      common.HexToHash("0xabc"),
+								},
+							},
+							ProofLeafLER: &agglayer.MerkleProof{
+								Root:  common.HexToHash("0xbbba"),
+								Proof: mockProof,
+							},
+							ProofLERToRER: &agglayer.MerkleProof{
+								Root:  common.HexToHash("0xaaab"),
+								Proof: mockProof,
+							},
+							ProofGERToL1Root: &agglayer.MerkleProof{
+								Root:  common.HexToHash("0x7891"),
+								Proof: mockProof,
+							},
+						},
+					},
+				},
+				Height: 2,
+			},
+			mockFn: func() {
+				mockL2BridgeSyncer.On("OriginNetwork").Return(uint32(1))
+				mockL2BridgeSyncer.On("GetExitRootByIndex", mock.Anything, mock.Anything).Return(treeTypes.Root{Hash: common.HexToHash("0x789")}, nil)
 
-// 				mockL1InfoTreeSyncer.On("GetInfoByGlobalExitRoot", mock.Anything).Return(&l1infotreesync.L1InfoTreeLeaf{
-// 					L1InfoTreeIndex:   1,
-// 					Timestamp:         123456789,
-// 					PreviousBlockHash: common.HexToHash("0xabc"),
-// 				}, nil)
-// 				mockL1InfoTreeSyncer.On("GetL1InfoTreeMerkleProofFromIndexToRoot", mock.Anything, mock.Anything, mock.Anything).Return(mockProof, nil)
-// 			},
-// 			expectedError: false,
-// 		},
-// 		{
-// 			name:          "No bridges or claims",
-// 			bridges:       []bridgesync.Bridge{},
-// 			claims:        []bridgesync.Claim{},
-// 			previousExit:  common.HexToHash("0x123"),
-// 			lastHeight:    1,
-// 			expectedCert:  nil,
-// 			expectedError: true,
-// 		},
-// 		{
-// 			name: "Error getting imported bridge exits",
-// 			bridges: []bridgesync.Bridge{
-// 				{
-// 					LeafType:           agglayer.LeafTypeAsset.Uint8(),
-// 					OriginNetwork:      1,
-// 					OriginAddress:      common.HexToAddress("0x123"),
-// 					DestinationNetwork: 2,
-// 					DestinationAddress: common.HexToAddress("0x456"),
-// 					Amount:             big.NewInt(100),
-// 					Metadata:           []byte("metadata"),
-// 					DepositCount:       1,
-// 				},
-// 			},
-// 			claims: []bridgesync.Claim{
-// 				{
-// 					IsMessage:          false,
-// 					OriginNetwork:      1,
-// 					OriginAddress:      common.HexToAddress("0x1234"),
-// 					DestinationNetwork: 2,
-// 					DestinationAddress: common.HexToAddress("0x4567"),
-// 					Amount:             big.NewInt(111),
-// 					Metadata:           []byte("metadata1"),
-// 					GlobalIndex:        new(big.Int).SetBytes([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
-// 					GlobalExitRoot:     common.HexToHash("0x7891"),
-// 					RollupExitRoot:     common.HexToHash("0xaaab"),
-// 					MainnetExitRoot:    common.HexToHash("0xbbba"),
-// 					ProofLocalExitRoot: mockProof,
-// 				},
-// 			},
-// 			previousExit: common.HexToHash("0x123"),
-// 			lastHeight:   1,
-// 			mockFn: func() {
-// 				mockL1InfoTreeSyncer.On("GetInfoByGlobalExitRoot", mock.Anything).Return(&l1infotreesync.L1InfoTreeLeaf{
-// 					L1InfoTreeIndex:   1,
-// 					Timestamp:         123456789,
-// 					PreviousBlockHash: common.HexToHash("0xabc"),
-// 				}, nil)
-// 			},
-// 			expectedCert:  nil,
-// 			expectedError: true,
-// 		},
-// 	}
+				mockL1InfoTreeSyncer.On("GetInfoByGlobalExitRoot", mock.Anything).Return(&l1infotreesync.L1InfoTreeLeaf{
+					L1InfoTreeIndex:   1,
+					Timestamp:         123456789,
+					PreviousBlockHash: common.HexToHash("0xabc"),
+					GlobalExitRoot:    common.HexToHash("0x7891"),
+				}, nil)
+				mockL1InfoTreeSyncer.On("GetL1InfoTreeRootByIndex", mock.Anything, mock.Anything).Return(treeTypes.Root{Hash: common.HexToHash("0x7891")}, nil)
+				mockL1InfoTreeSyncer.On("GetL1InfoTreeMerkleProofFromIndexToRoot", mock.Anything, mock.Anything, mock.Anything).Return(mockProof, nil)
+			},
+			expectedError: false,
+		},
+		{
+			name:    "No bridges or claims",
+			bridges: []bridgesync.Bridge{},
+			claims:  []bridgesync.Claim{},
+			lastSentCertificateInfo: aggsendertypes.CertificateInfo{
+				NewLocalExitRoot: common.HexToHash("0x123"),
+				Height:           1,
+			},
+			expectedCert:  nil,
+			expectedError: true,
+		},
+		{
+			name: "Error getting imported bridge exits",
+			bridges: []bridgesync.Bridge{
+				{
+					LeafType:           agglayer.LeafTypeAsset.Uint8(),
+					OriginNetwork:      1,
+					OriginAddress:      common.HexToAddress("0x123"),
+					DestinationNetwork: 2,
+					DestinationAddress: common.HexToAddress("0x456"),
+					Amount:             big.NewInt(100),
+					Metadata:           []byte("metadata"),
+					DepositCount:       1,
+				},
+			},
+			claims: []bridgesync.Claim{
+				{
+					IsMessage:          false,
+					OriginNetwork:      1,
+					OriginAddress:      common.HexToAddress("0x1234"),
+					DestinationNetwork: 2,
+					DestinationAddress: common.HexToAddress("0x4567"),
+					Amount:             big.NewInt(111),
+					Metadata:           []byte("metadata1"),
+					GlobalIndex:        new(big.Int).SetBytes([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+					GlobalExitRoot:     common.HexToHash("0x7891"),
+					RollupExitRoot:     common.HexToHash("0xaaab"),
+					MainnetExitRoot:    common.HexToHash("0xbbba"),
+					ProofLocalExitRoot: mockProof,
+				},
+			},
+			lastSentCertificateInfo: aggsendertypes.CertificateInfo{
+				NewLocalExitRoot: common.HexToHash("0x123"),
+				Height:           1,
+			},
+			mockFn: func() {
+				mockL1InfoTreeSyncer.On("GetInfoByGlobalExitRoot", mock.Anything).Return(&l1infotreesync.L1InfoTreeLeaf{
+					L1InfoTreeIndex:   1,
+					Timestamp:         123456789,
+					PreviousBlockHash: common.HexToHash("0xabc"),
+					GlobalExitRoot:    common.HexToHash("0x7891"),
+				}, nil)
+				mockL1InfoTreeSyncer.On("GetL1InfoTreeRootByIndex", mock.Anything, mock.Anything).Return(
+					treeTypes.Root{Hash: common.HexToHash("0x7891")}, nil)
+			},
+			expectedCert:  nil,
+			expectedError: true,
+		},
+	}
 
-// 	for _, tt := range tests {
-// 		tt := tt
+	for _, tt := range tests {
+		tt := tt
 
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			mockL1InfoTreeSyncer.ExpectedCalls = nil
-// 			mockL2BridgeSyncer.ExpectedCalls = nil
+		t.Run(tt.name, func(t *testing.T) {
+			mockL1InfoTreeSyncer.ExpectedCalls = nil
+			mockL2BridgeSyncer.ExpectedCalls = nil
 
-// 			if tt.mockFn != nil {
-// 				tt.mockFn()
-// 			}
+			if tt.mockFn != nil {
+				tt.mockFn()
+			}
 
-// 			aggSender := &AggSender{
-// 				l2Syncer:         mockL2BridgeSyncer,
-// 				l1infoTreeSyncer: mockL1InfoTreeSyncer,
-// 				log:              log.WithFields("test", "unittest"),
-// 			}
-// 			cert, err := aggSender.buildCertificate(context.Background(), tt.bridges, tt.claims, tt.previousExit, tt.lastHeight)
+			aggSender := &AggSender{
+				l2Syncer:         mockL2BridgeSyncer,
+				l1infoTreeSyncer: mockL1InfoTreeSyncer,
+				log:              log.WithFields("test", "unittest"),
+			}
+			cert, err := aggSender.buildCertificate(context.Background(), tt.bridges, tt.claims, tt.lastSentCertificateInfo)
 
-// 			if tt.expectedError {
-// 				require.Error(t, err)
-// 				require.Nil(t, cert)
-// 			} else {
-// 				require.NoError(t, err)
-// 				require.Equal(t, tt.expectedCert, cert)
-// 			}
-// 		})
-// 	}
-// }
+			if tt.expectedError {
+				require.Error(t, err)
+				require.Nil(t, cert)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedCert, cert)
+			}
+		})
+	}
+}
 
 func generateTestProof(t *testing.T) treeTypes.Proof {
 	t.Helper()
@@ -840,19 +856,21 @@ func TestSendCertificate(t *testing.T) {
 	require.NoError(t, err)
 
 	type testCfg struct {
-		name                    string
-		sequencerKey            *ecdsa.PrivateKey
-		shouldSendCertificate   []interface{}
-		getLastSentCertificate  []interface{}
-		lastL2BlockProcessed    []interface{}
-		getBridges              []interface{}
-		getClaims               []interface{}
-		getInfoByGlobalExitRoot []interface{}
-		getExitRootByIndex      []interface{}
-		originNetwork           []interface{}
-		sendCertificate         []interface{}
-		saveLastSentCertificate []interface{}
-		expectedError           string
+		name                                    string
+		sequencerKey                            *ecdsa.PrivateKey
+		shouldSendCertificate                   []interface{}
+		getLastSentCertificate                  []interface{}
+		lastL2BlockProcessed                    []interface{}
+		getBridges                              []interface{}
+		getClaims                               []interface{}
+		getInfoByGlobalExitRoot                 []interface{}
+		getL1InfoTreeRootByIndex                []interface{}
+		getL1InfoTreeMerkleProofFromIndexToRoot []interface{}
+		getExitRootByIndex                      []interface{}
+		originNetwork                           []interface{}
+		sendCertificate                         []interface{}
+		saveLastSentCertificate                 []interface{}
+		expectedError                           string
 	}
 
 	setupTest := func(cfg testCfg) (*AggSender, *mocks.AggSenderStorageMock, *mocks.L2BridgeSyncerMock,
@@ -918,9 +936,19 @@ func TestSendCertificate(t *testing.T) {
 			aggsender.aggLayerClient = mockAggLayerClient
 		}
 
-		if cfg.getInfoByGlobalExitRoot != nil {
+		if cfg.getInfoByGlobalExitRoot != nil ||
+			cfg.getL1InfoTreeRootByIndex != nil || cfg.getL1InfoTreeMerkleProofFromIndexToRoot != nil {
 			mockL1InfoTreeSyncer = mocks.NewL1InfoTreeSyncerMock(t)
 			mockL1InfoTreeSyncer.On("GetInfoByGlobalExitRoot", mock.Anything).Return(cfg.getInfoByGlobalExitRoot...).Once()
+
+			if cfg.getL1InfoTreeRootByIndex != nil {
+				mockL1InfoTreeSyncer.On("GetL1InfoTreeRootByIndex", mock.Anything, mock.Anything).Return(cfg.getL1InfoTreeRootByIndex...).Once()
+			}
+
+			if cfg.getL1InfoTreeMerkleProofFromIndexToRoot != nil {
+				mockL1InfoTreeSyncer.On("GetL1InfoTreeMerkleProofFromIndexToRoot", mock.Anything, mock.Anything, mock.Anything).
+					Return(cfg.getL1InfoTreeMerkleProofFromIndexToRoot...).Once()
+			}
 
 			aggsender.l1infoTreeSyncer = mockL1InfoTreeSyncer
 		}
@@ -1009,7 +1037,7 @@ func TestSendCertificate(t *testing.T) {
 			expectedError: "error getting claims",
 		},
 		{
-			name:                  "error building certificate",
+			name:                  "error getting info by global exit root",
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(89), nil},
 			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
@@ -1033,7 +1061,83 @@ func TestSendCertificate(t *testing.T) {
 				},
 			}, nil},
 			getInfoByGlobalExitRoot: []interface{}{nil, errors.New("error getting info by global exit root")},
-			expectedError:           "error building certificate",
+			expectedError:           "error getting info by global exit root",
+		},
+		{
+			name:                  "error getting L1 Info tree root by index",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(89), nil},
+			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
+				Height:           80,
+				CertificateID:    common.HexToHash("0x1321111"),
+				NewLocalExitRoot: common.HexToHash("0x131122233"),
+				FromBlock:        70,
+				ToBlock:          71,
+			}, nil},
+			getBridges: []interface{}{[]bridgesync.Bridge{
+				{
+					BlockNum:      71,
+					BlockPos:      0,
+					LeafType:      agglayer.LeafTypeAsset.Uint8(),
+					OriginNetwork: 1,
+				},
+			}, nil},
+			getClaims: []interface{}{[]bridgesync.Claim{
+				{
+					IsMessage: false,
+				},
+			}, nil},
+			getInfoByGlobalExitRoot: []interface{}{&l1infotreesync.L1InfoTreeLeaf{
+				L1InfoTreeIndex:   1,
+				BlockNumber:       1,
+				BlockPosition:     0,
+				PreviousBlockHash: common.HexToHash("0x123"),
+				Timestamp:         123456789,
+				MainnetExitRoot:   common.HexToHash("0xccc"),
+				RollupExitRoot:    common.HexToHash("0xddd"),
+				GlobalExitRoot:    common.HexToHash("0xeee"),
+			}, nil},
+			getL1InfoTreeRootByIndex: []interface{}{treeTypes.Root{}, errors.New("error getting L1 Info tree root by index")},
+			expectedError:            "error getting L1 Info tree root by index",
+		},
+		{
+			name:                  "error getting L1 Info tree merkle proof from index to root",
+			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
+			lastL2BlockProcessed:  []interface{}{uint64(89), nil},
+			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
+				Height:           80,
+				CertificateID:    common.HexToHash("0x1321111"),
+				NewLocalExitRoot: common.HexToHash("0x131122233"),
+				FromBlock:        70,
+				ToBlock:          71,
+			}, nil},
+			getBridges: []interface{}{[]bridgesync.Bridge{
+				{
+					BlockNum:      71,
+					BlockPos:      0,
+					LeafType:      agglayer.LeafTypeAsset.Uint8(),
+					OriginNetwork: 1,
+				},
+			}, nil},
+			getClaims: []interface{}{[]bridgesync.Claim{
+				{
+					IsMessage:   false,
+					GlobalIndex: big.NewInt(1),
+				},
+			}, nil},
+			getInfoByGlobalExitRoot: []interface{}{&l1infotreesync.L1InfoTreeLeaf{
+				L1InfoTreeIndex:   1,
+				BlockNumber:       1,
+				BlockPosition:     0,
+				PreviousBlockHash: common.HexToHash("0x123"),
+				Timestamp:         123456789,
+				MainnetExitRoot:   common.HexToHash("0xccc"),
+				RollupExitRoot:    common.HexToHash("0xddd"),
+				GlobalExitRoot:    common.HexToHash("0xeee"),
+			}, nil},
+			getL1InfoTreeRootByIndex:                []interface{}{treeTypes.Root{Hash: common.HexToHash("0xeee")}, nil},
+			getL1InfoTreeMerkleProofFromIndexToRoot: []interface{}{treeTypes.Proof{}, errors.New("error getting L1 Info tree merkle proof")},
+			expectedError:                           "error getting L1 Info tree merkle proof for leaf index",
 		},
 		{
 			name:                  "send certificate error",
