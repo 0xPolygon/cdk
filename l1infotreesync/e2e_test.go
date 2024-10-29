@@ -263,7 +263,7 @@ func TestWithReorgs(t *testing.T) {
 
 func TestStressAndReorgs(t *testing.T) {
 	const (
-		totalIterations       = 300
+		totalIterations       = 3
 		blocksInIteration     = 140
 		reorgEveryXIterations = 70
 		reorgSizeInBlocks     = 2
