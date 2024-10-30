@@ -83,6 +83,7 @@ type Certificate struct {
 	NewLocalExitRoot    [32]byte              `json:"new_local_exit_root"`
 	BridgeExits         []*BridgeExit         `json:"bridge_exits"`
 	ImportedBridgeExits []*ImportedBridgeExit `json:"imported_bridge_exits"`
+	Metadata            common.Hash           `json:"metadata"`
 }
 
 // Hash returns a hash that uniquely identifies the certificate
@@ -107,6 +108,20 @@ func (c *Certificate) Hash() common.Hash {
 		c.NewLocalExitRoot[:],
 		bridgeExitsPart,
 		importedBridgeExitsPart,
+	)
+}
+
+// HashToSign is the actual hash that needs to be signed by the aggsender
+// as expected by the agglayer
+func (c *Certificate) HashToSign() common.Hash {
+	globalIndexHashes := make([][]byte, len(c.ImportedBridgeExits))
+	for i, importedBridgeExit := range c.ImportedBridgeExits {
+		globalIndexHashes[i] = importedBridgeExit.GlobalIndex.Hash().Bytes()
+	}
+
+	return crypto.Keccak256Hash(
+		c.NewLocalExitRoot[:],
+		crypto.Keccak256Hash(globalIndexHashes...).Bytes(),
 	)
 }
 
@@ -138,7 +153,10 @@ type GlobalIndex struct {
 
 func (g *GlobalIndex) Hash() common.Hash {
 	return crypto.Keccak256Hash(
-		bridgesync.GenerateGlobalIndex(g.MainnetFlag, g.RollupIndex, g.LeafIndex).Bytes())
+		cdkcommon.AsLittleEndianSlice(
+			bridgesync.GenerateGlobalIndex(g.MainnetFlag, g.RollupIndex, g.LeafIndex),
+		),
+	)
 }
 
 // BridgeExit represents a token bridge exit
@@ -379,6 +397,7 @@ type CertificateHeader struct {
 	CertificateID    common.Hash       `json:"certificate_id"`
 	NewLocalExitRoot common.Hash       `json:"new_local_exit_root"`
 	Status           CertificateStatus `json:"status"`
+	Metadata         common.Hash       `json:"metadata"`
 }
 
 func (c CertificateHeader) String() string {
