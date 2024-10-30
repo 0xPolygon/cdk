@@ -5,8 +5,6 @@ package config
 const DefaultMandatoryVars = `
 L1URL = "http://localhost:8545"
 L2URL = "http://localhost:8123"
-L1AggOracleURL = "http://test-aggoracle-l1:8545"
-L2AggOracleURL = "http://test-aggoracle-l2:8545"
 
 
 ForkId = 9
@@ -220,18 +218,18 @@ GlobalExitRootAddr="{{NetworkConfig.L1.GlobalExitRootManagerAddr}}"
 RollupManagerAddr = "{{NetworkConfig.L1.RollupManagerAddr}}"
 SyncBlockChunkSize=10
 BlockFinality="LatestBlock"
-URLRPCL1="{{L1AggOracleURL}}"
+URLRPCL1="{{L1URL}}"
 WaitForNewBlocksPeriod="100ms"
 InitialBlock=0
 
 [AggOracle]
 TargetChainType="EVM"
-URLRPCL1="{{L1AggOracleURL}}"
+URLRPCL1="{{L1URL}}"
 BlockFinality="FinalizedBlock"
 WaitPeriodNextGER="100ms"
 	[AggOracle.EVMSender]
 		GlobalExitRootL2="{{L2Config.GlobalExitRootAddr}}"
-		URLRPCL2="{{L2AggOracleURL}}"
+		URLRPCL2="{{L2URL}}"
 		ChainIDL2=1337
 		GasOffset=0
 		WaitPeriodMonitorTx="100ms"
@@ -252,7 +250,7 @@ WaitPeriodNextGER="100ms"
 				SafeStatusL1NumberOfBlocks = 5
 				FinalizedStatusL1NumberOfBlocks = 10
 					[AggOracle.EVMSender.EthTxManager.Etherman]
-						URL = "{{L2AggOracleURL}}"
+						URL = "{{L2URL}}"
 						MultiGasProvider = false
 						L1ChainID = {{NetworkConfig.L1.L1ChainID}}
 						HTTPHeaders = []
@@ -291,7 +289,7 @@ GasOffset = 0
 		SafeStatusL1NumberOfBlocks = 5
 		FinalizedStatusL1NumberOfBlocks = 10
 			[ClaimSponsor.EthTxManager.Etherman]
-				URL = "{{L2AggOracleURL}}"
+				URL = "{{L2URL}}"
 				MultiGasProvider = false
 				L1ChainID = {{NetworkConfig.L1.L1ChainID}}
 				HTTPHeaders = []
