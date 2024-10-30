@@ -109,18 +109,17 @@ func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint32, leaves [][32]byte) ([]
 		if len(leaves)%2 == 1 {
 			leaves = append(leaves, mt.zeroHashes[h])
 		}
-		if index%2 == 1 { //If it is odd
+		if index%2 == 1 { // If it is odd
 			siblings = append(siblings, leaves[index-1])
-		} else { // It is even
-			if len(leaves) > 1 {
-				if index >= uint32(len(leaves)) {
-					// siblings = append(siblings, mt.zeroHashes[h])
-					siblings = append(siblings, leaves[index-1])
-				} else {
-					siblings = append(siblings, leaves[index+1])
-				}
+		} else if len(leaves) > 1 { // It is even
+			if index >= uint32(len(leaves)) {
+				// siblings = append(siblings, mt.zeroHashes[h])
+				siblings = append(siblings, leaves[index-1])
+			} else {
+				siblings = append(siblings, leaves[index+1])
 			}
 		}
+
 		var (
 			nsi    [][][]byte
 			hashes [][32]byte

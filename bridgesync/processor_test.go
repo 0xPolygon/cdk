@@ -82,7 +82,7 @@ func TestProceessor(t *testing.T) {
 	log.Debugf("sqlite path: %s", path)
 	err := migrationsBridge.RunMigrations(path)
 	require.NoError(t, err)
-	p, err := newProcessor(path, "foo", nil)
+	p, err := newProcessor(path, "foo")
 	require.NoError(t, err)
 	actions := []processAction{
 		// processed: ~
@@ -735,7 +735,7 @@ func TestInsertAndGetClaim(t *testing.T) {
 	log.Debugf("sqlite path: %s", path)
 	err := migrationsBridge.RunMigrations(path)
 	require.NoError(t, err)
-	p, err := newProcessor(path, "foo", nil)
+	p, err := newProcessor(path, "foo")
 	require.NoError(t, err)
 
 	tx, err := p.db.BeginTx(context.Background(), nil)
@@ -853,14 +853,9 @@ func TestGetBridgesPublished(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			mockBridgeContract := &mockBridgeContract{
-				lastUpdatedDepositCount: tc.lastUpdatedDepositCount,
-				err:                     tc.expectedError,
-			}
-
 			path := path.Join(t.TempDir(), "file::memory:?cache=shared")
 			require.NoError(t, migrationsBridge.RunMigrations(path))
-			p, err := newProcessor(path, "foo", mockBridgeContract)
+			p, err := newProcessor(path, "foo")
 			require.NoError(t, err)
 
 			tx, err := p.db.BeginTx(context.Background(), nil)

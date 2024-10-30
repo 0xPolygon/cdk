@@ -692,10 +692,6 @@ func runBridgeSyncL1IfNeeded(
 	if !isNeeded([]string{cdkcommon.RPC}, components) {
 		return nil
 	}
-	bridgeContract, err := bridgesync.NewBridgeContract(cfg.BridgeAddr, l1Client)
-	if err != nil {
-		log.Fatalf("error creating L1 bridge contract: %s", err)
-	}
 	bridgeSyncL1, err := bridgesync.NewL1(
 		ctx,
 		cfg.DBPath,
@@ -709,7 +705,6 @@ func runBridgeSyncL1IfNeeded(
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
 		cfg.OriginNetwork,
-		bridgeContract,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL1: %s", err)
@@ -730,11 +725,6 @@ func runBridgeSyncL2IfNeeded(
 		return nil
 	}
 
-	bridgeContract, err := bridgesync.NewBridgeContract(cfg.BridgeAddr, l2Client)
-	if err != nil {
-		log.Fatalf("error creating L2 bridge contract: %s", err)
-	}
-
 	bridgeSyncL2, err := bridgesync.NewL2(
 		ctx,
 		cfg.DBPath,
@@ -748,7 +738,6 @@ func runBridgeSyncL2IfNeeded(
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
 		cfg.OriginNetwork,
-		bridgeContract,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL2: %s", err)

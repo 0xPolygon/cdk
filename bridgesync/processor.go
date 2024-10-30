@@ -109,7 +109,7 @@ type processor struct {
 	bridgeContract BridgeContractor
 }
 
-func newProcessor(dbPath, loggerPrefix string, bridgeContract BridgeContractor) (*processor, error) {
+func newProcessor(dbPath, loggerPrefix string) (*processor, error) {
 	err := migrations.RunMigrations(dbPath)
 	if err != nil {
 		return nil, err
@@ -121,31 +121,15 @@ func newProcessor(dbPath, loggerPrefix string, bridgeContract BridgeContractor) 
 	logger := log.WithFields("bridge-syncer", loggerPrefix)
 	exitTree := tree.NewAppendOnlyTree(db, "")
 	return &processor{
-		db:             db,
-		exitTree:       exitTree,
-		log:            logger,
-		bridgeContract: bridgeContract,
+		db:       db,
+		exitTree: exitTree,
+		log:      logger,
 	}, nil
 }
 func (p *processor) GetBridgesPublished(
 	ctx context.Context, fromBlock, toBlock uint64,
 ) ([]Bridge, error) {
-	allBridges, err := p.GetBridges(ctx, fromBlock, toBlock)
-	if err != nil {
-		return nil, err
-	}
-	lastCount, er := p.bridgeContract.LastUpdatedDepositCount(ctx, toBlock)
-	if er != nil {
-		return nil, er
-	}
-	p.log.Debugf("last updated deposit count: %d in block %d. Num bridges: %d", lastCount, toBlock, len(allBridges))
-	var bridges []Bridge
-	for _, bridge := range allBridges {
-		if bridge.DepositCount <= lastCount {
-			bridges = append(bridges, bridge)
-		}
-	}
-	return bridges, nil
+	return p.GetBridges(ctx, fromBlock, toBlock)
 }
 
 func (p *processor) GetBridges(

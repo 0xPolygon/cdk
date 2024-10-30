@@ -35,7 +35,6 @@ func TestNewLx(t *testing.T) {
 	originNetwork := uint32(1)
 
 	mockEthClient := mocksbridgesync.NewEthClienter(t)
-	mockBridgeContract := mocksbridgesync.NewBridgeContractor(t)
 	mockReorgDetector := mocksbridgesync.NewReorgDetector(t)
 
 	mockReorgDetector.EXPECT().Subscribe(mock.Anything).Return(nil, nil)
@@ -53,7 +52,6 @@ func TestNewLx(t *testing.T) {
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
 		originNetwork,
-		mockBridgeContract,
 	)
 
 	assert.NoError(t, err)
@@ -74,7 +72,6 @@ func TestNewLx(t *testing.T) {
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
 		originNetwork,
-		mockBridgeContract,
 	)
 
 	assert.NoError(t, err)

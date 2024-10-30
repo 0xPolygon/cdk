@@ -43,7 +43,6 @@ func NewL1(
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
-	bridgeContract BridgeContractor,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -60,7 +59,6 @@ func NewL1(
 		maxRetryAttemptsAfterError,
 		originNetwork,
 		false,
-		bridgeContract,
 	)
 }
 
@@ -78,7 +76,6 @@ func NewL2(
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
-	bridgeContract BridgeContractor,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -95,7 +92,6 @@ func NewL2(
 		maxRetryAttemptsAfterError,
 		originNetwork,
 		true,
-		bridgeContract,
 	)
 }
 
@@ -114,9 +110,8 @@ func newBridgeSync(
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
 	syncFullClaims bool,
-	bridgeContract BridgeContractor,
 ) (*BridgeSync, error) {
-	processor, err := newProcessor(dbPath, l1OrL2ID, bridgeContract)
+	processor, err := newProcessor(dbPath, l1OrL2ID)
 	if err != nil {
 		return nil, err
 	}
