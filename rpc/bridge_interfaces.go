@@ -35,6 +35,6 @@ type L1InfoTreer interface {
 }
 
 type ClaimSponsorer interface {
-	AddClaimToQueue(ctx context.Context, claim *claimsponsor.Claim) error
-	GetClaim(ctx context.Context, globalIndex *big.Int) (*claimsponsor.Claim, error)
+	AddClaimToQueue(claim *claimsponsor.Claim) error
+	GetClaim(globalIndex *big.Int) (*claimsponsor.Claim, error)
 }

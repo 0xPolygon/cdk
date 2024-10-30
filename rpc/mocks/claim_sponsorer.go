@@ -3,11 +3,9 @@
 package mocks
 
 import (
-	context "context"
 	big "math/big"
 
 	claimsponsor "github.com/0xPolygon/cdk/claimsponsor"
-
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -24,17 +22,17 @@ func (_m *ClaimSponsorer) EXPECT() *ClaimSponsorer_Expecter {
 	return &ClaimSponsorer_Expecter{mock: &_m.Mock}
 }
 
-// AddClaimToQueue provides a mock function with given fields: ctx, claim
-func (_m *ClaimSponsorer) AddClaimToQueue(ctx context.Context, claim *claimsponsor.Claim) error {
-	ret := _m.Called(ctx, claim)
+// AddClaimToQueue provides a mock function with given fields: claim
+func (_m *ClaimSponsorer) AddClaimToQueue(claim *claimsponsor.Claim) error {
+	ret := _m.Called(claim)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddClaimToQueue")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *claimsponsor.Claim) error); ok {
-		r0 = rf(ctx, claim)
+	if rf, ok := ret.Get(0).(func(*claimsponsor.Claim) error); ok {
+		r0 = rf(claim)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -48,15 +46,14 @@ type ClaimSponsorer_AddClaimToQueue_Call struct {
 }
 
 // AddClaimToQueue is a helper method to define mock.On call
-//   - ctx context.Context
 //   - claim *claimsponsor.Claim
-func (_e *ClaimSponsorer_Expecter) AddClaimToQueue(ctx interface{}, claim interface{}) *ClaimSponsorer_AddClaimToQueue_Call {
-	return &ClaimSponsorer_AddClaimToQueue_Call{Call: _e.mock.On("AddClaimToQueue", ctx, claim)}
+func (_e *ClaimSponsorer_Expecter) AddClaimToQueue(claim interface{}) *ClaimSponsorer_AddClaimToQueue_Call {
+	return &ClaimSponsorer_AddClaimToQueue_Call{Call: _e.mock.On("AddClaimToQueue", claim)}
 }
 
-func (_c *ClaimSponsorer_AddClaimToQueue_Call) Run(run func(ctx context.Context, claim *claimsponsor.Claim)) *ClaimSponsorer_AddClaimToQueue_Call {
+func (_c *ClaimSponsorer_AddClaimToQueue_Call) Run(run func(claim *claimsponsor.Claim)) *ClaimSponsorer_AddClaimToQueue_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*claimsponsor.Claim))
+		run(args[0].(*claimsponsor.Claim))
 	})
 	return _c
 }
@@ -66,14 +63,14 @@ func (_c *ClaimSponsorer_AddClaimToQueue_Call) Return(_a0 error) *ClaimSponsorer
 	return _c
 }
 
-func (_c *ClaimSponsorer_AddClaimToQueue_Call) RunAndReturn(run func(context.Context, *claimsponsor.Claim) error) *ClaimSponsorer_AddClaimToQueue_Call {
+func (_c *ClaimSponsorer_AddClaimToQueue_Call) RunAndReturn(run func(*claimsponsor.Claim) error) *ClaimSponsorer_AddClaimToQueue_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// GetClaim provides a mock function with given fields: ctx, globalIndex
-func (_m *ClaimSponsorer) GetClaim(ctx context.Context, globalIndex *big.Int) (*claimsponsor.Claim, error) {
-	ret := _m.Called(ctx, globalIndex)
+// GetClaim provides a mock function with given fields: globalIndex
+func (_m *ClaimSponsorer) GetClaim(globalIndex *big.Int) (*claimsponsor.Claim, error) {
+	ret := _m.Called(globalIndex)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetClaim")
@@ -81,19 +78,19 @@ func (_m *ClaimSponsorer) GetClaim(ctx context.Context, globalIndex *big.Int) (*
 
 	var r0 *claimsponsor.Claim
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *big.Int) (*claimsponsor.Claim, error)); ok {
-		return rf(ctx, globalIndex)
+	if rf, ok := ret.Get(0).(func(*big.Int) (*claimsponsor.Claim, error)); ok {
+		return rf(globalIndex)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *big.Int) *claimsponsor.Claim); ok {
-		r0 = rf(ctx, globalIndex)
+	if rf, ok := ret.Get(0).(func(*big.Int) *claimsponsor.Claim); ok {
+		r0 = rf(globalIndex)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*claimsponsor.Claim)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *big.Int) error); ok {
-		r1 = rf(ctx, globalIndex)
+	if rf, ok := ret.Get(1).(func(*big.Int) error); ok {
+		r1 = rf(globalIndex)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -107,15 +104,14 @@ type ClaimSponsorer_GetClaim_Call struct {
 }
 
 // GetClaim is a helper method to define mock.On call
-//   - ctx context.Context
 //   - globalIndex *big.Int
-func (_e *ClaimSponsorer_Expecter) GetClaim(ctx interface{}, globalIndex interface{}) *ClaimSponsorer_GetClaim_Call {
-	return &ClaimSponsorer_GetClaim_Call{Call: _e.mock.On("GetClaim", ctx, globalIndex)}
+func (_e *ClaimSponsorer_Expecter) GetClaim(globalIndex interface{}) *ClaimSponsorer_GetClaim_Call {
+	return &ClaimSponsorer_GetClaim_Call{Call: _e.mock.On("GetClaim", globalIndex)}
 }
 
-func (_c *ClaimSponsorer_GetClaim_Call) Run(run func(ctx context.Context, globalIndex *big.Int)) *ClaimSponsorer_GetClaim_Call {
+func (_c *ClaimSponsorer_GetClaim_Call) Run(run func(globalIndex *big.Int)) *ClaimSponsorer_GetClaim_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*big.Int))
+		run(args[0].(*big.Int))
 	})
 	return _c
 }
@@ -125,7 +121,7 @@ func (_c *ClaimSponsorer_GetClaim_Call) Return(_a0 *claimsponsor.Claim, _a1 erro
 	return _c
 }
 
-func (_c *ClaimSponsorer_GetClaim_Call) RunAndReturn(run func(context.Context, *big.Int) (*claimsponsor.Claim, error)) *ClaimSponsorer_GetClaim_Call {
+func (_c *ClaimSponsorer_GetClaim_Call) RunAndReturn(run func(*big.Int) (*claimsponsor.Claim, error)) *ClaimSponsorer_GetClaim_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -168,7 +168,7 @@ func (c *EVMClaimSponsor) claimStatus(ctx context.Context, id string) (ClaimStat
 	switch res.Status {
 	case ethtxtypes.MonitoredTxStatusCreated,
 		ethtxtypes.MonitoredTxStatusSent:
-		return WIPStatus, nil
+		return WIPClaimStatus, nil
 	case ethtxtypes.MonitoredTxStatusFailed:
 		return FailedClaimStatus, nil
 	case ethtxtypes.MonitoredTxStatusMined,
