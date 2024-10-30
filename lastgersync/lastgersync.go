@@ -32,7 +32,7 @@ func New(
 	waitForNewBlocksPeriod time.Duration,
 	downloadBufferSize int,
 ) (*LastGERSync, error) {
-	processor, err := newProcessor(dbPath)
+	processor, err := newProcessor(dbPath, "lastGERSync")
 	if err != nil {
 		return nil, err
 	}

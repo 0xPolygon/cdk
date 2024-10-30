@@ -3,6 +3,7 @@ package lastgersync_test
 import (
 	"context"
 	"fmt"
+	"path"
 	"strconv"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ import (
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
 	env := aggoraclehelpers.SetupAggoracleWithEVMChain(t)
-	dbPathSyncer := t.TempDir()
+	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	syncer, err := lastgersync.New(
 		ctx,
 		dbPathSyncer,
@@ -66,7 +67,7 @@ func TestE2E(t *testing.T) {
 		require.True(t, syncerUpToDate, errMsg)
 
 		_, actualGER, err := syncer.GetFirstGERAfterL1InfoTreeIndex(ctx, uint32(i))
-		require.NoError(t, err)
-		require.Equal(t, common.Hash(expectedGER), actualGER)
+		require.NoError(t, err, fmt.Sprint("iteration: ", i))
+		require.Equal(t, common.Hash(expectedGER), actualGER, fmt.Sprint("iteration: ", i))
 	}
 }
