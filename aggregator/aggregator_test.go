@@ -152,6 +152,7 @@ func Test_handleRollbackBatches(t *testing.T) {
 	}
 
 	mockEtherman.On("GetLatestVerifiedBatchNum").Return(uint64(90), nil).Once()
+	mockEtherman.On("GetBatchAccInputHash", mock.Anything, uint64(90)).Return(common.Hash{}, nil).Once()
 	mockState.On("DeleteUngeneratedProofs", mock.Anything, mock.Anything).Return(nil).Once()
 	mockState.On("DeleteGeneratedProofs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
@@ -180,6 +181,7 @@ func Test_handleRollbackBatchesHalt(t *testing.T) {
 	mockState := new(mocks.StateInterfaceMock)
 
 	mockEtherman.On("GetLatestVerifiedBatchNum").Return(uint64(110), nil).Once()
+	mockEtherman.On("GetBatchAccInputHash", mock.Anything, uint64(110)).Return(common.Hash{}, nil).Once()
 	mockState.On("DeleteUngeneratedProofs", mock.Anything, mock.Anything).Return(nil).Once()
 	mockState.On("DeleteGeneratedProofs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
