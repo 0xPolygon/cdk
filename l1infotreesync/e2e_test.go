@@ -13,7 +13,7 @@ import (
 	cdktypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
-	"github.com/0xPolygon/cdk/l1infotreesync/mocks"
+	mocks_l1infotreesync "github.com/0xPolygon/cdk/l1infotreesync/mocks"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/test/contracts/verifybatchesmock"
@@ -61,7 +61,7 @@ func TestE2E(t *testing.T) {
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
 
-	rdm := mocks.NewReorgDetectorMock(t)
+	rdm := mocks_l1infotreesync.NewReorgDetectorMock(t)
 	rdm.On("Subscribe", mock.Anything).Return(&reorgdetector.Subscription{}, nil)
 	rdm.On("AddBlockToTrack", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 

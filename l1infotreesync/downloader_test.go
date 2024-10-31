@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonzkevmglobalexitrootv2"
-	"github.com/0xPolygon/cdk/l1infotreesync/mocks"
+	mocks_l1infotreesync "github.com/0xPolygon/cdk/l1infotreesync/mocks"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
@@ -15,7 +15,7 @@ import (
 )
 
 func TestBuildAppenderErrorOnBadContractAddr(t *testing.T) {
-	l1Client := mocks.NewEthClienter(t)
+	l1Client := mocks_l1infotreesync.NewEthClienter(t)
 	globalExitRoot := common.HexToAddress("0x1")
 	rollupManager := common.HexToAddress("0x2")
 	l1Client.EXPECT().CallContract(mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("test-error"))
@@ -25,7 +25,7 @@ func TestBuildAppenderErrorOnBadContractAddr(t *testing.T) {
 }
 
 func TestBuildAppenderBypassBadContractAddr(t *testing.T) {
-	l1Client := mocks.NewEthClienter(t)
+	l1Client := mocks_l1infotreesync.NewEthClienter(t)
 	globalExitRoot := common.HexToAddress("0x1")
 	rollupManager := common.HexToAddress("0x2")
 	l1Client.EXPECT().CallContract(mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("test-error"))
@@ -35,7 +35,7 @@ func TestBuildAppenderBypassBadContractAddr(t *testing.T) {
 }
 
 func TestBuildAppenderVerifiedContractAddr(t *testing.T) {
-	l1Client := mocks.NewEthClienter(t)
+	l1Client := mocks_l1infotreesync.NewEthClienter(t)
 	globalExitRoot := common.HexToAddress("0x1")
 	rollupManager := common.HexToAddress("0x2")
 
