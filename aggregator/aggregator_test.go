@@ -101,6 +101,8 @@ func Test_Start(t *testing.T) {
 		stateDBMutex:            &sync.Mutex{},
 		timeSendFinalProofMutex: &sync.RWMutex{},
 		timeCleanupLockedProofs: types.Duration{Duration: 5 * time.Second},
+		accInputHashes:          make(map[uint64]common.Hash),
+		accInputHashesMutex:     &sync.Mutex{},
 	}
 	go func() {
 		err := a.Start()
@@ -154,11 +156,13 @@ func Test_handleRollbackBatches(t *testing.T) {
 	mockState.On("DeleteGeneratedProofs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	a := Aggregator{
-		ctx:      context.Background(),
-		etherman: mockEtherman,
-		state:    mockState,
-		logger:   log.GetDefaultLogger(),
-		halted:   atomic.Bool{},
+		ctx:                 context.Background(),
+		etherman:            mockEtherman,
+		state:               mockState,
+		logger:              log.GetDefaultLogger(),
+		halted:              atomic.Bool{},
+		accInputHashes:      make(map[uint64]common.Hash),
+		accInputHashesMutex: &sync.Mutex{},
 	}
 
 	a.halted.Store(false)
@@ -185,11 +189,13 @@ func Test_handleRollbackBatchesHalt(t *testing.T) {
 	}
 
 	a := Aggregator{
-		ctx:      context.Background(),
-		etherman: mockEtherman,
-		state:    mockState,
-		logger:   log.GetDefaultLogger(),
-		halted:   atomic.Bool{},
+		ctx:                 context.Background(),
+		etherman:            mockEtherman,
+		state:               mockState,
+		logger:              log.GetDefaultLogger(),
+		halted:              atomic.Bool{},
+		accInputHashes:      make(map[uint64]common.Hash),
+		accInputHashesMutex: &sync.Mutex{},
 	}
 
 	a.halted.Store(false)
@@ -214,11 +220,13 @@ func Test_handleRollbackBatchesError(t *testing.T) {
 	}
 
 	a := Aggregator{
-		ctx:      context.Background(),
-		etherman: mockEtherman,
-		state:    mockState,
-		logger:   log.GetDefaultLogger(),
-		halted:   atomic.Bool{},
+		ctx:                 context.Background(),
+		etherman:            mockEtherman,
+		state:               mockState,
+		logger:              log.GetDefaultLogger(),
+		halted:              atomic.Bool{},
+		accInputHashes:      make(map[uint64]common.Hash),
+		accInputHashesMutex: &sync.Mutex{},
 	}
 
 	a.halted.Store(false)
@@ -321,6 +329,8 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 				timeSendFinalProofMutex: &sync.RWMutex{},
 				sequencerPrivateKey:     privateKey,
 				rpcClient:               rpcMock,
+				accInputHashes:          make(map[uint64]common.Hash),
+				accInputHashesMutex:     &sync.Mutex{},
 			}
 			a.ctx, a.exit = context.WithCancel(context.Background())
 
@@ -510,6 +520,8 @@ func Test_sendFinalProofError(t *testing.T) {
 				timeSendFinalProofMutex: &sync.RWMutex{},
 				sequencerPrivateKey:     privateKey,
 				rpcClient:               rpcMock,
+				accInputHashes:          make(map[uint64]common.Hash),
+				accInputHashesMutex:     &sync.Mutex{},
 			}
 			a.ctx, a.exit = context.WithCancel(context.Background())
 
@@ -626,7 +638,9 @@ func Test_buildFinalProof(t *testing.T) {
 				cfg: Config{
 					SenderAddress: common.BytesToAddress([]byte("from")).Hex(),
 				},
-				rpcClient: rpcMock,
+				rpcClient:           rpcMock,
+				accInputHashes:      make(map[uint64]common.Hash),
+				accInputHashesMutex: &sync.Mutex{},
 			}
 
 			tc.setup(m, &a)
@@ -885,6 +899,8 @@ func Test_tryBuildFinalProof(t *testing.T) {
 				timeSendFinalProofMutex: &sync.RWMutex{},
 				timeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
 				finalProof:              make(chan finalProofMsg),
+				accInputHashes:          make(map[uint64]common.Hash),
+				accInputHashesMutex:     &sync.Mutex{},
 			}
 
 			aggregatorCtx := context.WithValue(context.Background(), "owner", ownerAggregator) //nolint:staticcheck
@@ -1390,6 +1406,8 @@ func Test_tryAggregateProofs(t *testing.T) {
 				timeSendFinalProofMutex: &sync.RWMutex{},
 				timeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
 				finalProof:              make(chan finalProofMsg),
+				accInputHashes:          make(map[uint64]common.Hash),
+				accInputHashesMutex:     &sync.Mutex{},
 			}
 			aggregatorCtx := context.WithValue(context.Background(), "owner", ownerAggregator) //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
@@ -1933,6 +1951,8 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				profitabilityChecker:    NewTxProfitabilityCheckerAcceptAll(stateMock, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration),
 				l1Syncr:                 synchronizerMock,
 				rpcClient:               mockRPC,
+				accInputHashes:          make(map[uint64]common.Hash),
+				accInputHashesMutex:     &sync.Mutex{},
 			}
 			aggregatorCtx := context.WithValue(context.Background(), "owner", ownerAggregator) //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
