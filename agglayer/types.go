@@ -153,7 +153,7 @@ type GlobalIndex struct {
 
 func (g *GlobalIndex) Hash() common.Hash {
 	return crypto.Keccak256Hash(
-		cdkcommon.AsLittleEndianSlice(
+		cdkcommon.BigIntToLittleEndianBytes(
 			bridgesync.GenerateGlobalIndex(g.MainnetFlag, g.RollupIndex, g.LeafIndex),
 		),
 	)

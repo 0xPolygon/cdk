@@ -1,8 +1,12 @@
 package common
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAsLittleEndianSlice(t *testing.T) {
@@ -45,14 +49,12 @@ func TestAsLittleEndianSlice(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := AsLittleEndianSlice(tt.input)
-			if len(result) != 32 {
-				t.Errorf("expected length 32, got %d", len(result))
-			}
+			result := BigIntToLittleEndianBytes(tt.input)
+			require.Len(t, result, common.HashLength)
+
 			for i := range result {
-				if result[i] != tt.expected[i] {
-					t.Errorf("expected byte at index %d to be %x, got %x", i, tt.expected[i], result[i])
-				}
+				require.Equal(t, tt.expected[i], result[i],
+					fmt.Sprintf("expected byte at index %d to be %x, got %x", i, tt.expected[i], result[i]))
 			}
 		})
 	}
