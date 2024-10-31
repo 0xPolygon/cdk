@@ -12,7 +12,7 @@ import (
 
 	"github.com/0xPolygon/cdk/agglayer"
 	"github.com/0xPolygon/cdk/aggsender/db"
-	aggsendertypes "github.com/0xPolygon/cdk/aggsender/types"
+	"github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/bridgesync"
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/l1infotreesync"
@@ -33,10 +33,11 @@ var (
 
 // AggSender is a component that will send certificates to the aggLayer
 type AggSender struct {
-	log aggsendertypes.Logger
+	log types.Logger
 
-	l2Syncer         aggsendertypes.L2BridgeSyncer
-	l1infoTreeSyncer aggsendertypes.L1InfoTreeSyncer
+	l2Syncer         types.L2BridgeSyncer
+	l1infoTreeSyncer types.L1InfoTreeSyncer
+	epochNotifier    types.EpochNotifier
 
 	storage        db.AggSenderStorage
 	aggLayerClient agglayer.AgglayerClientInterface
@@ -53,7 +54,8 @@ func New(
 	cfg Config,
 	aggLayerClient agglayer.AgglayerClientInterface,
 	l1InfoTreeSyncer *l1infotreesync.L1InfoTreeSync,
-	l2Syncer *bridgesync.BridgeSync) (*AggSender, error) {
+	l2Syncer *bridgesync.BridgeSync,
+	epochNotifier types.EpochNotifier) (*AggSender, error) {
 	storage, err := db.NewAggSenderSQLStorage(logger, cfg.StoragePath)
 	if err != nil {
 		return nil, err
@@ -74,6 +76,7 @@ func New(
 		aggLayerClient:   aggLayerClient,
 		l1infoTreeSyncer: l1InfoTreeSyncer,
 		sequencerKey:     sequencerPrivateKey,
+		epochNotifier:    epochNotifier,
 	}, nil
 }
 
@@ -85,12 +88,12 @@ func (a *AggSender) Start(ctx context.Context) {
 
 // sendCertificates sends certificates to the aggLayer
 func (a *AggSender) sendCertificates(ctx context.Context) {
-	ticker := time.NewTicker(a.cfg.BlockGetInterval.Duration)
-
+	chEpoch := a.epochNotifier.Subscribe("aggsender")
 	for {
 		select {
-		case <-ticker.C:
-			if _, err := a.sendCertificate(ctx); err != nil {
+		case epoch := <-chEpoch:
+			a.log.Infof("Epoch %d received", epoch.Epoch)
+			if err := a.sendCertificate(ctx); err != nil {
 				log.Error(err)
 			}
 		case <-ctx.Done():
@@ -247,8 +250,7 @@ func (a *AggSender) getNextHeightAndPreviousLER(
 func (a *AggSender) buildCertificate(ctx context.Context,
 	bridges []bridgesync.Bridge,
 	claims []bridgesync.Claim,
-	lastSentCertificateInfo aggsendertypes.CertificateInfo,
-	toBlock uint64) (*agglayer.Certificate, error) {
+	lastSentCertificateInfo types.CertificateInfo) (*agglayer.Certificate, error) {
 	if len(bridges) == 0 && len(claims) == 0 {
 		return nil, errNoBridgesAndClaims
 	}

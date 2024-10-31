@@ -27,11 +27,18 @@ import (
 
 func TestExploratoryGetCertificateHeader(t *testing.T) {
 	t.Skip("This test is exploratory and should be skipped")
-	aggLayerClient := agglayer.NewAggLayerClient("http://localhost:32795")
+	aggLayerClient := agglayer.NewAggLayerClient("http://localhost:32796")
 	certificateID := common.HexToHash("0xf153e75e24591432ac5deafaeaafba3fec0fd851261c86051b9c0d540b38c369")
 	certificateHeader, err := aggLayerClient.GetCertificateHeader(certificateID)
 	require.NoError(t, err)
 	fmt.Print(certificateHeader)
+}
+func TestExploratoryGetClockConfiguration(t *testing.T) {
+	t.Skip("This test is exploratory and should be skipped")
+	aggLayerClient := agglayer.NewAggLayerClient("http://localhost:32796")
+	clockConfig, err := aggLayerClient.GetClockConfiguration()
+	require.NoError(t, err)
+	fmt.Print(clockConfig)
 }
 
 func TestConfigString(t *testing.T) {
@@ -274,7 +281,8 @@ func TestGetImportedBridgeExits(t *testing.T) {
 	t.Parallel()
 
 	mockProof := generateTestProof(t)
-	mockL1InfoTreeSyncer := mocks.NewL1InfoTreeSyncerMock(t)
+
+	mockL1InfoTreeSyncer := mocks.NewL1InfoTreeSyncer(t)
 	mockL1InfoTreeSyncer.On("GetInfoByGlobalExitRoot", mock.Anything).Return(&l1infotreesync.L1InfoTreeLeaf{
 		L1InfoTreeIndex:   1,
 		Timestamp:         123456789,
@@ -507,8 +515,8 @@ func TestGetImportedBridgeExits(t *testing.T) {
 }
 
 func TestBuildCertificate(t *testing.T) {
-	mockL2BridgeSyncer := mocks.NewL2BridgeSyncerMock(t)
-	mockL1InfoTreeSyncer := mocks.NewL1InfoTreeSyncerMock(t)
+	mockL2BridgeSyncer := mocks.NewL2BridgeSyncer(t)
+	mockL1InfoTreeSyncer := mocks.NewL1InfoTreeSyncer(t)
 	mockProof := generateTestProof(t)
 
 	tests := []struct {
@@ -822,7 +830,7 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			mockStorage := mocks.NewAggSenderStorageMock(t)
+			mockStorage := mocks.NewAggSenderStorage(t)
 			mockAggLayerClient := agglayer.NewAgglayerClientMock(t)
 			mockLogger := log.WithFields("test", "unittest")
 
@@ -885,18 +893,18 @@ func TestSendCertificate(t *testing.T) {
 		expectedError                           string
 	}
 
-	setupTest := func(cfg testCfg) (*AggSender, *mocks.AggSenderStorageMock, *mocks.L2BridgeSyncerMock,
-		*agglayer.AgglayerClientMock, *mocks.L1InfoTreeSyncerMock) {
+	setupTest := func(cfg testCfg) (*AggSender, *mocks.AggSenderStorage, *mocks.L2BridgeSyncer,
+		*agglayer.AgglayerClientMock, *mocks.L1InfoTreeSyncer) {
 		var (
 			aggsender = &AggSender{
 				log:          log.WithFields("aggsender", 1),
 				cfg:          Config{},
 				sequencerKey: cfg.sequencerKey,
 			}
-			mockStorage          *mocks.AggSenderStorageMock
-			mockL2Syncer         *mocks.L2BridgeSyncerMock
+			mockStorage          *mocks.AggSenderStorage
+			mockL2Syncer         *mocks.L2BridgeSyncer
 			mockAggLayerClient   *agglayer.AgglayerClientMock
-			mockL1InfoTreeSyncer *mocks.L1InfoTreeSyncerMock
+			mockL1InfoTreeSyncer *mocks.L1InfoTreeSyncer
 		)
 
 		if cfg.shouldSendCertificate != nil || cfg.getLastSentCertificate != nil ||
@@ -918,7 +926,7 @@ func TestSendCertificate(t *testing.T) {
 
 		if cfg.lastL2BlockProcessed != nil || cfg.originNetwork != nil ||
 			cfg.getBridges != nil || cfg.getClaims != nil || cfg.getInfoByGlobalExitRoot != nil {
-			mockL2Syncer = mocks.NewL2BridgeSyncerMock(t)
+			mockL2Syncer = mocks.NewL2BridgeSyncer(t)
 
 			mockL2Syncer.On("GetLastProcessedBlock", mock.Anything).Return(cfg.lastL2BlockProcessed...).Once()
 
@@ -950,7 +958,7 @@ func TestSendCertificate(t *testing.T) {
 
 		if cfg.getInfoByGlobalExitRoot != nil ||
 			cfg.getL1InfoTreeRootByIndex != nil || cfg.getL1InfoTreeMerkleProofFromIndexToRoot != nil {
-			mockL1InfoTreeSyncer = mocks.NewL1InfoTreeSyncerMock(t)
+			mockL1InfoTreeSyncer = mocks.NewL1InfoTreeSyncer(t)
 			mockL1InfoTreeSyncer.On("GetInfoByGlobalExitRoot", mock.Anything).Return(cfg.getInfoByGlobalExitRoot...).Once()
 
 			if cfg.getL1InfoTreeRootByIndex != nil {

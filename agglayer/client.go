@@ -15,7 +15,14 @@ import (
 
 const errCodeAgglayerRateLimitExceeded int = -10007
 
-var ErrAgglayerRateLimitExceeded = fmt.Errorf("agglayer rate limit exceeded")
+var (
+	ErrAgglayerRateLimitExceeded = fmt.Errorf("agglayer rate limit exceeded")
+	jSONRPCCall                  = rpc.JSONRPCCall
+)
+
+type AggLayerClientGetClockConfiguration interface {
+	GetClockConfiguration() (*ClockConfiguration, error)
+}
 
 // AgglayerClientInterface is the interface that defines the methods that the AggLayerClient will implement
 type AgglayerClientInterface interface {
@@ -23,6 +30,7 @@ type AgglayerClientInterface interface {
 	WaitTxToBeMined(hash common.Hash, ctx context.Context) error
 	SendCertificate(certificate *SignedCertificate) (common.Hash, error)
 	GetCertificateHeader(certificateHash common.Hash) (*CertificateHeader, error)
+	AggLayerClientGetClockConfiguration
 }
 
 // AggLayerClient is the client that will be used to interact with the AggLayer
@@ -123,6 +131,26 @@ func (c *AggLayerClient) GetCertificateHeader(certificateHash common.Hash) (*Cer
 	}
 
 	var result *CertificateHeader
+	err = json.Unmarshal(response.Result, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// GetClockConfiguration returns the clock configuration of AggLayer
+func (c *AggLayerClient) GetClockConfiguration() (*ClockConfiguration, error) {
+	response, err := jSONRPCCall(c.url, "interop_getClockConfiguration")
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Error != nil {
+		return nil, fmt.Errorf("GetClockConfiguration code=%d msg=%s", response.Error.Code, response.Error.Message)
+	}
+
+	var result *ClockConfiguration
 	err = json.Unmarshal(response.Result, &result)
 	if err != nil {
 		return nil, err

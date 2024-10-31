@@ -7,6 +7,7 @@ L1URL = "http://localhost:8545"
 L2URL = "http://localhost:8123"
 AggLayerURL = "https://agglayer-dev.polygon.technology"
 
+
 ForkId = 9
 ContractVersions = "elderberry"
 IsValidiumMode = false
@@ -340,5 +341,7 @@ AggsenderPrivateKey = {Path = "{{SequencerPrivateKeyPath}}", Password = "{{Seque
 BlockGetInterval = "2s"
 URLRPCL2="{{L2URL}}"
 CheckSettledInterval = "2s"
+BlockFinality = "LatestBlock"
+BlocksBeforeEpochEnding = 2
 SaveCertificatesToFiles = false
 `

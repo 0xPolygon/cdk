@@ -531,3 +531,14 @@ func (c CertificateHeader) String() string {
 	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s",
 		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String())
 }
+
+// ClockConfiguration represents the configuration of the epoch clock
+// returned by the interop_getClockConfiguration RPC call
+type ClockConfiguration struct {
+	EpochDuration uint64 `json:"epoch_duration"`
+	GenesisBlock  uint64 `json:"genesis_block"`
+}
+
+func (c ClockConfiguration) String() string {
+	return fmt.Sprintf("EpochDuration: %d, GenesisBlock: %d", c.EpochDuration, c.GenesisBlock)
+}
