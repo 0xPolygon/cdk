@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"time"
 
@@ -153,7 +154,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 
 	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
 
-	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo)
+	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo, toBlock)
 	if err != nil {
 		return fmt.Errorf("error building certificate: %w", err)
 	}
@@ -209,7 +210,8 @@ func (a *AggSender) saveCertificateToFile(signedCertificate *agglayer.SignedCert
 func (a *AggSender) buildCertificate(ctx context.Context,
 	bridges []bridgesync.Bridge,
 	claims []bridgesync.Claim,
-	lastSentCertificateInfo aggsendertypes.CertificateInfo) (*agglayer.Certificate, error) {
+	lastSentCertificateInfo aggsendertypes.CertificateInfo,
+	toBlock uint64) (*agglayer.Certificate, error) {
 	if len(bridges) == 0 && len(claims) == 0 {
 		return nil, errNoBridgesAndClaims
 	}
@@ -245,6 +247,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		BridgeExits:         bridgeExits,
 		ImportedBridgeExits: importedBridgeExits,
 		Height:              height,
+		Metadata:            createCertificateMetadata(toBlock),
 	}, nil
 }
 
@@ -412,12 +415,18 @@ func (a *AggSender) getImportedBridgeExits(
 
 // signCertificate signs a certificate with the sequencer key
 func (a *AggSender) signCertificate(certificate *agglayer.Certificate) (*agglayer.SignedCertificate, error) {
-	hashToSign := certificate.Hash()
+	hashToSign := certificate.HashToSign()
 
 	sig, err := crypto.Sign(hashToSign.Bytes(), a.sequencerKey)
 	if err != nil {
 		return nil, err
 	}
+
+	a.log.Infof("Signed certificate. sequencer address: %s. New local exit root: %s Hash signed: %s",
+		crypto.PubkeyToAddress(a.sequencerKey.PublicKey).String(),
+		common.BytesToHash(certificate.NewLocalExitRoot[:]).String(),
+		hashToSign.String(),
+	)
 
 	r, s, isOddParity, err := extractSignatureData(sig)
 	if err != nil {
@@ -499,4 +508,9 @@ func extractSignatureData(signature []byte) (r, s common.Hash, isOddParity bool,
 	isOddParity = signature[64]%2 == 1       //nolint:mnd // Last byte is V
 
 	return
+}
+
+// createCertificateMetadata creates a certificate metadata from given input
+func createCertificateMetadata(toBlock uint64) common.Hash {
+	return common.BigToHash(new(big.Int).SetUint64(toBlock))
 }
