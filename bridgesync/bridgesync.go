@@ -16,10 +16,17 @@ const (
 	downloadBufferSize = 1000
 )
 
+type ReorgDetector interface {
+	sync.ReorgDetector
+}
+
 // BridgeSync manages the state of the exit tree for the bridge contract by processing Ethereum blockchain events.
 type BridgeSync struct {
 	processor *processor
 	driver    *sync.EVMDriver
+
+	originNetwork uint32
+	blockFinality etherman.BlockNumberFinality
 }
 
 // NewL1 creates a bridge syncer that synchronizes the mainnet exit tree
@@ -29,12 +36,13 @@ func NewL1(
 	bridge common.Address,
 	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
-	rd sync.ReorgDetector,
+	rd ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
 	waitForNewBlocksPeriod time.Duration,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
+	originNetwork uint32,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -49,6 +57,7 @@ func NewL1(
 		waitForNewBlocksPeriod,
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
+		originNetwork,
 		false,
 	)
 }
@@ -60,12 +69,13 @@ func NewL2(
 	bridge common.Address,
 	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
-	rd sync.ReorgDetector,
+	rd ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
 	waitForNewBlocksPeriod time.Duration,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
+	originNetwork uint32,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -80,6 +90,7 @@ func NewL2(
 		waitForNewBlocksPeriod,
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
+		originNetwork,
 		true,
 	)
 }
@@ -90,13 +101,14 @@ func newBridgeSync(
 	bridge common.Address,
 	syncBlockChunkSize uint64,
 	blockFinalityType etherman.BlockNumberFinality,
-	rd sync.ReorgDetector,
+	rd ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
 	l1OrL2ID string,
 	waitForNewBlocksPeriod time.Duration,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
+	originNetwork uint32,
 	syncFullClaims bool,
 ) (*BridgeSync, error) {
 	processor, err := newProcessor(dbPath, l1OrL2ID)
@@ -146,8 +158,10 @@ func newBridgeSync(
 	}
 
 	return &BridgeSync{
-		processor: processor,
-		driver:    driver,
+		processor:     processor,
+		driver:        driver,
+		originNetwork: originNetwork,
+		blockFinality: blockFinalityType,
 	}, nil
 }
 
@@ -172,12 +186,16 @@ func (s *BridgeSync) GetBridges(ctx context.Context, fromBlock, toBlock uint64) 
 	return s.processor.GetBridges(ctx, fromBlock, toBlock)
 }
 
+func (s *BridgeSync) GetBridgesPublished(ctx context.Context, fromBlock, toBlock uint64) ([]Bridge, error) {
+	return s.processor.GetBridgesPublished(ctx, fromBlock, toBlock)
+}
+
 func (s *BridgeSync) GetProof(ctx context.Context, depositCount uint32, localExitRoot common.Hash) (tree.Proof, error) {
 	return s.processor.exitTree.GetProof(ctx, depositCount, localExitRoot)
 }
 
-func (p *processor) GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error) {
-	root, err := p.exitTree.GetRootByHash(ctx, ler)
+func (s *BridgeSync) GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error) {
+	root, err := s.processor.exitTree.GetRootByHash(ctx, ler)
 	if err != nil {
 		return 0, err
 	}
@@ -190,4 +208,19 @@ func (s *BridgeSync) GetRootByLER(ctx context.Context, ler common.Hash) (*tree.R
 		return root, err
 	}
 	return root, nil
+}
+
+// GetExitRootByIndex returns the root of the exit tree at the moment the leaf with the given index was added
+func (s *BridgeSync) GetExitRootByIndex(ctx context.Context, index uint32) (tree.Root, error) {
+	return s.processor.exitTree.GetRootByIndex(ctx, index)
+}
+
+// OriginNetwork returns the network ID of the origin chain
+func (s *BridgeSync) OriginNetwork() uint32 {
+	return s.originNetwork
+}
+
+// BlockFinality returns the block finality type
+func (s *BridgeSync) BlockFinality() etherman.BlockNumberFinality {
+	return s.blockFinality
 }

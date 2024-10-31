@@ -5,7 +5,7 @@ package config
 const DefaultMandatoryVars = `
 L1URL = "http://localhost:8545"
 L2URL = "http://localhost:8123"
-
+AggLayerURL = "https://agglayer-dev.polygon.technology"
 
 ForkId = 9
 ContractVersions = "elderberry"
@@ -15,13 +15,12 @@ L2Coinbase = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
 SequencerPrivateKeyPath = "/app/sequencer.keystore"
 SequencerPrivateKeyPassword = "test"
 WitnessURL = "http://localhost:8123"
-AggLayerURL = "https://agglayer-dev.polygon.technology"
 
 AggregatorPrivateKeyPath = "/app/keystore/aggregator.keystore"
 AggregatorPrivateKeyPassword = "testonly"
 # Who send Proof to L1? AggLayer addr, or aggregator addr?
 SenderProofToL1Addr = "0x0000000000000000000000000000000000000000"
-
+polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
 
 
 # This values can be override directly from genesis.json
@@ -34,7 +33,7 @@ genesisBlockNumber = 0
 	polygonRollupManagerAddress = "0x0000000000000000000000000000000000000000"
 	polTokenAddress = "0x0000000000000000000000000000000000000000"
 	polygonZkEVMAddress = "0x0000000000000000000000000000000000000000"
-	polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
+
 
 [L2Config]
 	GlobalExitRootAddr = "0x0000000000000000000000000000000000000000"
@@ -263,7 +262,7 @@ WriteTimeout = "2s"
 MaxRequestsPerIPAndSecond = 10
 
 [ClaimSponsor]
-DBPath = "/{{PathRWData}}/claimsopnsor"
+DBPath = "/{{PathRWData}}/claimsopnsor.sqlite"
 Enabled = true
 SenderAddr = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
 BridgeAddrL2 = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
@@ -295,28 +294,30 @@ GasOffset = 0
 				HTTPHeaders = []
 
 [BridgeL1Sync]
-DBPath = "{{PathRWData}}/bridgel1sync"
+DBPath = "{{PathRWData}}/bridgel1sync.sqlite"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
-BridgeAddr = "{{L1Config.polygonBridgeAddr}}"
+BridgeAddr = "{{polygonBridgeAddr}}"
 SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
+OriginNetwork=0
 
 [BridgeL2Sync]
-DBPath = "{{PathRWData}}/bridgel2sync"
+DBPath = "{{PathRWData}}/bridgel2sync.sqlite"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
-BridgeAddr = "{{L1Config.polygonBridgeAddr}}"
+BridgeAddr = "{{polygonBridgeAddr}}"
 SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
+OriginNetwork=1
 
 [LastGERSync]
 # MDBX database path
-DBPath = "{{PathRWData}}/lastgersync"
+DBPath = "{{PathRWData}}/lastgersync.sqlite"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
 GlobalExitRootL2Addr = "{{L2Config.GlobalExitRootAddr}}"
@@ -333,4 +334,12 @@ RollupManagerAddr = "{{L1Config.polygonRollupManagerAddress}}"
 GlobalExitRootManagerAddr = "{{L1Config.polygonZkEVMGlobalExitRootAddress}}"
 
 
+[AggSender]
+StoragePath = "{{PathRWData}}/aggsender.sqlite"
+AggLayerURL = "{{AggLayerURL}}"
+AggsenderPrivateKey = {Path = "{{SequencerPrivateKeyPath}}", Password = "{{SequencerPrivateKeyPassword}}"}
+BlockGetInterval = "2s"
+URLRPCL2="{{L2URL}}"
+CheckSettledInterval = "2s"
+SaveCertificatesToFiles = false
 `

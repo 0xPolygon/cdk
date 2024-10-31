@@ -1,18 +1,14 @@
 package aggregator
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"math/big"
-	"os"
-	"path/filepath"
 
 	"github.com/0xPolygon/cdk/aggregator/db"
 	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	syncronizerConfig "github.com/0xPolygonHermez/zkevm-synchronizer-l1/config"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 )
 
 // SettlementBackend is the type of the settlement backend
@@ -149,21 +145,4 @@ type Config struct {
 	// SyncModeOnlyEnabled is a flag that activates sync mode exclusively.
 	// When enabled, the aggregator will sync data only from L1 and will not generate or read the data stream.
 	SyncModeOnlyEnabled bool `mapstructure:"SyncModeOnlyEnabled"`
-}
-
-// newKeyFromKeystore creates a private key from a keystore file
-func newKeyFromKeystore(cfg types.KeystoreFileConfig) (*ecdsa.PrivateKey, error) {
-	if cfg.Path == "" && cfg.Password == "" {
-		return nil, nil
-	}
-	keystoreEncrypted, err := os.ReadFile(filepath.Clean(cfg.Path))
-	if err != nil {
-		return nil, err
-	}
-	key, err := keystore.DecryptKey(keystoreEncrypted, cfg.Password)
-	if err != nil {
-		return nil, err
-	}
-
-	return key.PrivateKey, nil
 }
