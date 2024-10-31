@@ -116,10 +116,10 @@ func AsLittleEndianSlice(n *big.Int) []byte {
 	beBytes := n.Bytes()
 
 	// Initialize a 32-byte array for the result
-	leBytes := make([]byte, 32)
+	leBytes := make([]byte, common.HashLength)
 
 	// Fill the array in reverse order to convert to little-endian
-	for i := 0; i < len(beBytes) && i < 32; i++ {
+	for i := 0; i < len(beBytes) && i < common.HashLength; i++ {
 		leBytes[i] = beBytes[len(beBytes)-1-i]
 	}
 
