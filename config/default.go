@@ -4,10 +4,8 @@ package config
 // environment / deployment
 const DefaultMandatoryVars = `
 L1URL = "http://localhost:8545"
-L2URL = "localhost:8123"
-L1AggOracleURL = "http://test-aggoracle-l1:8545"
-L2AggOracleURL = "http://test-aggoracle-l2:8545"
-
+L2URL = "http://localhost:8123"
+AggLayerURL = "https://agglayer-dev.polygon.technology"
 
 ForkId = 9
 ContractVersions = "elderberry"
@@ -16,15 +14,13 @@ IsValidiumMode = false
 L2Coinbase = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
 SequencerPrivateKeyPath = "/app/sequencer.keystore"
 SequencerPrivateKeyPassword = "test"
-WitnessURL = "localhost:8123"
-AggLayerURL = "https://agglayer-dev.polygon.technology"
-StreamServer = "localhost:6900"
+WitnessURL = "http://localhost:8123"
 
 AggregatorPrivateKeyPath = "/app/keystore/aggregator.keystore"
 AggregatorPrivateKeyPassword = "testonly"
 # Who send Proof to L1? AggLayer addr, or aggregator addr?
 SenderProofToL1Addr = "0x0000000000000000000000000000000000000000"
-
+polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
 
 
 # This values can be override directly from genesis.json
@@ -37,7 +33,7 @@ genesisBlockNumber = 0
 	polygonRollupManagerAddress = "0x0000000000000000000000000000000000000000"
 	polTokenAddress = "0x0000000000000000000000000000000000000000"
 	polygonZkEVMAddress = "0x0000000000000000000000000000000000000000"
-	polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
+
 
 [L2Config]
 	GlobalExitRootAddr = "0x0000000000000000000000000000000000000000"
@@ -133,13 +129,12 @@ SenderAddress = "{{SenderProofToL1Addr}}"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 GasOffset = 0
+RPCURL = "{{L2URL}}"
 WitnessURL = "{{WitnessURL}}"
-UseL1BatchData = true
 UseFullWitness = false
 SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
 AggLayerURL = "{{AggLayerURL}}"
-MaxWitnessRetrievalWorkers = 2
 SyncModeOnlyEnabled = false
 	[Aggregator.SequencerPrivateKey]
 		Path = "{{SequencerPrivateKeyPath}}"
@@ -156,8 +151,6 @@ SyncModeOnlyEnabled = false
 		Environment ="{{Log.Environment}}" # "production" or "development"
 		Level = "{{Log.Level}}"
 		Outputs = ["stderr"]
-	[Aggregator.StreamClient]
-		Server = "{{StreamServer}}"
 	[Aggregator.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2m"
@@ -224,18 +217,18 @@ GlobalExitRootAddr="{{NetworkConfig.L1.GlobalExitRootManagerAddr}}"
 RollupManagerAddr = "{{NetworkConfig.L1.RollupManagerAddr}}"
 SyncBlockChunkSize=10
 BlockFinality="LatestBlock"
-URLRPCL1="{{L1AggOracleURL}}"
+URLRPCL1="{{L1URL}}"
 WaitForNewBlocksPeriod="100ms"
 InitialBlock=0
 
 [AggOracle]
 TargetChainType="EVM"
-URLRPCL1="{{L1AggOracleURL}}"
+URLRPCL1="{{L1URL}}"
 BlockFinality="FinalizedBlock"
 WaitPeriodNextGER="100ms"
 	[AggOracle.EVMSender]
 		GlobalExitRootL2="{{L2Config.GlobalExitRootAddr}}"
-		URLRPCL2="{{L2AggOracleURL}}"
+		URLRPCL2="{{L2URL}}"
 		ChainIDL2=1337
 		GasOffset=0
 		WaitPeriodMonitorTx="100ms"
@@ -256,7 +249,7 @@ WaitPeriodNextGER="100ms"
 				SafeStatusL1NumberOfBlocks = 5
 				FinalizedStatusL1NumberOfBlocks = 10
 					[AggOracle.EVMSender.EthTxManager.Etherman]
-						URL = "{{L2AggOracleURL}}"
+						URL = "{{L2URL}}"
 						MultiGasProvider = false
 						L1ChainID = {{NetworkConfig.L1.L1ChainID}}
 						HTTPHeaders = []
@@ -269,7 +262,7 @@ WriteTimeout = "2s"
 MaxRequestsPerIPAndSecond = 10
 
 [ClaimSponsor]
-DBPath = "/{{PathRWData}}/claimsopnsor"
+DBPath = "/{{PathRWData}}/claimsopnsor.sqlite"
 Enabled = true
 SenderAddr = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
 BridgeAddrL2 = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
@@ -295,34 +288,36 @@ GasOffset = 0
 		SafeStatusL1NumberOfBlocks = 5
 		FinalizedStatusL1NumberOfBlocks = 10
 			[ClaimSponsor.EthTxManager.Etherman]
-				URL = "{{L2AggOracleURL}}"
+				URL = "{{L2URL}}"
 				MultiGasProvider = false
 				L1ChainID = {{NetworkConfig.L1.L1ChainID}}
 				HTTPHeaders = []
 
 [BridgeL1Sync]
-DBPath = "{{PathRWData}}/bridgel1sync"
+DBPath = "{{PathRWData}}/bridgel1sync.sqlite"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
-BridgeAddr = "{{L1Config.polygonBridgeAddr}}"
+BridgeAddr = "{{polygonBridgeAddr}}"
 SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
+OriginNetwork=0
 
 [BridgeL2Sync]
-DBPath = "{{PathRWData}}/bridgel2sync"
+DBPath = "{{PathRWData}}/bridgel2sync.sqlite"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
-BridgeAddr = "{{L1Config.polygonBridgeAddr}}"
+BridgeAddr = "{{polygonBridgeAddr}}"
 SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
+OriginNetwork=1
 
 [LastGERSync]
 # MDBX database path
-DBPath = "{{PathRWData}}/lastgersync"
+DBPath = "{{PathRWData}}/lastgersync.sqlite"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
 GlobalExitRootL2Addr = "{{L2Config.GlobalExitRootAddr}}"
@@ -339,4 +334,12 @@ RollupManagerAddr = "{{L1Config.polygonRollupManagerAddress}}"
 GlobalExitRootManagerAddr = "{{L1Config.polygonZkEVMGlobalExitRootAddress}}"
 
 
+[AggSender]
+StoragePath = "{{PathRWData}}/aggsender.sqlite"
+AggLayerURL = "{{AggLayerURL}}"
+AggsenderPrivateKey = {Path = "{{SequencerPrivateKeyPath}}", Password = "{{SequencerPrivateKeyPassword}}"}
+BlockGetInterval = "2s"
+URLRPCL2="{{L2URL}}"
+CheckSettledInterval = "2s"
+SaveCertificatesToFiles = false
 `

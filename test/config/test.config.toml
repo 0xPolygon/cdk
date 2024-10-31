@@ -15,8 +15,6 @@ WaitPeriodPurgeTxFile = "60m"
 MaxPendingTx = 1
 RPCURL = "http://127.0.0.1:8123"
 GetBatchWaitInterval = "10s"
-	[SequenceSender.StreamClient]
-		Server = "127.0.0.1:6900"
 	[SequenceSender.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2m"
@@ -52,12 +50,11 @@ GeneratingProofCleanupThreshold = "10m"
 BatchProofSanityCheckEnabled = true
 ForkId = 9
 GasOffset = 0
-WitnessURL = "http://zkevm-erigon-seq:8123"
-UseL1BatchData = true
+RPCURL = "http://127.0.0.1:8123"
+WitnessURL = "http://127.0.0.1:8123"
 SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
 AggLayerURL = ""
-MaxWitnessRetrievalWorkers = 2
 SyncModeOnlyEnabled = false
 UseFullWitness = false
 SequencerPrivateKey = {}
@@ -73,8 +70,6 @@ SequencerPrivateKey = {}
 		Environment = "development" # "production" or "development"
 		Level = "info"
 		Outputs = ["stderr"]
-	[Aggregator.StreamClient]
-		Server = "zkevm-erigon-seq:6900"
 	[Aggregator.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2m"

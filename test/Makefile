@@ -1,8 +1,8 @@
 .PHONY: generate-mocks
 generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-mocks-sequencesender \
 	generate-mocks-da generate-mocks-l1infotreesync generate-mocks-helpers \
-	generate-mocks-sync generate-mocks-l1infotreesync generate-mocks-aggregator
-
+	generate-mocks-sync generate-mocks-l1infotreesync generate-mocks-aggregator \
+	generate-mocks-aggsender generate-mocks-agglayer generate-mocks-bridgesync
 
 .PHONY: generate-mocks-bridgesync
 generate-mocks-bridgesync: ## Generates mocks for bridgesync, using mockery tool
@@ -17,9 +17,9 @@ COMMON_MOCKERY_PARAMS=--disable-version-string --with-expecter --exported
 generate-mocks-sequencesender: ## Generates mocks for sequencesender, using mockery tool
 	rm -Rf ../sequencesender/txbuilder/mocks_txbuilder
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../sequencesender/txbuilder --output ../sequencesender/txbuilder/mocks_txbuilder --outpkg mocks_txbuilder ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=EthTxMngrMock --filename=mock_ethtxmanager.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=EthTxManagerMock --filename=mock_ethtxmanager.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Etherman --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=StreamClient --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=StreamClientMock --filename=mock_streamclient.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=RPCInterface --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=RPCInterfaceMock --filename=mock_rpc.go
 
 .PHONY: generate-mocks-da
 generate-mocks-da: ## Generates mocks for dataavailability, using mockery tool
@@ -53,11 +53,29 @@ generate-mocks-aggregator: ## Generates mocks for aggregator, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ProverInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProverInterfaceMock --filename=mock_prover.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Etherman --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=StateInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=StateInterfaceMock --filename=mock_state.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AgglayerClientInterface --dir=../aggregator/agglayer --output=../aggregator/mocks --outpkg=mocks --structname=AgglayerClientInterfaceMock --filename=mock_agglayer_client.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Synchronizer --srcpkg=github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer --output=../aggregator/mocks --outpkg=mocks --structname=SynchronizerInterfaceMock --filename=mock_synchronizer.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=StreamClient --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=StreamClientMock --filename=mock_streamclient.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManagerClient --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthTxManagerClientMock --filename=mock_eth_tx_manager.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../aggregator/mocks --outpkg=mocks --structname=DbTxMock --filename=mock_dbtx.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=RPCInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=RPCInterfaceMock --filename=mock_rpc.go
+
+
+.PHONY: generate-mocks-aggsender
+generate-mocks-aggsender: ## Generates mocks for aggsender, using mockery tool
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=L1InfoTreeSyncer --dir=../aggsender/types --output=../aggsender/mocks --outpkg=mocks --structname=L1InfoTreeSyncerMock --filename=mock_l1infotree_syncer.go ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=L2BridgeSyncer --dir=../aggsender/types --output=../aggsender/mocks --outpkg=mocks --structname=L2BridgeSyncerMock --filename=mock_l2bridge_syncer.go ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Logger --dir=../aggsender/types --output=../aggsender/mocks --outpkg=mocks --structname=LoggerMock --filename=mock_logger.go ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AggSenderStorage --dir=../aggsender/db --output=../aggsender/mocks --outpkg=mocks --structname=AggSenderStorageMock --filename=mock_aggsender_storage.go ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthClient --dir=../aggsender/types --output=../aggsender/mocks --outpkg=mocks --structname=EthClientMock --filename=mock_eth_client.go ${COMMON_MOCKERY_PARAMS}
+
+.PHONY: generate-mocks-agglayer
+generate-mocks-agglayer: ## Generates mocks for agglayer, using mockery tool
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AgglayerClientInterface --dir=../agglayer --output=../agglayer --outpkg=agglayer --inpackage --structname=AgglayerClientMock --filename=mock_agglayer_client.go
+
+.PHONY: generate-mocks-bridgesync
+generate-mocks-bridgesync: ## Generates mocks for bridgesync, using mockery tool
+	rm -Rf ../bridgesync/mocks
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../bridgesync --output ../bridgesync/mocks --outpkg mocks_bridgesync ${COMMON_MOCKERY_PARAMS}
+	
 
 .PHONY: test-e2e-fork9-validium
 test-e2e-fork9-validium: stop

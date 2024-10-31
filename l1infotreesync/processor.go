@@ -461,7 +461,7 @@ func (p *processor) GetInfoByGlobalExitRoot(ger common.Hash) (*L1InfoTreeLeaf, e
 		SELECT * FROM l1info_leaf
 		WHERE global_exit_root = $1
 		LIMIT 1;
-	`, ger.Hex())
+	`, ger.String())
 	return info, db.ReturnErrNotFound(err)
 }
 
