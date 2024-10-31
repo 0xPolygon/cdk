@@ -1136,7 +1136,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 		a.accInputHashes[batchNumberToVerify-1],
 		virtualBatch.BatchL2Data,
 		*virtualBatch.L1InfoRoot,
-		rpcBatch.LastL2BLockTimestamp(),
+		uint64(sequence.Timestamp.Unix()),
 		rpcBatch.LastCoinbase(),
 		rpcBatch.ForcedBlockHashL1(),
 	)
