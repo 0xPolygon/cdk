@@ -288,10 +288,13 @@ func decodeClaimCallDataAndSetIfFound(data []interface{}, claim *Claim) (bool, e
 		if !ok {
 			return false, fmt.Errorf("unexpected type for 'DestinationNetwork'. Expected 'uint32', got '%T'", data[7])
 		}
+
 		claim.Metadata, ok = data[10].([]byte)
 		if !ok {
 			return false, fmt.Errorf("unexpected type for 'claim Metadata'. Expected '[]byte', got '%T'", data[10])
 		}
+
+		claim.GlobalExitRoot = crypto.Keccak256Hash(claim.MainnetExitRoot.Bytes(), claim.RollupExitRoot.Bytes())
 
 		return true, nil
 	}

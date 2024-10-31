@@ -7,8 +7,10 @@ import (
 	"fmt"
 
 	"github.com/0xPolygon/cdk/db"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/russross/meddler"
 	"golang.org/x/crypto/sha3"
 )
@@ -112,7 +114,8 @@ func (t *Tree) GetProof(ctx context.Context, index uint32, root common.Hash) (ty
 		return types.Proof{}, err
 	}
 	if isErrNotFound {
-		return types.Proof{}, db.ErrNotFound
+		// TODO: Validate it. It returns a proof of a tree with missing leafs
+		log.Warnf("getSiblings returned proof with zero hashes for index %d and root %s", index, root.String())
 	}
 	return siblings, nil
 }
@@ -122,7 +125,7 @@ func (t *Tree) getRHTNode(tx db.Querier, nodeHash common.Hash) (*types.TreeNode,
 	err := meddler.QueryRow(
 		tx, node,
 		fmt.Sprintf(`select * from %s where hash = $1`, t.rhtTable),
-		nodeHash.Hex(),
+		nodeHash.String(),
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -250,5 +253,20 @@ func (t *Tree) Reorg(tx db.Txer, firstReorgedBlock uint64) error {
 		firstReorgedBlock,
 	)
 	return err
-	// NOTE: rht is not cleaned, this could be done in the future as optimization
+}
+
+// CalculateRoot calculates the Merkle Root based on the leaf and proof	of inclusion
+func CalculateRoot(leafHash common.Hash, proof [types.DefaultHeight]common.Hash, index uint32) common.Hash {
+	node := leafHash
+
+	// Compute the Merkle root
+	for height := uint8(0); height < types.DefaultHeight; height++ {
+		if (index>>height)&1 == 1 {
+			node = crypto.Keccak256Hash(proof[height].Bytes(), node.Bytes())
+		} else {
+			node = crypto.Keccak256Hash(node.Bytes(), proof[height].Bytes())
+		}
+	}
+
+	return node
 }

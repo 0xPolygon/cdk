@@ -74,6 +74,7 @@ func TestClaimCalldata(t *testing.T) {
 		ProofRollupExitRoot: proofRollupH,
 		DestinationNetwork:  0,
 		Metadata:            []byte{},
+		GlobalExitRoot:      crypto.Keccak256Hash(common.HexToHash("5ca1e").Bytes(), common.HexToHash("dead").Bytes()),
 	}
 	expectedClaim2 := Claim{
 		OriginNetwork:       87,
@@ -86,6 +87,7 @@ func TestClaimCalldata(t *testing.T) {
 		ProofRollupExitRoot: proofRollupH,
 		DestinationNetwork:  0,
 		Metadata:            []byte{},
+		GlobalExitRoot:      crypto.Keccak256Hash(common.HexToHash("5ca1e").Bytes(), common.HexToHash("dead").Bytes()),
 	}
 	expectedClaim3 := Claim{
 		OriginNetwork:       69,
@@ -98,6 +100,7 @@ func TestClaimCalldata(t *testing.T) {
 		ProofRollupExitRoot: proofRollupH,
 		DestinationNetwork:  0,
 		Metadata:            []byte{},
+		GlobalExitRoot:      crypto.Keccak256Hash(common.HexToHash("5ca1e").Bytes(), common.HexToHash("dead").Bytes()),
 	}
 	auth.GasLimit = 999999 // for some reason gas estimation fails :(
 

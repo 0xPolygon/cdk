@@ -3,6 +3,7 @@ package bridgesync
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -11,12 +12,70 @@ import (
 	"testing"
 
 	migrationsBridge "github.com/0xPolygon/cdk/bridgesync/migrations"
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/0xPolygon/cdk/tree/testvectors"
+	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/russross/meddler"
 	"github.com/stretchr/testify/require"
 )
+
+func TestBigIntString(t *testing.T) {
+	globalIndex := GenerateGlobalIndex(true, 0, 1093)
+	fmt.Println(globalIndex.String())
+
+	_, ok := new(big.Int).SetString(globalIndex.String(), 10)
+	require.True(t, ok)
+
+	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+
+	err := migrationsBridge.RunMigrations(dbPath)
+	require.NoError(t, err)
+	db, err := db.NewSQLiteDB(dbPath)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+
+	claim := &Claim{
+		BlockNum:            1,
+		BlockPos:            0,
+		GlobalIndex:         GenerateGlobalIndex(true, 0, 1093),
+		OriginNetwork:       11,
+		Amount:              big.NewInt(11),
+		OriginAddress:       common.HexToAddress("0x11"),
+		DestinationAddress:  common.HexToAddress("0x11"),
+		ProofLocalExitRoot:  types.Proof{},
+		ProofRollupExitRoot: types.Proof{},
+		MainnetExitRoot:     common.Hash{},
+		RollupExitRoot:      common.Hash{},
+		GlobalExitRoot:      common.Hash{},
+		DestinationNetwork:  12,
+	}
+
+	_, err = tx.Exec(`INSERT INTO block (num) VALUES ($1)`, claim.BlockNum)
+	require.NoError(t, err)
+	require.NoError(t, meddler.Insert(tx, "claim", claim))
+
+	require.NoError(t, tx.Commit())
+
+	tx, err = db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+
+	rows, err := tx.Query(`
+		SELECT * FROM claim
+		WHERE block_num >= $1 AND block_num <= $2;
+	`, claim.BlockNum, claim.BlockNum)
+	require.NoError(t, err)
+
+	claimsFromDB := []*Claim{}
+	require.NoError(t, meddler.ScanAll(rows, &claimsFromDB))
+	require.Len(t, claimsFromDB, 1)
+	require.Equal(t, claim, claimsFromDB[0])
+}
 
 func TestProceessor(t *testing.T) {
 	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
@@ -53,7 +112,7 @@ func TestProceessor(t *testing.T) {
 			fromBlock:      0,
 			toBlock:        2,
 			expectedClaims: nil,
-			expectedErr:    ErrBlockNotProcessed,
+			expectedErr:    fmt.Errorf(errBlockNotProcessedFormat, 2, 0),
 		},
 		&getBridges{
 			p:               p,
@@ -62,7 +121,7 @@ func TestProceessor(t *testing.T) {
 			fromBlock:       0,
 			toBlock:         2,
 			expectedBridges: nil,
-			expectedErr:     ErrBlockNotProcessed,
+			expectedErr:     fmt.Errorf(errBlockNotProcessedFormat, 2, 0),
 		},
 		&processBlockAction{
 			p:           p,
@@ -85,7 +144,7 @@ func TestProceessor(t *testing.T) {
 			fromBlock:      0,
 			toBlock:        2,
 			expectedClaims: nil,
-			expectedErr:    ErrBlockNotProcessed,
+			expectedErr:    fmt.Errorf(errBlockNotProcessedFormat, 2, 1),
 		},
 		&getBridges{
 			p:               p,
@@ -94,7 +153,7 @@ func TestProceessor(t *testing.T) {
 			fromBlock:       0,
 			toBlock:         2,
 			expectedBridges: nil,
-			expectedErr:     ErrBlockNotProcessed,
+			expectedErr:     fmt.Errorf(errBlockNotProcessedFormat, 2, 1),
 		},
 		&getClaims{
 			p:              p,
@@ -128,7 +187,7 @@ func TestProceessor(t *testing.T) {
 			fromBlock:      0,
 			toBlock:        2,
 			expectedClaims: nil,
-			expectedErr:    ErrBlockNotProcessed,
+			expectedErr:    fmt.Errorf(errBlockNotProcessedFormat, 2, 0),
 		},
 		&getBridges{
 			p:               p,
@@ -137,7 +196,7 @@ func TestProceessor(t *testing.T) {
 			fromBlock:       0,
 			toBlock:         2,
 			expectedBridges: nil,
-			expectedErr:     ErrBlockNotProcessed,
+			expectedErr:     fmt.Errorf(errBlockNotProcessedFormat, 2, 0),
 		},
 		&processBlockAction{
 			p:           p,
@@ -579,6 +638,222 @@ func TestHashBridge(t *testing.T) {
 				Metadata:           common.FromHex(testVector.Metadata),
 			}
 			require.Equal(t, common.HexToHash(testVector.ExpectedHash), bridge.Hash())
+		})
+	}
+}
+
+func TestDecodeGlobalIndex(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                string
+		globalIndex         *big.Int
+		expectedMainnetFlag bool
+		expectedRollupIndex uint32
+		expectedLocalIndex  uint32
+		expectedErr         error
+	}{
+		{
+			name:                "Mainnet flag true, rollup index 0",
+			globalIndex:         GenerateGlobalIndex(true, 0, 2),
+			expectedMainnetFlag: true,
+			expectedRollupIndex: 0,
+			expectedLocalIndex:  2,
+			expectedErr:         nil,
+		},
+		{
+			name:                "Mainnet flag true, indexes 0",
+			globalIndex:         GenerateGlobalIndex(true, 0, 0),
+			expectedMainnetFlag: true,
+			expectedRollupIndex: 0,
+			expectedLocalIndex:  0,
+			expectedErr:         nil,
+		},
+		{
+			name:                "Mainnet flag false, rollup index 0",
+			globalIndex:         GenerateGlobalIndex(false, 0, 2),
+			expectedMainnetFlag: false,
+			expectedRollupIndex: 0,
+			expectedLocalIndex:  2,
+			expectedErr:         nil,
+		},
+		{
+			name:                "Mainnet flag false, rollup index non-zero",
+			globalIndex:         GenerateGlobalIndex(false, 11, 0),
+			expectedMainnetFlag: false,
+			expectedRollupIndex: 11,
+			expectedLocalIndex:  0,
+			expectedErr:         nil,
+		},
+		{
+			name:                "Mainnet flag false, indexes 0",
+			globalIndex:         GenerateGlobalIndex(false, 0, 0),
+			expectedMainnetFlag: false,
+			expectedRollupIndex: 0,
+			expectedLocalIndex:  0,
+			expectedErr:         nil,
+		},
+		{
+			name:                "Mainnet flag false, indexes non zero",
+			globalIndex:         GenerateGlobalIndex(false, 1231, 111234),
+			expectedMainnetFlag: false,
+			expectedRollupIndex: 1231,
+			expectedLocalIndex:  111234,
+			expectedErr:         nil,
+		},
+		{
+			name:                "Invalid global index length",
+			globalIndex:         big.NewInt(0).SetBytes([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
+			expectedMainnetFlag: false,
+			expectedRollupIndex: 0,
+			expectedLocalIndex:  0,
+			expectedErr:         errors.New("invalid global index length"),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			mainnetFlag, rollupIndex, localExitRootIndex, err := DecodeGlobalIndex(tt.globalIndex)
+			if tt.expectedErr != nil {
+				require.EqualError(t, err, tt.expectedErr.Error())
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tt.expectedMainnetFlag, mainnetFlag)
+			require.Equal(t, tt.expectedRollupIndex, rollupIndex)
+			require.Equal(t, tt.expectedLocalIndex, localExitRootIndex)
+		})
+	}
+}
+
+func TestInsertAndGetClaim(t *testing.T) {
+	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	log.Debugf("sqlite path: %s", path)
+	err := migrationsBridge.RunMigrations(path)
+	require.NoError(t, err)
+	p, err := newProcessor(path, "foo")
+	require.NoError(t, err)
+
+	tx, err := p.db.BeginTx(context.Background(), nil)
+	require.NoError(t, err)
+
+	// insert test claim
+	testClaim := &Claim{
+		BlockNum:            1,
+		BlockPos:            0,
+		GlobalIndex:         GenerateGlobalIndex(true, 0, 1093),
+		OriginNetwork:       11,
+		OriginAddress:       common.HexToAddress("0x11"),
+		DestinationAddress:  common.HexToAddress("0x11"),
+		Amount:              big.NewInt(11),
+		ProofLocalExitRoot:  types.Proof{},
+		ProofRollupExitRoot: types.Proof{},
+		MainnetExitRoot:     common.Hash{},
+		RollupExitRoot:      common.Hash{},
+		GlobalExitRoot:      common.Hash{},
+		DestinationNetwork:  12,
+		Metadata:            []byte("0x11"),
+		IsMessage:           false,
+	}
+
+	_, err = tx.Exec(`INSERT INTO block (num) VALUES ($1)`, testClaim.BlockNum)
+	require.NoError(t, err)
+	require.NoError(t, meddler.Insert(tx, "claim", testClaim))
+
+	require.NoError(t, tx.Commit())
+
+	// get test claim
+	claims, err := p.GetClaims(context.Background(), 1, 1)
+	require.NoError(t, err)
+	require.Len(t, claims, 1)
+	require.Equal(t, testClaim, &claims[0])
+}
+
+type mockBridgeContract struct {
+	lastUpdatedDepositCount uint32
+	err                     error
+}
+
+func (m *mockBridgeContract) LastUpdatedDepositCount(ctx context.Context, blockNumber uint64) (uint32, error) {
+	return m.lastUpdatedDepositCount, m.err
+}
+
+func TestGetBridgesPublished(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                    string
+		fromBlock               uint64
+		toBlock                 uint64
+		bridges                 []Bridge
+		lastUpdatedDepositCount uint32
+		expectedBridges         []Bridge
+		expectedError           error
+	}{
+		{
+			name:                    "no bridges",
+			fromBlock:               1,
+			toBlock:                 10,
+			bridges:                 []Bridge{},
+			lastUpdatedDepositCount: 0,
+			expectedBridges:         []Bridge{},
+			expectedError:           nil,
+		},
+		{
+			name:      "bridges within deposit count",
+			fromBlock: 1,
+			toBlock:   10,
+			bridges: []Bridge{
+				{DepositCount: 1, BlockNum: 1, Amount: big.NewInt(1)},
+				{DepositCount: 2, BlockNum: 2, Amount: big.NewInt(1)},
+			},
+			lastUpdatedDepositCount: 2,
+			expectedBridges: []Bridge{
+				{DepositCount: 1, BlockNum: 1, Amount: big.NewInt(1)},
+				{DepositCount: 2, BlockNum: 2, Amount: big.NewInt(1)},
+			},
+			expectedError: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			path := path.Join(t.TempDir(), "file::memory:?cache=shared")
+			require.NoError(t, migrationsBridge.RunMigrations(path))
+			p, err := newProcessor(path, "foo")
+			require.NoError(t, err)
+
+			tx, err := p.db.BeginTx(context.Background(), nil)
+			require.NoError(t, err)
+
+			for i := tc.fromBlock; i <= tc.toBlock; i++ {
+				_, err = tx.Exec(`INSERT INTO block (num) VALUES ($1)`, i)
+				require.NoError(t, err)
+			}
+
+			for _, bridge := range tc.bridges {
+				require.NoError(t, meddler.Insert(tx, "bridge", &bridge))
+			}
+
+			require.NoError(t, tx.Commit())
+
+			ctx := context.Background()
+			bridges, err := p.GetBridgesPublished(ctx, tc.fromBlock, tc.toBlock)
+
+			if tc.expectedError != nil {
+				require.Equal(t, tc.expectedError, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedBridges, bridges)
+			}
 		})
 	}
 }
