@@ -250,7 +250,8 @@ func (a *AggSender) getNextHeightAndPreviousLER(
 func (a *AggSender) buildCertificate(ctx context.Context,
 	bridges []bridgesync.Bridge,
 	claims []bridgesync.Claim,
-	lastSentCertificateInfo types.CertificateInfo) (*agglayer.Certificate, error) {
+	lastSentCertificateInfo types.CertificateInfo,
+	toBlock uint64) (*agglayer.Certificate, error) {
 	if len(bridges) == 0 && len(claims) == 0 {
 		return nil, errNoBridgesAndClaims
 	}
