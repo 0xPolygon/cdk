@@ -1483,6 +1483,7 @@ func (a *Aggregator) buildInputProver(
 		}
 	*/
 
+	a.accInputHashesMutex.Lock()
 	inputProver := &prover.StatelessInputProver{
 		PublicInputs: &prover.StatelessPublicInputs{
 			Witness: witness,
@@ -1501,6 +1502,7 @@ func (a *Aggregator) buildInputProver(
 			ForcedBlockhashL1: forcedBlockhashL1.Bytes(),
 		},
 	}
+	a.accInputHashesMutex.Unlock()
 
 	printInputProver(a.logger, inputProver)
 	return inputProver, nil
