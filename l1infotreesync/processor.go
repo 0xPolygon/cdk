@@ -352,20 +352,12 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			// failed due to a reorg. Hopefully, this is the case, eventually the reorg will get detected,
 			// and the syncer will get unhalted. Otherwise, this means that the syncer has an inconsistent state
 			// compared to the contracts, and this will need manual intervention.
-			if root.Hash != event.UpdateL1InfoTreeV2.CurrentL1InfoRoot {
+			if root.Hash != event.UpdateL1InfoTreeV2.CurrentL1InfoRoot || root.Index+1 != event.UpdateL1InfoTreeV2.LeafCount {
 				errStr := fmt.Sprintf(
-					"unexpected root when checking UpdateL1InfoTreeV2: %s vs %s. Happened on block %d",
-					root.Hash, common.Bytes2Hex(event.UpdateL1InfoTreeV2.CurrentL1InfoRoot[:]), block.Num,
-				)
-				log.Error(errStr)
-				p.haltedReason = errStr
-				p.halted = true
-				return sync.ErrInconsistentState
-			}
-			if root.Index+1 != event.UpdateL1InfoTreeV2.LeafCount {
-				errStr := fmt.Sprintf(
-					"unexpected index when checking UpdateL1InfoTreeV2: %d vs %d. Happened on block %d",
-					root.Index, event.UpdateL1InfoTreeV2.LeafCount, block.Num,
+					"failed to check UpdateL1InfoTreeV2. Root: %s vs %s. Index: : %d vs %d. Happened on block %d",
+					root.Hash, common.Bytes2Hex(event.UpdateL1InfoTreeV2.CurrentL1InfoRoot[:]),
+					root.Index, event.UpdateL1InfoTreeV2.LeafCount,
+					block.Num,
 				)
 				log.Error(errStr)
 				p.haltedReason = errStr
