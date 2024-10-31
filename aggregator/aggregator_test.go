@@ -83,7 +83,7 @@ func Test_Start(t *testing.T) {
 
 	mockL1Syncr.On("Sync", mock.Anything).Return(nil)
 	mockEtherman.On("GetLatestVerifiedBatchNum").Return(uint64(90), nil).Once()
-	mockEtherman.On("GetBatchAccInputHash", mock.Anything).Return(common.Hash{}, nil).Once()
+	mockEtherman.On("GetBatchAccInputHash", mock.Anything, uint64(90)).Return(common.Hash{}, nil).Once()
 	mockState.On("DeleteUngeneratedProofs", mock.Anything, nil).Return(nil).Once()
 	mockState.On("CleanupLockedProofs", mock.Anything, "", nil).Return(int64(0), nil)
 
