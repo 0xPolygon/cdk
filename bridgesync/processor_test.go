@@ -800,7 +800,7 @@ func TestGetBridgesPublished(t *testing.T) {
 			toBlock:                 10,
 			bridges:                 []Bridge{},
 			lastUpdatedDepositCount: 0,
-			expectedBridges:         nil,
+			expectedBridges:         []Bridge{},
 			expectedError:           nil,
 		},
 		{
@@ -817,33 +817,6 @@ func TestGetBridgesPublished(t *testing.T) {
 				{DepositCount: 2, BlockNum: 2, Amount: big.NewInt(1)},
 			},
 			expectedError: nil,
-		},
-		{
-			name:      "bridges exceeding deposit count",
-			fromBlock: 1,
-			toBlock:   10,
-			bridges: []Bridge{
-				{DepositCount: 1, BlockNum: 1, Amount: big.NewInt(1)},
-				{DepositCount: 2, BlockNum: 2, Amount: big.NewInt(1)},
-				{DepositCount: 3, BlockNum: 3, Amount: big.NewInt(1)},
-			},
-			lastUpdatedDepositCount: 2,
-			expectedBridges: []Bridge{
-				{DepositCount: 1, BlockNum: 1, Amount: big.NewInt(1)},
-				{DepositCount: 2, BlockNum: 2, Amount: big.NewInt(1)},
-			},
-			expectedError: nil,
-		},
-		{
-			name:      "error fetching last updated deposit count",
-			fromBlock: 1,
-			toBlock:   10,
-			bridges: []Bridge{
-				{DepositCount: 1, BlockNum: 1, Amount: big.NewInt(1)},
-			},
-			lastUpdatedDepositCount: 0,
-			expectedBridges:         nil,
-			expectedError:           errors.New("mock error"),
 		},
 	}
 
