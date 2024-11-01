@@ -1555,6 +1555,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
 				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
 				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, nil)
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, nil)
 				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
@@ -1576,7 +1577,6 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					},
 				}, nil).Twice()
 
-				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, nil)
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, []byte("witness"))
 				require.NoError(err)
 
