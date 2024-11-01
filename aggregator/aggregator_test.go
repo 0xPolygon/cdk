@@ -1649,6 +1649,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				}, nil).Twice()
 
 				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, nil)
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, nil)
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, []byte("witness"))
 				require.NoError(err)
 
