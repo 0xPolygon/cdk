@@ -1555,7 +1555,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
 				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
 				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, nil)
-				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, nil)
+				// m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, nil)
 				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
@@ -1713,7 +1713,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					},
 				}, nil).Twice()
 
-				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, nil).Twice()
+				// m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, []byte("witness"))
 				require.NoError(err)
 
@@ -1787,12 +1787,9 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 					},
 				}, nil).Twice()
 
-				rpcBatch := rpctypes.NewRPCBatch(lastVerifiedBatchNum, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
+				rpcBatch := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
 				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
-				rpcBatch2 := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
-				rpcBatch2.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
-				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, nil)
-				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch2, nil)
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, nil)
 				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
 
 				virtualBatch := synchronizer.VirtualBatch{
@@ -1870,6 +1867,9 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				m.synchronizerMock.On("GetVirtualBatchByBatchNumber", mock.Anything, lastVerifiedBatchNum+1).Return(&virtualBatch, nil).Once()
 
 				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
+				rpcBatch := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
+				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, nil)
 
 				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
