@@ -2,6 +2,7 @@ package agglayer
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -36,10 +37,7 @@ func (c *CertificateStatus) UnmarshalJSON(data []byte) error {
 	if strings.Contains(dataStr, "InError") {
 		status = "InError"
 	} else {
-		err := json.Unmarshal(data, &status)
-		if err != nil {
-			return err
-		}
+		status = string(data)
 	}
 
 	switch status {
@@ -199,6 +197,7 @@ type TokenInfo struct {
 	OriginTokenAddress common.Address `json:"origin_token_address"`
 }
 
+// String returns a string representation of the TokenInfo struct
 func (t *TokenInfo) String() string {
 	return fmt.Sprintf("OriginNetwork: %d, OriginTokenAddress: %s", t.OriginNetwork, t.OriginTokenAddress.String())
 }
@@ -210,17 +209,17 @@ type GlobalIndex struct {
 	LeafIndex   uint32 `json:"leaf_index"`
 }
 
+// String returns a string representation of the GlobalIndex struct
+func (g *GlobalIndex) String() string {
+	return fmt.Sprintf("MainnetFlag: %t, RollupIndex: %d, LeafIndex: %d", g.MainnetFlag, g.RollupIndex, g.LeafIndex)
+}
+
 func (g *GlobalIndex) Hash() common.Hash {
 	return crypto.Keccak256Hash(
 		cdkcommon.BigIntToLittleEndianBytes(
 			bridgesync.GenerateGlobalIndex(g.MainnetFlag, g.RollupIndex, g.LeafIndex),
 		),
 	)
-}
-
-func (g *GlobalIndex) String() string {
-	return fmt.Sprintf("MainnetFlag: %t, RollupIndex: %d, LeafIndex: %d",
-		g.MainnetFlag, g.RollupIndex, g.LeafIndex)
 }
 
 // BridgeExit represents a token bridge exit
@@ -517,17 +516,53 @@ func (c *ImportedBridgeExit) Hash() common.Hash {
 
 // CertificateHeader is the structure returned by the interop_getCertificateHeader RPC call
 type CertificateHeader struct {
-	NetworkID        uint32            `json:"network_id"`
-	Height           uint64            `json:"height"`
-	EpochNumber      *uint64           `json:"epoch_number"`
-	CertificateIndex *uint64           `json:"certificate_index"`
-	CertificateID    common.Hash       `json:"certificate_id"`
-	NewLocalExitRoot common.Hash       `json:"new_local_exit_root"`
-	Status           CertificateStatus `json:"status"`
-	Metadata         common.Hash       `json:"metadata"`
+	NetworkID        uint32                `json:"network_id"`
+	Height           uint64                `json:"height"`
+	EpochNumber      *uint64               `json:"epoch_number"`
+	CertificateIndex *uint64               `json:"certificate_index"`
+	CertificateID    common.Hash           `json:"certificate_id"`
+	NewLocalExitRoot common.Hash           `json:"new_local_exit_root"`
+	Status           CertificateStatus     `json:"status"`
+	Metadata         common.Hash           `json:"metadata"`
+	Error            *ProofGenerationError `json:"-"`
 }
 
 func (c CertificateHeader) String() string {
-	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s",
-		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String())
+	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s. Status: %s. Errors: %s",
+		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String(), c.Status.String(), c.Error.String())
+}
+
+func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
+	// Define an alias to avoid infinite recursion
+	type Alias CertificateHeader
+	aux := &struct {
+		Status interface{} `json:"status"`
+		*Alias
+	}{
+		Alias: (*Alias)(c),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// Process Status field
+	switch status := aux.Status.(type) {
+	case string:
+		if err := c.Status.UnmarshalJSON([]byte(status)); err != nil {
+			return err
+		}
+	case map[string]interface{}:
+		p := &ProofGenerationError{}
+		if err := p.UnmarshalFromMap(status); err != nil {
+			return err
+		}
+
+		c.Status = InError
+		c.Error = p
+	default:
+		return errors.New("invalid status type")
+	}
+
+	return nil
 }
