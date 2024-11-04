@@ -14,7 +14,7 @@ CREATE TABLE claim (
 	destination_network 	INT NOT NULL,
 	destination_address 	VARCHAR NOT NULL,
 	amount 					VARCHAR NOT NULL,
-	metadata 				VARCHAR NOT NULL,
+	metadata 				VARCHAR,
 	status 					VARCHAR NOT NULL,
 	tx_id 					VARCHAR NOT NULL
 );

@@ -151,20 +151,22 @@ func (c *ClaimSponsor) claim(ctx context.Context) error {
 
 func (c *ClaimSponsor) getWIPClaim() (*Claim, error) {
 	claim := &Claim{}
-	return claim, meddler.QueryRow(
+	err := meddler.QueryRow(
 		c.db, claim,
 		`SELECT * FROM claim WHERE status = $1 ORDER BY rowid ASC LIMIT 1;`,
 		WIPClaimStatus,
 	)
+	return claim, db.ReturnErrNotFound(err)
 }
 
 func (c *ClaimSponsor) getFirstPendingClaim() (*Claim, error) {
 	claim := &Claim{}
-	return claim, meddler.QueryRow(
+	err := meddler.QueryRow(
 		c.db, claim,
 		`SELECT * FROM claim WHERE status = $1 ORDER BY rowid ASC LIMIT 1;`,
 		PendingClaimStatus,
 	)
+	return claim, db.ReturnErrNotFound(err)
 }
 
 func (c *ClaimSponsor) updateClaimTxID(globalIndex *big.Int, txID string) error {
@@ -222,12 +224,14 @@ func (c *ClaimSponsor) waitTxToBeSuccessOrFail(ctx context.Context, txID string)
 }
 
 func (c *ClaimSponsor) AddClaimToQueue(claim *Claim) error {
+	claim.Status = PendingClaimStatus
 	return meddler.Insert(c.db, "claim", claim)
 }
 
 func (c *ClaimSponsor) GetClaim(globalIndex *big.Int) (*Claim, error) {
 	claim := &Claim{}
-	return claim, meddler.QueryRow(
+	err := meddler.QueryRow(
 		c.db, claim, `SELECT * FROM claim WHERE global_index = $1`, globalIndex.String(),
 	)
+	return claim, db.ReturnErrNotFound(err)
 }
