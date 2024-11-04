@@ -83,6 +83,7 @@ func CalculateAccInputHash(
 	}
 
 	v2 = keccak256.Hash(v2)
+	calculateAccInputHash := common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6))
 
 	logger.Debugf("OldAccInputHash: %v", oldAccInputHash)
 	logger.Debugf("BatchHashData: %v", common.Bytes2Hex(v2))
@@ -90,8 +91,9 @@ func CalculateAccInputHash(
 	logger.Debugf("TimeStampLimit: %v", timestampLimit)
 	logger.Debugf("Sequencer Address: %v", sequencerAddr)
 	logger.Debugf("Forced BlockHashL1: %v", forcedBlockhashL1)
+	logger.Debugf("CalculatedAccInputHash: %v", calculateAccInputHash)
 
-	return common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6))
+	return calculateAccInputHash
 }
 
 // NewKeyFromKeystore creates a private key from a keystore file
