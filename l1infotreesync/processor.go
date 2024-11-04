@@ -354,7 +354,8 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			// compared to the contracts, and this will need manual intervention.
 			if root.Hash != event.UpdateL1InfoTreeV2.CurrentL1InfoRoot || root.Index+1 != event.UpdateL1InfoTreeV2.LeafCount {
 				errStr := fmt.Sprintf(
-					"failed to check UpdateL1InfoTreeV2. Root: %s vs %s. Index: : %d vs %d. Happened on block %d",
+					"failed to check UpdateL1InfoTreeV2. Root: %s vs event:%s. "+
+						"Index: : %d vs event.LeafCount:%d. Happened on block %d",
 					root.Hash, common.Bytes2Hex(event.UpdateL1InfoTreeV2.CurrentL1InfoRoot[:]),
 					root.Index, event.UpdateL1InfoTreeV2.LeafCount,
 					block.Num,

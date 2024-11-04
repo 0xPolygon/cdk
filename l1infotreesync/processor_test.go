@@ -358,3 +358,26 @@ func createTestLeaves(t *testing.T, numOfLeaves int) []*L1InfoTreeLeaf {
 
 	return leaves
 }
+
+func TestProcessBlockUpdateL1InfoTreeV2DontMatchTree(t *testing.T) {
+	sut, err := newProcessor("file:Test_processor_BlockUpdateL1InfoTreeV2?mode=memory&cache=shared")
+	require.NoError(t, err)
+	block := sync.Block{
+		Num: 10,
+		Events: []interface{}{
+			Event{UpdateL1InfoTree: &UpdateL1InfoTree{
+				MainnetExitRoot: common.HexToHash("beef"),
+				RollupExitRoot:  common.HexToHash("5ca1e"),
+				ParentHash:      common.HexToHash("1010101"),
+				Timestamp:       420,
+			}},
+			Event{UpdateL1InfoTreeV2: &UpdateL1InfoTreeV2{
+				CurrentL1InfoRoot: common.HexToHash("beef"),
+				LeafCount:         1,
+			}},
+		},
+	}
+	err = sut.ProcessBlock(context.Background(), block)
+	require.ErrorIs(t, err, sync.ErrInconsistentState)
+	require.True(t, sut.halted)
+}
