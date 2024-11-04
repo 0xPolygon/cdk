@@ -153,7 +153,7 @@ func (c *ClaimSponsor) getWIPClaim() (*Claim, error) {
 	claim := &Claim{}
 	return claim, meddler.QueryRow(
 		c.db, claim,
-		`SELECT claim_data FROM claim WHERE status = $1 ORDER BY rowid ASC LIMIT 1;`,
+		`SELECT * FROM claim WHERE status = $1 ORDER BY rowid ASC LIMIT 1;`,
 		WIPClaimStatus,
 	)
 }
@@ -162,7 +162,7 @@ func (c *ClaimSponsor) getFirstPendingClaim() (*Claim, error) {
 	claim := &Claim{}
 	return claim, meddler.QueryRow(
 		c.db, claim,
-		`SELECT claim_data FROM claim WHERE status = $1 ORDER BY rowid ASC LIMIT 1;`,
+		`SELECT * FROM claim WHERE status = $1 ORDER BY rowid ASC LIMIT 1;`,
 		PendingClaimStatus,
 	)
 }
@@ -228,6 +228,6 @@ func (c *ClaimSponsor) AddClaimToQueue(claim *Claim) error {
 func (c *ClaimSponsor) GetClaim(globalIndex *big.Int) (*Claim, error) {
 	claim := &Claim{}
 	return claim, meddler.QueryRow(
-		c.db, claim, `SELECT claim_data FROM claim WHERE global_index = $1`, globalIndex.String(),
+		c.db, claim, `SELECT * FROM claim WHERE global_index = $1`, globalIndex.String(),
 	)
 }

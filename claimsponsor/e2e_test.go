@@ -31,7 +31,7 @@ func TestE2EL1toEVML2(t *testing.T) {
 	go bridgeSyncL1.Start(ctx)
 
 	// start claim sponsor
-	dbPathClaimSponsor := t.TempDir()
+	dbPathClaimSponsor := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	claimer, err := claimsponsor.NewEVMClaimSponsor(
 		log.GetDefaultLogger(),
 		dbPathClaimSponsor,
