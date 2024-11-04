@@ -1141,7 +1141,6 @@ func (a *Aggregator) getAndLockBatchToProve(
 		rpcBatch.ForcedBlockHashL1(),
 	)
 	// Store the acc input hash
-	a.accInputHashesMutex.Lock()
 	a.accInputHashes[batchNumberToVerify] = accInputHash
 	a.accInputHashesMutex.Unlock()
 
