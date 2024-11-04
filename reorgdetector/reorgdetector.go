@@ -2,18 +2,18 @@ package reorgdetector
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/big"
 	"sync"
 	"time"
 
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -25,7 +25,7 @@ type EthClient interface {
 
 type ReorgDetector struct {
 	client             EthClient
-	db                 kv.RwDB
+	db                 *sql.DB
 	checkReorgInterval time.Duration
 
 	trackedBlocksLock sync.RWMutex
@@ -36,12 +36,9 @@ type ReorgDetector struct {
 }
 
 func New(client EthClient, cfg Config) (*ReorgDetector, error) {
-	db, err := mdbx.NewMDBX(nil).
-		Path(cfg.DBPath).
-		WithTableCfg(tableCfgFunc).
-		Open()
+	db, err := db.NewSQLiteDB(cfg.DBPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open db: %w", err)
+		return nil, err
 	}
 
 	return &ReorgDetector{
