@@ -2,6 +2,7 @@ package reorgdetector
 
 import (
 	"context"
+	"path"
 	"testing"
 	"time"
 
@@ -19,7 +20,7 @@ func Test_ReorgDetector(t *testing.T) {
 	clientL1, _ := helpers.SimulatedBackend(t, nil, 0)
 
 	// Create test DB dir
-	testDir := t.TempDir()
+	testDir := path.Join(t.TempDir(), "file::memory:?cache=shared")
 
 	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
 	require.NoError(t, err)
