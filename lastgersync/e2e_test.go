@@ -66,8 +66,8 @@ func TestE2E(t *testing.T) {
 		}
 		require.True(t, syncerUpToDate, errMsg)
 
-		_, actualGER, err := syncer.GetFirstGERAfterL1InfoTreeIndex(ctx, uint32(i))
+		e, err := syncer.GetFirstGERAfterL1InfoTreeIndex(ctx, uint32(i))
 		require.NoError(t, err, fmt.Sprint("iteration: ", i))
-		require.Equal(t, common.Hash(expectedGER), actualGER, fmt.Sprint("iteration: ", i))
+		require.Equal(t, common.Hash(expectedGER), e.GlobalExitRoot, fmt.Sprint("iteration: ", i))
 	}
 }

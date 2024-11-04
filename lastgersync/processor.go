@@ -18,6 +18,12 @@ type Event struct {
 	L1InfoTreeIndex uint32         `meddler:"l1_info_tree_index"`
 }
 
+type eventWithBlockNum struct {
+	GlobalExitRoot  ethCommon.Hash `meddler:"global_exit_root,hash"`
+	L1InfoTreeIndex uint32         `meddler:"l1_info_tree_index"`
+	BlockNum        uint64         `meddler:"block_num"`
+}
+
 type processor struct {
 	db  *sql.DB
 	log *log.Logger
@@ -55,7 +61,7 @@ func (p *processor) getLastIndex() (uint32, error) {
 	var lastIndex uint32
 	row := p.db.QueryRow(`
 		SELECT l1_info_tree_index 
-		FROM global_exit_root 
+		FROM imported_global_exit_root 
 		ORDER BY l1_info_tree_index DESC LIMIT 1;
 	`)
 	err := row.Scan(&lastIndex)
@@ -73,8 +79,8 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	shouldRollback := true
 	defer func() {
 		if shouldRollback {
-			if errRllbck := tx.Rollback(); errRllbck != nil {
-				log.Errorf("error while rolling back tx %v", errRllbck)
+			if errRollback := tx.Rollback(); errRollback != nil {
+				log.Errorf("error while rolling back tx %v", errRollback)
 			}
 		}
 	}()
@@ -87,12 +93,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		if !ok {
 			return errors.New("failed to convert sync.Block.Event to Event")
 		}
-		type eventWithBlockNum struct {
-			GlobalExitRoot  ethCommon.Hash `meddler:"global_exit_root,hash"`
-			L1InfoTreeIndex uint32         `meddler:"l1_info_tree_index"`
-			BlockNum        uint64         `meddler:"block_num"`
-		}
-		if err = meddler.Insert(tx, "global_exit_root", &eventWithBlockNum{
+		if err = meddler.Insert(tx, "imported_global_exit_root", &eventWithBlockNum{
 			GlobalExitRoot:  event.GlobalExitRoot,
 			L1InfoTreeIndex: event.L1InfoTreeIndex,
 			BlockNum:        block.Num,
@@ -118,19 +119,19 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 // or greater
 func (p *processor) GetFirstGERAfterL1InfoTreeIndex(
 	ctx context.Context, l1InfoTreeIndex uint32,
-) (uint32, ethCommon.Hash, error) {
+) (Event, error) {
 	e := Event{}
 	err := meddler.QueryRow(p.db, &e, `
 		SELECT l1_info_tree_index, global_exit_root
-		FROM global_exit_root
+		FROM imported_global_exit_root
 		WHERE l1_info_tree_index >= $1
 		ORDER BY l1_info_tree_index ASC LIMIT 1;
 	`, l1InfoTreeIndex)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, ethCommon.Hash{}, db.ErrNotFound
+			return e, db.ErrNotFound
 		}
-		return 0, ethCommon.Hash{}, err
+		return e, err
 	}
-	return e.L1InfoTreeIndex, e.GlobalExitRoot, nil
+	return e, nil
 }
