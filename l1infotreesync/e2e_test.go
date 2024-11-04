@@ -154,7 +154,7 @@ func TestE2E(t *testing.T) {
 func TestWithReorgs(t *testing.T) {
 	ctx := context.Background()
 	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	dbPathReorg := t.TempDir()
+	dbPathReorg := path.Join(t.TempDir(), "file::memory:?cache=shared")
 
 	client, auth, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
 
@@ -272,7 +272,7 @@ func TestStressAndReorgs(t *testing.T) {
 
 	ctx := context.Background()
 	dbPathSyncer := path.Join(t.TempDir(), "file:TestStressAndReorgs:memory:?cache=shared")
-	dbPathReorg := t.TempDir()
+	dbPathReorg := path.Join(t.TempDir(), "file::memory:?cache=shared")
 
 	client, auth, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
 
