@@ -27,7 +27,8 @@ const (
 )
 
 var (
-	ErrInvalidClaim = errors.New("invalid claim")
+	ErrInvalidClaim     = errors.New("invalid claim")
+	ErrClaimDoesntExist = errors.New("the claim requested to be updated does not exist")
 )
 
 // Claim representation of a claim event
@@ -182,7 +183,7 @@ func (c *ClaimSponsor) updateClaimTxID(globalIndex *big.Int, txID string) error 
 		return fmt.Errorf("error getting rows affected: %w", err)
 	}
 	if rowsAff == 0 {
-		return fmt.Errorf("the claim requested to be updated does not exist")
+		return ErrClaimDoesntExist
 	}
 	return nil
 }
@@ -200,7 +201,7 @@ func (c *ClaimSponsor) updateClaimStatus(globalIndex *big.Int, status ClaimStatu
 		return fmt.Errorf("error getting rows affected: %w", err)
 	}
 	if rowsAff == 0 {
-		return fmt.Errorf("the claim requested to be updated does not exist")
+		return ErrClaimDoesntExist
 	}
 	return nil
 }
