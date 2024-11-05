@@ -50,7 +50,7 @@ linters-settings:
     enabled-checks:
       - ruleguard
     disabled-checks:
-      - ifElseChain# switch statements are super ugly + some times the code is cleaner or less confusing with if/else
+      - ifElseChain
   revive:
     rules:
       - name: exported
