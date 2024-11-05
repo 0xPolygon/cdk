@@ -38,7 +38,7 @@ func newProcessor(dbPath string, loggerPrefix string) (*processor, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger := log.WithFields("bridge-syncer", loggerPrefix)
+	logger := log.WithFields("lastger-syncer", loggerPrefix)
 	return &processor{
 		db:  db,
 		log: logger,
