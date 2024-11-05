@@ -147,7 +147,7 @@ func duplicateToAnonymousStruct(src interface{}) interface{} {
 	return anonymousStruct.Interface()
 }
 
-func (c *Certificate) MarshalJSON() ([]byte, error) {
+func (c Certificate) MarshalJSON() ([]byte, error) {
 	if c.BridgeExits == nil {
 		c.BridgeExits = make([]*BridgeExit, 0)
 	}
@@ -183,6 +183,12 @@ func (c SignedCertificate) MarshalJSON() ([]byte, error) {
 
 	if c.Signature == nil {
 		c.Signature = &Signature{}
+	}
+	if c.BridgeExits == nil {
+		c.BridgeExits = make([]*BridgeExit, 0)
+	}
+	if c.ImportedBridgeExits == nil {
+		c.ImportedBridgeExits = make([]*ImportedBridgeExit, 0)
 	}
 
 	return json.Marshal(&struct {
