@@ -32,7 +32,7 @@ func New(
 	waitForNewBlocksPeriod time.Duration,
 	downloadBufferSize int,
 ) (*LastGERSync, error) {
-	processor, err := newProcessor(dbPath)
+	processor, err := newProcessor(dbPath, "lastGERSync")
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (s *LastGERSync) Start(ctx context.Context) {
 
 func (s *LastGERSync) GetFirstGERAfterL1InfoTreeIndex(
 	ctx context.Context, atOrAfterL1InfoTreeIndex uint32,
-) (injectedL1InfoTreeIndex uint32, ger common.Hash, err error) {
+) (Event, error) {
 	return s.processor.GetFirstGERAfterL1InfoTreeIndex(ctx, atOrAfterL1InfoTreeIndex)
 }
 
