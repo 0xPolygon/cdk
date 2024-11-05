@@ -29,6 +29,10 @@ function get_value_from_toml_file(){
     local _KEY="$3"
     local _LINE
     local _inside_section=0
+    if [ $_SECTION == "." ]; then
+        _SECTION=""
+        _inside_section=1
+    fi
     local _return_next_line=0
     local _TMP_FILE=$(mktemp)
     cat $_FILE > $_TMP_FILE
@@ -72,20 +76,45 @@ function get_value_from_toml_file(){
 }
 ###############################################################################
 function export_key_from_toml_file_or_fatal(){
+    export_key_from_toml_file "$1" "$2" "$3" "$4"
+    if [ $? -ne 0  ]; then
+        local _EXPORTED_VAR_NAME="$1"
+        local _FILE="$2"
+        local _SECTION="$3"
+        local _KEY="$4"
+        log_fatal  "$FUNCNAME: key [$_KEY] not found in section [$_SECTION] in file [$_FILE]"
+    fi
+}
+
+###############################################################################
+function export_key_from_toml_file(){
     local _EXPORTED_VAR_NAME="$1"
     local _FILE="$2"
     local _SECTION="$3"
     local _KEY="$4"
     local _VALUE=$(get_value_from_toml_file $_FILE $_SECTION $_KEY)
     if [ -z "$_VALUE" ]; then
-       log_fatal  "$FUNCNAME: key $_KEY not found in section $_SECTION in file $_FILE"
+       log_debug "$FUNCNAME: key [$_KEY] not found in section [$_SECTION] in file [$_FILE]"
+       return 1
     fi
     export $_EXPORTED_VAR_NAME="$_VALUE"
     log_debug "$_EXPORTED_VAR_NAME=${!_EXPORTED_VAR_NAME}  \t\t\t# file:$_FILE section:$_SECTION key:$_KEY"
+    return 0
+}
+###############################################################################
+function export_obj_key_from_toml_file_or_fatal(){
+    export_obj_key_from_toml_file  $*
+    if [ $? -ne 0 ]; then
+        local _EXPORTED_VAR_NAME="$1"
+        local _FILE="$2"
+        local _SECTION="$3"
+        local _KEY="$4"
+       log_fatal  "$FUNCNAME: obj_key [$_KEY] not found in section [$_SECTION] in file [$_FILE]"
+    fi
 }
 
 ###############################################################################
-function export_obj_key_from_toml_file_or_fatal(){
+function export_obj_key_from_toml_file(){
     local _EXPORTED_VAR_NAME="$1"
     local _FILE="$2"
     local _SECTION="$3"
@@ -94,7 +123,8 @@ function export_obj_key_from_toml_file_or_fatal(){
     log_debug "export_obj_key_from_toml_file_or_fatal: $_EXPORTED_VAR_NAME $_FILE $_SECTION $_KEY $_OBJ_KEY"
    local _VALUE=$(get_value_from_toml_file $_FILE $_SECTION $_KEY)
     if [ -z "$_VALUE" ]; then
-       log_fatal  "export_obj_key_from_toml_file_or_fatal: obj_key $_KEY not found in section [$_SECTION]"
+       log_error  "export_obj_key_from_toml_file_or_fatal: obj_key $_KEY not found in section [$_SECTION]"
+       return 1
     fi
     local _CLEAN_VALUE=$(echo $_VALUE | tr -d '{' | tr -d '}' | tr  ',' '\n')
     while read -r _LINE; do
@@ -113,7 +143,8 @@ function export_obj_key_from_toml_file_or_fatal(){
             return 0
         fi
     done <<< "$_CLEAN_VALUE"
-    log_fatal  "export_obj_key_from_toml_file_or_fatal: obj_key $_OBJ_KEY not found in section $_SECTION/ $_KEY = $_VALUE"
+    log_error "export_obj_key_from_toml_file_or_fatal: obj_key $_OBJ_KEY not found in section $_SECTION/ $_KEY = $_VALUE"
+    return 1
 }
 
 ###############################################################################
@@ -133,23 +164,55 @@ function export_values_of_genesis(){
 ###############################################################################
 function export_values_of_cdk_node_config(){
     local _CDK_CONFIG_FILE=$1
-    export_key_from_toml_file_or_fatal      zkevm_l2_sequencer_address              $_CDK_CONFIG_FILE SequenceSender L2Coinbase
-    export_obj_key_from_toml_file_or_fatal  zkevm_l2_sequencer_keystore_password              $_CDK_CONFIG_FILE SequenceSender PrivateKey Password
-    export_key_from_toml_file_or_fatal      l1_chain_id                             $_CDK_CONFIG_FILE SequenceSender.EthTxManager.Etherman L1ChainID
-    export_key_from_toml_file_or_fatal      zkevm_is_validium                       $_CDK_CONFIG_FILE Common IsValidiumMode
-    export_key_from_toml_file_or_fatal      zkevm_contract_versions                 $_CDK_CONFIG_FILE Common ContractVersions
-    export_key_from_toml_file_or_fatal      l2_chain_id                             $_CDK_CONFIG_FILE Aggregator ChainID
+    export_key_from_toml_file      zkevm_l2_sequencer_address                       $_CDK_CONFIG_FILE SequenceSender L2Coinbase
+    if [ $? -ne 0 ]; then 
+        export_key_from_toml_file_or_fatal      zkevm_l2_sequencer_address          $_CDK_CONFIG_FILE "." L2Coinbase
+    fi
+    export_obj_key_from_toml_file  zkevm_l2_sequencer_keystore_password             $_CDK_CONFIG_FILE SequenceSender PrivateKey Password
+    if [ $? -ne 0 ]; then 
+        export_key_from_toml_file_or_fatal      zkevm_l2_sequencer_keystore_password $_CDK_CONFIG_FILE "." SequencerPrivateKeyPassword
+    fi
+    export_key_from_toml_file      l1_chain_id                                      $_CDK_CONFIG_FILE SequenceSender.EthTxManager.Etherman L1ChainID
+    if [ $? -ne 0 ]; then 
+        export_key_from_toml_file_or_fatal      l1_chain_id                         $_CDK_CONFIG_FILE L1Config chainId
+    fi
+    export_key_from_toml_file      zkevm_is_validium                                $_CDK_CONFIG_FILE Common IsValidiumMode
+    if [ $? -ne 0 ]; then 
+        export_key_from_toml_file_or_fatal      zkevm_is_validium                   $_CDK_CONFIG_FILE "." IsValidiumMode
+    fi
+    export_key_from_toml_file      zkevm_contract_versions                          $_CDK_CONFIG_FILE Common ContractVersions
+    if [ $? -ne 0 ]; then 
+        export_key_from_toml_file_or_fatal      zkevm_contract_versions             $_CDK_CONFIG_FILE "." ContractVersions
+    fi
+    export_key_from_toml_file      l2_chain_id                                      $_CDK_CONFIG_FILE Aggregator ChainID
+    if [ $? -ne 0 ]; then 
+        log_debug "l2_chain_id not found in Aggregator section, using 0"
+        export l2_chain_id="0"
+    fi
     export_key_from_toml_file_or_fatal      zkevm_aggregator_port                   $_CDK_CONFIG_FILE Aggregator Port
-    export_key_from_toml_file_or_fatal      zkevm_l2_agglayer_address               $_CDK_CONFIG_FILE Aggregator SenderAddress
+    export_key_from_toml_file      zkevm_l2_agglayer_address                        $_CDK_CONFIG_FILE Aggregator SenderAddress
+    if [ $? -ne 0 ]; then
+         export_key_from_toml_file      zkevm_l2_agglayer_address                   $_CDK_CONFIG_FILE "." SenderProofToL1Addr
+    fi
     export_key_from_toml_file_or_fatal      aggregator_db_name                      $_CDK_CONFIG_FILE Aggregator.DB Name
     export_key_from_toml_file_or_fatal      aggregator_db_user                      $_CDK_CONFIG_FILE Aggregator.DB User
     export_key_from_toml_file_or_fatal      aggregator_db_password                  $_CDK_CONFIG_FILE Aggregator.DB           Password
-    export_obj_key_from_toml_file_or_fatal  zkevm_l2_aggregator_keystore_password   $_CDK_CONFIG_FILE Aggregator.EthTxManager PrivateKeys Password
-    
-    export_key_from_toml_file_or_fatal      zkevm_rollup_fork_id                    $_CDK_CONFIG_FILE Aggregator ForkId
-    export_key_from_toml_file_or_fatal      zkevm_l2_agglayer_keystore_password     $_CDK_CONFIG_FILE AggSender.SequencerPrivateKey Password
-    export_key_from_toml_file_or_fatal      zkevm_bridge_address                    $_CDK_CONFIG_FILE BridgeL1Sync BridgeAddr
-    
+    export_obj_key_from_toml_file  zkevm_l2_aggregator_keystore_password            $_CDK_CONFIG_FILE Aggregator.EthTxManager PrivateKeys Password
+    if [ $? -ne 0 ]; then
+        export_key_from_toml_file  zkevm_l2_aggregator_keystore_password            $_CDK_CONFIG_FILE "." AggregatorPrivateKeyPassword
+    fi
+    export_key_from_toml_file     zkevm_rollup_fork_id                              $_CDK_CONFIG_FILE Aggregator ForkId
+    if [ $? -ne 0 ]; then
+        export_key_from_toml_file_or_fatal      zkevm_rollup_fork_id                $_CDK_CONFIG_FILE "." ForkId
+    fi
+    export_key_from_toml_file     zkevm_l2_agglayer_keystore_password               $_CDK_CONFIG_FILE AggSender.SequencerPrivateKey Password
+    if [ $? -ne 0 ]; then
+        export_key_from_toml_file_or_fatal      zkevm_l2_agglayer_keystore_password $_CDK_CONFIG_FILE "." SequencerPrivateKeyPassword
+    fi
+    export_key_from_toml_file      zkevm_bridge_address                             $_CDK_CONFIG_FILE BridgeL1Sync BridgeAddr
+    if [ $? -ne 0 ]; then
+        export_key_from_toml_file_or_fatal      zkevm_bridge_address                $_CDK_CONFIG_FILE "." polygonBridgeAddr
+    fi
     export is_cdk_validium=$zkevm_is_validium
     export zkevm_rollup_chain_id=$l2_chain_id
 
