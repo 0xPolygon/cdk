@@ -71,9 +71,6 @@ func Test_ReorgDetector(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, 1, headersList.len()) // Only block 3 left
 	require.Equal(t, remainingHeader.Hash(), headersList.get(4).Hash)
-
-	ctx.Done()
-	time.Sleep(100 * time.Millisecond)
 }
 
 func TestGetTrackedBlocks(t *testing.T) {

@@ -160,10 +160,8 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 						hdrs.removeRange(hdr.Num, hdr.Num)
 					}
 					if err := rd.removeTrackedBlockRange(id, hdr.Num, hdr.Num); err != nil {
-						return fmt.Errorf(
-							"error removing blocks from DB for subscriber %s between blocks %d and %d: %w",
-							id, hdr.Num, hdr.Num, err,
-						)
+						return fmt.Errorf("error removing blocks from DB for subscriber %s between blocks %d and %d: %w",
+							id, hdr.Num, hdr.Num, err)
 					}
 
 					continue
@@ -174,10 +172,8 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 
 				// Remove the reorged block and all the following blocks from DB
 				if err := rd.removeTrackedBlockRange(id, hdr.Num, headers[len(headers)-1].Num); err != nil {
-					return fmt.Errorf(
-						"error removing blocks from DB for subscriber %s between blocks %d and %d: %w",
-						id, hdr.Num, headers[len(headers)-1].Num, err,
-					)
+					return fmt.Errorf("error removing blocks from DB for subscriber %s between blocks %d and %d: %w",
+						id, hdr.Num, headers[len(headers)-1].Num, err)
 				}
 				// Remove the reorged block and all the following blocks from memory
 				hdrs.removeRange(hdr.Num, headers[len(headers)-1].Num)
