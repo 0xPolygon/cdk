@@ -229,7 +229,7 @@ func (b *BridgeEndpoints) SponsorClaim(claim claimsponsor.Claim) (interface{}, r
 			fmt.Sprintf("this client only sponsors claims for network %d", b.networkID),
 		)
 	}
-	if err := b.sponsor.AddClaimToQueue(ctx, &claim); err != nil {
+	if err := b.sponsor.AddClaimToQueue(&claim); err != nil {
 		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("error adding claim to the queue %s", err))
 	}
 	return nil, nil
@@ -250,7 +250,7 @@ func (b *BridgeEndpoints) GetSponsoredClaimStatus(globalIndex *big.Int) (interfa
 	if b.sponsor == nil {
 		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, "this client does not support claim sponsoring")
 	}
-	claim, err := b.sponsor.GetClaim(ctx, globalIndex)
+	claim, err := b.sponsor.GetClaim(globalIndex)
 	if err != nil {
 		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get claim status, error: %s", err))
 	}
