@@ -3,6 +3,7 @@ package reorgdetector
 import (
 	"context"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -70,6 +71,9 @@ func Test_ReorgDetector(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, 1, headersList.len()) // Only block 3 left
 	require.Equal(t, remainingHeader.Hash(), headersList.get(4).Hash)
+
+	ctx.Done()
+	time.Sleep(100 * time.Millisecond)
 }
 
 func TestGetTrackedBlocks(t *testing.T) {
@@ -124,4 +128,14 @@ func TestGetTrackedBlocks(t *testing.T) {
 	require.True(t, ok)
 	_, ok = reorgDetector.subscriptions["Bar"]
 	require.True(t, ok)
+}
+
+func TestNotSubscribed(t *testing.T) {
+	clientL1, _ := helpers.SimulatedBackend(t, nil, 0)
+	testDir := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
+	require.NoError(t, err)
+	err = reorgDetector.AddBlockToTrack(context.Background(), "foo", 1, common.Hash{})
+	require.True(t, strings.Contains(err.Error(), "is not subscribed"))
+
 }
