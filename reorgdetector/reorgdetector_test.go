@@ -137,5 +137,4 @@ func TestNotSubscribed(t *testing.T) {
 	require.NoError(t, err)
 	err = reorgDetector.AddBlockToTrack(context.Background(), "foo", 1, common.Hash{})
 	require.True(t, strings.Contains(err.Error(), "is not subscribed"))
-
 }
