@@ -13,7 +13,6 @@ import (
 func TestErrorVectors(t *testing.T) {
 	t.Parallel()
 
-	// we define an alias to avoid infinite recursion
 	type testCase struct {
 		TestName              string `json:"test_name"`
 		ExpectedError         string `json:"expected_error"`
@@ -106,6 +105,7 @@ func TestConvertMapValue_String(t *testing.T) {
 	}
 }
 
+//nolint:dupl
 func TestConvertMapValue_Uint32(t *testing.T) {
 	t.Parallel()
 
@@ -160,6 +160,61 @@ func TestConvertMapValue_Uint32(t *testing.T) {
 	}
 }
 
+//nolint:dupl
+func TestConvertMapValue_Uint64(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		data      map[string]interface{}
+		key       string
+		want      uint64
+		errString string
+	}{
+		{
+			name: "Key exists and type matches",
+			data: map[string]interface{}{
+				"key1": uint64(3411),
+			},
+			key:  "key1",
+			want: uint64(3411),
+		},
+		{
+			name: "Key exists but type does not match",
+			data: map[string]interface{}{
+				"key1": "not a number",
+			},
+			key:       "key1",
+			want:      0,
+			errString: "is not of type",
+		},
+		{
+			name: "Key does not exist",
+			data: map[string]interface{}{
+				"key1": uint64(123555),
+			},
+			key:       "key22",
+			want:      0,
+			errString: "key key22 not found in map",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := convertMapValue[uint64](tt.data, tt.key)
+			if tt.errString != "" {
+				require.ErrorContains(t, err, tt.errString)
+			} else {
+				require.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
 func TestConvertMapValue_Bool(t *testing.T) {
 	t.Parallel()
 
@@ -205,60 +260,6 @@ func TestConvertMapValue_Bool(t *testing.T) {
 			t.Parallel()
 
 			got, err := convertMapValue[bool](tt.data, tt.key)
-			if tt.errString != "" {
-				require.ErrorContains(t, err, tt.errString)
-			} else {
-				require.Equal(t, tt.want, got)
-			}
-		})
-	}
-}
-
-func TestConvertMapValue_Uint64(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name      string
-		data      map[string]interface{}
-		key       string
-		want      uint64
-		errString string
-	}{
-		{
-			name: "Key exists and type matches",
-			data: map[string]interface{}{
-				"key1": uint64(123456789),
-			},
-			key:  "key1",
-			want: uint64(123456789),
-		},
-		{
-			name: "Key exists but type does not match",
-			data: map[string]interface{}{
-				"key1": "value1",
-			},
-			key:       "key1",
-			want:      0,
-			errString: "is not of type",
-		},
-		{
-			name: "Key does not exist",
-			data: map[string]interface{}{
-				"key1": uint64(123456789),
-			},
-			key:       "key2",
-			want:      0,
-			errString: "key key2 not found in map",
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			got, err := convertMapValue[uint64](tt.data, tt.key)
 			if tt.errString != "" {
 				require.ErrorContains(t, err, tt.errString)
 			} else {

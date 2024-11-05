@@ -616,9 +616,9 @@ func convertMapValue[T any](data map[string]interface{}, key string) (T, error) 
 	if floatValue, ok := value.(float64); ok && targetType.Kind() >= reflect.Int && targetType.Kind() <= reflect.Uint64 {
 		convertedValue, err := convertNumeric(floatValue, targetType)
 		if err != nil {
-			return target, fmt.Errorf("conversion error for key %s: %v", key, err)
+			return target, fmt.Errorf("conversion error for key %s: %w", key, err)
 		}
-		return convertedValue.(T), nil
+		return convertedValue.(T), nil //nolint:forcetypeassert
 	}
 
 	return target, fmt.Errorf("value of key %s is not of type %T", key, target)

@@ -551,8 +551,13 @@ type CertificateHeader struct {
 }
 
 func (c CertificateHeader) String() string {
+	errors := ""
+	if c.Error != nil {
+		errors = c.Error.String()
+	}
+
 	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s. Status: %s. Errors: %s",
-		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String(), c.Status.String(), c.Error.String())
+		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String(), c.Status.String(), errors)
 }
 
 func (c *CertificateHeader) UnmarshalJSON(data []byte) error {

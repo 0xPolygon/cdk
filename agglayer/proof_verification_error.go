@@ -78,7 +78,7 @@ func (p *ProofVerificationError) Unmarshal(data interface{}) error {
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {
 		// it can be a single error
-		return getAndAddInnerErrorFn(data.(string), nil)
+		return getAndAddInnerErrorFn(data.(string), nil) //nolint:forcetypeassert
 	}
 
 	for key, value := range dataMap {
