@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"reflect"
 	"strings"
 
 	"github.com/0xPolygon/cdk/bridgesync"
@@ -125,10 +126,84 @@ func (c *Certificate) HashToSign() common.Hash {
 	)
 }
 
+func duplicateToAnonymousStruct(src interface{}) interface{} {
+	srcVal := reflect.ValueOf(src)
+	srcType := srcVal.Type()
+
+	var structFields []reflect.StructField
+	for i := 0; i < srcType.NumField(); i++ {
+		field := srcType.Field(i)
+		structFields = append(structFields, field)
+	}
+
+	anonymousStructType := reflect.StructOf(structFields)
+
+	anonymousStruct := reflect.New(anonymousStructType).Elem()
+
+	for i := 0; i < srcVal.NumField(); i++ {
+		anonymousStruct.Field(i).Set(srcVal.Field(i))
+	}
+
+	return anonymousStruct.Interface()
+}
+
+func (c *Certificate) MarshalJSON() ([]byte, error) {
+	if c.BridgeExits == nil {
+		c.BridgeExits = make([]*BridgeExit, 0)
+	}
+	if c.ImportedBridgeExits == nil {
+		c.ImportedBridgeExits = make([]*ImportedBridgeExit, 0)
+	}
+	return json.Marshal(&struct {
+		NetworkID           uint32                `json:"network_id"`
+		Height              uint64                `json:"height"`
+		PrevLocalExitRoot   [32]byte              `json:"prev_local_exit_root"`
+		NewLocalExitRoot    [32]byte              `json:"new_local_exit_root"`
+		BridgeExits         []*BridgeExit         `json:"bridge_exits"`
+		ImportedBridgeExits []*ImportedBridgeExit `json:"imported_bridge_exits"`
+		Metadata            common.Hash           `json:"metadata"`
+	}{
+		NetworkID:           c.NetworkID,
+		Height:              c.Height,
+		PrevLocalExitRoot:   c.PrevLocalExitRoot,
+		NewLocalExitRoot:    c.NewLocalExitRoot,
+		BridgeExits:         c.BridgeExits,
+		ImportedBridgeExits: c.ImportedBridgeExits,
+		Metadata:            c.Metadata,
+	})
+}
+
 // SignedCertificate is the struct that contains the certificate and the signature of the signer
 type SignedCertificate struct {
 	*Certificate
 	Signature *Signature `json:"signature"`
+}
+
+func (c SignedCertificate) MarshalJSON() ([]byte, error) {
+
+	if c.Signature == nil {
+		c.Signature = &Signature{}
+	}
+
+	return json.Marshal(&struct {
+		NetworkID           uint32                `json:"network_id"`
+		Height              uint64                `json:"height"`
+		PrevLocalExitRoot   [32]byte              `json:"prev_local_exit_root"`
+		NewLocalExitRoot    [32]byte              `json:"new_local_exit_root"`
+		BridgeExits         []*BridgeExit         `json:"bridge_exits"`
+		ImportedBridgeExits []*ImportedBridgeExit `json:"imported_bridge_exits"`
+		Metadata            common.Hash           `json:"metadata"`
+		Signature           *Signature            `json:"signature"`
+	}{
+		NetworkID:           c.NetworkID,
+		Height:              c.Height,
+		PrevLocalExitRoot:   c.PrevLocalExitRoot,
+		NewLocalExitRoot:    c.NewLocalExitRoot,
+		BridgeExits:         c.BridgeExits,
+		ImportedBridgeExits: c.ImportedBridgeExits,
+		Metadata:            c.Metadata,
+		Signature:           c.Signature,
+	})
 }
 
 // Signature is the data structure that will hold the signature of the given certificate
