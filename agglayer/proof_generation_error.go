@@ -3,6 +3,7 @@ package agglayer
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -33,160 +34,163 @@ const (
 	UnknownErrorType                      = "UnknownError"
 )
 
-type Error interface {
+type PPError interface {
 	String() string
 }
 
 // ProofGenerationError is a struct that represents an error that occurs when generating a proof.
 type ProofGenerationError struct {
 	GenerationType string
-	Errors         []Error
+	InnerErrors    []PPError
 }
 
 // String is the implementation of the Error interface
 func (p *ProofGenerationError) String() string {
-	return fmt.Sprintf("Proof generation error: %s. %s", p.GenerationType, p.Errors)
+	return fmt.Sprintf("Proof generation error: %s. %s", p.GenerationType, p.InnerErrors)
 }
 
-// UnmarshalFromMap unmarshals the data from a map into a ProofGenerationError struct.
-func (p *ProofGenerationError) UnmarshalFromMap(data map[string]interface{}) error {
-	inErr, ok := data["InError"]
-	if !ok {
-		return errors.New("InError field not found")
-	}
-
-	inErrMap, ok := inErr.(map[string]interface{})
+// Unmarshal unmarshals the data from a map into a ProofGenerationError struct.
+func (p *ProofGenerationError) Unmarshal(data interface{}) error {
+	dataMap, ok := data.(map[string]interface{})
 	if !ok {
 		return errNotMap
 	}
 
-	inErrData, ok := inErrMap["error"]
-	if !ok {
-		return errors.New("error field not found")
+	generationType, err := convertMapValue[string](dataMap, "generation_type")
+	if err != nil {
+		return err
 	}
 
-	inErrDataMap, ok := inErrData.(map[string]interface{})
-	if !ok {
-		return errNotMap
-	}
+	p.GenerationType = generationType
 
-	proofGenerationError, ok := inErrDataMap["ProofGenerationError"]
-	if !ok {
-		return errors.New("ProofGenerationError field not found")
-	}
-
-	proofGenerationErrorMap, ok := proofGenerationError.(map[string]interface{})
-	if !ok {
-		return errNotMap
-	}
-
-	p.GenerationType = proofGenerationErrorMap["generation_type"].(string)
-
-	sourceMap, ok := proofGenerationErrorMap["source"].(map[string]interface{})
-	if !ok {
-		return errNotMap
-	}
-
-	// there will always be only one key in the source map
-	for key, value := range sourceMap {
-		data, ok := value.(map[string]interface{})
-		if !ok {
-			return errNotMap
-		}
-
+	getPPErrFn := func(key string, value interface{}) (PPError, error) {
 		switch key {
 		case InvalidSignerErrorType:
 			invalidSigner := &InvalidSignerError{}
-			if err := invalidSigner.UnmarshalFromMap(data); err != nil {
-				return err
+			if err := invalidSigner.UnmarshalFromMap(value); err != nil {
+				return nil, err
 			}
-			p.Errors = append(p.Errors, invalidSigner)
+			return invalidSigner, nil
 		case InvalidPreviousLERErrorType:
 			invalidPreviousLER := NewInvalidPreviousLocalExitRoot()
-			if err := invalidPreviousLER.UnmarshalFromMap(data); err != nil {
-				return err
+			if err := invalidPreviousLER.UnmarshalFromMap(value); err != nil {
+				return nil, err
 			}
-			p.Errors = append(p.Errors, invalidPreviousLER)
+			p.InnerErrors = append(p.InnerErrors, invalidPreviousLER)
 		case InvalidPreviousBalanceRootErrorType:
 			invalidPreviousBalanceRoot := NewInvalidPreviousBalanceRoot()
-			if err := invalidPreviousBalanceRoot.UnmarshalFromMap(data); err != nil {
-				return err
+			if err := invalidPreviousBalanceRoot.UnmarshalFromMap(value); err != nil {
+				return nil, err
 			}
-			p.Errors = append(p.Errors, invalidPreviousBalanceRoot)
+			p.InnerErrors = append(p.InnerErrors, invalidPreviousBalanceRoot)
 		case InvalidPreviousNullifierRootErrorType:
 			invalidPreviousNullifierRoot := NewInvalidPreviousNullifierRoot()
-			if err := invalidPreviousNullifierRoot.UnmarshalFromMap(data); err != nil {
-				return err
+			if err := invalidPreviousNullifierRoot.UnmarshalFromMap(value); err != nil {
+				return nil, err
 			}
-			p.Errors = append(p.Errors, invalidPreviousNullifierRoot)
+			p.InnerErrors = append(p.InnerErrors, invalidPreviousNullifierRoot)
 		case InvalidNewLocalExitRootErrorType:
 			invalidNewLocalExitRoot := NewInvalidNewLocalExitRoot()
-			if err := invalidNewLocalExitRoot.UnmarshalFromMap(data); err != nil {
-				return err
+			if err := invalidNewLocalExitRoot.UnmarshalFromMap(value); err != nil {
+				return nil, err
 			}
-			p.Errors = append(p.Errors, invalidNewLocalExitRoot)
+			p.InnerErrors = append(p.InnerErrors, invalidNewLocalExitRoot)
 		case InvalidNewBalanceRootErrorType:
 			invalidNewBalanceRoot := NewInvalidNewBalanceRoot()
-			if err := invalidNewBalanceRoot.UnmarshalFromMap(data); err != nil {
-				return err
+			if err := invalidNewBalanceRoot.UnmarshalFromMap(value); err != nil {
+				return nil, err
 			}
-			p.Errors = append(p.Errors, invalidNewBalanceRoot)
+			p.InnerErrors = append(p.InnerErrors, invalidNewBalanceRoot)
 		case InvalidNewNullifierRootErrorType:
 			invalidNewNullifierRoot := NewInvalidNewNullifierRoot()
-			if err := invalidNewNullifierRoot.UnmarshalFromMap(data); err != nil {
-				return err
+			if err := invalidNewNullifierRoot.UnmarshalFromMap(value); err != nil {
+				return nil, err
 			}
-			p.Errors = append(p.Errors, invalidNewNullifierRoot)
+			p.InnerErrors = append(p.InnerErrors, invalidNewNullifierRoot)
 		case InvalidImportedExitsRootErrorType:
 			invalidImportedExitsRoot := NewInvalidImportedExitsRoot()
-			if err := invalidImportedExitsRoot.UnmarshalFromMap(data); err != nil {
-				return err
+			if err := invalidImportedExitsRoot.UnmarshalFromMap(value); err != nil {
+				return nil, err
 			}
-			p.Errors = append(p.Errors, invalidImportedExitsRoot)
+			p.InnerErrors = append(p.InnerErrors, invalidImportedExitsRoot)
 		case MismatchImportedExitsRootErrorType:
-			p.Errors = append(p.Errors, &MismatchImportedExitsRoot{})
+			p.InnerErrors = append(p.InnerErrors, &MismatchImportedExitsRoot{})
 		case InvalidNullifierPathErrorType:
-			p.Errors = append(p.Errors, &InvalidNullifierPath{})
+			p.InnerErrors = append(p.InnerErrors, &InvalidNullifierPath{})
 		case InvalidBalancePathErrorType:
-			p.Errors = append(p.Errors, &InvalidBalancePath{})
+			p.InnerErrors = append(p.InnerErrors, &InvalidBalancePath{})
 		case BalanceOverflowInBridgeExitErrorType:
-			p.Errors = append(p.Errors, &BalanceOverflowInBridgeExit{})
+			p.InnerErrors = append(p.InnerErrors, &BalanceOverflowInBridgeExit{})
 		case BalanceUnderflowInBridgeExitErrorType:
-			p.Errors = append(p.Errors, &BalanceUnderflowInBridgeExit{})
+			p.InnerErrors = append(p.InnerErrors, &BalanceUnderflowInBridgeExit{})
 		case CannotExitToSameNetworkErrorType:
-			p.Errors = append(p.Errors, &CannotExitToSameNetwork{})
+			p.InnerErrors = append(p.InnerErrors, &CannotExitToSameNetwork{})
 		case InvalidMessageOriginNetworkErrorType:
-			p.Errors = append(p.Errors, &InvalidMessageOriginNetwork{})
+			p.InnerErrors = append(p.InnerErrors, &InvalidMessageOriginNetwork{})
 		case InvalidL1TokenInfoErrorType:
-			invalidL1TokenInfo := &InvalidL1TokenInfo{}
-			if err := invalidL1TokenInfo.UnmarshalFromMap(data); err != nil {
-				return err
+			invalidL1TokenInfo := NewInvalidL1TokenInfo()
+			if err := invalidL1TokenInfo.UnmarshalFromMap(value); err != nil {
+				return nil, err
 			}
-			p.Errors = append(p.Errors, invalidL1TokenInfo)
+			p.InnerErrors = append(p.InnerErrors, invalidL1TokenInfo)
 		case MissingTokenBalanceProofErrorType:
-			missingTokenBalanceProof := &MissingTokenBalanceProof{}
-			if err := missingTokenBalanceProof.UnmarshalFromMap(data); err != nil {
-				return err
+			missingTokenBalanceProof := NewMissingTokenBalanceProof()
+			if err := missingTokenBalanceProof.UnmarshalFromMap(value); err != nil {
+				return nil, err
 			}
-			p.Errors = append(p.Errors, missingTokenBalanceProof)
+			p.InnerErrors = append(p.InnerErrors, missingTokenBalanceProof)
 		case DuplicateTokenBalanceProofErrorType:
-			duplicateTokenBalanceProof := &DuplicateTokenBalanceProof{}
-			if err := duplicateTokenBalanceProof.UnmarshalFromMap(data); err != nil {
-				return err
+			duplicateTokenBalanceProof := NewDuplicateTokenBalanceProof()
+			if err := duplicateTokenBalanceProof.UnmarshalFromMap(value); err != nil {
+				return nil, err
 			}
-			p.Errors = append(p.Errors, duplicateTokenBalanceProof)
+			p.InnerErrors = append(p.InnerErrors, duplicateTokenBalanceProof)
 		case InvalidSignatureErrorType:
-			p.Errors = append(p.Errors, &InvalidSignature{})
+			p.InnerErrors = append(p.InnerErrors, &InvalidSignature{})
 		case InvalidImportedBridgeExitErrorType:
 			invalidImportedBridgeExit := &InvalidImportedBridgeExit{}
-			if err := invalidImportedBridgeExit.UnmarshalFromMap(data); err != nil {
-				return err
+			if err := invalidImportedBridgeExit.UnmarshalFromMap(value); err != nil {
+				return nil, err
 			}
-			p.Errors = append(p.Errors, invalidImportedBridgeExit)
+			p.InnerErrors = append(p.InnerErrors, invalidImportedBridgeExit)
 		case UnknownErrorType:
-			p.Errors = append(p.Errors, &UnknownError{})
+			p.InnerErrors = append(p.InnerErrors, &UnknownError{})
 		default:
-			return fmt.Errorf("unknown error type: %s", key)
+			return nil, fmt.Errorf("unknown proof generation error type: %s", key)
+		}
+
+		return nil, nil
+	}
+
+	errorSourceMap, err := convertMapValue[map[string]interface{}](dataMap, "source")
+	if err != nil {
+		// it can be a single error
+		errSourceString, err := convertMapValue[string](dataMap, "source")
+		if err != nil {
+			return err
+		}
+
+		ppErr, err := getPPErrFn(errSourceString, nil)
+		if err != nil {
+			return err
+		}
+
+		if ppErr != nil {
+			p.InnerErrors = append(p.InnerErrors, ppErr)
+		}
+
+		return nil
+	}
+
+	// there will always be only one key in the source map
+	for key, value := range errorSourceMap {
+		ppErr, err := getPPErrFn(key, value)
+		if err != nil {
+			return err
+		}
+
+		if ppErr != nil {
+			p.InnerErrors = append(p.InnerErrors, ppErr)
 		}
 	}
 
@@ -206,9 +210,24 @@ func (e *InvalidSignerError) String() string {
 		InvalidSignerErrorType, e.Declared.String(), e.Recovered.String())
 }
 
-func (e *InvalidSignerError) UnmarshalFromMap(data map[string]interface{}) error {
-	e.Declared = common.HexToAddress(data["declared"].(string))
-	e.Recovered = common.HexToAddress(data["recovered"].(string))
+func (e *InvalidSignerError) UnmarshalFromMap(data interface{}) error {
+	dataMap, ok := data.(map[string]interface{})
+	if !ok {
+		return errNotMap
+	}
+
+	declared, err := convertMapValue[string](dataMap, "declared")
+	if err != nil {
+		return err
+	}
+
+	recovered, err := convertMapValue[string](dataMap, "recovered")
+	if err != nil {
+		return err
+	}
+
+	e.Declared = common.HexToAddress(declared)
+	e.Recovered = common.HexToAddress(recovered)
 
 	return nil
 }
@@ -227,9 +246,24 @@ func (e *DeclaredComputedError) String() string {
 }
 
 // UnmarshalFromMap is the implementation of the Error interface
-func (e *DeclaredComputedError) UnmarshalFromMap(data map[string]interface{}) error {
-	e.Declared = common.HexToHash(data["declared"].(string))
-	e.Computed = common.HexToHash(data["computed"].(string))
+func (e *DeclaredComputedError) UnmarshalFromMap(data interface{}) error {
+	dataMap, ok := data.(map[string]interface{})
+	if !ok {
+		return errNotMap
+	}
+
+	declared, err := convertMapValue[string](dataMap, "declared")
+	if err != nil {
+		return err
+	}
+
+	computed, err := convertMapValue[string](dataMap, "computed")
+	if err != nil {
+		return err
+	}
+
+	e.Declared = common.HexToHash(declared)
+	e.Computed = common.HexToHash(computed)
 
 	return nil
 }
@@ -384,10 +418,61 @@ func (e *InvalidMessageOriginNetwork) String() string {
 	return fmt.Sprintf("%s: The origin network of the message is invalid.", InvalidMessageOriginNetworkErrorType)
 }
 
+// TokenInfoError is a struct inherited by other errors that have a TokenInfo field.
+type TokenInfoError struct {
+	TokenInfo *TokenInfo `json:"token_info"`
+	isNested  bool
+}
+
+func (e *TokenInfoError) UnmarshalFromMap(data interface{}) error {
+	dataMap, ok := data.(map[string]interface{})
+	if !ok {
+		return errNotMap
+	}
+
+	var (
+		err          error
+		tokenInfoMap map[string]interface{}
+	)
+
+	if e.isNested {
+		tokenInfoMap, err = convertMapValue[map[string]interface{}](dataMap, "TokenInfo")
+		if err != nil {
+			return err
+		}
+	} else {
+		tokenInfoMap = dataMap
+	}
+
+	originNetwork, err := convertMapValue[uint32](tokenInfoMap, "origin_network")
+	if err != nil {
+		return err
+	}
+
+	originAddress, err := convertMapValue[string](tokenInfoMap, "origin_token_address")
+	if err != nil {
+		return err
+	}
+
+	e.TokenInfo = &TokenInfo{
+		OriginNetwork:      originNetwork,
+		OriginTokenAddress: common.HexToAddress(originAddress),
+	}
+
+	return nil
+}
+
 // InvalidL1TokenInfo is a struct that represents an error that occurs when
 // the L1 token info is invalid.
 type InvalidL1TokenInfo struct {
-	TokenInfo *TokenInfo `json:"token_info"`
+	*TokenInfoError
+}
+
+// NewInvalidL1TokenInfo returns a new instance of InvalidL1TokenInfo.
+func NewInvalidL1TokenInfo() *InvalidL1TokenInfo {
+	return &InvalidL1TokenInfo{
+		TokenInfoError: &TokenInfoError{isNested: true},
+	}
 }
 
 // String is the implementation of the Error interface
@@ -396,21 +481,17 @@ func (e *InvalidL1TokenInfo) String() string {
 		InvalidL1TokenInfoErrorType, e.TokenInfo.String())
 }
 
-func (e *InvalidL1TokenInfo) UnmarshalFromMap(data map[string]interface{}) error {
-	ti, err := unmarshalTokenInfo(data)
-	if err != nil {
-		return err
-	}
-
-	e.TokenInfo = ti
-
-	return nil
-}
-
 // MissingTokenBalanceProof is a struct that represents an error that occurs when
 // the token balance proof is missing.
 type MissingTokenBalanceProof struct {
-	TokenInfo *TokenInfo `json:"token_info"`
+	*TokenInfoError
+}
+
+// NewMissingTokenBalanceProof returns a new instance of MissingTokenBalanceProof.
+func NewMissingTokenBalanceProof() *MissingTokenBalanceProof {
+	return &MissingTokenBalanceProof{
+		TokenInfoError: &TokenInfoError{isNested: true},
+	}
 }
 
 // String is the implementation of the Error interface
@@ -419,38 +500,23 @@ func (e *MissingTokenBalanceProof) String() string {
 		MissingTokenBalanceProofErrorType, e.TokenInfo.String())
 }
 
-func (e *MissingTokenBalanceProof) UnmarshalFromMap(data map[string]interface{}) error {
-	ti, err := unmarshalTokenInfo(data)
-	if err != nil {
-		return err
-	}
-
-	e.TokenInfo = ti
-
-	return nil
-}
-
 // DuplicateTokenBalanceProof is a struct that represents an error that occurs when
 // the token balance proof is duplicated.
 type DuplicateTokenBalanceProof struct {
-	TokenInfo *TokenInfo `json:"token_info"`
+	*TokenInfoError
+}
+
+// NewDuplicateTokenBalanceProof returns a new instance of DuplicateTokenBalanceProof.
+func NewDuplicateTokenBalanceProof() *DuplicateTokenBalanceProof {
+	return &DuplicateTokenBalanceProof{
+		TokenInfoError: &TokenInfoError{isNested: true},
+	}
 }
 
 // String is the implementation of the Error interface
 func (e *DuplicateTokenBalanceProof) String() string {
 	return fmt.Sprintf("%s: The provided token comes with multiple balance proofs. %s",
 		DuplicateTokenBalanceProofErrorType, e.TokenInfo.String())
-}
-
-func (e *DuplicateTokenBalanceProof) UnmarshalFromMap(data map[string]interface{}) error {
-	ti, err := unmarshalTokenInfo(data)
-	if err != nil {
-		return err
-	}
-
-	e.TokenInfo = ti
-
-	return nil
 }
 
 // InvalidSignature is a struct that represents an error that occurs when
@@ -483,7 +549,8 @@ func (e *InvalidImportedBridgeExit) String() string {
 	var errorDescription string
 	switch e.ErrorType {
 	case "MismatchGlobalIndexInclusionProof":
-		errorDescription = "The global index and the inclusion proof do not both correspond to the same network type: mainnet or rollup."
+		errorDescription = "The global index and the inclusion proof do not both correspond " +
+			"to the same network type: mainnet or rollup."
 	case "MismatchL1Root":
 		errorDescription = "The provided L1 info root does not match the one provided in the inclusion proof."
 	case "MismatchMER":
@@ -506,47 +573,85 @@ func (e *InvalidImportedBridgeExit) String() string {
 		InvalidImportedBridgeExitErrorType, e.GlobalIndex.String(), e.ErrorType, errorDescription)
 }
 
-func (e *InvalidImportedBridgeExit) UnmarshalFromMap(data map[string]interface{}) error {
-	sourceError, ok := data["source"]
-	if !ok {
-		return errors.New("source field not found")
-	}
-
-	e.ErrorType = sourceError.(string)
-
-	globalIndex, ok := data["global_index"]
-	if !ok {
-		return errors.New("global_index field not found")
-	}
-
-	globalIndexMap, ok := globalIndex.(map[string]interface{})
+func (e *InvalidImportedBridgeExit) UnmarshalFromMap(data interface{}) error {
+	dataMap, ok := data.(map[string]interface{})
 	if !ok {
 		return errNotMap
 	}
 
-	e.GlobalIndex = &GlobalIndex{
-		MainnetFlag: globalIndexMap["mainnet_flag"].(bool),
-		RollupIndex: globalIndexMap["rollup_index"].(uint32),
-		LeafIndex:   globalIndexMap["leaf_index"].(uint32),
+	sourceErr, err := convertMapValue[string](dataMap, "source")
+	if err != nil {
+		return err
 	}
 
-	return nil
+	e.ErrorType = sourceErr
+
+	globalIndexMap, err := convertMapValue[map[string]interface{}](dataMap, "global_index")
+	if err != nil {
+		return err
+	}
+
+	e.GlobalIndex = &GlobalIndex{}
+	return e.GlobalIndex.UnmarshalFromMap(globalIndexMap)
 }
 
-// unmashalTokenInfo unmarshals the data from a map into a TokenInfo struct.
-func unmarshalTokenInfo(data map[string]interface{}) (*TokenInfo, error) {
-	raw, ok := data["TokenInfo"]
+// convertMapValue converts the value of a key in a map to a target type.
+func convertMapValue[T any](data map[string]interface{}, key string) (T, error) {
+	value, ok := data[key]
 	if !ok {
-		return nil, errors.New("TokenInfo field not found")
+		var zero T
+		return zero, fmt.Errorf("key %s not found in map", key)
 	}
 
-	tokenInfoMap, ok := raw.(map[string]interface{})
-	if !ok {
-		return nil, errNotMap
+	// Try a direct type assertion
+	if convertedValue, ok := value.(T); ok {
+		return convertedValue, nil
 	}
 
-	return &TokenInfo{
-		OriginNetwork:      tokenInfoMap["origin_network"].(uint32),
-		OriginTokenAddress: common.HexToAddress(tokenInfoMap["origin_address"].(string)),
-	}, nil
+	// If direct assertion fails, handle numeric type conversions
+	var target T
+	targetType := reflect.TypeOf(target)
+
+	// Check if value is a float64 (default JSON number type) and target is a numeric type
+	if floatValue, ok := value.(float64); ok && targetType.Kind() >= reflect.Int && targetType.Kind() <= reflect.Uint64 {
+		convertedValue, err := convertNumeric(floatValue, targetType)
+		if err != nil {
+			return target, fmt.Errorf("conversion error for key %s: %v", key, err)
+		}
+		return convertedValue.(T), nil
+	}
+
+	return target, fmt.Errorf("value of key %s is not of type %T", key, target)
+}
+
+// convertNumeric converts a float64 to the specified numeric type.
+func convertNumeric(value float64, targetType reflect.Type) (interface{}, error) {
+	switch targetType.Kind() {
+	case reflect.Int:
+		return int(value), nil
+	case reflect.Int8:
+		return int8(value), nil
+	case reflect.Int16:
+		return int16(value), nil
+	case reflect.Int32:
+		return int32(value), nil
+	case reflect.Int64:
+		return int64(value), nil
+	case reflect.Uint:
+		return uint(value), nil
+	case reflect.Uint8:
+		return uint8(value), nil
+	case reflect.Uint16:
+		return uint16(value), nil
+	case reflect.Uint32:
+		return uint32(value), nil
+	case reflect.Uint64:
+		return uint64(value), nil
+	case reflect.Float32:
+		return float32(value), nil
+	case reflect.Float64:
+		return value, nil
+	default:
+		return nil, errors.New("unsupported target type")
+	}
 }

@@ -152,3 +152,102 @@ func TestSignedCertificate_Copy(t *testing.T) {
 		require.Empty(t, certificateCopy.ImportedBridgeExits)
 	})
 }
+
+func TestGlobalIndex_UnmarshalFromMap(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		data    map[string]interface{}
+		want    *GlobalIndex
+		wantErr bool
+	}{
+		{
+			name: "valid data",
+			data: map[string]interface{}{
+				"rollup_index": uint32(0),
+				"leaf_index":   uint32(2),
+				"mainnet_flag": true,
+			},
+			want: &GlobalIndex{
+				RollupIndex: 0,
+				LeafIndex:   2,
+				MainnetFlag: true,
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing rollup_index",
+			data: map[string]interface{}{
+				"leaf_index":   uint32(2),
+				"mainnet_flag": true,
+			},
+			want:    &GlobalIndex{},
+			wantErr: true,
+		},
+		{
+			name: "invalid rollup_index type",
+			data: map[string]interface{}{
+				"rollup_index": "invalid",
+				"leaf_index":   uint32(2),
+				"mainnet_flag": true,
+			},
+			want:    &GlobalIndex{},
+			wantErr: true,
+		},
+		{
+			name: "missing leaf_index",
+			data: map[string]interface{}{
+				"rollup_index": uint32(1),
+				"mainnet_flag": true,
+			},
+			want:    &GlobalIndex{},
+			wantErr: true,
+		},
+		{
+			name: "invalid leaf_index type",
+			data: map[string]interface{}{
+				"rollup_index": uint32(1),
+				"leaf_index":   "invalid",
+				"mainnet_flag": true,
+			},
+			want:    &GlobalIndex{},
+			wantErr: true,
+		},
+		{
+			name: "missing mainnet_flag",
+			data: map[string]interface{}{
+				"rollup_index": uint32(1),
+				"leaf_index":   uint32(2),
+			},
+			want:    &GlobalIndex{},
+			wantErr: true,
+		},
+		{
+			name: "invalid mainnet_flag type",
+			data: map[string]interface{}{
+				"rollup_index": uint32(1),
+				"leaf_index":   uint32(2),
+				"mainnet_flag": "invalid",
+			},
+			want:    &GlobalIndex{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := &GlobalIndex{}
+			err := g.UnmarshalFromMap(tt.data)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.want, g)
+			}
+		})
+	}
+}

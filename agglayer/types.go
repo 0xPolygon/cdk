@@ -222,6 +222,29 @@ func (g *GlobalIndex) Hash() common.Hash {
 	)
 }
 
+func (g *GlobalIndex) UnmarshalFromMap(data map[string]interface{}) error {
+	rollupIndex, err := convertMapValue[uint32](data, "rollup_index")
+	if err != nil {
+		return err
+	}
+
+	leafIndex, err := convertMapValue[uint32](data, "leaf_index")
+	if err != nil {
+		return err
+	}
+
+	mainnetFlag, err := convertMapValue[bool](data, "mainnet_flag")
+	if err != nil {
+		return err
+	}
+
+	g.RollupIndex = rollupIndex
+	g.LeafIndex = leafIndex
+	g.MainnetFlag = mainnetFlag
+
+	return nil
+}
+
 // BridgeExit represents a token bridge exit
 type BridgeExit struct {
 	LeafType           LeafType       `json:"leaf_type"`
@@ -516,15 +539,15 @@ func (c *ImportedBridgeExit) Hash() common.Hash {
 
 // CertificateHeader is the structure returned by the interop_getCertificateHeader RPC call
 type CertificateHeader struct {
-	NetworkID        uint32                `json:"network_id"`
-	Height           uint64                `json:"height"`
-	EpochNumber      *uint64               `json:"epoch_number"`
-	CertificateIndex *uint64               `json:"certificate_index"`
-	CertificateID    common.Hash           `json:"certificate_id"`
-	NewLocalExitRoot common.Hash           `json:"new_local_exit_root"`
-	Status           CertificateStatus     `json:"status"`
-	Metadata         common.Hash           `json:"metadata"`
-	Error            *ProofGenerationError `json:"-"`
+	NetworkID        uint32            `json:"network_id"`
+	Height           uint64            `json:"height"`
+	EpochNumber      *uint64           `json:"epoch_number"`
+	CertificateIndex *uint64           `json:"certificate_index"`
+	CertificateID    common.Hash       `json:"certificate_id"`
+	NewLocalExitRoot common.Hash       `json:"new_local_exit_root"`
+	Status           CertificateStatus `json:"status"`
+	Metadata         common.Hash       `json:"metadata"`
+	Error            PPError           `json:"-"`
 }
 
 func (c CertificateHeader) String() string {
@@ -533,7 +556,7 @@ func (c CertificateHeader) String() string {
 }
 
 func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
-	// Define an alias to avoid infinite recursion
+	// we define an alias to avoid infinite recursion
 	type Alias CertificateHeader
 	aux := &struct {
 		Status interface{} `json:"status"`
@@ -548,18 +571,53 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 
 	// Process Status field
 	switch status := aux.Status.(type) {
-	case string:
+	case string: // certificate not InError
 		if err := c.Status.UnmarshalJSON([]byte(status)); err != nil {
 			return err
 		}
-	case map[string]interface{}:
-		p := &ProofGenerationError{}
-		if err := p.UnmarshalFromMap(status); err != nil {
+	case map[string]interface{}: // certificate has errors
+		inErrMap, err := convertMapValue[map[string]interface{}](status, "InError")
+		if err != nil {
 			return err
 		}
 
+		inErrDataMap, err := convertMapValue[map[string]interface{}](inErrMap, "error")
+		if err != nil {
+			return err
+		}
+
+		var ppError PPError
+
+		for key, value := range inErrDataMap {
+			switch key {
+			case "ProofGenerationError":
+				p := &ProofGenerationError{}
+				if err := p.Unmarshal(value); err != nil {
+					return err
+				}
+
+				ppError = p
+			case "TypeConversionError":
+				t := &TypeConversionError{}
+				if err := t.Unmarshal(value); err != nil {
+					return err
+				}
+
+				ppError = t
+			case "ProofVerificationError":
+				p := &ProofVerificationError{}
+				if err := p.Unmarshal(value); err != nil {
+					return err
+				}
+
+				ppError = p
+			default:
+				return fmt.Errorf("invalid error type: %s", key)
+			}
+		}
+
 		c.Status = InError
-		c.Error = p
+		c.Error = ppError
 	default:
 		return errors.New("invalid status type")
 	}
