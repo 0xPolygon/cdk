@@ -8,6 +8,7 @@ import (
 
 	cdktypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/test/helpers"
+	common "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -69,4 +70,58 @@ func Test_ReorgDetector(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, 1, headersList.len()) // Only block 3 left
 	require.Equal(t, remainingHeader.Hash(), headersList.get(4).Hash)
+}
+
+func TestGetTrackedBlocks(t *testing.T) {
+	clientL1, _ := helpers.SimulatedBackend(t, nil, 0)
+	testDir := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
+	require.NoError(t, err)
+	list, err := reorgDetector.getTrackedBlocks()
+	require.NoError(t, err)
+	require.Equal(t, len(list), 0)
+
+	expectedList := make(map[string]*headersList)
+	headersMapFoo := make(map[uint64]header)
+	headerFoo2 := header{
+		Num:  2,
+		Hash: common.HexToHash("foofoo"),
+	}
+	err = reorgDetector.saveTrackedBlock("foo", headerFoo2)
+	require.NoError(t, err)
+	headersMapFoo[2] = headerFoo2
+	headerFoo3 := header{
+		Num:  3,
+		Hash: common.HexToHash("foofoofoo"),
+	}
+	err = reorgDetector.saveTrackedBlock("foo", headerFoo3)
+	require.NoError(t, err)
+	headersMapFoo[3] = headerFoo3
+	expectedList["foo"] = &headersList{
+		headers: headersMapFoo,
+	}
+	list, err = reorgDetector.getTrackedBlocks()
+	require.NoError(t, err)
+	require.Equal(t, expectedList, list)
+
+	headersMapBar := make(map[uint64]header)
+	headerBar2 := header{
+		Num:  2,
+		Hash: common.HexToHash("BarBar"),
+	}
+	err = reorgDetector.saveTrackedBlock("Bar", headerBar2)
+	require.NoError(t, err)
+	headersMapBar[2] = headerBar2
+	expectedList["Bar"] = &headersList{
+		headers: headersMapBar,
+	}
+	list, err = reorgDetector.getTrackedBlocks()
+	require.NoError(t, err)
+	require.Equal(t, expectedList, list)
+
+	require.NoError(t, reorgDetector.loadTrackedHeaders())
+	_, ok := reorgDetector.subscriptions["foo"]
+	require.True(t, ok)
+	_, ok = reorgDetector.subscriptions["Bar"]
+	require.True(t, ok)
 }

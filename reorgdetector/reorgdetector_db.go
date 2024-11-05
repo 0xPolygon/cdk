@@ -25,7 +25,13 @@ func (rd *ReorgDetector) getTrackedBlocks() (map[string]*headersList, error) {
 	currentID := headersWithID[0].SubscriberID
 	currentHeaders := []header{}
 	for i := 0; i < len(headersWithID); i++ {
-		if headersWithID[i].SubscriberID != currentID {
+		if i == len(headersWithID)-1 {
+			currentHeaders = append(currentHeaders, header{
+				Num:  headersWithID[i].Num,
+				Hash: headersWithID[i].Hash,
+			})
+			trackedBlocks[currentID] = newHeadersList(currentHeaders...)
+		} else if headersWithID[i].SubscriberID != currentID {
 			trackedBlocks[currentID] = newHeadersList(currentHeaders...)
 			currentHeaders = []header{{
 				Num:  headersWithID[i].Num,
