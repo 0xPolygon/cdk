@@ -456,7 +456,7 @@ func TestGetImportedBridgeExits(t *testing.T) {
 			name:          "No claims",
 			claims:        []bridgesync.Claim{},
 			expectedError: false,
-			expectedExits: nil,
+			expectedExits: []*agglayer.ImportedBridgeExit{},
 		},
 	}
 
@@ -803,7 +803,9 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 			mockAggLayerClient := agglayer.NewAgglayerClientMock(t)
 			mockLogger := mocks.NewLoggerMock(t)
 
-			mockStorage.On("GetCertificatesByStatus", mock.Anything, []agglayer.CertificateStatus{agglayer.Pending}).Return(tt.pendingCertificates, tt.getFromDBError)
+			mockStorage.On("GetCertificatesByStatus", mock.Anything, []agglayer.CertificateStatus{
+				agglayer.Pending, agglayer.Proven, agglayer.Candidate}).Return(
+				tt.pendingCertificates, tt.getFromDBError)
 			for certID, header := range tt.certificateHeaders {
 				mockAggLayerClient.On("GetCertificateHeader", certID).Return(header, tt.clientError)
 			}
@@ -1407,4 +1409,60 @@ func TestExploratoryGenerateCert(t *testing.T) {
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	require.NoError(t, encoder.Encode(certificate))
+}
+
+func TestGetNextHeightAndPreviousLER(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                    string
+		lastSentCertificateInfo aggsendertypes.CertificateInfo
+		expectedHeight          uint64
+		expectedPreviousLER     common.Hash
+	}{
+		{
+			name: "Normal case",
+			lastSentCertificateInfo: aggsendertypes.CertificateInfo{
+				Height:           10,
+				NewLocalExitRoot: common.HexToHash("0x123"),
+				Status:           agglayer.Settled,
+			},
+			expectedHeight:      11,
+			expectedPreviousLER: common.HexToHash("0x123"),
+		},
+		{
+			name: "Previous certificate in error",
+			lastSentCertificateInfo: aggsendertypes.CertificateInfo{
+				Height:           10,
+				NewLocalExitRoot: common.HexToHash("0x123"),
+				Status:           agglayer.InError,
+			},
+			expectedHeight:      10,
+			expectedPreviousLER: common.HexToHash("0x123"),
+		},
+		{
+			name: "First certificate",
+			lastSentCertificateInfo: aggsendertypes.CertificateInfo{
+				Height:           0,
+				NewLocalExitRoot: common.Hash{},
+				Status:           agglayer.Settled,
+			},
+			expectedHeight:      0,
+			expectedPreviousLER: zeroLER,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			aggSender := &AggSender{log: log.WithFields("aggsender-test", "getNextHeightAndPreviousLER")}
+			height, previousLER := aggSender.getNextHeightAndPreviousLER(&tt.lastSentCertificateInfo)
+
+			require.Equal(t, tt.expectedHeight, height)
+			require.Equal(t, tt.expectedPreviousLER, previousLER)
+		})
+	}
 }

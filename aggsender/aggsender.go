@@ -205,6 +205,25 @@ func (a *AggSender) saveCertificateToFile(signedCertificate *agglayer.SignedCert
 	}
 }
 
+// getNextHeightAndPreviousLER returns the height and previous LER for the new certificate
+func (a *AggSender) getNextHeightAndPreviousLER(lastSentCertificateInfo *aggsendertypes.CertificateInfo) (uint64, common.Hash) {
+	height := lastSentCertificateInfo.Height + 1
+	if lastSentCertificateInfo.Status == agglayer.InError {
+		// previous certificate was in error, so we need to resend it
+		a.log.Debugf("Last certificate %s failed so reusing height %d", lastSentCertificateInfo.CertificateID, lastSentCertificateInfo.Height)
+		height = lastSentCertificateInfo.Height
+	}
+
+	previousLER := lastSentCertificateInfo.NewLocalExitRoot
+	if lastSentCertificateInfo.NewLocalExitRoot == (common.Hash{}) {
+		// meaning this is the first certificate
+		height = 0
+		previousLER = zeroLER
+	}
+
+	return height, previousLER
+}
+
 // buildCertificate builds a certificate from the bridge events
 func (a *AggSender) buildCertificate(ctx context.Context,
 	bridges []bridgesync.Bridge,
@@ -231,18 +250,8 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("error getting exit root by index: %d. Error: %w", depositCount, err)
 	}
-	height := lastSentCertificateInfo.Height + 1
-	if lastSentCertificateInfo.Status == agglayer.InError {
-		a.log.Debugf("Last certificate %s fails so reusing height %d", lastSentCertificateInfo.CertificateID, lastSentCertificateInfo.Height)
-		height = lastSentCertificateInfo.Height
-	}
 
-	previousLER := lastSentCertificateInfo.NewLocalExitRoot
-	if lastSentCertificateInfo.NewLocalExitRoot == (common.Hash{}) {
-		// meaning this is the first certificate
-		height = 0
-		previousLER = zeroLER
-	}
+	height, previousLER := a.getNextHeightAndPreviousLER(&lastSentCertificateInfo)
 
 	return &agglayer.Certificate{
 		NetworkID:           a.l2Syncer.OriginNetwork(),
@@ -316,7 +325,7 @@ func (a *AggSender) getImportedBridgeExits(
 ) ([]*agglayer.ImportedBridgeExit, error) {
 	if len(claims) == 0 {
 		// no claims to convert
-		return nil, nil
+		return []*agglayer.ImportedBridgeExit{}, nil
 	}
 
 	var (
@@ -463,23 +472,22 @@ func (a *AggSender) checkIfCertificatesAreSettled(ctx context.Context) {
 // checkPendingCertificatesStatus checks the status of pending certificates
 // and updates in the storage if it changed on agglayer
 func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
-	pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, []agglayer.CertificateStatus{agglayer.Pending})
+	pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, []agglayer.CertificateStatus{
+		agglayer.Pending, agglayer.Proven, agglayer.Candidate})
 	if err != nil {
 		a.log.Errorf("error getting pending certificates: %w", err)
+		return
 	}
-	totalPendiningCertificates := len(pendingCertificates)
-	for i, certificate := range pendingCertificates {
-		a.log.Debugf("checking status of certificate[%d/%d] height:%d id:%s ",
-			i, totalPendiningCertificates, certificate.Height, certificate.CertificateID)
+
+	for _, certificate := range pendingCertificates {
 		certificateHeader, err := a.aggLayerClient.GetCertificateHeader(certificate.CertificateID)
 		if err != nil {
-			a.log.Errorf("error getting header of certificate [%d/%d] height:%d id:%s from agglayer: %w",
-				i, totalPendiningCertificates, certificate.Height, certificate.CertificateID, err)
+			a.log.Errorf("error getting header of certificate %s with height: %d from agglayer: %w",
+				certificate.CertificateID, certificate.Height, err)
 			continue
 		}
-		a.log.Infof("checking status of certificate[%d/%d] height:%d id:%s = %s ",
-			i, totalPendiningCertificates, certificate.Height, certificate.CertificateID, certificateHeader.Status)
-		if certificateHeader.Status != agglayer.Pending {
+
+		if certificateHeader.Status != certificate.Status {
 			certificate.Status = certificateHeader.Status
 
 			a.log.Infof("certificate %s changed status to %s", certificateHeader.String(), certificate.Status)
