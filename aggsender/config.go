@@ -18,6 +18,6 @@ type Config struct {
 	AggsenderPrivateKey types.KeystoreFileConfig `mapstructure:"AggsenderPrivateKey"`
 	// URLRPCL2 is the URL of the L2 RPC node
 	URLRPCL2 string `mapstructure:"URLRPCL2"`
-	// SaveCertificatesToFiles is a flag which tells the AggSender to save the certificates to a file
-	SaveCertificatesToFiles bool `mapstructure:"SaveCertificatesToFiles"`
+	// SaveCertificatesToFilesPath if != "" tells  the AggSender to save the certificates to a file in this path
+	SaveCertificatesToFilesPath string `mapstructure:"SaveCertificatesToFilesPath"`
 }

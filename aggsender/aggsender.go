@@ -190,13 +190,12 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 
 // saveCertificate saves the certificate to a tmp file
 func (a *AggSender) saveCertificateToFile(signedCertificate *agglayer.SignedCertificate) {
-	if signedCertificate == nil || !a.cfg.SaveCertificatesToFiles {
+	if signedCertificate == nil || a.cfg.SaveCertificatesToFilesPath == "" {
 		return
 	}
-
-	fn := fmt.Sprintf("/tmp/certificate_%04d.json", signedCertificate.Height)
+	fn := fmt.Sprintf("%s/certificate_%04d-%07d.json", a.cfg.SaveCertificatesToFilesPath, signedCertificate.Height, time.Now().Unix())
 	a.log.Infof("saving certificate to file: %s", fn)
-	jsonData, err := json.Marshal(signedCertificate)
+	jsonData, err := json.MarshalIndent(signedCertificate, "", "  ")
 	if err != nil {
 		a.log.Errorf("error marshalling certificate: %w", err)
 	}
@@ -223,6 +222,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	}
 
 	var depositCount uint32
+
 	if len(bridges) > 0 {
 		depositCount = bridges[len(bridges)-1].DepositCount
 	}
@@ -231,8 +231,12 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("error getting exit root by index: %d. Error: %w", depositCount, err)
 	}
-
 	height := lastSentCertificateInfo.Height + 1
+	if lastSentCertificateInfo.Status == agglayer.InError {
+		a.log.Debugf("Last certificate %s fails so reusing height %d", lastSentCertificateInfo.CertificateID, lastSentCertificateInfo.Height)
+		height = lastSentCertificateInfo.Height
+	}
+
 	previousLER := lastSentCertificateInfo.NewLocalExitRoot
 	if lastSentCertificateInfo.NewLocalExitRoot == (common.Hash{}) {
 		// meaning this is the first certificate
@@ -463,15 +467,18 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
 	if err != nil {
 		a.log.Errorf("error getting pending certificates: %w", err)
 	}
-
-	for _, certificate := range pendingCertificates {
+	totalPendiningCertificates := len(pendingCertificates)
+	for i, certificate := range pendingCertificates {
+		a.log.Debugf("checking status of certificate[%d/%d] height:%d id:%s ",
+			i, totalPendiningCertificates, certificate.Height, certificate.CertificateID)
 		certificateHeader, err := a.aggLayerClient.GetCertificateHeader(certificate.CertificateID)
 		if err != nil {
-			a.log.Errorf("error getting header of certificate %s with height: %d from agglayer: %w",
-				certificate.CertificateID, certificate.Height, err)
+			a.log.Errorf("error getting header of certificate [%d/%d] height:%d id:%s from agglayer: %w",
+				i, totalPendiningCertificates, certificate.Height, certificate.CertificateID, err)
 			continue
 		}
-
+		a.log.Infof("checking status of certificate[%d/%d] height:%d id:%s = %s ",
+			i, totalPendiningCertificates, certificate.Height, certificate.CertificateID, certificateHeader.Status)
 		if certificateHeader.Status != agglayer.Pending {
 			certificate.Status = certificateHeader.Status
 

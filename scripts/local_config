@@ -344,6 +344,18 @@ function download_kurtosis_artifacts(){
     
 }
 ###############################################################################
+function add_translation_rules_for_validium(){
+    if [ $is_cdk_validium != "true" ]; then
+        return
+    fi
+    log_debug " For Validium mode, we need to reach the DAC SERVER: adding translation rules"
+   
+    echo "[Aggregator.Synchronizer.Etherman.Validium.Translator]"
+    echo "FullMatchRules = ["
+	echo "			{Old=\"http://zkevm-dac-001:8484\", New=\"http://127.0.0.1:${dac_port}\"},"
+    echo "		]"
+}
+###############################################################################
 function check_generated_config_file(){
     grep "<no value>" $DEST_TEMPLATE_FILE > /dev/null
     if [ $? -ne 1 ]; then
@@ -400,15 +412,16 @@ ok_or_fatal "Error generating template"
 
 check_generated_config_file
 
+add_translation_rules_for_validium
 
 echo " "
 echo "file generated at:" $DEST/test.kurtosis.toml
 
 echo "- to restart kurtosis:"
-echo "    kurtosis clean --all; kurtosis run --enclave cdk-v1 --args-file params.yml --image-download always ."
+echo "    kurtosis clean --all; kurtosis run --enclave cdk --args-file params.yml --image-download always ."
 echo " "
 echo "- Stop cdk-node:"
-echo "    kurtosis service stop cdk-v1 cdk-node-001"
+echo "    kurtosis service stop cdk cdk-node-001"
 echo " "
 echo "- Add next configuration to vscode launch.json"
 echo " -----------------------------------------------------------"
