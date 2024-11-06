@@ -193,7 +193,8 @@ func (a *AggSender) saveCertificateToFile(signedCertificate *agglayer.SignedCert
 	if signedCertificate == nil || a.cfg.SaveCertificatesToFilesPath == "" {
 		return
 	}
-	fn := fmt.Sprintf("%s/certificate_%04d-%07d.json", a.cfg.SaveCertificatesToFilesPath, signedCertificate.Height, time.Now().Unix())
+	fn := fmt.Sprintf("%s/certificate_%04d-%07d.json",
+		a.cfg.SaveCertificatesToFilesPath, signedCertificate.Height, time.Now().Unix())
 	a.log.Infof("saving certificate to file: %s", fn)
 	jsonData, err := json.MarshalIndent(signedCertificate, "", "  ")
 	if err != nil {
@@ -206,11 +207,13 @@ func (a *AggSender) saveCertificateToFile(signedCertificate *agglayer.SignedCert
 }
 
 // getNextHeightAndPreviousLER returns the height and previous LER for the new certificate
-func (a *AggSender) getNextHeightAndPreviousLER(lastSentCertificateInfo *aggsendertypes.CertificateInfo) (uint64, common.Hash) {
+func (a *AggSender) getNextHeightAndPreviousLER(
+	lastSentCertificateInfo *aggsendertypes.CertificateInfo) (uint64, common.Hash) {
 	height := lastSentCertificateInfo.Height + 1
 	if lastSentCertificateInfo.Status == agglayer.InError {
 		// previous certificate was in error, so we need to resend it
-		a.log.Debugf("Last certificate %s failed so reusing height %d", lastSentCertificateInfo.CertificateID, lastSentCertificateInfo.Height)
+		a.log.Debugf("Last certificate %s failed so reusing height %d",
+			lastSentCertificateInfo.CertificateID, lastSentCertificateInfo.Height)
 		height = lastSentCertificateInfo.Height
 	}
 
