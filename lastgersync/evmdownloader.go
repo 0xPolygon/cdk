@@ -62,13 +62,13 @@ func newDownloader(
 func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedCh chan sync.EVMBlock) {
 	var (
 		attempts  int
-		lastIndex uint32
+		nextIndex uint32
 		err       error
 	)
 	for {
-		lastIndex, err = d.processor.getLastIndex(ctx)
+		lastIndex, err := d.processor.getLastIndex()
 		if errors.Is(err, db.ErrNotFound) {
-			lastIndex = 0
+			nextIndex = 0
 		} else if err != nil {
 			log.Errorf("error getting last indes: %v", err)
 			attempts++
@@ -76,7 +76,9 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 
 			continue
 		}
-
+		if lastIndex > 0 {
+			nextIndex = lastIndex + 1
+		}
 		break
 	}
 	for {
@@ -88,12 +90,12 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 			return
 		default:
 		}
-		lastBlock := d.WaitForNewBlocks(ctx, fromBlock)
+		fromBlock = d.WaitForNewBlocks(ctx, fromBlock)
 
 		attempts = 0
 		var gers []Event
 		for {
-			gers, err = d.getGERsFromIndex(ctx, lastIndex)
+			gers, err = d.getGERsFromIndex(ctx, nextIndex)
 			if err != nil {
 				log.Errorf("error getting GERs: %v", err)
 				attempts++
@@ -105,7 +107,7 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 			break
 		}
 
-		blockHeader, isCanceled := d.GetBlockHeader(ctx, lastBlock)
+		blockHeader, isCanceled := d.GetBlockHeader(ctx, fromBlock)
 		if isCanceled {
 			return
 		}
@@ -126,7 +128,7 @@ func (d *downloader) Download(ctx context.Context, fromBlock uint64, downloadedC
 			if !ok {
 				log.Errorf("unexpected type %T in events", block.Events[0])
 			}
-			lastIndex = event.L1InfoTreeIndex
+			nextIndex = event.L1InfoTreeIndex + 1
 		}
 	}
 }

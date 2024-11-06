@@ -2,292 +2,136 @@ package lastgersync
 
 import (
 	"context"
+	"database/sql"
 	"errors"
-	"fmt"
-	"math"
 
-	"github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/db"
+	"github.com/0xPolygon/cdk/lastgersync/migrations"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
-)
-
-const (
-	lastProcessedTable = "lastgersync-lastProcessed"
-	gerTable           = "lastgersync-ger"
-	blockTable         = "lastgersync-block"
-)
-
-var (
-	lastProcessedKey = []byte("lp")
+	"github.com/russross/meddler"
 )
 
 type Event struct {
-	GlobalExitRoot  ethCommon.Hash
-	L1InfoTreeIndex uint32
+	GlobalExitRoot  ethCommon.Hash `meddler:"global_exit_root,hash"`
+	L1InfoTreeIndex uint32         `meddler:"l1_info_tree_index"`
 }
 
-type blockWithGERs struct {
-	// inclusive
-	FirstIndex uint32
-	// not inclusive
-	LastIndex uint32
-}
-
-func (b *blockWithGERs) MarshalBinary() ([]byte, error) {
-	return append(common.Uint32ToBytes(b.FirstIndex), common.Uint32ToBytes(b.LastIndex)...), nil
-}
-
-func (b *blockWithGERs) UnmarshalBinary(data []byte) error {
-	const expectedDataLength = 8
-	if len(data) != expectedDataLength {
-		return fmt.Errorf("expected len %d, actual len %d", expectedDataLength, len(data))
-	}
-	b.FirstIndex = common.BytesToUint32(data[:4])
-	b.LastIndex = common.BytesToUint32(data[4:])
-
-	return nil
+type eventWithBlockNum struct {
+	GlobalExitRoot  ethCommon.Hash `meddler:"global_exit_root,hash"`
+	L1InfoTreeIndex uint32         `meddler:"l1_info_tree_index"`
+	BlockNum        uint64         `meddler:"block_num"`
 }
 
 type processor struct {
-	db kv.RwDB
+	db  *sql.DB
+	log *log.Logger
 }
 
-func newProcessor(dbPath string) (*processor, error) {
-	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
-		cfg := kv.TableCfg{
-			lastProcessedTable: {},
-			gerTable:           {},
-			blockTable:         {},
-		}
-
-		return cfg
-	}
-	db, err := mdbx.NewMDBX(nil).
-		Path(dbPath).
-		WithTableCfg(tableCfgFunc).
-		Open()
+func newProcessor(dbPath string, loggerPrefix string) (*processor, error) {
+	err := migrations.RunMigrations(dbPath)
 	if err != nil {
 		return nil, err
 	}
-
+	db, err := db.NewSQLiteDB(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	logger := log.WithFields("lastger-syncer", loggerPrefix)
 	return &processor{
-		db: db,
+		db:  db,
+		log: logger,
 	}, nil
 }
 
-// GetLastProcessedBlockAndL1InfoTreeIndex returns the last processed block oby the processor, including blocks
+// GetLastProcessedBlock returns the last processed block by the processor, including blocks
 // that don't have events
 func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
-	tx, err := p.db.BeginRo(ctx)
-	if err != nil {
-		return 0, err
-	}
-	defer tx.Rollback()
-
-	return p.getLastProcessedBlockWithTx(tx)
-}
-
-func (p *processor) getLastIndex(ctx context.Context) (uint32, error) {
-	tx, err := p.db.BeginRo(ctx)
-	if err != nil {
-		return 0, err
-	}
-	defer tx.Rollback()
-
-	return p.getLastIndexWithTx(tx)
-}
-
-func (p *processor) getLastIndexWithTx(tx kv.Tx) (uint32, error) {
-	iter, err := tx.RangeDescend(gerTable, common.Uint32ToBytes(math.MaxUint32), common.Uint32ToBytes(0), 1)
-	if err != nil {
-		return 0, err
-	}
-	k, _, err := iter.Next()
-	if err != nil {
-		return 0, err
-	}
-	if k == nil {
-		return 0, db.ErrNotFound
-	}
-
-	return common.BytesToUint32(k), nil
-}
-
-func (p *processor) getLastProcessedBlockWithTx(tx kv.Tx) (uint64, error) {
-	if lastProcessedBytes, err := tx.GetOne(lastProcessedTable, lastProcessedKey); err != nil {
-		return 0, err
-	} else if lastProcessedBytes == nil {
+	var lastProcessedBlock uint64
+	row := p.db.QueryRow("SELECT num FROM BLOCK ORDER BY num DESC LIMIT 1;")
+	err := row.Scan(&lastProcessedBlock)
+	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
-	} else {
-		return common.BytesToUint64(lastProcessedBytes), nil
 	}
+	return lastProcessedBlock, err
 }
 
-func (p *processor) updateLastProcessedBlockWithTx(tx kv.RwTx, blockNum uint64) error {
-	return tx.Put(lastProcessedTable, lastProcessedKey, common.Uint64ToBytes(blockNum))
+func (p *processor) getLastIndex() (uint32, error) {
+	var lastIndex uint32
+	row := p.db.QueryRow(`
+		SELECT l1_info_tree_index 
+		FROM imported_global_exit_root 
+		ORDER BY l1_info_tree_index DESC LIMIT 1;
+	`)
+	err := row.Scan(&lastIndex)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	return lastIndex, err
 }
 
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
-	tx, err := p.db.BeginRw(ctx)
+	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
 	}
-
-	lenEvents := len(block.Events)
-	var lastIndex int64
-	if lenEvents > 0 {
-		li, err := p.getLastIndexWithTx(tx)
-		switch {
-		case errors.Is(err, db.ErrNotFound):
-			lastIndex = -1
-
-		case err != nil:
-			tx.Rollback()
-			return err
-
-		default:
-			lastIndex = int64(li)
+	shouldRollback := true
+	defer func() {
+		if shouldRollback {
+			if errRollback := tx.Rollback(); errRollback != nil {
+				log.Errorf("error while rolling back tx %v", errRollback)
+			}
 		}
-	}
+	}()
 
+	if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, block.Num); err != nil {
+		return err
+	}
 	for _, e := range block.Events {
 		event, ok := e.(Event)
 		if !ok {
-			log.Errorf("unexpected type %T in events", e)
+			return errors.New("failed to convert sync.Block.Event to Event")
 		}
-		if int64(event.L1InfoTreeIndex) < lastIndex {
-			continue
-		}
-		lastIndex = int64(event.L1InfoTreeIndex)
-		if err := tx.Put(
-			gerTable,
-			common.Uint32ToBytes(event.L1InfoTreeIndex),
-			event.GlobalExitRoot[:],
-		); err != nil {
-			tx.Rollback()
-
+		if err = meddler.Insert(tx, "imported_global_exit_root", &eventWithBlockNum{
+			GlobalExitRoot:  event.GlobalExitRoot,
+			L1InfoTreeIndex: event.L1InfoTreeIndex,
+			BlockNum:        block.Num,
+		}); err != nil {
 			return err
 		}
 	}
 
-	if lenEvents > 0 {
-		firstEvent, ok := block.Events[0].(Event)
-		if !ok {
-			log.Errorf("unexpected type %T in events", block.Events[0])
-			tx.Rollback()
-
-			return fmt.Errorf("unexpected type %T in events", block.Events[0])
-		}
-
-		lastEvent, ok := block.Events[lenEvents-1].(Event)
-		if !ok {
-			log.Errorf("unexpected type %T in events", block.Events[lenEvents-1])
-			tx.Rollback()
-
-			return fmt.Errorf("unexpected type %T in events", block.Events[lenEvents-1])
-		}
-
-		bwg := blockWithGERs{
-			FirstIndex: firstEvent.L1InfoTreeIndex,
-			LastIndex:  lastEvent.L1InfoTreeIndex + 1,
-		}
-
-		data, err := bwg.MarshalBinary()
-		if err != nil {
-			tx.Rollback()
-
-			return err
-		}
-		if err = tx.Put(blockTable, common.Uint64ToBytes(block.Num), data); err != nil {
-			tx.Rollback()
-
-			return err
-		}
-	}
-
-	if err := p.updateLastProcessedBlockWithTx(tx, block.Num); err != nil {
-		tx.Rollback()
-
+	if err := tx.Commit(); err != nil {
 		return err
 	}
-
-	return tx.Commit()
+	shouldRollback = false
+	p.log.Debugf("processed %d events until block %d", len(block.Events), block.Num)
+	return nil
 }
 
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
-	tx, err := p.db.BeginRw(ctx)
-	if err != nil {
-		return err
-	}
-
-	iter, err := tx.Range(blockTable, common.Uint64ToBytes(firstReorgedBlock), nil)
-	if err != nil {
-		tx.Rollback()
-
-		return err
-	}
-	for bNumBytes, bWithGERBytes, err := iter.Next(); bNumBytes != nil; bNumBytes, bWithGERBytes, err = iter.Next() {
-		if err != nil {
-			tx.Rollback()
-
-			return err
-		}
-		if err := tx.Delete(blockTable, bNumBytes); err != nil {
-			tx.Rollback()
-
-			return err
-		}
-
-		bWithGER := &blockWithGERs{}
-		if err := bWithGER.UnmarshalBinary(bWithGERBytes); err != nil {
-			tx.Rollback()
-
-			return err
-		}
-		for i := bWithGER.FirstIndex; i < bWithGER.LastIndex; i++ {
-			if err := tx.Delete(gerTable, common.Uint32ToBytes(i)); err != nil {
-				tx.Rollback()
-
-				return err
-			}
-		}
-	}
-
-	if err := p.updateLastProcessedBlockWithTx(tx, firstReorgedBlock-1); err != nil {
-		tx.Rollback()
-
-		return err
-	}
-
-	return tx.Commit()
+	_, err := p.db.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
+	return err
 }
 
 // GetFirstGERAfterL1InfoTreeIndex returns the first GER injected on the chain that is related to l1InfoTreeIndex
 // or greater
 func (p *processor) GetFirstGERAfterL1InfoTreeIndex(
 	ctx context.Context, l1InfoTreeIndex uint32,
-) (uint32, ethCommon.Hash, error) {
-	tx, err := p.db.BeginRo(ctx)
+) (Event, error) {
+	e := Event{}
+	err := meddler.QueryRow(p.db, &e, `
+		SELECT l1_info_tree_index, global_exit_root
+		FROM imported_global_exit_root
+		WHERE l1_info_tree_index >= $1
+		ORDER BY l1_info_tree_index ASC LIMIT 1;
+	`, l1InfoTreeIndex)
 	if err != nil {
-		return 0, ethCommon.Hash{}, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return e, db.ErrNotFound
+		}
+		return e, err
 	}
-	defer tx.Rollback()
-
-	iter, err := tx.Range(gerTable, common.Uint32ToBytes(l1InfoTreeIndex), nil)
-	if err != nil {
-		return 0, ethCommon.Hash{}, err
-	}
-	l1InfoIndexBytes, ger, err := iter.Next()
-	if err != nil {
-		return 0, ethCommon.Hash{}, err
-	}
-	if l1InfoIndexBytes == nil {
-		return 0, ethCommon.Hash{}, db.ErrNotFound
-	}
-
-	return common.BytesToUint32(l1InfoIndexBytes), ethCommon.BytesToHash(ger), nil
+	return e, nil
 }

@@ -111,3 +111,20 @@ func NewKeyFromKeystore(cfg types.KeystoreFileConfig) (*ecdsa.PrivateKey, error)
 	}
 	return key.PrivateKey, nil
 }
+
+// BigIntToLittleEndianBytes converts a big.Int to a 32-byte little-endian representation.
+// big.Int is capped to 32 bytes
+func BigIntToLittleEndianBytes(n *big.Int) []byte {
+	// Get the absolute value in big-endian byte slice
+	beBytes := n.Bytes()
+
+	// Initialize a 32-byte array for the result
+	leBytes := make([]byte, common.HashLength)
+
+	// Fill the array in reverse order to convert to little-endian
+	for i := 0; i < len(beBytes) && i < common.HashLength; i++ {
+		leBytes[i] = beBytes[len(beBytes)-1-i]
+	}
+
+	return leBytes
+}
