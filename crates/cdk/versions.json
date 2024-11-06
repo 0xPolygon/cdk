@@ -1,5 +1,5 @@
 {
-  "agglayer_image": "ghcr.io/agglayer/agglayer:feature-storage-adding-epoch-packing",
+  "agglayer_image": "ghcr.io/agglayer/agglayer:0.2.0",
   "cdk_erigon_node_image": "hermeznetwork/cdk-erigon:v2.1.1",
   "cdk_node_image": "ghcr.io/0xpolygon/cdk:0.4.0-beta1",
   "cdk_validium_node_image": "0xpolygon/cdk-validium-node:0.7.0-cdk",
