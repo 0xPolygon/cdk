@@ -58,11 +58,13 @@ type Aggregator struct {
 	cfg    Config
 	logger *log.Logger
 
-	state        StateInterface
-	etherman     Etherman
-	ethTxManager EthTxManagerClient
-	l1Syncr      synchronizer.Synchronizer
-	halted       atomic.Bool
+	state               StateInterface
+	etherman            Etherman
+	ethTxManager        EthTxManagerClient
+	l1Syncr             synchronizer.Synchronizer
+	halted              atomic.Bool
+	accInputHashes      map[uint64]common.Hash
+	accInputHashesMutex *sync.Mutex
 
 	profitabilityChecker    aggregatorTxProfitabilityChecker
 	timeSendFinalProof      time.Time
@@ -155,6 +157,8 @@ func New(
 		etherman:                etherman,
 		ethTxManager:            ethTxManager,
 		l1Syncr:                 l1Syncr,
+		accInputHashes:          make(map[uint64]common.Hash),
+		accInputHashesMutex:     &sync.Mutex{},
 		profitabilityChecker:    profitabilityChecker,
 		stateDBMutex:            &sync.Mutex{},
 		timeSendFinalProofMutex: &sync.RWMutex{},
@@ -219,6 +223,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 	a.logger.Warnf("Rollback batches event, rollbackBatchesData: %+v", rollbackData)
 
 	var err error
+	var accInputHash *common.Hash
 
 	// Get new last verified batch number from L1
 	lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
@@ -226,12 +231,25 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		a.logger.Errorf("Error getting latest verified batch number: %v", err)
 	}
 
+	a.logger.Infof("Last Verified Batch Number:%v", lastVerifiedBatchNumber)
+
 	// Check lastVerifiedBatchNumber makes sense
 	if err == nil && lastVerifiedBatchNumber > rollbackData.LastBatchNumber {
 		err = fmt.Errorf(
 			"last verified batch number %d is greater than the last batch number %d in the rollback data",
 			lastVerifiedBatchNumber, rollbackData.LastBatchNumber,
 		)
+	}
+
+	if err == nil {
+		accInputHash, err = a.getVerifiedBatchAccInputHash(a.ctx, lastVerifiedBatchNumber)
+		if err == nil {
+			a.accInputHashesMutex.Lock()
+			a.accInputHashes = make(map[uint64]common.Hash)
+			a.logger.Infof("Starting AccInputHash:%v", accInputHash.String())
+			a.accInputHashes[lastVerifiedBatchNumber] = *accInputHash
+			a.accInputHashesMutex.Unlock()
+		}
 	}
 
 	// Delete wip proofs
@@ -272,7 +290,6 @@ func (a *Aggregator) Start() error {
 	err := a.l1Syncr.Sync(true)
 	if err != nil {
 		a.logger.Fatalf("Failed to synchronize from L1: %v", err)
-
 		return err
 	}
 
@@ -297,19 +314,29 @@ func (a *Aggregator) Start() error {
 		healthService := newHealthChecker()
 		grpchealth.RegisterHealthServer(a.srv, healthService)
 
-		// Get last verified batch number to set the starting point for verifications
-		lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
-		if err != nil {
-			return err
-		}
-
 		// Delete ungenerated recursive proofs
 		err = a.state.DeleteUngeneratedProofs(a.ctx, nil)
 		if err != nil {
 			return fmt.Errorf("failed to initialize proofs cache %w", err)
 		}
 
+		// Get last verified batch number to set the starting point for verifications
+		lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
+		if err != nil {
+			return err
+		}
+
 		a.logger.Infof("Last Verified Batch Number:%v", lastVerifiedBatchNumber)
+
+		accInputHash, err := a.getVerifiedBatchAccInputHash(a.ctx, lastVerifiedBatchNumber)
+		if err != nil {
+			return err
+		}
+
+		a.logger.Infof("Starting AccInputHash:%v", accInputHash.String())
+		a.accInputHashesMutex.Lock()
+		a.accInputHashes[lastVerifiedBatchNumber] = *accInputHash
+		a.accInputHashesMutex.Unlock()
 
 		a.resetVerifyProofTime()
 
@@ -1007,6 +1034,15 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover ProverInterf
 	return true, nil
 }
 
+func (a *Aggregator) getVerifiedBatchAccInputHash(ctx context.Context, batchNumber uint64) (*common.Hash, error) {
+	accInputHash, err := a.etherman.GetBatchAccInputHash(ctx, batchNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	return &accInputHash, nil
+}
+
 func (a *Aggregator) getAndLockBatchToProve(
 	ctx context.Context, prover ProverInterface,
 ) (*state.Batch, []byte, *state.Proof, error) {
@@ -1093,15 +1129,39 @@ func (a *Aggregator) getAndLockBatchToProve(
 		virtualBatch.L1InfoRoot = &l1InfoRoot
 	}
 
+	// Calculate acc input hash as the RPC is not returning the correct one at the moment
+	a.accInputHashesMutex.Lock()
+	accInputHash := cdkcommon.CalculateAccInputHash(
+		a.logger,
+		a.accInputHashes[batchNumberToVerify-1],
+		virtualBatch.BatchL2Data,
+		*virtualBatch.L1InfoRoot,
+		uint64(sequence.Timestamp.Unix()),
+		rpcBatch.LastCoinbase(),
+		rpcBatch.ForcedBlockHashL1(),
+	)
+	// Store the acc input hash
+	a.accInputHashes[batchNumberToVerify] = accInputHash
+	a.accInputHashesMutex.Unlock()
+
+	// Log params to calculate acc input hash
+	a.logger.Debugf("Calculated acc input hash for batch %d: %v", batchNumberToVerify, accInputHash)
+	a.logger.Debugf("L1InfoRoot: %v", virtualBatch.L1InfoRoot)
+	// a.logger.Debugf("LastL2BLockTimestamp: %v", rpcBatch.LastL2BLockTimestamp())
+	a.logger.Debugf("TimestampLimit: %v", uint64(sequence.Timestamp.Unix()))
+	a.logger.Debugf("LastCoinbase: %v", rpcBatch.LastCoinbase())
+	a.logger.Debugf("ForcedBlockHashL1: %v", rpcBatch.ForcedBlockHashL1())
+
 	// Create state batch
 	stateBatch := &state.Batch{
 		BatchNumber: rpcBatch.BatchNumber(),
 		Coinbase:    rpcBatch.LastCoinbase(),
 		// Use L1 batch data
-		BatchL2Data:     virtualBatch.BatchL2Data,
-		StateRoot:       rpcBatch.StateRoot(),
-		LocalExitRoot:   rpcBatch.LocalExitRoot(),
-		AccInputHash:    rpcBatch.AccInputHash(),
+		BatchL2Data:   virtualBatch.BatchL2Data,
+		StateRoot:     rpcBatch.StateRoot(),
+		LocalExitRoot: rpcBatch.LocalExitRoot(),
+		// Use calculated acc input
+		AccInputHash:    accInputHash,
 		L1InfoTreeIndex: rpcBatch.L1InfoTreeIndex(),
 		L1InfoRoot:      *virtualBatch.L1InfoRoot,
 		Timestamp:       time.Unix(int64(rpcBatch.LastL2BLockTimestamp()), 0),
@@ -1414,15 +1474,20 @@ func (a *Aggregator) buildInputProver(
 	}
 
 	// Get Old Acc Input Hash
-	rpcOldBatch, err := a.rpcClient.GetBatch(batchToVerify.BatchNumber - 1)
-	if err != nil {
-		return nil, err
-	}
+	/*
+		rpcOldBatch, err := a.rpcClient.GetBatch(batchToVerify.BatchNumber - 1)
+		if err != nil {
+			return nil, err
+		}
+	*/
 
+	a.accInputHashesMutex.Lock()
 	inputProver := &prover.StatelessInputProver{
 		PublicInputs: &prover.StatelessPublicInputs{
-			Witness:           witness,
-			OldAccInputHash:   rpcOldBatch.AccInputHash().Bytes(),
+			Witness: witness,
+			// Use calculated acc inputh hash as the RPC is not returning the correct one at the moment
+			// OldAccInputHash:   rpcOldBatch.AccInputHash().Bytes(),
+			OldAccInputHash:   a.accInputHashes[batchToVerify.BatchNumber-1].Bytes(),
 			OldBatchNum:       batchToVerify.BatchNumber - 1,
 			ChainId:           batchToVerify.ChainID,
 			ForkId:            batchToVerify.ForkID,
@@ -1435,6 +1500,7 @@ func (a *Aggregator) buildInputProver(
 			ForcedBlockhashL1: forcedBlockhashL1.Bytes(),
 		},
 	}
+	a.accInputHashesMutex.Unlock()
 
 	printInputProver(a.logger, inputProver)
 	return inputProver, nil
@@ -1522,6 +1588,18 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxtypes.MonitoredTxResult
 	}
 
 	mTxResultLogger.Debugf("deleted generated proofs from %d to %d", firstBatch, lastBatch)
+
+	// Remove the acc input hashes from the map
+	// leaving the last batch acc input hash as it will be used as old acc input hash
+	a.removeAccInputHashes(firstBatch, lastBatch-1)
+}
+
+func (a *Aggregator) removeAccInputHashes(firstBatch, lastBatch uint64) {
+	a.accInputHashesMutex.Lock()
+	for i := firstBatch; i <= lastBatch; i++ {
+		delete(a.accInputHashes, i)
+	}
+	a.accInputHashesMutex.Unlock()
 }
 
 func (a *Aggregator) cleanupLockedProofs() {

@@ -2,56 +2,51 @@ package claimsponsor
 
 import (
 	"context"
-	"encoding/json"
+	"database/sql"
 	"errors"
-	"math"
+	"fmt"
 	"math/big"
 	"time"
 
-	dbCommon "github.com/0xPolygon/cdk/common"
+	"github.com/0xPolygon/cdk/claimsponsor/migrations"
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	tree "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/kv/iter"
-	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
+	"github.com/russross/meddler"
 )
 
 type ClaimStatus string
 
 const (
-	PendingClaimStatus = "pending"
-	WIPStatus          = "work in progress"
-	SuccessClaimStatus = "success"
-	FailedClaimStatus  = "failed"
-
-	claimTable = "claimsponsor-tx"
-	queueTable = "claimsponsor-queue"
+	PendingClaimStatus ClaimStatus = "pending"
+	WIPClaimStatus     ClaimStatus = "work in progress"
+	SuccessClaimStatus ClaimStatus = "success"
+	FailedClaimStatus  ClaimStatus = "failed"
 )
 
 var (
-	ErrInvalidClaim = errors.New("invalid claim")
+	ErrInvalidClaim     = errors.New("invalid claim")
+	ErrClaimDoesntExist = errors.New("the claim requested to be updated does not exist")
 )
 
 // Claim representation of a claim event
 type Claim struct {
-	LeafType            uint8
-	ProofLocalExitRoot  tree.Proof
-	ProofRollupExitRoot tree.Proof
-	GlobalIndex         *big.Int
-	MainnetExitRoot     common.Hash
-	RollupExitRoot      common.Hash
-	OriginNetwork       uint32
-	OriginTokenAddress  common.Address
-	DestinationNetwork  uint32
-	DestinationAddress  common.Address
-	Amount              *big.Int
-	Metadata            []byte
-
-	Status ClaimStatus
-	TxID   string
+	LeafType            uint8          `meddler:"leaf_type"`
+	ProofLocalExitRoot  tree.Proof     `meddler:"proof_local_exit_root,merkleproof"`
+	ProofRollupExitRoot tree.Proof     `meddler:"proof_rollup_exit_root,merkleproof"`
+	GlobalIndex         *big.Int       `meddler:"global_index,bigint"`
+	MainnetExitRoot     common.Hash    `meddler:"mainnet_exit_root,hash"`
+	RollupExitRoot      common.Hash    `meddler:"rollup_exit_root,hash"`
+	OriginNetwork       uint32         `meddler:"origin_network"`
+	OriginTokenAddress  common.Address `meddler:"origin_token_address,address"`
+	DestinationNetwork  uint32         `meddler:"destination_network"`
+	DestinationAddress  common.Address `meddler:"destination_address,address"`
+	Amount              *big.Int       `meddler:"amount,bigint"`
+	Metadata            []byte         `meddler:"metadata"`
+	Status              ClaimStatus    `meddler:"status"`
+	TxID                string         `meddler:"tx_id"`
 }
 
 func (c *Claim) Key() []byte {
@@ -66,7 +61,7 @@ type ClaimSender interface {
 
 type ClaimSponsor struct {
 	logger                *log.Logger
-	db                    kv.RwDB
+	db                    *sql.DB
 	sender                ClaimSender
 	rh                    *sync.RetryHandler
 	waitTxToBeMinedPeriod time.Duration
@@ -82,18 +77,11 @@ func newClaimSponsor(
 	waitTxToBeMinedPeriod time.Duration,
 	waitOnEmptyQueue time.Duration,
 ) (*ClaimSponsor, error) {
-	tableCfgFunc := func(defaultBuckets kv.TableCfg) kv.TableCfg {
-		cfg := kv.TableCfg{
-			claimTable: {},
-			queueTable: {},
-		}
-
-		return cfg
+	err := migrations.RunMigrations(dbPath)
+	if err != nil {
+		return nil, err
 	}
-	db, err := mdbx.NewMDBX(nil).
-		Path(dbPath).
-		WithTableCfg(tableCfgFunc).
-		Open()
+	db, err := db.NewSQLiteDB(dbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -115,103 +103,107 @@ func newClaimSponsor(
 func (c *ClaimSponsor) Start(ctx context.Context) {
 	var (
 		attempts int
-		err      error
 	)
 	for {
+		err := c.claim(ctx)
 		if err != nil {
 			attempts++
+			c.logger.Error(err)
 			c.rh.Handle("claimsponsor main loop", attempts)
+		} else {
+			attempts = 0
 		}
-		tx, err2 := c.db.BeginRw(ctx)
-		if err2 != nil {
-			err = err2
-			c.logger.Errorf("error calling BeginRw: %v", err)
-			continue
-		}
-		queueIndex, globalIndex, err2 := getFirstQueueIndex(tx)
-		if err2 != nil {
-			err = err2
-			tx.Rollback()
+	}
+}
+
+func (c *ClaimSponsor) claim(ctx context.Context) error {
+	claim, err := c.getWIPClaim()
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		return fmt.Errorf("error getting WIP claim: %w", err)
+	}
+	if errors.Is(err, db.ErrNotFound) || claim == nil {
+		// there is no WIP claim, go for the next pending claim
+		claim, err = c.getFirstPendingClaim()
+		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				c.logger.Debugf("queue is empty")
-				err = nil
 				time.Sleep(c.waitOnEmptyQueue)
-
-				continue
+				return nil
 			}
-			c.logger.Errorf("error calling getFirstQueueIndex: %v", err)
-			continue
+			return fmt.Errorf("error calling getClaim with globalIndex %s: %w", claim.GlobalIndex.String(), err)
 		}
-		claim, err2 := getClaim(tx, globalIndex)
-		if err2 != nil {
-			err = err2
-			tx.Rollback()
-			c.logger.Errorf("error calling getClaim with globalIndex %s: %v", globalIndex.String(), err)
-			continue
+		txID, err := c.sender.sendClaim(ctx, claim)
+		if err != nil {
+			return fmt.Errorf("error getting sending claim: %w", err)
 		}
-		if claim.TxID == "" {
-			txID, err2 := c.sender.sendClaim(ctx, claim)
-			if err2 != nil {
-				err = err2
-				tx.Rollback()
-				c.logger.Errorf("error calling sendClaim with globalIndex %s: %v", globalIndex.String(), err)
-				continue
-			}
-			claim.TxID = txID
-			claim.Status = WIPStatus
-			err2 = putClaim(tx, claim)
-			if err2 != nil {
-				err = err2
-				tx.Rollback()
-				c.logger.Errorf("error calling putClaim with globalIndex %s: %v", globalIndex.String(), err)
-				continue
-			}
+		if err := c.updateClaimTxID(claim.GlobalIndex, txID); err != nil {
+			return fmt.Errorf("error updating claim txID: %w", err)
 		}
-		err2 = tx.Commit()
-		if err2 != nil {
-			err = err2
-			c.logger.Errorf("error calling tx.Commit after putting claim: %v", err)
-			continue
-		}
-
-		c.logger.Infof("waiting for tx %s with global index %s to succeed or fail", claim.TxID, globalIndex.String())
-		status, err2 := c.waitTxToBeSuccessOrFail(ctx, claim.TxID)
-		if err2 != nil {
-			err = err2
-			c.logger.Errorf("error calling waitTxToBeSuccessOrFail for tx %s: %v", claim.TxID, err)
-			continue
-		}
-		c.logger.Infof("tx %s with global index %s concluded with status: %s", claim.TxID, globalIndex.String(), status)
-		tx, err2 = c.db.BeginRw(ctx)
-		if err2 != nil {
-			err = err2
-			c.logger.Errorf("error calling BeginRw: %v", err)
-			continue
-		}
-		claim.Status = status
-		err2 = putClaim(tx, claim)
-		if err2 != nil {
-			err = err2
-			tx.Rollback()
-			c.logger.Errorf("error calling putClaim with globalIndex %s: %v", globalIndex.String(), err)
-			continue
-		}
-		err2 = tx.Delete(queueTable, dbCommon.Uint64ToBytes(queueIndex))
-		if err2 != nil {
-			err = err2
-			tx.Rollback()
-			c.logger.Errorf("error calling delete on the queue table with index %d: %v", queueIndex, err)
-			continue
-		}
-		err2 = tx.Commit()
-		if err2 != nil {
-			err = err2
-			c.logger.Errorf("error calling tx.Commit after putting claim: %v", err)
-			continue
-		}
-
-		attempts = 0
 	}
+
+	c.logger.Infof("waiting for tx %s with global index %s to succeed or fail", claim.TxID, claim.GlobalIndex.String())
+	status, err := c.waitTxToBeSuccessOrFail(ctx, claim.TxID)
+	if err != nil {
+		return fmt.Errorf("error calling waitTxToBeSuccessOrFail for tx %s: %w", claim.TxID, err)
+	}
+	c.logger.Infof("tx %s with global index %s concluded with status: %s", claim.TxID, claim.GlobalIndex.String(), status)
+	return c.updateClaimStatus(claim.GlobalIndex, status)
+}
+
+func (c *ClaimSponsor) getWIPClaim() (*Claim, error) {
+	claim := &Claim{}
+	err := meddler.QueryRow(
+		c.db, claim,
+		`SELECT * FROM claim WHERE status = $1 ORDER BY rowid ASC LIMIT 1;`,
+		WIPClaimStatus,
+	)
+	return claim, db.ReturnErrNotFound(err)
+}
+
+func (c *ClaimSponsor) getFirstPendingClaim() (*Claim, error) {
+	claim := &Claim{}
+	err := meddler.QueryRow(
+		c.db, claim,
+		`SELECT * FROM claim WHERE status = $1 ORDER BY rowid ASC LIMIT 1;`,
+		PendingClaimStatus,
+	)
+	return claim, db.ReturnErrNotFound(err)
+}
+
+func (c *ClaimSponsor) updateClaimTxID(globalIndex *big.Int, txID string) error {
+	res, err := c.db.Exec(
+		`UPDATE claim SET tx_id = $1 WHERE global_index = $2`,
+		txID, globalIndex.String(),
+	)
+	if err != nil {
+		return fmt.Errorf("error updating claim status: %w", err)
+	}
+	rowsAff, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error getting rows affected: %w", err)
+	}
+	if rowsAff == 0 {
+		return ErrClaimDoesntExist
+	}
+	return nil
+}
+
+func (c *ClaimSponsor) updateClaimStatus(globalIndex *big.Int, status ClaimStatus) error {
+	res, err := c.db.Exec(
+		`UPDATE claim SET status = $1 WHERE global_index = $2`,
+		status, globalIndex.String(),
+	)
+	if err != nil {
+		return fmt.Errorf("error updating claim status: %w", err)
+	}
+	rowsAff, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error getting rows affected: %w", err)
+	}
+	if rowsAff == 0 {
+		return ErrClaimDoesntExist
+	}
+	return nil
 }
 
 func (c *ClaimSponsor) waitTxToBeSuccessOrFail(ctx context.Context, txID string) (ClaimStatus, error) {
@@ -232,147 +224,15 @@ func (c *ClaimSponsor) waitTxToBeSuccessOrFail(ctx context.Context, txID string)
 	}
 }
 
-func (c *ClaimSponsor) AddClaimToQueue(ctx context.Context, claim *Claim) error {
-	if claim.GlobalIndex == nil {
-		return ErrInvalidClaim
-	}
+func (c *ClaimSponsor) AddClaimToQueue(claim *Claim) error {
 	claim.Status = PendingClaimStatus
-	tx, err := c.db.BeginRw(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = getClaim(tx, claim.GlobalIndex)
-	if !errors.Is(err, db.ErrNotFound) {
-		if err != nil {
-			tx.Rollback()
-
-			return err
-		} else {
-			tx.Rollback()
-
-			return errors.New("claim already added")
-		}
-	}
-
-	err = putClaim(tx, claim)
-	if err != nil {
-		tx.Rollback()
-
-		return err
-	}
-
-	var queuePosition uint64
-	lastQueuePosition, _, err := getLastQueueIndex(tx)
-	switch {
-	case errors.Is(err, db.ErrNotFound):
-		queuePosition = 0
-
-	case err != nil:
-		tx.Rollback()
-
-		return err
-
-	default:
-		queuePosition = lastQueuePosition + 1
-	}
-
-	err = tx.Put(queueTable, dbCommon.Uint64ToBytes(queuePosition), claim.Key())
-	if err != nil {
-		tx.Rollback()
-
-		return err
-	}
-
-	return tx.Commit()
+	return meddler.Insert(c.db, "claim", claim)
 }
 
-func putClaim(tx kv.RwTx, claim *Claim) error {
-	value, err := json.Marshal(claim)
-	if err != nil {
-		return err
-	}
-
-	return tx.Put(claimTable, claim.Key(), value)
-}
-
-func (c *ClaimSponsor) getClaimByQueueIndex(ctx context.Context, queueIndex uint64) (*Claim, error) {
-	tx, err := c.db.BeginRo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	globalIndexBytes, err := tx.GetOne(queueTable, dbCommon.Uint64ToBytes(queueIndex))
-	if err != nil {
-		return nil, err
-	}
-	if globalIndexBytes == nil {
-		return nil, db.ErrNotFound
-	}
-
-	return getClaim(tx, new(big.Int).SetBytes(globalIndexBytes))
-}
-
-func getLastQueueIndex(tx kv.Tx) (uint64, *big.Int, error) {
-	iter, err := tx.RangeDescend(
-		queueTable,
-		dbCommon.Uint64ToBytes(math.MaxUint64),
-		dbCommon.Uint64ToBytes(0), 1,
-	)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	return getIndex(iter)
-}
-
-func getFirstQueueIndex(tx kv.Tx) (uint64, *big.Int, error) {
-	iter, err := tx.RangeAscend(
-		queueTable,
-		dbCommon.Uint64ToBytes(0),
-		nil, 1,
-	)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	return getIndex(iter)
-}
-
-func getIndex(iter iter.KV) (uint64, *big.Int, error) {
-	k, v, err := iter.Next()
-	if err != nil {
-		return 0, nil, err
-	}
-	if k == nil {
-		return 0, nil, db.ErrNotFound
-	}
-	globalIndex := new(big.Int).SetBytes(v)
-
-	return dbCommon.BytesToUint64(k), globalIndex, nil
-}
-
-func (c *ClaimSponsor) GetClaim(ctx context.Context, globalIndex *big.Int) (*Claim, error) {
-	tx, err := c.db.BeginRo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	return getClaim(tx, globalIndex)
-}
-
-func getClaim(tx kv.Tx, globalIndex *big.Int) (*Claim, error) {
-	claimBytes, err := tx.GetOne(claimTable, globalIndex.Bytes())
-	if err != nil {
-		return nil, err
-	}
-	if claimBytes == nil {
-		return nil, db.ErrNotFound
-	}
+func (c *ClaimSponsor) GetClaim(globalIndex *big.Int) (*Claim, error) {
 	claim := &Claim{}
-	err = json.Unmarshal(claimBytes, claim)
-
-	return claim, err
+	err := meddler.QueryRow(
+		c.db, claim, `SELECT * FROM claim WHERE global_index = $1`, globalIndex.String(),
+	)
+	return claim, db.ReturnErrNotFound(err)
 }

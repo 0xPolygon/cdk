@@ -83,6 +83,7 @@ func CalculateAccInputHash(
 	}
 
 	v2 = keccak256.Hash(v2)
+	calculatedAccInputHash := common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6))
 
 	logger.Debugf("OldAccInputHash: %v", oldAccInputHash)
 	logger.Debugf("BatchHashData: %v", common.Bytes2Hex(v2))
@@ -90,8 +91,9 @@ func CalculateAccInputHash(
 	logger.Debugf("TimeStampLimit: %v", timestampLimit)
 	logger.Debugf("Sequencer Address: %v", sequencerAddr)
 	logger.Debugf("Forced BlockHashL1: %v", forcedBlockhashL1)
+	logger.Debugf("CalculatedAccInputHash: %v", calculatedAccInputHash)
 
-	return common.BytesToHash(keccak256.Hash(v1, v2, v3, v4, v5, v6))
+	return calculatedAccInputHash
 }
 
 // NewKeyFromKeystore creates a private key from a keystore file
@@ -108,4 +110,21 @@ func NewKeyFromKeystore(cfg types.KeystoreFileConfig) (*ecdsa.PrivateKey, error)
 		return nil, err
 	}
 	return key.PrivateKey, nil
+}
+
+// BigIntToLittleEndianBytes converts a big.Int to a 32-byte little-endian representation.
+// big.Int is capped to 32 bytes
+func BigIntToLittleEndianBytes(n *big.Int) []byte {
+	// Get the absolute value in big-endian byte slice
+	beBytes := n.Bytes()
+
+	// Initialize a 32-byte array for the result
+	leBytes := make([]byte, common.HashLength)
+
+	// Fill the array in reverse order to convert to little-endian
+	for i := 0; i < len(beBytes) && i < common.HashLength; i++ {
+		leBytes[i] = beBytes[len(beBytes)-1-i]
+	}
+
+	return leBytes
 }

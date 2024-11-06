@@ -493,6 +493,7 @@ func TestBuildCertificate(t *testing.T) {
 		bridges                 []bridgesync.Bridge
 		claims                  []bridgesync.Claim
 		lastSentCertificateInfo aggsendertypes.CertificateInfo
+		toBlock                 uint64
 		mockFn                  func()
 		expectedCert            *agglayer.Certificate
 		expectedError           bool
@@ -532,10 +533,12 @@ func TestBuildCertificate(t *testing.T) {
 				NewLocalExitRoot: common.HexToHash("0x123"),
 				Height:           1,
 			},
+			toBlock: 10,
 			expectedCert: &agglayer.Certificate{
 				NetworkID:         1,
 				PrevLocalExitRoot: common.HexToHash("0x123"),
 				NewLocalExitRoot:  common.HexToHash("0x789"),
+				Metadata:          createCertificateMetadata(10),
 				BridgeExits: []*agglayer.BridgeExit{
 					{
 						LeafType: agglayer.LeafTypeAsset,
@@ -686,7 +689,7 @@ func TestBuildCertificate(t *testing.T) {
 				l1infoTreeSyncer: mockL1InfoTreeSyncer,
 				log:              log.WithFields("test", "unittest"),
 			}
-			cert, err := aggSender.buildCertificate(context.Background(), tt.bridges, tt.claims, tt.lastSentCertificateInfo)
+			cert, err := aggSender.buildCertificate(context.Background(), tt.bridges, tt.claims, tt.lastSentCertificateInfo, tt.toBlock)
 
 			if tt.expectedError {
 				require.Error(t, err)
