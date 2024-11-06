@@ -67,7 +67,7 @@ fn build_versions() -> std::io::Result<()> {
     let mut file = File::create(&dest_path)?;
     file.write_all(content.as_bytes())?;
 
-    // Get lines 28 to 40 from the contents of the starlark file
+    // Get the corresponding lines from the contents of the starlark file
     let versions = content
         .lines()
         .skip(30)
@@ -84,8 +84,6 @@ fn build_versions() -> std::io::Result<()> {
     // Replace the trailing comma on the last line
     let versions = versions.replace(", }", " }");
 
-    print!("{}", versions);
-
     // The versions string is a JSON object we can parse
     let versions_json: serde_json::Value = serde_json::from_str(&versions).unwrap();
 
@@ -93,18 +91,12 @@ fn build_versions() -> std::io::Result<()> {
     let dest_path = Path::new(".").join("versions.json");
     let mut file = File::create(&dest_path)?;
     file.write_all(
-        serde_json::to_string_pretty(&versions_json)
-            .unwrap()
-            .as_bytes(),
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&versions_json).unwrap()
+        )
+        .as_bytes(),
     )?;
-
-    // Optionally, print the output of the make command
-    println!("cargo:rerun-if-changed=build.rs");
-
-    // Here you can also add additional commands to inform Cargo about
-    // how to rerun the build script. For example, to rerun this script
-    // only when a specific file changes:
-    // println!("cargo:rerun-if-changed=path/to/file");
 
     Ok(())
 }
