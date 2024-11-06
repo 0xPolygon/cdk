@@ -6,7 +6,7 @@ require (
 	github.com/0xPolygon/cdk-contracts-tooling v0.0.0-20240826154954-f6182d2b17a2
 	github.com/0xPolygon/cdk-data-availability v0.0.10
 	github.com/0xPolygon/cdk-rpc v0.0.0-20241004114257-6c3cb6eebfb6
-	github.com/0xPolygon/zkevm-ethtx-manager v0.2.0
+	github.com/0xPolygon/zkevm-ethtx-manager v0.2.1
 	github.com/0xPolygonHermez/zkevm-data-streamer v0.2.7
 	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.5
 	github.com/ethereum/go-ethereum v1.14.8
