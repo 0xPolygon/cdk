@@ -124,10 +124,10 @@ func (a *AggSenderSQLStorage) SaveLastSentCertificate(ctx context.Context, certi
 		}
 	}()
 
-	if err := meddler.Insert(tx, "certificate_info", &certificate); err != nil {
+	if err = meddler.Insert(tx, "certificate_info", &certificate); err != nil {
 		return fmt.Errorf("error inserting certificate info: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
+	if err = tx.Commit(); err != nil {
 		return err
 	}
 
@@ -150,10 +150,10 @@ func (a *AggSenderSQLStorage) DeleteCertificate(ctx context.Context, certificate
 		}
 	}()
 
-	if _, err := tx.Exec(`DELETE FROM certificate_info WHERE certificate_id = $1;`, certificateID); err != nil {
+	if _, err = tx.Exec(`DELETE FROM certificate_info WHERE certificate_id = $1;`, certificateID); err != nil {
 		return fmt.Errorf("error deleting certificate info: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
+	if err = tx.Commit(); err != nil {
 		return err
 	}
 
@@ -176,11 +176,11 @@ func (a *AggSenderSQLStorage) UpdateCertificateStatus(ctx context.Context, certi
 		}
 	}()
 
-	if _, err := tx.Exec(`UPDATE certificate_info SET status = $1 WHERE certificate_id = $2;`,
+	if _, err = tx.Exec(`UPDATE certificate_info SET status = $1 WHERE certificate_id = $2;`,
 		certificate.Status, certificate.CertificateID); err != nil {
 		return fmt.Errorf("error updating certificate info: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
+	if err = tx.Commit(); err != nil {
 		return err
 	}
 
