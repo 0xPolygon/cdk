@@ -206,7 +206,7 @@ function export_portnum_from_kurtosis_or_fail(){
 ###############################################################################
 function export_ports_from_kurtosis(){
     export_portnum_from_kurtosis_or_fail    l1_rpc_port              el-1-geth-lighthouse rpc
-    export_portnum_from_kurtosis_or_fail    zkevm_rpc_http_port      cdk-erigon-node-001 http-rpc rpc
+    export_portnum_from_kurtosis_or_fail    zkevm_rpc_http_port      cdk-erigon-rpc-001 http-rpc rpc
     export_portnum_from_kurtosis_or_fail    zkevm_data_streamer_port cdk-erigon-sequencer-001 data-streamer
     export_portnum_from_kurtosis_or_fail    aggregator_db_port       postgres-001 postgres
     export_portnum_from_kurtosis_or_fail    agglayer_port            agglayer agglayer

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"net"
 	"strings"
@@ -183,6 +184,26 @@ func New(
 	return a, nil
 }
 
+func (a *Aggregator) getAccInputHash(batchNumber uint64) common.Hash {
+	a.accInputHashesMutex.Lock()
+	defer a.accInputHashesMutex.Unlock()
+	return a.accInputHashes[batchNumber]
+}
+
+func (a *Aggregator) setAccInputHash(batchNumber uint64, accInputHash common.Hash) {
+	a.accInputHashesMutex.Lock()
+	defer a.accInputHashesMutex.Unlock()
+	a.accInputHashes[batchNumber] = accInputHash
+}
+
+func (a *Aggregator) removeAccInputHashes(firstBatch, lastBatch uint64) {
+	a.accInputHashesMutex.Lock()
+	defer a.accInputHashesMutex.Unlock()
+	for i := firstBatch; i <= lastBatch; i++ {
+		delete(a.accInputHashes, i)
+	}
+}
+
 func (a *Aggregator) handleReorg(reorgData synchronizer.ReorgExecutionResult) {
 	a.logger.Warnf("Reorg detected, reorgData: %+v", reorgData)
 
@@ -246,9 +267,9 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 		if err == nil {
 			a.accInputHashesMutex.Lock()
 			a.accInputHashes = make(map[uint64]common.Hash)
-			a.logger.Infof("Starting AccInputHash:%v", accInputHash.String())
-			a.accInputHashes[lastVerifiedBatchNumber] = *accInputHash
 			a.accInputHashesMutex.Unlock()
+			a.logger.Infof("Starting AccInputHash:%v", accInputHash.String())
+			a.setAccInputHash(lastVerifiedBatchNumber, *accInputHash)
 		}
 	}
 
@@ -334,9 +355,7 @@ func (a *Aggregator) Start() error {
 		}
 
 		a.logger.Infof("Starting AccInputHash:%v", accInputHash.String())
-		a.accInputHashesMutex.Lock()
-		a.accInputHashes[lastVerifiedBatchNumber] = *accInputHash
-		a.accInputHashesMutex.Unlock()
+		a.setAccInputHash(lastVerifiedBatchNumber, *accInputHash)
 
 		a.resetVerifyProofTime()
 
@@ -1076,6 +1095,22 @@ func (a *Aggregator) getAndLockBatchToProve(
 
 			return nil, nil, nil, err
 		}
+
+		if proofExists {
+			accInputHash := a.getAccInputHash(batchNumberToVerify - 1)
+			if accInputHash == (common.Hash{}) && batchNumberToVerify > 1 {
+				tmpLogger.Warnf("AccInputHash for batch %d is not in memory, "+
+					"deleting proofs to regenerate acc input hash chain in memory", batchNumberToVerify)
+
+				err := a.state.CleanupGeneratedProofs(ctx, math.MaxInt, nil)
+				if err != nil {
+					tmpLogger.Infof("Error cleaning up generated proofs for batch %d", batchNumberToVerify)
+					return nil, nil, nil, err
+				}
+				batchNumberToVerify--
+				break
+			}
+		}
 	}
 
 	// Check if the batch has been sequenced
@@ -1130,10 +1165,9 @@ func (a *Aggregator) getAndLockBatchToProve(
 	}
 
 	// Calculate acc input hash as the RPC is not returning the correct one at the moment
-	a.accInputHashesMutex.Lock()
 	accInputHash := cdkcommon.CalculateAccInputHash(
 		a.logger,
-		a.accInputHashes[batchNumberToVerify-1],
+		a.getAccInputHash(batchNumberToVerify-1),
 		virtualBatch.BatchL2Data,
 		*virtualBatch.L1InfoRoot,
 		uint64(sequence.Timestamp.Unix()),
@@ -1141,8 +1175,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 		rpcBatch.ForcedBlockHashL1(),
 	)
 	// Store the acc input hash
-	a.accInputHashes[batchNumberToVerify] = accInputHash
-	a.accInputHashesMutex.Unlock()
+	a.setAccInputHash(batchNumberToVerify, accInputHash)
 
 	// Log params to calculate acc input hash
 	a.logger.Debugf("Calculated acc input hash for batch %d: %v", batchNumberToVerify, accInputHash)
@@ -1481,13 +1514,12 @@ func (a *Aggregator) buildInputProver(
 		}
 	*/
 
-	a.accInputHashesMutex.Lock()
 	inputProver := &prover.StatelessInputProver{
 		PublicInputs: &prover.StatelessPublicInputs{
 			Witness: witness,
 			// Use calculated acc inputh hash as the RPC is not returning the correct one at the moment
 			// OldAccInputHash:   rpcOldBatch.AccInputHash().Bytes(),
-			OldAccInputHash:   a.accInputHashes[batchToVerify.BatchNumber-1].Bytes(),
+			OldAccInputHash:   a.getAccInputHash(batchToVerify.BatchNumber - 1).Bytes(),
 			OldBatchNum:       batchToVerify.BatchNumber - 1,
 			ChainId:           batchToVerify.ChainID,
 			ForkId:            batchToVerify.ForkID,
@@ -1500,7 +1532,6 @@ func (a *Aggregator) buildInputProver(
 			ForcedBlockhashL1: forcedBlockhashL1.Bytes(),
 		},
 	}
-	a.accInputHashesMutex.Unlock()
 
 	printInputProver(a.logger, inputProver)
 	return inputProver, nil
@@ -1592,14 +1623,6 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxtypes.MonitoredTxResult
 	// Remove the acc input hashes from the map
 	// leaving the last batch acc input hash as it will be used as old acc input hash
 	a.removeAccInputHashes(firstBatch, lastBatch-1)
-}
-
-func (a *Aggregator) removeAccInputHashes(firstBatch, lastBatch uint64) {
-	a.accInputHashesMutex.Lock()
-	for i := firstBatch; i <= lastBatch; i++ {
-		delete(a.accInputHashes, i)
-	}
-	a.accInputHashesMutex.Unlock()
 }
 
 func (a *Aggregator) cleanupLockedProofs() {
