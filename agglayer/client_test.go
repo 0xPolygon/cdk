@@ -19,7 +19,6 @@ func TestExploratoryClient(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, config)
 	fmt.Printf("Config: %s", config.String())
-
 }
 
 func TestGetEpochConfigurationResponseWithError(t *testing.T) {
