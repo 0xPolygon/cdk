@@ -88,14 +88,14 @@ func TestNewConfigEpochNotifierPerBlock(t *testing.T) {
 	_, err := NewConfigEpochNotifierPerBlock(nil, 1)
 	require.Error(t, err)
 	aggLayerMock := agglayer.NewAgglayerClientMock(t)
-	aggLayerMock.On("GetClockConfiguration").Return(nil, fmt.Errorf("error")).Once()
+	aggLayerMock.On("GetEpochConfiguration").Return(nil, fmt.Errorf("error")).Once()
 	_, err = NewConfigEpochNotifierPerBlock(aggLayerMock, 1)
 	require.Error(t, err)
 	cfgAggLayer := &agglayer.ClockConfiguration{
 		GenesisBlock:  123,
 		EpochDuration: 456,
 	}
-	aggLayerMock.On("GetClockConfiguration").Return(cfgAggLayer, nil).Once()
+	aggLayerMock.On("GetEpochConfiguration").Return(cfgAggLayer, nil).Once()
 	cfg, err := NewConfigEpochNotifierPerBlock(aggLayerMock, 1)
 	require.NoError(t, err)
 	require.Equal(t, uint64(123), cfg.StartingEpochBlock)

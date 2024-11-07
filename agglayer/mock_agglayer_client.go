@@ -45,12 +45,12 @@ func (_m *AgglayerClientMock) GetCertificateHeader(certificateHash common.Hash) 
 	return r0, r1
 }
 
-// GetClockConfiguration provides a mock function with given fields:
-func (_m *AgglayerClientMock) GetClockConfiguration() (*ClockConfiguration, error) {
+// GetEpochConfiguration provides a mock function with given fields:
+func (_m *AgglayerClientMock) GetEpochConfiguration() (*ClockConfiguration, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetClockConfiguration")
+		panic("no return value specified for GetEpochConfiguration")
 	}
 
 	var r0 *ClockConfiguration

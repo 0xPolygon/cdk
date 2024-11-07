@@ -20,8 +20,8 @@ var (
 	jSONRPCCall                  = rpc.JSONRPCCall
 )
 
-type AggLayerClientGetClockConfiguration interface {
-	GetClockConfiguration() (*ClockConfiguration, error)
+type AggLayerClientGetEpochConfiguration interface {
+	GetEpochConfiguration() (*ClockConfiguration, error)
 }
 
 // AgglayerClientInterface is the interface that defines the methods that the AggLayerClient will implement
@@ -30,7 +30,7 @@ type AgglayerClientInterface interface {
 	WaitTxToBeMined(hash common.Hash, ctx context.Context) error
 	SendCertificate(certificate *SignedCertificate) (common.Hash, error)
 	GetCertificateHeader(certificateHash common.Hash) (*CertificateHeader, error)
-	AggLayerClientGetClockConfiguration
+	AggLayerClientGetEpochConfiguration
 }
 
 // AggLayerClient is the client that will be used to interact with the AggLayer
@@ -139,15 +139,15 @@ func (c *AggLayerClient) GetCertificateHeader(certificateHash common.Hash) (*Cer
 	return result, nil
 }
 
-// GetClockConfiguration returns the clock configuration of AggLayer
-func (c *AggLayerClient) GetClockConfiguration() (*ClockConfiguration, error) {
-	response, err := jSONRPCCall(c.url, "interop_getClockConfiguration")
+// GetEpochConfiguration returns the clock configuration of AggLayer
+func (c *AggLayerClient) GetEpochConfiguration() (*ClockConfiguration, error) {
+	response, err := jSONRPCCall(c.url, "interop_getEpochConfiguration")
 	if err != nil {
 		return nil, err
 	}
 
 	if response.Error != nil {
-		return nil, fmt.Errorf("GetClockConfiguration code=%d msg=%s", response.Error.Code, response.Error.Message)
+		return nil, fmt.Errorf("GetEpochConfiguration code=%d msg=%s", response.Error.Code, response.Error.Message)
 	}
 
 	var result *ClockConfiguration

@@ -33,10 +33,10 @@ func TestExploratoryGetCertificateHeader(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Print(certificateHeader)
 }
-func TestExploratoryGetClockConfiguration(t *testing.T) {
+func TestExploratoryGetEpochConfiguration(t *testing.T) {
 	t.Skip("This test is exploratory and should be skipped")
 	aggLayerClient := agglayer.NewAggLayerClient("http://localhost:32796")
-	clockConfig, err := aggLayerClient.GetClockConfiguration()
+	clockConfig, err := aggLayerClient.GetEpochConfiguration()
 	require.NoError(t, err)
 	fmt.Print(clockConfig)
 }

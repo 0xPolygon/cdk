@@ -24,12 +24,12 @@ type ConfigEpochNotifierPerBlock struct {
 	NotifyPendingBlocksBeforeEndEpoch uint
 }
 
-func NewConfigEpochNotifierPerBlock(aggLayer agglayer.AggLayerClientGetClockConfiguration,
+func NewConfigEpochNotifierPerBlock(aggLayer agglayer.AggLayerClientGetEpochConfiguration,
 	notifyPendingBlocksBeforeEndEpoch uint) (*ConfigEpochNotifierPerBlock, error) {
 	if aggLayer == nil {
 		return nil, fmt.Errorf("newConfigEpochNotifierPerBlock: aggLayerClient is required")
 	}
-	clockConfig, err := aggLayer.GetClockConfiguration()
+	clockConfig, err := aggLayer.GetEpochConfiguration()
 	if err != nil {
 		return nil, fmt.Errorf("newConfigEpochNotifierPerBlock: error getting clock configuration from AggLayer: %w", err)
 	}

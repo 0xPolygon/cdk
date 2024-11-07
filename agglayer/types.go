@@ -533,7 +533,7 @@ func (c CertificateHeader) String() string {
 }
 
 // ClockConfiguration represents the configuration of the epoch clock
-// returned by the interop_getClockConfiguration RPC call
+// returned by the interop_GetEpochConfiguration RPC call
 type ClockConfiguration struct {
 	EpochDuration uint64 `json:"epoch_duration"`
 	GenesisBlock  uint64 `json:"genesis_block"`
