@@ -1,4 +1,4 @@
-PathRWData = "{{.path_rw_data}}/"
+PathRWData = "/tmp/"
 L1URL="{{.l1_rpc_url}}"
 L2URL="http://{{.l2_rpc_name}}{{.deployment_suffix}}:{{.zkevm_rpc_http_port}}"
 AggLayerURL="{{.agglayer_url}}"

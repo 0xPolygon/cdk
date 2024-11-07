@@ -2,18 +2,19 @@ package reorgdetector
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/big"
 	"sync"
 	"time"
 
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/cdk/reorgdetector/migrations"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ledgerwatch/erigon-lib/kv"
-	"github.com/ledgerwatch/erigon-lib/kv/mdbx"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -25,7 +26,7 @@ type EthClient interface {
 
 type ReorgDetector struct {
 	client             EthClient
-	db                 kv.RwDB
+	db                 *sql.DB
 	checkReorgInterval time.Duration
 
 	trackedBlocksLock sync.RWMutex
@@ -36,12 +37,13 @@ type ReorgDetector struct {
 }
 
 func New(client EthClient, cfg Config) (*ReorgDetector, error) {
-	db, err := mdbx.NewMDBX(nil).
-		Path(cfg.DBPath).
-		WithTableCfg(tableCfgFunc).
-		Open()
+	err := migrations.RunMigrations(cfg.DBPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open db: %w", err)
+		return nil, err
+	}
+	db, err := db.NewSQLiteDB(cfg.DBPath)
+	if err != nil {
+		return nil, err
 	}
 
 	return &ReorgDetector{
@@ -56,7 +58,7 @@ func New(client EthClient, cfg Config) (*ReorgDetector, error) {
 // Start starts the reorg detector
 func (rd *ReorgDetector) Start(ctx context.Context) (err error) {
 	// Load tracked blocks from the DB
-	if err = rd.loadTrackedHeaders(ctx); err != nil {
+	if err = rd.loadTrackedHeaders(); err != nil {
 		return fmt.Errorf("failed to load tracked headers: %w", err)
 	}
 
@@ -96,7 +98,7 @@ func (rd *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, num uin
 
 	// Store the given header to the tracked list
 	hdr := newHeader(num, hash)
-	if err := rd.saveTrackedBlock(ctx, id, hdr); err != nil {
+	if err := rd.saveTrackedBlock(id, hdr); err != nil {
 		return fmt.Errorf("failed to save tracked block: %w", err)
 	}
 
@@ -157,6 +159,10 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 					if hdr.Num <= lastFinalisedBlock.Number.Uint64() {
 						hdrs.removeRange(hdr.Num, hdr.Num)
 					}
+					if err := rd.removeTrackedBlockRange(id, hdr.Num, hdr.Num); err != nil {
+						return fmt.Errorf("error removing blocks from DB for subscriber %s between blocks %d and %d: %w",
+							id, hdr.Num, hdr.Num, err)
+					}
 
 					continue
 				}
@@ -164,17 +170,16 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 				// Notify the subscriber about the reorg
 				rd.notifySubscriber(id, hdr)
 
-				// Remove the reorged block and all the following blocks
+				// Remove the reorged block and all the following blocks from DB
+				if err := rd.removeTrackedBlockRange(id, hdr.Num, headers[len(headers)-1].Num); err != nil {
+					return fmt.Errorf("error removing blocks from DB for subscriber %s between blocks %d and %d: %w",
+						id, hdr.Num, headers[len(headers)-1].Num, err)
+				}
+				// Remove the reorged block and all the following blocks from memory
 				hdrs.removeRange(hdr.Num, headers[len(headers)-1].Num)
 
 				break
 			}
-
-			// Update the tracked blocks in the DB
-			if err := rd.updateTrackedBlocksDB(ctx, id, hdrs); err != nil {
-				return fmt.Errorf("failed to update tracked blocks for subscriber %s: %w", id, err)
-			}
-
 			return nil
 		})
 	}
@@ -183,12 +188,12 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 }
 
 // loadTrackedHeaders loads tracked headers from the DB and stores them in memory
-func (rd *ReorgDetector) loadTrackedHeaders(ctx context.Context) (err error) {
+func (rd *ReorgDetector) loadTrackedHeaders() (err error) {
 	rd.trackedBlocksLock.Lock()
 	defer rd.trackedBlocksLock.Unlock()
 
 	// Load tracked blocks for all subscribers from the DB
-	if rd.trackedBlocks, err = rd.getTrackedBlocks(ctx); err != nil {
+	if rd.trackedBlocks, err = rd.getTrackedBlocks(); err != nil {
 		return fmt.Errorf("failed to get tracked blocks: %w", err)
 	}
 

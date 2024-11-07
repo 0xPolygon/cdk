@@ -711,7 +711,6 @@ func (a *Aggregator) validateEligibleFinalProof(
 	batchNumberToVerify := lastVerifiedBatchNum + 1
 
 	if proof.BatchNumber != batchNumberToVerify {
-		//nolint:gocritic
 		if proof.BatchNumber < batchNumberToVerify &&
 			proof.BatchNumberFinal >= batchNumberToVerify {
 			// We have a proof that contains some batches below the last batch verified, anyway can be eligible as final proof
