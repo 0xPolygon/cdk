@@ -91,11 +91,9 @@ func (c *AggLayerClient) WaitTxToBeMined(hash common.Hash, ctx context.Context) 
 
 // SendCertificate sends a certificate to the AggLayer
 func (c *AggLayerClient) SendCertificate(certificate *SignedCertificate) (common.Hash, error) {
-	if err := defaultNilFieldsInCertificate(certificate); err != nil {
-		return common.Hash{}, err
-	}
+	certificateToSend := certificate.Copy()
 
-	response, err := rpc.JSONRPCCall(c.url, "interop_sendCertificate", certificate)
+	response, err := rpc.JSONRPCCall(c.url, "interop_sendCertificate", certificateToSend)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -131,25 +129,4 @@ func (c *AggLayerClient) GetCertificateHeader(certificateHash common.Hash) (*Cer
 	}
 
 	return result, nil
-}
-
-// defaultNilFieldsInCertificate sets the fields of the certificate to default values if they are nil
-func defaultNilFieldsInCertificate(certificate *SignedCertificate) error {
-	if certificate == nil || certificate.Certificate == nil {
-		return errors.New("certificate is nil")
-	}
-
-	if certificate.Signature == nil {
-		certificate.Signature = &Signature{}
-	}
-
-	if certificate.Certificate.BridgeExits == nil {
-		certificate.Certificate.BridgeExits = []*BridgeExit{}
-	}
-
-	if certificate.Certificate.ImportedBridgeExits == nil {
-		certificate.Certificate.ImportedBridgeExits = []*ImportedBridgeExit{}
-	}
-
-	return nil
 }

@@ -131,6 +131,32 @@ type SignedCertificate struct {
 	Signature *Signature `json:"signature"`
 }
 
+// Copy returns a deep copy of the signed certificate
+func (s *SignedCertificate) Copy() *SignedCertificate {
+	certificateCopy := &Certificate{
+		NetworkID:           s.NetworkID,
+		Height:              s.Height,
+		PrevLocalExitRoot:   s.PrevLocalExitRoot,
+		NewLocalExitRoot:    s.NewLocalExitRoot,
+		BridgeExits:         make([]*BridgeExit, len(s.BridgeExits)),
+		ImportedBridgeExits: make([]*ImportedBridgeExit, len(s.ImportedBridgeExits)),
+		Metadata:            s.Metadata,
+	}
+
+	copy(certificateCopy.BridgeExits, s.BridgeExits)
+	copy(certificateCopy.ImportedBridgeExits, s.ImportedBridgeExits)
+
+	signature := s.Signature
+	if signature == nil {
+		signature = &Signature{}
+	}
+
+	return &SignedCertificate{
+		Certificate: certificateCopy,
+		Signature:   signature,
+	}
+}
+
 // Signature is the data structure that will hold the signature of the given certificate
 type Signature struct {
 	R         common.Hash `json:"r"`
