@@ -104,7 +104,7 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 func (a *AggSender) sendCertificate(ctx context.Context) error {
 	a.log.Infof("trying to send a new certificate...")
 
-	shouldSend, err := a.shouldSendCertificate(ctx)
+	shouldSend, err := a.shouldSendCertificate()
 	if err != nil {
 		return err
 	}
@@ -507,7 +507,7 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
 
 // shouldSendCertificate checks if a certificate should be sent at given time
 // if we have pending certificates, then we wait until they are settled
-func (a *AggSender) shouldSendCertificate(ctx context.Context) (bool, error) {
+func (a *AggSender) shouldSendCertificate() (bool, error) {
 	pendingCertificates, err := a.storage.GetCertificatesByStatus(nonSettledStatuses)
 	if err != nil {
 		return false, fmt.Errorf("error getting pending certificates: %w", err)

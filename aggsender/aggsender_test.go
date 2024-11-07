@@ -34,6 +34,30 @@ func TestExploratoryGetCertificateHeader(t *testing.T) {
 	fmt.Print(certificateHeader)
 }
 
+func TestConfigString(t *testing.T) {
+	config := Config{
+		StoragePath:                 "/path/to/storage",
+		AggLayerURL:                 "http://agglayer.url",
+		BlockGetInterval:            types.Duration{Duration: 10 * time.Second},
+		CheckSettledInterval:        types.Duration{Duration: 20 * time.Second},
+		AggsenderPrivateKey:         types.KeystoreFileConfig{Path: "/path/to/key", Password: "password"},
+		URLRPCL2:                    "http://l2.rpc.url",
+		SaveCertificatesToFilesPath: "/path/to/certificates",
+	}
+
+	expected := "AggSender Config:\n" +
+		"StoragePath: /path/to/storage\n" +
+		"AggLayerURL: http://agglayer.url\n" +
+		"BlockGetInterval: 10s\n" +
+		"CheckSettledInterval: 20s\n" +
+		"AggsenderPrivateKeyPath: /path/to/key\n" +
+		"AggsenderPrivateKeyPassword: password\n" +
+		"URLRPCL2: http://l2.rpc.url\n" +
+		"SaveCertificatesToFilesPath: /path/to/certificates\n"
+
+	require.Equal(t, expected, config.String())
+}
+
 func TestConvertClaimToImportedBridgeExit(t *testing.T) {
 	t.Parallel()
 
