@@ -110,13 +110,13 @@ func TestSignedCertificate_Copy(t *testing.T) {
 			},
 		}
 
-		copy := original.Copy()
+		certificateCopy := original.Copy()
 
-		require.NotNil(t, copy)
-		require.NotSame(t, original, copy)
-		require.NotSame(t, original.Certificate, copy.Certificate)
-		require.Same(t, original.Signature, copy.Signature)
-		require.Equal(t, original, copy)
+		require.NotNil(t, certificateCopy)
+		require.NotSame(t, original, certificateCopy)
+		require.NotSame(t, original.Certificate, certificateCopy.Certificate)
+		require.Same(t, original.Signature, certificateCopy.Signature)
+		require.Equal(t, original, certificateCopy)
 	})
 
 	t.Run("copy with nil BridgeExits, ImportedBridgeExits and Signature", func(t *testing.T) {
@@ -135,20 +135,20 @@ func TestSignedCertificate_Copy(t *testing.T) {
 			Signature: nil,
 		}
 
-		copy := original.Copy()
+		certificateCopy := original.Copy()
 
-		require.NotNil(t, copy)
-		require.NotSame(t, original, copy)
-		require.NotSame(t, original.Certificate, copy.Certificate)
-		require.NotNil(t, copy.Signature)
-		require.Equal(t, original.NetworkID, copy.NetworkID)
-		require.Equal(t, original.Height, copy.Height)
-		require.Equal(t, original.PrevLocalExitRoot, copy.PrevLocalExitRoot)
-		require.Equal(t, original.NewLocalExitRoot, copy.NewLocalExitRoot)
-		require.Equal(t, original.Metadata, copy.Metadata)
-		require.NotNil(t, copy.BridgeExits)
-		require.NotNil(t, copy.ImportedBridgeExits)
-		require.Empty(t, copy.BridgeExits)
-		require.Empty(t, copy.ImportedBridgeExits)
+		require.NotNil(t, certificateCopy)
+		require.NotSame(t, original, certificateCopy)
+		require.NotSame(t, original.Certificate, certificateCopy.Certificate)
+		require.NotNil(t, certificateCopy.Signature)
+		require.Equal(t, original.NetworkID, certificateCopy.NetworkID)
+		require.Equal(t, original.Height, certificateCopy.Height)
+		require.Equal(t, original.PrevLocalExitRoot, certificateCopy.PrevLocalExitRoot)
+		require.Equal(t, original.NewLocalExitRoot, certificateCopy.NewLocalExitRoot)
+		require.Equal(t, original.Metadata, certificateCopy.Metadata)
+		require.NotNil(t, certificateCopy.BridgeExits)
+		require.NotNil(t, certificateCopy.ImportedBridgeExits)
+		require.Empty(t, certificateCopy.BridgeExits)
+		require.Empty(t, certificateCopy.ImportedBridgeExits)
 	})
 }
