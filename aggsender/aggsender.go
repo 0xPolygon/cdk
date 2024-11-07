@@ -90,7 +90,7 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			if err := a.sendCertificate(ctx); err != nil {
+			if _, err := a.sendCertificate(ctx); err != nil {
 				log.Error(err)
 			}
 		case <-ctx.Done():
@@ -101,27 +101,27 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 }
 
 // sendCertificate sends certificate for a network
-func (a *AggSender) sendCertificate(ctx context.Context) error {
+func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertificate, error) {
 	a.log.Infof("trying to send a new certificate...")
 
 	shouldSend, err := a.shouldSendCertificate()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !shouldSend {
 		a.log.Infof("waiting for pending certificates to be settled")
-		return nil
+		return nil, nil
 	}
 
 	lasL2BlockSynced, err := a.l2Syncer.GetLastProcessedBlock(ctx)
 	if err != nil {
-		return fmt.Errorf("error getting last processed block from l2: %w", err)
+		return nil, fmt.Errorf("error getting last processed block from l2: %w", err)
 	}
 
 	lastSentCertificateInfo, err := a.storage.GetLastSentCertificate()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	previousToBlock := lastSentCertificateInfo.ToBlock
@@ -134,7 +134,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 	if previousToBlock >= lasL2BlockSynced {
 		a.log.Infof("no new blocks to send a certificate, last certificate block: %d, last L2 block: %d",
 			previousToBlock, lasL2BlockSynced)
-		return nil
+		return nil, nil
 	}
 
 	fromBlock := previousToBlock + 1
@@ -142,36 +142,36 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 
 	bridges, err := a.l2Syncer.GetBridgesPublished(ctx, fromBlock, toBlock)
 	if err != nil {
-		return fmt.Errorf("error getting bridges: %w", err)
+		return nil, fmt.Errorf("error getting bridges: %w", err)
 	}
 
 	if len(bridges) == 0 {
 		a.log.Infof("no bridges consumed, no need to send a certificate from block: %d to block: %d", fromBlock, toBlock)
-		return nil
+		return nil, nil
 	}
 
 	claims, err := a.l2Syncer.GetClaims(ctx, fromBlock, toBlock)
 	if err != nil {
-		return fmt.Errorf("error getting claims: %w", err)
+		return nil, fmt.Errorf("error getting claims: %w", err)
 	}
 
 	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
 
 	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo, toBlock)
 	if err != nil {
-		return fmt.Errorf("error building certificate: %w", err)
+		return nil, fmt.Errorf("error building certificate: %w", err)
 	}
 
 	signedCertificate, err := a.signCertificate(certificate)
 	if err != nil {
-		return fmt.Errorf("error signing certificate: %w", err)
+		return nil, fmt.Errorf("error signing certificate: %w", err)
 	}
 
 	a.saveCertificateToFile(signedCertificate)
 
 	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
 	if err != nil {
-		return fmt.Errorf("error sending certificate: %w", err)
+		return nil, fmt.Errorf("error sending certificate: %w", err)
 	}
 	log.Infof("certificate send: Height: %d hash: %s", signedCertificate.Height, certificateHash.String())
 
@@ -182,13 +182,13 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		FromBlock:        fromBlock,
 		ToBlock:          toBlock,
 	}); err != nil {
-		return fmt.Errorf("error saving last sent certificate in db: %w", err)
+		return nil, fmt.Errorf("error saving last sent certificate in db: %w", err)
 	}
 
 	a.log.Infof("certificate: %s sent successfully for range of l2 blocks (from block: %d, to block: %d)",
 		certificateHash, fromBlock, toBlock)
 
-	return nil
+	return signedCertificate, nil
 }
 
 // saveCertificate saves the certificate to a tmp file
