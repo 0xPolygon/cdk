@@ -1969,3 +1969,24 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 		})
 	}
 }
+
+func Test_accInputHashFunctions(t *testing.T) {
+	aggregator := Aggregator{
+		accInputHashes:      make(map[uint64]common.Hash),
+		accInputHashesMutex: &sync.Mutex{},
+	}
+
+	hash1 := common.BytesToHash([]byte("hash1"))
+	hash2 := common.BytesToHash([]byte("hash2"))
+
+	aggregator.setAccInputHash(1, hash1)
+	aggregator.setAccInputHash(2, hash2)
+
+	assert.Equal(t, 2, len(aggregator.accInputHashes))
+
+	hash3 := aggregator.getAccInputHash(1)
+	assert.Equal(t, hash1, hash3)
+
+	aggregator.removeAccInputHashes(1, 2)
+	assert.Equal(t, 0, len(aggregator.accInputHashes))
+}
