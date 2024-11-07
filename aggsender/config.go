@@ -21,3 +21,16 @@ type Config struct {
 	// SaveCertificatesToFilesPath if != "" tells  the AggSender to save the certificates to a file in this path
 	SaveCertificatesToFilesPath string `mapstructure:"SaveCertificatesToFilesPath"`
 }
+
+// String returns a string representation of the Config
+func (c Config) String() string {
+	return "AggSender Config:\n" +
+		"StoragePath: " + c.StoragePath + "\n" +
+		"AggLayerURL: " + c.AggLayerURL + "\n" +
+		"BlockGetInterval: " + c.BlockGetInterval.String() + "\n" +
+		"CheckSettledInterval: " + c.CheckSettledInterval.String() + "\n" +
+		"AggsenderPrivateKeyPath: " + c.AggsenderPrivateKey.Path + "\n" +
+		"AggsenderPrivateKeyPassword: " + c.AggsenderPrivateKey.Password + "\n" +
+		"URLRPCL2: " + c.URLRPCL2 + "\n" +
+		"SaveCertificatesToFilesPath: " + c.SaveCertificatesToFilesPath + "\n"
+}

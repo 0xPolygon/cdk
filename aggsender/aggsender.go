@@ -27,7 +27,8 @@ var (
 	errNoBridgesAndClaims   = errors.New("no bridges and claims to build certificate")
 	errInvalidSignatureSize = errors.New("invalid signature size")
 
-	zeroLER = common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
+	zeroLER            = common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
+	nonSettledStatuses = []agglayer.CertificateStatus{agglayer.Pending, agglayer.Candidate, agglayer.Proven}
 )
 
 // AggSender is a component that will send certificates to the aggLayer
@@ -62,6 +63,8 @@ func New(
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Info(cfg.String())
 
 	return &AggSender{
 		cfg:              cfg,
@@ -475,8 +478,7 @@ func (a *AggSender) checkIfCertificatesAreSettled(ctx context.Context) {
 // checkPendingCertificatesStatus checks the status of pending certificates
 // and updates in the storage if it changed on agglayer
 func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
-	pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, []agglayer.CertificateStatus{
-		agglayer.Pending, agglayer.Proven, agglayer.Candidate})
+	pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, nonSettledStatuses)
 	if err != nil {
 		a.log.Errorf("error getting pending certificates: %w", err)
 		return
@@ -506,7 +508,7 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
 // shouldSendCertificate checks if a certificate should be sent at given time
 // if we have pending certificates, then we wait until they are settled
 func (a *AggSender) shouldSendCertificate(ctx context.Context) (bool, error) {
-	pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, []agglayer.CertificateStatus{agglayer.Pending})
+	pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, nonSettledStatuses)
 	if err != nil {
 		return false, fmt.Errorf("error getting pending certificates: %w", err)
 	}
