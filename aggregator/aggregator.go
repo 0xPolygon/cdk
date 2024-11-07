@@ -1506,19 +1506,9 @@ func (a *Aggregator) buildInputProver(
 		}
 	}
 
-	// Get Old Acc Input Hash
-	/*
-		rpcOldBatch, err := a.rpcClient.GetBatch(batchToVerify.BatchNumber - 1)
-		if err != nil {
-			return nil, err
-		}
-	*/
-
 	inputProver := &prover.StatelessInputProver{
 		PublicInputs: &prover.StatelessPublicInputs{
-			Witness: witness,
-			// Use calculated acc inputh hash as the RPC is not returning the correct one at the moment
-			// OldAccInputHash:   rpcOldBatch.AccInputHash().Bytes(),
+			Witness:           witness,
 			OldAccInputHash:   a.getAccInputHash(batchToVerify.BatchNumber - 1).Bytes(),
 			OldBatchNum:       batchToVerify.BatchNumber - 1,
 			ChainId:           batchToVerify.ChainID,
