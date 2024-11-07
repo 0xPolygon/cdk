@@ -803,7 +803,7 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 			mockAggLayerClient := agglayer.NewAgglayerClientMock(t)
 			mockLogger := mocks.NewLoggerMock(t)
 
-			mockStorage.On("GetCertificatesByStatus", mock.Anything, nonSettledStatuses).Return(
+			mockStorage.On("GetCertificatesByStatus", nonSettledStatuses).Return(
 				tt.pendingCertificates, tt.getFromDBError)
 			for certID, header := range tt.certificateHeaders {
 				mockAggLayerClient.On("GetCertificateHeader", certID).Return(header, tt.clientError)
@@ -894,13 +894,13 @@ func TestSendCertificate(t *testing.T) {
 		if cfg.shouldSendCertificate != nil || cfg.getLastSentCertificate != nil ||
 			cfg.saveLastSentCertificate != nil {
 			mockStorage = mocks.NewAggSenderStorageMock(t)
-			mockStorage.On("GetCertificatesByStatus", mock.Anything, nonSettledStatuses).
+			mockStorage.On("GetCertificatesByStatus", nonSettledStatuses).
 				Return(cfg.shouldSendCertificate...).Once()
 
 			aggsender.storage = mockStorage
 
 			if cfg.getLastSentCertificate != nil {
-				mockStorage.On("GetLastSentCertificate", mock.Anything).Return(cfg.getLastSentCertificate...).Once()
+				mockStorage.On("GetLastSentCertificate").Return(cfg.getLastSentCertificate...).Once()
 			}
 
 			if cfg.saveLastSentCertificate != nil {

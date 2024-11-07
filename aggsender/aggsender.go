@@ -119,7 +119,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) error {
 		return fmt.Errorf("error getting last processed block from l2: %w", err)
 	}
 
-	lastSentCertificateInfo, err := a.storage.GetLastSentCertificate(ctx)
+	lastSentCertificateInfo, err := a.storage.GetLastSentCertificate()
 	if err != nil {
 		return err
 	}
@@ -478,7 +478,7 @@ func (a *AggSender) checkIfCertificatesAreSettled(ctx context.Context) {
 // checkPendingCertificatesStatus checks the status of pending certificates
 // and updates in the storage if it changed on agglayer
 func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
-	pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, nonSettledStatuses)
+	pendingCertificates, err := a.storage.GetCertificatesByStatus(nonSettledStatuses)
 	if err != nil {
 		a.log.Errorf("error getting pending certificates: %w", err)
 		return
@@ -508,7 +508,7 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
 // shouldSendCertificate checks if a certificate should be sent at given time
 // if we have pending certificates, then we wait until they are settled
 func (a *AggSender) shouldSendCertificate(ctx context.Context) (bool, error) {
-	pendingCertificates, err := a.storage.GetCertificatesByStatus(ctx, nonSettledStatuses)
+	pendingCertificates, err := a.storage.GetCertificatesByStatus(nonSettledStatuses)
 	if err != nil {
 		return false, fmt.Errorf("error getting pending certificates: %w", err)
 	}
