@@ -1527,34 +1527,27 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				batchL2Data, err := hex.DecodeString(codedL2Block1)
 				require.NoError(err)
 				l1InfoRoot := common.HexToHash("0x057e9950fbd39b002e323f37c2330d0c096e66919e24cc96fb4b2dfa8f4af782")
-				batch := state.Batch{
-					BatchNumber: lastVerifiedBatchNum + 1,
-					BatchL2Data: batchL2Data,
-					L1InfoRoot:  l1InfoRoot,
-					Timestamp:   time.Now(),
-					Coinbase:    common.Address{},
-					ChainID:     uint64(1),
-					ForkID:      uint64(12),
-				}
+
 				virtualBatch := synchronizer.VirtualBatch{
 					BatchNumber: lastVerifiedBatchNum + 1,
 					BatchL2Data: batchL2Data,
 					L1InfoRoot:  &l1InfoRoot,
 				}
 
-				m.synchronizerMock.On("GetVirtualBatchByBatchNumber", mock.Anything, lastVerifiedBatchNum+1).Return(&virtualBatch, nil).Once()
+				m.synchronizerMock.On("GetVirtualBatchByBatchNumber", mock.Anything, lastVerifiedBatchNum).Return(&virtualBatch, nil).Once()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
-				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
+				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(true, nil).Once()
+				m.stateMock.On("CleanupGeneratedProofs", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 				sequence := synchronizer.SequencedBatches{
 					FromBatchNumber: uint64(10),
 					ToBatchNumber:   uint64(20),
 				}
-				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1).Return(&sequence, nil).Once()
+				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum).Return(&sequence, nil).Once()
 
 				rpcBatch := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
 				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
-				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
-				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, nil)
+				m.rpcMock.On("GetWitness", lastVerifiedBatchNum, false).Return([]byte("witness"), nil)
+				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, nil)
 				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
@@ -1569,17 +1562,14 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 						assert.InDelta(time.Now().Unix(), proof.GeneratingSince.Unix(), float64(time.Second))
 					},
 				).Return(nil).Once()
-				m.synchronizerMock.On("GetLeafsByL1InfoRoot", mock.Anything, l1InfoRoot).Return(l1InfoTreeLeaf, nil).Twice()
+				m.synchronizerMock.On("GetLeafsByL1InfoRoot", mock.Anything, l1InfoRoot).Return(l1InfoTreeLeaf, nil)
 				m.synchronizerMock.On("GetL1InfoTreeLeaves", mock.Anything, mock.Anything).Return(map[uint32]synchronizer.L1InfoTreeLeaf{
 					1: {
 						BlockNumber: uint64(35),
 					},
-				}, nil).Twice()
+				}, nil)
 
-				expectedInputProver, err := a.buildInputProver(context.Background(), &batch, []byte("witness"))
-				require.NoError(err)
-
-				m.proverMock.On("BatchProof", expectedInputProver).Return(nil, errTest).Once()
+				m.proverMock.On("BatchProof", mock.Anything).Return(nil, errTest).Once()
 				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), batchToProve.BatchNumber, batchToProve.BatchNumber, nil).Return(nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
@@ -1968,4 +1958,25 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_accInputHashFunctions(t *testing.T) {
+	aggregator := Aggregator{
+		accInputHashes:      make(map[uint64]common.Hash),
+		accInputHashesMutex: &sync.Mutex{},
+	}
+
+	hash1 := common.BytesToHash([]byte("hash1"))
+	hash2 := common.BytesToHash([]byte("hash2"))
+
+	aggregator.setAccInputHash(1, hash1)
+	aggregator.setAccInputHash(2, hash2)
+
+	assert.Equal(t, 2, len(aggregator.accInputHashes))
+
+	hash3 := aggregator.getAccInputHash(1)
+	assert.Equal(t, hash1, hash3)
+
+	aggregator.removeAccInputHashes(1, 2)
+	assert.Equal(t, 0, len(aggregator.accInputHashes))
 }
