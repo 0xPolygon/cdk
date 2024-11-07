@@ -110,7 +110,7 @@ func TestSignedCertificate_Copy(t *testing.T) {
 			},
 		}
 
-		certificateCopy := original.Copy()
+		certificateCopy := original.CopyWithDefaulting()
 
 		require.NotNil(t, certificateCopy)
 		require.NotSame(t, original, certificateCopy)
@@ -135,7 +135,7 @@ func TestSignedCertificate_Copy(t *testing.T) {
 			Signature: nil,
 		}
 
-		certificateCopy := original.Copy()
+		certificateCopy := original.CopyWithDefaulting()
 
 		require.NotNil(t, certificateCopy)
 		require.NotSame(t, original, certificateCopy)

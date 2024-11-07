@@ -91,7 +91,7 @@ func (c *AggLayerClient) WaitTxToBeMined(hash common.Hash, ctx context.Context) 
 
 // SendCertificate sends a certificate to the AggLayer
 func (c *AggLayerClient) SendCertificate(certificate *SignedCertificate) (common.Hash, error) {
-	certificateToSend := certificate.Copy()
+	certificateToSend := certificate.CopyWithDefaulting()
 
 	response, err := rpc.JSONRPCCall(c.url, "interop_sendCertificate", certificateToSend)
 	if err != nil {

@@ -131,20 +131,17 @@ type SignedCertificate struct {
 	Signature *Signature `json:"signature"`
 }
 
-// Copy returns a deep copy of the signed certificate
-func (s *SignedCertificate) Copy() *SignedCertificate {
-	certificateCopy := &Certificate{
-		NetworkID:           s.NetworkID,
-		Height:              s.Height,
-		PrevLocalExitRoot:   s.PrevLocalExitRoot,
-		NewLocalExitRoot:    s.NewLocalExitRoot,
-		BridgeExits:         make([]*BridgeExit, len(s.BridgeExits)),
-		ImportedBridgeExits: make([]*ImportedBridgeExit, len(s.ImportedBridgeExits)),
-		Metadata:            s.Metadata,
+// CopyWithDefaulting returns a shallow copy of the signed certificate
+func (s *SignedCertificate) CopyWithDefaulting() *SignedCertificate {
+	certificateCopy := *s.Certificate
+
+	if certificateCopy.BridgeExits == nil {
+		certificateCopy.BridgeExits = make([]*BridgeExit, 0)
 	}
 
-	copy(certificateCopy.BridgeExits, s.BridgeExits)
-	copy(certificateCopy.ImportedBridgeExits, s.ImportedBridgeExits)
+	if certificateCopy.ImportedBridgeExits == nil {
+		certificateCopy.ImportedBridgeExits = make([]*ImportedBridgeExit, 0)
+	}
 
 	signature := s.Signature
 	if signature == nil {
@@ -152,7 +149,7 @@ func (s *SignedCertificate) Copy() *SignedCertificate {
 	}
 
 	return &SignedCertificate{
-		Certificate: certificateCopy,
+		Certificate: &certificateCopy,
 		Signature:   signature,
 	}
 }
