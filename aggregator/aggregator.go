@@ -175,7 +175,7 @@ func New(
 		a.ctx, a.exit = context.WithCancel(a.ctx)
 	}
 
-	// Set function to handle the batches from the data stream
+	// Set function to handle events on L1
 	if !cfg.SyncModeOnlyEnabled {
 		a.l1Syncr.SetCallbackOnReorgDone(a.handleReorg)
 		a.l1Syncr.SetCallbackOnRollbackBatches(a.handleRollbackBatches)
