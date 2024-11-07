@@ -120,10 +120,10 @@ function export_obj_key_from_toml_file(){
     local _SECTION="$3"
     local _KEY="$4"
     local _OBJ_KEY="$5"
-    log_debug "export_obj_key_from_toml_file_or_fatal: $_EXPORTED_VAR_NAME $_FILE $_SECTION $_KEY $_OBJ_KEY"
+    log_debug "export_obj_key_from_toml_file: $_EXPORTED_VAR_NAME $_FILE $_SECTION $_KEY $_OBJ_KEY"
    local _VALUE=$(get_value_from_toml_file $_FILE $_SECTION $_KEY)
     if [ -z "$_VALUE" ]; then
-       log_error  "export_obj_key_from_toml_file_or_fatal: obj_key $_KEY not found in section [$_SECTION]"
+       log_debug  "export_obj_key_from_toml_file: obj_key $_KEY not found in section [$_SECTION]"
        return 1
     fi
     local _CLEAN_VALUE=$(echo $_VALUE | tr -d '{' | tr -d '}' | tr  ',' '\n')
@@ -143,7 +143,7 @@ function export_obj_key_from_toml_file(){
             return 0
         fi
     done <<< "$_CLEAN_VALUE"
-    log_error "export_obj_key_from_toml_file_or_fatal: obj_key $_OBJ_KEY not found in section $_SECTION/ $_KEY = $_VALUE"
+    log_debug "export_obj_key_from_toml_file: obj_key $_OBJ_KEY not found in section $_SECTION/ $_KEY = $_VALUE"
     return 1
 }
 
@@ -269,7 +269,7 @@ function export_portnum_from_kurtosis_or_fail(){
 ###############################################################################
 function export_ports_from_kurtosis(){
     export_portnum_from_kurtosis_or_fail    l1_rpc_port              el-1-geth-lighthouse rpc
-    export_portnum_from_kurtosis_or_fail    zkevm_rpc_http_port      cdk-erigon-node-001 http-rpc rpc
+    export_portnum_from_kurtosis_or_fail    zkevm_rpc_http_port      cdk-erigon-rpc-001 http-rpc rpc
     export_portnum_from_kurtosis_or_fail    zkevm_data_streamer_port cdk-erigon-sequencer-001 data-streamer
     export_portnum_from_kurtosis_or_fail    aggregator_db_port       postgres-001 postgres
     export_portnum_from_kurtosis_or_fail    agglayer_port            agglayer agglayer
