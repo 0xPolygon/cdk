@@ -76,6 +76,9 @@ setup() {
     local initial_receiver_balance=$(cast balance "$receiver" --rpc-url "$l2_rpc_url")
     echo "Initial receiver balance of native token on L2 $initial_receiver_balance" >&3
 
+    local initial_mint_balance=$(cast balance "0x8943545177806ED17B9F23F0a21ee5948eCaa776" --rpc-url "$l1_rpc_url")
+    echo "Initial minter balance on L1 $initial_mint_balance" >&3
+
     # Query for initial sender balance
     run query_contract "$l1_rpc_url" "$gas_token_addr" "$balance_of_fn_sig" "$sender_addr"
     assert_success
@@ -85,7 +88,7 @@ setup() {
     # Mint gas token on L1
     local tokens_amount="0.1ether"
     local wei_amount=$(cast --to-unit $tokens_amount wei)
-    local minter_key=${MINTER_KEY:-"42b6e34dc21598a807dc19d7784c71b2a7a01f6480dc6f58258f78e539f1a1fa"}
+    local minter_key=${MINTER_KEY:-"bcdf20249abf0ed6d944c0288fad489e33f66b3960d9e6229c1cd214ed3bbe31"}
     run mint_erc20_tokens "$l1_rpc_url" "$gas_token_addr" "$minter_key" "$sender_addr" "$tokens_amount"
     assert_success
 
