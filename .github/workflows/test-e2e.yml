@@ -70,7 +70,7 @@ jobs:
       with:
         repository: 0xPolygon/kurtosis-cdk
         path: "kurtosis-cdk"
-        ref: "v0.2.18"
+        ref: "v0.2.19"
 
     - name: Setup Bats and bats libs
       uses: bats-core/bats-action@2.0.0

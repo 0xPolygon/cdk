@@ -7,3 +7,4 @@ args:
   zkevm_use_gas_token_contract: true
   data_availability_mode: rollup
   sequencer_type: erigon
+  
