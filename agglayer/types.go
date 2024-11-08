@@ -88,7 +88,8 @@ type Certificate struct {
 
 func (c *Certificate) String() string {
 	res := fmt.Sprintf("NetworkID: %d, Height: %d, PrevLocalExitRoot: %s, NewLocalExitRoot: %s,  Metadata: %s\n",
-		c.NetworkID, c.Height, common.Bytes2Hex(c.PrevLocalExitRoot[:]), common.Bytes2Hex(c.NewLocalExitRoot[:]), common.Bytes2Hex(c.Metadata[:]))
+		c.NetworkID, c.Height, common.Bytes2Hex(c.PrevLocalExitRoot[:]),
+		common.Bytes2Hex(c.NewLocalExitRoot[:]), common.Bytes2Hex(c.Metadata[:]))
 	if c.BridgeExits == nil {
 		res += "    BridgeExits: nil\n"
 	} else {
