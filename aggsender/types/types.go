@@ -60,6 +60,7 @@ type CertificateInfo struct {
 	Status           agglayer.CertificateStatus `meddler:"status"`
 	CreatedAt        int64                      `meddler:"created_at"`
 	UpdatedAt        int64                      `meddler:"updated_at"`
+	Raw              string                     `meddler:"raw"`
 }
 
 func (c CertificateInfo) String() string {

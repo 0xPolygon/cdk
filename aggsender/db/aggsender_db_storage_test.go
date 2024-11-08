@@ -2,6 +2,8 @@ package db
 
 import (
 	"context"
+	"encoding/json"
+	"math/big"
 	"path"
 	"testing"
 	"time"
@@ -309,6 +311,60 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.ErrorIs(t, err, db.ErrNotFound)
 		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+		require.NoError(t, storage.clean())
+	})
+
+	t.Run("SaveCertificate with raw data", func(t *testing.T) {
+		certfiicate := &agglayer.SignedCertificate{
+			Certificate: &agglayer.Certificate{
+				NetworkID:         1,
+				Height:            1,
+				PrevLocalExitRoot: common.HexToHash("0x1"),
+				NewLocalExitRoot:  common.HexToHash("0x2"),
+				Metadata:          common.HexToHash("0x3"),
+				BridgeExits: []*agglayer.BridgeExit{
+					{
+						LeafType: agglayer.LeafTypeAsset,
+						TokenInfo: &agglayer.TokenInfo{
+							OriginNetwork:      1,
+							OriginTokenAddress: common.HexToAddress("0x1"),
+						},
+						DestinationNetwork: 2,
+						DestinationAddress: common.HexToAddress("0x2"),
+						Amount:             big.NewInt(100),
+						Metadata:           []byte("metadata"),
+					},
+				},
+				ImportedBridgeExits: []*agglayer.ImportedBridgeExit{},
+			},
+			Signature: &agglayer.Signature{
+				R:         common.HexToHash("0x4"),
+				S:         common.HexToHash("0x5"),
+				OddParity: false,
+			},
+		}
+
+		raw, err := json.Marshal(certfiicate)
+		require.NoError(t, err)
+
+		certificate := types.CertificateInfo{
+			Height:           1,
+			CertificateID:    common.HexToHash("0x9"),
+			NewLocalExitRoot: common.HexToHash("0x2"),
+			FromBlock:        1,
+			ToBlock:          10,
+			Status:           agglayer.Pending,
+			CreatedAt:        updateTime,
+			UpdatedAt:        updateTime,
+			Raw:              string(raw),
+		}
+		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
+
+		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
+		require.NoError(t, err)
+		require.Equal(t, certificate, certificateFromDB)
+		require.Equal(t, raw, []byte(certificateFromDB.Raw))
+
 		require.NoError(t, storage.clean())
 	})
 }

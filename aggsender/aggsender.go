@@ -177,6 +177,11 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.log.Debugf("certificate send: Height: %d hash: %s", signedCertificate.Height, certificateHash.String())
 
+	raw, err := json.Marshal(signedCertificate)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling signed certificate: %w", err)
+	}
+
 	createdTime := time.Now().UTC().UnixMilli()
 	certInfo := aggsendertypes.CertificateInfo{
 		Height:           certificate.Height,
@@ -186,6 +191,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		ToBlock:          toBlock,
 		CreatedAt:        createdTime,
 		UpdatedAt:        createdTime,
+		Raw:              string(raw),
 	}
 
 	if err := a.storage.SaveLastSentCertificate(ctx, certInfo); err != nil {
