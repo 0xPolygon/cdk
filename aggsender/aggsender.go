@@ -483,22 +483,26 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
 		a.log.Errorf("error getting pending certificates: %w", err)
 		return
 	}
-
+	a.log.Debugf("checkPendingCertificatesStatus num of pendingCertificates: %d", len(pendingCertificates))
 	for _, certificate := range pendingCertificates {
 		certificateHeader, err := a.aggLayerClient.GetCertificateHeader(certificate.CertificateID)
 		if err != nil {
-			a.log.Errorf("error getting header of certificate %s with height: %d from agglayer: %w",
-				certificate.CertificateID, certificate.Height, err)
+			a.log.Errorf("error getting certificate header of %s from agglayer: %w",
+				certificate.String(), err)
 			continue
 		}
+		a.log.Debugf("aggLayerClient.GetCertificateHeader status [%s] of certificate %s ",
+			certificateHeader.Status,
+			certificateHeader.String())
 
 		if certificateHeader.Status != certificate.Status {
+			a.log.Infof("certificate %s changed status from [%s] to [%s]",
+				certificateHeader.String(), certificate.Status, certificateHeader.Status)
+
 			certificate.Status = certificateHeader.Status
 
-			a.log.Infof("certificate %s changed status to %s", certificateHeader.String(), certificate.Status)
-
 			if err := a.storage.UpdateCertificateStatus(ctx, *certificate); err != nil {
-				a.log.Errorf("error updating certificate status in storage: %w", err)
+				a.log.Errorf("error updating certificate %s status in storage: %w", certificateHeader.String(), err)
 				continue
 			}
 		}

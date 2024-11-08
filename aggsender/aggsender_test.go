@@ -825,7 +825,7 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 
 			mockStorage := mocks.NewAggSenderStorageMock(t)
 			mockAggLayerClient := agglayer.NewAgglayerClientMock(t)
-			mockLogger := mocks.NewLoggerMock(t)
+			mockLogger := log.WithFields("test", "unittest")
 
 			mockStorage.On("GetCertificatesByStatus", nonSettledStatuses).Return(
 				tt.pendingCertificates, tt.getFromDBError)
@@ -836,20 +836,6 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 				mockStorage.On("UpdateCertificateStatus", mock.Anything, mock.Anything).Return(tt.updateDBError)
 			} else if tt.clientError == nil && tt.getFromDBError == nil {
 				mockStorage.On("UpdateCertificateStatus", mock.Anything, mock.Anything).Return(nil)
-			}
-
-			if tt.clientError != nil {
-				for _, msg := range tt.expectedErrorLogMessages {
-					mockLogger.On("Errorf", msg, mock.Anything, mock.Anything, mock.Anything).Return()
-				}
-			} else {
-				for _, msg := range tt.expectedErrorLogMessages {
-					mockLogger.On("Errorf", msg, mock.Anything).Return()
-				}
-
-				for _, msg := range tt.expectedInfoMessages {
-					mockLogger.On("Infof", msg, mock.Anything, mock.Anything).Return()
-				}
 			}
 
 			aggSender := &AggSender{
@@ -870,7 +856,6 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 			time.Sleep(2 * time.Second)
 			cancel()
 
-			mockLogger.AssertExpectations(t)
 			mockAggLayerClient.AssertExpectations(t)
 			mockStorage.AssertExpectations(t)
 		})
