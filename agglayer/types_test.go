@@ -64,3 +64,91 @@ func TestMarshalJSON(t *testing.T) {
 	log.Info(string(data))
 	require.Equal(t, expectedSignedCertificateyMetadataJSON, string(data))
 }
+
+func TestSignedCertificate_Copy(t *testing.T) {
+	t.Parallel()
+
+	t.Run("copy with non-nil fields", func(t *testing.T) {
+		t.Parallel()
+
+		original := &SignedCertificate{
+			Certificate: &Certificate{
+				NetworkID:         1,
+				Height:            100,
+				PrevLocalExitRoot: [32]byte{0x01},
+				NewLocalExitRoot:  [32]byte{0x02},
+				BridgeExits: []*BridgeExit{
+					{
+						LeafType:           LeafTypeAsset,
+						TokenInfo:          &TokenInfo{OriginNetwork: 1, OriginTokenAddress: common.HexToAddress("0x123")},
+						DestinationNetwork: 2,
+						DestinationAddress: common.HexToAddress("0x456"),
+						Amount:             big.NewInt(1000),
+						Metadata:           []byte{0x01, 0x02},
+					},
+				},
+				ImportedBridgeExits: []*ImportedBridgeExit{
+					{
+						BridgeExit: &BridgeExit{
+							LeafType:           LeafTypeMessage,
+							TokenInfo:          &TokenInfo{OriginNetwork: 1, OriginTokenAddress: common.HexToAddress("0x789")},
+							DestinationNetwork: 3,
+							DestinationAddress: common.HexToAddress("0xabc"),
+							Amount:             big.NewInt(2000),
+							Metadata:           []byte{0x03, 0x04},
+						},
+						ClaimData:   &ClaimFromMainnnet{},
+						GlobalIndex: &GlobalIndex{MainnetFlag: true, RollupIndex: 1, LeafIndex: 2},
+					},
+				},
+				Metadata: common.HexToHash("0xdef"),
+			},
+			Signature: &Signature{
+				R:         common.HexToHash("0x111"),
+				S:         common.HexToHash("0x222"),
+				OddParity: true,
+			},
+		}
+
+		certificateCopy := original.CopyWithDefaulting()
+
+		require.NotNil(t, certificateCopy)
+		require.NotSame(t, original, certificateCopy)
+		require.NotSame(t, original.Certificate, certificateCopy.Certificate)
+		require.Same(t, original.Signature, certificateCopy.Signature)
+		require.Equal(t, original, certificateCopy)
+	})
+
+	t.Run("copy with nil BridgeExits, ImportedBridgeExits and Signature", func(t *testing.T) {
+		t.Parallel()
+
+		original := &SignedCertificate{
+			Certificate: &Certificate{
+				NetworkID:           1,
+				Height:              100,
+				PrevLocalExitRoot:   [32]byte{0x01},
+				NewLocalExitRoot:    [32]byte{0x02},
+				BridgeExits:         nil,
+				ImportedBridgeExits: nil,
+				Metadata:            common.HexToHash("0xdef"),
+			},
+			Signature: nil,
+		}
+
+		certificateCopy := original.CopyWithDefaulting()
+
+		require.NotNil(t, certificateCopy)
+		require.NotSame(t, original, certificateCopy)
+		require.NotSame(t, original.Certificate, certificateCopy.Certificate)
+		require.NotNil(t, certificateCopy.Signature)
+		require.Equal(t, original.NetworkID, certificateCopy.NetworkID)
+		require.Equal(t, original.Height, certificateCopy.Height)
+		require.Equal(t, original.PrevLocalExitRoot, certificateCopy.PrevLocalExitRoot)
+		require.Equal(t, original.NewLocalExitRoot, certificateCopy.NewLocalExitRoot)
+		require.Equal(t, original.Metadata, certificateCopy.Metadata)
+		require.NotNil(t, certificateCopy.BridgeExits)
+		require.NotNil(t, certificateCopy.ImportedBridgeExits)
+		require.Empty(t, certificateCopy.BridgeExits)
+		require.Empty(t, certificateCopy.ImportedBridgeExits)
+	})
+}

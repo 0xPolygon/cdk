@@ -35,7 +35,7 @@ func Test_Storage(t *testing.T) {
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
-		certificateFromDB, err := storage.GetCertificateByHeight(ctx, certificate.Height)
+		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
 
 		require.Equal(t, certificate, certificateFromDB)
@@ -55,7 +55,7 @@ func Test_Storage(t *testing.T) {
 
 		require.NoError(t, storage.DeleteCertificate(ctx, certificate.CertificateID))
 
-		certificateFromDB, err := storage.GetCertificateByHeight(ctx, certificate.Height)
+		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.ErrorIs(t, err, db.ErrNotFound)
 		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
 		require.NoError(t, storage.clean())
@@ -63,7 +63,7 @@ func Test_Storage(t *testing.T) {
 
 	t.Run("GetLastSentCertificate", func(t *testing.T) {
 		// try getting a certificate that doesn't exist
-		certificateFromDB, err := storage.GetLastSentCertificate(ctx)
+		certificateFromDB, err := storage.GetLastSentCertificate()
 		require.NoError(t, err)
 		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
 
@@ -78,7 +78,7 @@ func Test_Storage(t *testing.T) {
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
-		certificateFromDB, err = storage.GetLastSentCertificate(ctx)
+		certificateFromDB, err = storage.GetLastSentCertificate()
 		require.NoError(t, err)
 
 		require.Equal(t, certificate, certificateFromDB)
@@ -87,12 +87,12 @@ func Test_Storage(t *testing.T) {
 
 	t.Run("GetCertificateByHeight", func(t *testing.T) {
 		// try getting height 0
-		certificateFromDB, err := storage.GetCertificateByHeight(ctx, 0)
+		certificateFromDB, err := storage.GetCertificateByHeight(0)
 		require.NoError(t, err)
 		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
 
 		// try getting a certificate that doesn't exist
-		certificateFromDB, err = storage.GetCertificateByHeight(ctx, 4)
+		certificateFromDB, err = storage.GetCertificateByHeight(4)
 		require.ErrorIs(t, err, db.ErrNotFound)
 		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
 
@@ -107,7 +107,7 @@ func Test_Storage(t *testing.T) {
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
-		certificateFromDB, err = storage.GetCertificateByHeight(ctx, certificate.Height)
+		certificateFromDB, err = storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
 
 		require.Equal(t, certificate, certificateFromDB)
@@ -149,28 +149,28 @@ func Test_Storage(t *testing.T) {
 
 		// Test fetching certificates with status Settled
 		statuses := []agglayer.CertificateStatus{agglayer.Settled}
-		certificatesFromDB, err := storage.GetCertificatesByStatus(ctx, statuses)
+		certificatesFromDB, err := storage.GetCertificatesByStatus(statuses)
 		require.NoError(t, err)
 		require.Len(t, certificatesFromDB, 1)
 		require.ElementsMatch(t, []*types.CertificateInfo{certificates[0]}, certificatesFromDB)
 
 		// Test fetching certificates with status Pending
 		statuses = []agglayer.CertificateStatus{agglayer.Pending}
-		certificatesFromDB, err = storage.GetCertificatesByStatus(ctx, statuses)
+		certificatesFromDB, err = storage.GetCertificatesByStatus(statuses)
 		require.NoError(t, err)
 		require.Len(t, certificatesFromDB, 1)
 		require.ElementsMatch(t, []*types.CertificateInfo{certificates[1]}, certificatesFromDB)
 
 		// Test fetching certificates with status InError
 		statuses = []agglayer.CertificateStatus{agglayer.InError}
-		certificatesFromDB, err = storage.GetCertificatesByStatus(ctx, statuses)
+		certificatesFromDB, err = storage.GetCertificatesByStatus(statuses)
 		require.NoError(t, err)
 		require.Len(t, certificatesFromDB, 1)
 		require.ElementsMatch(t, []*types.CertificateInfo{certificates[2]}, certificatesFromDB)
 
 		// Test fetching certificates with status InError and Pending
 		statuses = []agglayer.CertificateStatus{agglayer.InError, agglayer.Pending}
-		certificatesFromDB, err = storage.GetCertificatesByStatus(ctx, statuses)
+		certificatesFromDB, err = storage.GetCertificatesByStatus(statuses)
 		require.NoError(t, err)
 		require.Len(t, certificatesFromDB, 2)
 		require.ElementsMatch(t, []*types.CertificateInfo{certificates[1], certificates[2]}, certificatesFromDB)
@@ -195,10 +195,93 @@ func Test_Storage(t *testing.T) {
 		require.NoError(t, storage.UpdateCertificateStatus(ctx, certificate))
 
 		// Fetch the certificate and verify the status has been updated
-		certificateFromDB, err := storage.GetCertificateByHeight(ctx, certificate.Height)
+		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
 		require.Equal(t, certificate.Status, certificateFromDB.Status)
 
+		require.NoError(t, storage.clean())
+	})
+}
+
+func Test_SaveLastSentCertificate(t *testing.T) {
+	ctx := context.Background()
+
+	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	log.Debugf("sqlite path: %s", path)
+	require.NoError(t, migrations.RunMigrations(path))
+
+	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), path)
+	require.NoError(t, err)
+
+	t.Run("SaveNewCertificate", func(t *testing.T) {
+		certificate := types.CertificateInfo{
+			Height:           1,
+			CertificateID:    common.HexToHash("0x1"),
+			NewLocalExitRoot: common.HexToHash("0x2"),
+			FromBlock:        1,
+			ToBlock:          2,
+			Status:           agglayer.Settled,
+		}
+		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
+
+		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
+		require.NoError(t, err)
+		require.Equal(t, certificate, certificateFromDB)
+		require.NoError(t, storage.clean())
+	})
+
+	t.Run("UpdateExistingCertificate", func(t *testing.T) {
+		certificate := types.CertificateInfo{
+			Height:           2,
+			CertificateID:    common.HexToHash("0x3"),
+			NewLocalExitRoot: common.HexToHash("0x4"),
+			FromBlock:        3,
+			ToBlock:          4,
+			Status:           agglayer.InError,
+		}
+		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
+
+		// Update the certificate with the same height
+		updatedCertificate := types.CertificateInfo{
+			Height:           2,
+			CertificateID:    common.HexToHash("0x5"),
+			NewLocalExitRoot: common.HexToHash("0x6"),
+			FromBlock:        3,
+			ToBlock:          6,
+			Status:           agglayer.Pending,
+		}
+		require.NoError(t, storage.SaveLastSentCertificate(ctx, updatedCertificate))
+
+		certificateFromDB, err := storage.GetCertificateByHeight(updatedCertificate.Height)
+		require.NoError(t, err)
+		require.Equal(t, updatedCertificate, certificateFromDB)
+		require.NoError(t, storage.clean())
+	})
+
+	t.Run("SaveCertificateWithRollback", func(t *testing.T) {
+		// Simulate an error during the transaction to trigger a rollback
+		certificate := types.CertificateInfo{
+			Height:           3,
+			CertificateID:    common.HexToHash("0x7"),
+			NewLocalExitRoot: common.HexToHash("0x8"),
+			FromBlock:        7,
+			ToBlock:          8,
+			Status:           agglayer.Settled,
+		}
+
+		// Close the database to force an error
+		require.NoError(t, storage.db.Close())
+
+		err := storage.SaveLastSentCertificate(ctx, certificate)
+		require.Error(t, err)
+
+		// Reopen the database and check that the certificate was not saved
+		storage.db, err = db.NewSQLiteDB(path)
+		require.NoError(t, err)
+
+		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
+		require.ErrorIs(t, err, db.ErrNotFound)
+		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
 		require.NoError(t, storage.clean())
 	})
 }
