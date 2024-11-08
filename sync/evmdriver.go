@@ -111,34 +111,55 @@ reset:
 func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFunc, b EVMBlock) {
 	attempts := 0
 	for {
-		err := d.reorgDetector.AddBlockToTrack(ctx, d.reorgDetectorID, b.Num, b.Hash)
-		if err != nil {
-			attempts++
-			d.log.Errorf("error adding block %d to tracker: %v", b.Num, err)
-			d.rh.Handle("handleNewBlock", attempts)
-			continue
+		succeed := false
+		select {
+		case <-ctx.Done():
+			// If the context is canceled, exit the function
+			d.log.Warnf("context canceled while adding block %d to tracker", b.Num)
+			return
+		default:
+			err := d.reorgDetector.AddBlockToTrack(ctx, d.reorgDetectorID, b.Num, b.Hash)
+			if err != nil {
+				attempts++
+				d.log.Errorf("error adding block %d to tracker: %v", b.Num, err)
+				d.rh.Handle("handleNewBlock", attempts)
+				continue
+			}
+			succeed = true
 		}
-		break
+		if succeed {
+			break
+		}
 	}
 	attempts = 0
 	for {
-		blockToProcess := Block{
-			Num:    b.Num,
-			Events: b.Events,
-		}
-		err := d.processor.ProcessBlock(ctx, blockToProcess)
-		if err != nil {
-			if errors.Is(err, ErrInconsistentState) {
-				d.log.Warn("state got inconsistent after processing this block. Stopping downloader until there is a reorg")
-				cancel()
-				return
+		succeed := false
+		select {
+		case <-ctx.Done():
+			// If the context is canceled, exit the function
+			d.log.Warnf("context canceled while processing block %d", b.Num)
+			return
+		default:
+			blockToProcess := Block{
+				Num:    b.Num,
+				Events: b.Events,
 			}
-			attempts++
-			d.log.Errorf("error processing events for block %d, err: ", b.Num, err)
-			d.rh.Handle("handleNewBlock", attempts)
-			continue
+			err := d.processor.ProcessBlock(ctx, blockToProcess)
+			if err != nil {
+				if errors.Is(err, ErrInconsistentState) {
+					d.log.Warn("state got inconsistent after processing this block. Stopping downloader until there is a reorg")
+					cancel()
+					return
+				}
+				attempts++
+				d.log.Errorf("error processing events for block %d, err: ", b.Num, err)
+				d.rh.Handle("handleNewBlock", attempts)
+				continue
+			}
 		}
-		break
+		if succeed {
+			break
+		}
 	}
 }
 
