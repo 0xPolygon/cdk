@@ -316,10 +316,10 @@ EOF
 ###############################################################################
 function create_dest_folder(){
     export DEST=${TMP_CDK_FOLDER}/local_config
-    export path_rw_data=${TMP_CDK_FOLDER}/runtime
+    export zkevm_path_rw_data=${TMP_CDK_FOLDER}/runtime
     [ ! -d ${DEST} ] && mkdir -p ${DEST}
     rm $DEST/*
-    mkdir $path_rw_data
+    mkdir $zkevm_path_rw_data
 }
 ###############################################################################
 function download_kurtosis_artifacts(){
