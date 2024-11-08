@@ -4,6 +4,7 @@ import (
 	"context"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
 	"github.com/0xPolygon/cdk/aggsender/db/migrations"
@@ -24,6 +25,8 @@ func Test_Storage(t *testing.T) {
 	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), path)
 	require.NoError(t, err)
 
+	updateTime := time.Now().UTC().UnixMilli()
+
 	t.Run("SaveLastSentCertificate", func(t *testing.T) {
 		certificate := types.CertificateInfo{
 			Height:           1,
@@ -32,6 +35,8 @@ func Test_Storage(t *testing.T) {
 			FromBlock:        1,
 			ToBlock:          2,
 			Status:           agglayer.Settled,
+			CreatedAt:        updateTime,
+			UpdatedAt:        updateTime,
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
@@ -50,6 +55,8 @@ func Test_Storage(t *testing.T) {
 			FromBlock:        3,
 			ToBlock:          4,
 			Status:           agglayer.Settled,
+			CreatedAt:        updateTime,
+			UpdatedAt:        updateTime,
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
@@ -75,6 +82,8 @@ func Test_Storage(t *testing.T) {
 			FromBlock:        5,
 			ToBlock:          6,
 			Status:           agglayer.Pending,
+			CreatedAt:        updateTime,
+			UpdatedAt:        updateTime,
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
@@ -104,6 +113,8 @@ func Test_Storage(t *testing.T) {
 			FromBlock:        17,
 			ToBlock:          18,
 			Status:           agglayer.Pending,
+			CreatedAt:        updateTime,
+			UpdatedAt:        updateTime,
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
@@ -124,6 +135,8 @@ func Test_Storage(t *testing.T) {
 				FromBlock:        7,
 				ToBlock:          8,
 				Status:           agglayer.Settled,
+				CreatedAt:        updateTime,
+				UpdatedAt:        updateTime,
 			},
 			{
 				Height:           9,
@@ -132,6 +145,8 @@ func Test_Storage(t *testing.T) {
 				FromBlock:        9,
 				ToBlock:          10,
 				Status:           agglayer.Pending,
+				CreatedAt:        updateTime,
+				UpdatedAt:        updateTime,
 			},
 			{
 				Height:           11,
@@ -140,6 +155,8 @@ func Test_Storage(t *testing.T) {
 				FromBlock:        11,
 				ToBlock:          12,
 				Status:           agglayer.InError,
+				CreatedAt:        updateTime,
+				UpdatedAt:        updateTime,
 			},
 		}
 
@@ -187,6 +204,8 @@ func Test_Storage(t *testing.T) {
 			FromBlock:        13,
 			ToBlock:          14,
 			Status:           agglayer.Pending,
+			CreatedAt:        updateTime,
+			UpdatedAt:        updateTime,
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
@@ -213,6 +232,8 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), path)
 	require.NoError(t, err)
 
+	updateTime := time.Now().UTC().UnixMilli()
+
 	t.Run("SaveNewCertificate", func(t *testing.T) {
 		certificate := types.CertificateInfo{
 			Height:           1,
@@ -221,6 +242,8 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 			FromBlock:        1,
 			ToBlock:          2,
 			Status:           agglayer.Settled,
+			CreatedAt:        updateTime,
+			UpdatedAt:        updateTime,
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
@@ -238,6 +261,8 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 			FromBlock:        3,
 			ToBlock:          4,
 			Status:           agglayer.InError,
+			CreatedAt:        updateTime,
+			UpdatedAt:        updateTime,
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
@@ -267,6 +292,8 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 			FromBlock:        7,
 			ToBlock:          8,
 			Status:           agglayer.Settled,
+			CreatedAt:        updateTime,
+			UpdatedAt:        updateTime,
 		}
 
 		// Close the database to force an error
