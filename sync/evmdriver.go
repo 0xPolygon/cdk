@@ -110,8 +110,8 @@ reset:
 
 func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFunc, b EVMBlock) {
 	attempts := 0
+	succeed := false
 	for {
-		succeed := false
 		select {
 		case <-ctx.Done():
 			// If the context is canceled, exit the function
@@ -132,8 +132,8 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFun
 		}
 	}
 	attempts = 0
+	succeed = false
 	for {
-		succeed := false
 		select {
 		case <-ctx.Done():
 			// If the context is canceled, exit the function
