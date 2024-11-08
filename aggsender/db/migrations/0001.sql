@@ -10,6 +10,6 @@ CREATE TABLE certificate_info (
     from_block                  INTEGER NOT NULL,
     to_block                    INTEGER NOT NULL,
     created_at                  INTEGER NOT NULL,
-	updated_at                  INTEGER NOT NULL,
+    updated_at                  INTEGER NOT NULL,
     signed_certificate          TEXT
 );
