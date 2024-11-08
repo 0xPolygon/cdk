@@ -156,6 +156,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFun
 				d.rh.Handle("handleNewBlock", attempts)
 				continue
 			}
+			succeed = true
 		}
 		if succeed {
 			break
