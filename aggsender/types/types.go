@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
 	"github.com/0xPolygon/cdk/bridgesync"
@@ -51,15 +52,34 @@ type Logger interface {
 }
 
 type CertificateInfo struct {
-	Height           uint64                     `meddler:"height"`
-	CertificateID    common.Hash                `meddler:"certificate_id"`
-	NewLocalExitRoot common.Hash                `meddler:"new_local_exit_root"`
-	FromBlock        uint64                     `meddler:"from_block"`
-	ToBlock          uint64                     `meddler:"to_block"`
-	Status           agglayer.CertificateStatus `meddler:"status"`
+	Height            uint64                     `meddler:"height"`
+	CertificateID     common.Hash                `meddler:"certificate_id,hash"`
+	NewLocalExitRoot  common.Hash                `meddler:"new_local_exit_root,hash"`
+	FromBlock         uint64                     `meddler:"from_block"`
+	ToBlock           uint64                     `meddler:"to_block"`
+	Status            agglayer.CertificateStatus `meddler:"status"`
+	CreatedAt         int64                      `meddler:"created_at"`
+	UpdatedAt         int64                      `meddler:"updated_at"`
+	SignedCertificate string                     `meddler:"signed_certificate"`
 }
 
 func (c CertificateInfo) String() string {
-	return fmt.Sprintf("Height: %d, CertificateID: %s, FromBlock: %d, ToBlock: %d, NewLocalExitRoot: %s",
-		c.Height, c.CertificateID.String(), c.FromBlock, c.ToBlock, c.NewLocalExitRoot.String())
+	return fmt.Sprintf(
+		"Height: %d\n"+
+			"CertificateID: %s\n"+
+			"FromBlock: %d\n"+
+			"ToBlock: %d\n"+
+			"NewLocalExitRoot: %s\n"+
+			"Status: %s\n"+
+			"CreatedAt: %s\n"+
+			"UpdatedAt: %s\n",
+		c.Height,
+		c.CertificateID.String(),
+		c.FromBlock,
+		c.ToBlock,
+		c.NewLocalExitRoot.String(),
+		c.Status.String(),
+		time.UnixMilli(c.CreatedAt),
+		time.UnixMilli(c.UpdatedAt),
+	)
 }
