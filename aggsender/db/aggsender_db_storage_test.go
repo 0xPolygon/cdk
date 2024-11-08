@@ -348,22 +348,22 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 		require.NoError(t, err)
 
 		certificate := types.CertificateInfo{
-			Height:           1,
-			CertificateID:    common.HexToHash("0x9"),
-			NewLocalExitRoot: common.HexToHash("0x2"),
-			FromBlock:        1,
-			ToBlock:          10,
-			Status:           agglayer.Pending,
-			CreatedAt:        updateTime,
-			UpdatedAt:        updateTime,
-			Raw:              string(raw),
+			Height:            1,
+			CertificateID:     common.HexToHash("0x9"),
+			NewLocalExitRoot:  common.HexToHash("0x2"),
+			FromBlock:         1,
+			ToBlock:           10,
+			Status:            agglayer.Pending,
+			CreatedAt:         updateTime,
+			UpdatedAt:         updateTime,
+			SignedCertificate: string(raw),
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
 		require.Equal(t, certificate, certificateFromDB)
-		require.Equal(t, raw, []byte(certificateFromDB.Raw))
+		require.Equal(t, raw, []byte(certificateFromDB.SignedCertificate))
 
 		require.NoError(t, storage.clean())
 	})

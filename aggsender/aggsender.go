@@ -184,14 +184,14 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	createdTime := time.Now().UTC().UnixMilli()
 	certInfo := aggsendertypes.CertificateInfo{
-		Height:           certificate.Height,
-		CertificateID:    certificateHash,
-		NewLocalExitRoot: certificate.NewLocalExitRoot,
-		FromBlock:        fromBlock,
-		ToBlock:          toBlock,
-		CreatedAt:        createdTime,
-		UpdatedAt:        createdTime,
-		Raw:              string(raw),
+		Height:            certificate.Height,
+		CertificateID:     certificateHash,
+		NewLocalExitRoot:  certificate.NewLocalExitRoot,
+		FromBlock:         fromBlock,
+		ToBlock:           toBlock,
+		CreatedAt:         createdTime,
+		UpdatedAt:         createdTime,
+		SignedCertificate: string(raw),
 	}
 
 	if err := a.storage.SaveLastSentCertificate(ctx, certInfo); err != nil {

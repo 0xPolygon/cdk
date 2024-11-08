@@ -52,15 +52,15 @@ type Logger interface {
 }
 
 type CertificateInfo struct {
-	Height           uint64                     `meddler:"height"`
-	CertificateID    common.Hash                `meddler:"certificate_id,hash"`
-	NewLocalExitRoot common.Hash                `meddler:"new_local_exit_root,hash"`
-	FromBlock        uint64                     `meddler:"from_block"`
-	ToBlock          uint64                     `meddler:"to_block"`
-	Status           agglayer.CertificateStatus `meddler:"status"`
-	CreatedAt        int64                      `meddler:"created_at"`
-	UpdatedAt        int64                      `meddler:"updated_at"`
-	Raw              string                     `meddler:"raw"`
+	Height            uint64                     `meddler:"height"`
+	CertificateID     common.Hash                `meddler:"certificate_id,hash"`
+	NewLocalExitRoot  common.Hash                `meddler:"new_local_exit_root,hash"`
+	FromBlock         uint64                     `meddler:"from_block"`
+	ToBlock           uint64                     `meddler:"to_block"`
+	Status            agglayer.CertificateStatus `meddler:"status"`
+	CreatedAt         int64                      `meddler:"created_at"`
+	UpdatedAt         int64                      `meddler:"updated_at"`
+	SignedCertificate string                     `meddler:"signed_certificate"`
 }
 
 func (c CertificateInfo) String() string {

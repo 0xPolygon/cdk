@@ -11,5 +11,5 @@ CREATE TABLE certificate_info (
     to_block                    INTEGER NOT NULL,
     created_at                  INTEGER NOT NULL,
 	updated_at                  INTEGER NOT NULL,
-    raw                         TEXT
+    signed_certificate          TEXT
 );
