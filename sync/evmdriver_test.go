@@ -144,7 +144,7 @@ func TestHandleNewBlock(t *testing.T) {
 		Return(nil)
 	pm.On("ProcessBlock", ctx, Block{Num: b1.Num, Events: b1.Events}).
 		Return(nil)
-	driver.handleNewBlock(ctx, b1)
+	driver.handleNewBlock(ctx, nil, b1)
 
 	// reorg deteector fails once
 	b2 := EVMBlock{
@@ -161,7 +161,7 @@ func TestHandleNewBlock(t *testing.T) {
 		Return(nil).Once()
 	pm.On("ProcessBlock", ctx, Block{Num: b2.Num, Events: b2.Events}).
 		Return(nil)
-	driver.handleNewBlock(ctx, b2)
+	driver.handleNewBlock(ctx, nil, b2)
 
 	// processor fails once
 	b3 := EVMBlock{
@@ -177,7 +177,26 @@ func TestHandleNewBlock(t *testing.T) {
 		Return(errors.New("foo")).Once()
 	pm.On("ProcessBlock", ctx, Block{Num: b3.Num, Events: b3.Events}).
 		Return(nil).Once()
-	driver.handleNewBlock(ctx, b3)
+	driver.handleNewBlock(ctx, nil, b3)
+
+	// inconsistent state error
+	b4 := EVMBlock{
+		EVMBlockHeader: EVMBlockHeader{
+			Num:  4,
+			Hash: common.HexToHash("f00"),
+		},
+	}
+	rdm.
+		On("AddBlockToTrack", ctx, reorgDetectorID, b4.Num, b4.Hash).
+		Return(nil)
+	pm.On("ProcessBlock", ctx, Block{Num: b4.Num, Events: b4.Events}).
+		Return(ErrInconsistentState)
+	cancelIsCalled := false
+	cancel := func() {
+		cancelIsCalled = true
+	}
+	driver.handleNewBlock(ctx, cancel, b4)
+	require.True(t, cancelIsCalled)
 }
 
 func TestHandleReorg(t *testing.T) {

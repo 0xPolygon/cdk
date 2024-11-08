@@ -35,7 +35,7 @@ generate-mocks-rpc: ## Generates mocks for rpc, using mockery tool
 generate-mocks-l1infotreesync: ## Generates mocks for l1infotreesync, using mockery tool
 	rm -Rf ../l1infotreesync/mocks
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../l1infotreesync --output ../l1infotreesync/mocks --outpkg mocks_l1infotreesync ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../l1infotreesync --outpkg=l1infotreesync --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../l1infotreesync/mocks --outpkg=mocks_l1infotreesync --structname=ReorgDetectorMock --filename=mock_reorgdetector.go
 	
 .PHONY: generate-mocks-aggoracle
 generate-mocks-helpers: ## Generates mocks for helpers , using mockery tool

@@ -269,8 +269,9 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if err != nil {
 		return err
 	}
+	shouldRollback := true
 	defer func() {
-		if err != nil {
+		if shouldRollback {
 			if errRllbck := tx.Rollback(); errRllbck != nil {
 				log.Errorf("error while rolling back tx %v", errRllbck)
 			}
@@ -306,9 +307,9 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+	shouldRollback = false
 
 	p.log.Debugf("processed %d events until block %d", len(block.Events), block.Num)
-
 	return nil
 }
 
