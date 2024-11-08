@@ -168,25 +168,26 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	}
 
 	a.saveCertificateToFile(signedCertificate)
-
+	a.log.Debugf("certificate ready to be send to AggLayer: %s", signedCertificate.String())
 	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
 	if err != nil {
 		return nil, fmt.Errorf("error sending certificate: %w", err)
 	}
-	log.Infof("certificate send: Height: %d hash: %s", signedCertificate.Height, certificateHash.String())
-
-	if err := a.storage.SaveLastSentCertificate(ctx, aggsendertypes.CertificateInfo{
+	a.log.Debugf("certificate send: Height: %d hash: %s", signedCertificate.Height, certificateHash.String())
+	certInfo := aggsendertypes.CertificateInfo{
 		Height:           certificate.Height,
 		CertificateID:    certificateHash,
 		NewLocalExitRoot: certificate.NewLocalExitRoot,
 		FromBlock:        fromBlock,
 		ToBlock:          toBlock,
-	}); err != nil {
-		return nil, fmt.Errorf("error saving last sent certificate in db: %w", err)
 	}
 
-	a.log.Infof("certificate: %s sent successfully for range of l2 blocks (from block: %d, to block: %d)",
-		certificateHash, fromBlock, toBlock)
+	if err := a.storage.SaveLastSentCertificate(ctx, certInfo); err != nil {
+		return nil, fmt.Errorf("error saving last sent certificate %s in db: %w", certInfo.String(), err)
+	}
+
+	a.log.Infof("certificate: %s sent successfully for range of l2 blocks (from block: %d, to block: %d) cert:%s",
+		certificateHash, fromBlock, toBlock, signedCertificate.String())
 
 	return signedCertificate, nil
 }

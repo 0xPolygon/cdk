@@ -184,7 +184,7 @@ func (a *AggSenderSQLStorage) DeleteCertificate(ctx context.Context, certificate
 
 // deleteCertificate deletes a certificate from the storage using the provided db
 func deleteCertificate(db meddler.DB, certificateID common.Hash) error {
-	if _, err := db.Exec(`DELETE FROM certificate_info WHERE certificate_id = $1;`, certificateID); err != nil {
+	if _, err := db.Exec(`DELETE FROM certificate_info WHERE certificate_id = $1;`, certificateID.String()); err != nil {
 		return fmt.Errorf("error deleting certificate info: %w", err)
 	}
 
@@ -206,7 +206,7 @@ func (a *AggSenderSQLStorage) UpdateCertificateStatus(ctx context.Context, certi
 	}()
 
 	if _, err = tx.Exec(`UPDATE certificate_info SET status = $1 WHERE certificate_id = $2;`,
-		certificate.Status, certificate.CertificateID); err != nil {
+		certificate.Status, certificate.CertificateID.String()); err != nil {
 		return fmt.Errorf("error updating certificate info: %w", err)
 	}
 	if err = tx.Commit(); err != nil {

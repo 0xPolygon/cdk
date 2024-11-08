@@ -86,6 +86,27 @@ type Certificate struct {
 	Metadata            common.Hash           `json:"metadata"`
 }
 
+func (c *Certificate) String() string {
+	res := fmt.Sprintf("NetworkID: %d, Height: %d, PrevLocalExitRoot: %s, NewLocalExitRoot: %s,  Metadata: %s\n",
+		c.NetworkID, c.Height, common.Bytes2Hex(c.PrevLocalExitRoot[:]), common.Bytes2Hex(c.NewLocalExitRoot[:]), common.Bytes2Hex(c.Metadata[:]))
+	if c.BridgeExits == nil {
+		res += "    BridgeExits: nil\n"
+	} else {
+		for i, bridgeExit := range c.BridgeExits {
+			res += fmt.Sprintf(", BridgeExit[%d]: %s\n", i, bridgeExit.String())
+		}
+	}
+
+	if c.ImportedBridgeExits == nil {
+		res += "    ImportedBridgeExits: nil\n"
+	} else {
+		for i, importedBridgeExit := range c.ImportedBridgeExits {
+			res += fmt.Sprintf("    ImportedBridgeExit[%d]: %s\n", i, importedBridgeExit.String())
+		}
+	}
+	return res
+}
+
 // Hash returns a hash that uniquely identifies the certificate
 func (c *Certificate) Hash() common.Hash {
 	bridgeExitsHashes := make([][]byte, len(c.BridgeExits))
@@ -131,6 +152,10 @@ type SignedCertificate struct {
 	Signature *Signature `json:"signature"`
 }
 
+func (s *SignedCertificate) String() string {
+	return fmt.Sprintf("Certificate:%s, \nSignature: %s", s.Certificate.String(), s.Signature.String())
+}
+
 // CopyWithDefaulting returns a shallow copy of the signed certificate
 func (s *SignedCertificate) CopyWithDefaulting() *SignedCertificate {
 	certificateCopy := *s.Certificate
@@ -161,10 +186,18 @@ type Signature struct {
 	OddParity bool        `json:"odd_y_parity"`
 }
 
+func (s *Signature) String() string {
+	return fmt.Sprintf("R: %s, S: %s, OddParity: %t", s.R.String(), s.S.String(), s.OddParity)
+}
+
 // TokenInfo encapsulates the information to uniquely identify a token on the origin network.
 type TokenInfo struct {
 	OriginNetwork      uint32         `json:"origin_network"`
 	OriginTokenAddress common.Address `json:"origin_token_address"`
+}
+
+func (t *TokenInfo) String() string {
+	return fmt.Sprintf("OriginNetwork: %d, OriginTokenAddress: %s", t.OriginNetwork, t.OriginTokenAddress.String())
 }
 
 // GlobalIndex represents the global index of an imported bridge exit
@@ -190,6 +223,17 @@ type BridgeExit struct {
 	DestinationAddress common.Address `json:"dest_address"`
 	Amount             *big.Int       `json:"amount"`
 	Metadata           []byte         `json:"metadata"`
+}
+
+func (b *BridgeExit) String() string {
+	res := fmt.Sprintf("LeafType: %s,  DestinationNetwork: %d, DestinationAddress: %s, Amount: %s, Metadata: %s",
+		b.LeafType.String(), b.DestinationNetwork, b.DestinationAddress.String(), b.Amount.String(), string(b.Metadata))
+	if b.TokenInfo == nil {
+		res += ", TokenInfo: nil"
+	} else {
+		res += fmt.Sprintf(", TokenInfo: %s", b.TokenInfo.String())
+	}
+	return res
 }
 
 // Hash returns a hash that uniquely identifies the bridge exit
@@ -400,6 +444,22 @@ type ImportedBridgeExit struct {
 	BridgeExit  *BridgeExit  `json:"bridge_exit"`
 	ClaimData   Claim        `json:"claim_data"`
 	GlobalIndex *GlobalIndex `json:"global_index"`
+}
+
+func (c *ImportedBridgeExit) String() string {
+	var res string
+	if c.BridgeExit == nil {
+		res = "BridgeExit: nil"
+	} else {
+		res = fmt.Sprintf("BridgeExit: %s", c.BridgeExit.String())
+	}
+	if c.GlobalIndex == nil {
+		res += ", GlobalIndex: nil"
+	} else {
+		res += fmt.Sprintf(", GlobalIndex: %v", c.GlobalIndex)
+	}
+	res += fmt.Sprintf("ClaimData: %v", c.ClaimData)
+	return res
 }
 
 // Hash returns a hash that uniquely identifies the imported bridge exit
