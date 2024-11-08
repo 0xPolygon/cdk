@@ -105,7 +105,7 @@ func CommonSetup(t *testing.T) (
 	l1Client, authL1, gerL1Addr, gerL1Contract, bridgeL1Addr, bridgeL1Contract := newSimulatedL1(t)
 
 	// Reorg detector
-	dbPathReorgDetector := t.TempDir()
+	dbPathReorgDetector := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	reorg, err := reorgdetector.New(l1Client.Client(), reorgdetector.Config{DBPath: dbPathReorgDetector})
 	require.NoError(t, err)
 

@@ -14,34 +14,26 @@ fn version() -> Result<Output, io::Error> {
 }
 
 pub(crate) fn versions() {
+    // Load the versions from the versions.json file in the crate directory
+    // and parse it using serde_json.
+    let versions = include_str!("../versions.json");
+    let versions_json: serde_json::Value = serde_json::from_str(versions).unwrap();
+
+    // Convert the JSON object to a HashMap.
+    let versions_map = versions_json.as_object().unwrap();
+
     // Get the version of the cdk-node binary.
     let output = version().unwrap();
     let version = String::from_utf8(output.stdout).unwrap();
 
     println!("{}", format!("{}", version.trim()).green());
 
-    let versions = vec![
-        (
-            "zkEVM Contracts",
-            "https://github.com/0xPolygonHermez/zkevm-contracts/releases/tag/v8.0.0-rc.4-fork.12",
-        ),
-        ("zkEVM Prover", "v8.0.0-RC12"),
-        ("CDK Erigon", "hermeznetwork/cdk-erigon:0948e33"),
-        (
-            "zkEVM Pool Manager",
-            "hermeznetwork/zkevm-pool-manager:v0.1.1",
-        ),
-        (
-            "CDK Data Availability Node",
-            "0xpolygon/cdk-data-availability:0.0.10",
-        ),
-    ];
-
     // Multi-line string to print the versions with colors.
-    let formatted_versions: Vec<String> = versions
+    let formatted_versions: Vec<String> = versions_map
         .iter()
-        .map(|(key, value)| format!("{}: {}", key.green(), value.blue()))
+        .map(|(key, value)| format!("{}: {}", key.green(), value.to_string().blue()))
         .collect();
 
+    println!("{}", "Supported up to fork12".yellow());
     println!("{}", formatted_versions.join("\n"));
 }

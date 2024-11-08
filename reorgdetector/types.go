@@ -8,8 +8,14 @@ import (
 )
 
 type header struct {
-	Num  uint64
-	Hash common.Hash
+	Num  uint64      `meddler:"num"`
+	Hash common.Hash `meddler:"hash,hash"`
+}
+
+type headerWithSubscriberID struct {
+	SubscriberID string      `meddler:"subscriber_id"`
+	Num          uint64      `meddler:"num"`
+	Hash         common.Hash `meddler:"hash,hash"`
 }
 
 // newHeader returns a new instance of header

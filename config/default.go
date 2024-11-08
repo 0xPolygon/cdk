@@ -206,10 +206,10 @@ SyncModeOnlyEnabled = false
 				NumRequests = 1000
 				Interval = "1s"
 [ReorgDetectorL1]
-DBPath = "{{PathRWData}}/reorgdetectorl1"
+DBPath = "{{PathRWData}}/reorgdetectorl1.sqlite"
 
 [ReorgDetectorL2]
-DBPath = "{{PathRWData}}/reorgdetectorl2"
+DBPath = "{{PathRWData}}/reorgdetectorl2.sqlite"
 
 [L1InfoTreeSync]
 DBPath = "{{PathRWData}}/L1InfoTreeSync.sqlite"
@@ -316,7 +316,6 @@ WaitForNewBlocksPeriod = "3s"
 OriginNetwork=1
 
 [LastGERSync]
-# MDBX database path
 DBPath = "{{PathRWData}}/lastgersync.sqlite"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
