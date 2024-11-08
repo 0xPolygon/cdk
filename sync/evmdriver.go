@@ -129,7 +129,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFun
 		err := d.processor.ProcessBlock(ctx, blockToProcess)
 		if err != nil {
 			if errors.Is(err, ErrInconsistentState) {
-				log.Warn("state got inconsistent after processing this block. Stopping downloader until there is a reorg")
+				d.log.Warn("state got inconsistent after processing this block. Stopping downloader until there is a reorg")
 				cancel()
 				return
 			}

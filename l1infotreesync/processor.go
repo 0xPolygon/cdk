@@ -262,13 +262,13 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err != nil {
 		return err
 	}
-	if rowsAffected > 0 {
-		p.halted = false
-		p.haltedReason = ""
-	}
 
 	if err := tx.Commit(); err != nil {
 		return err
+	}
+	if rowsAffected > 0 {
+		p.halted = false
+		p.haltedReason = ""
 	}
 	shouldRollback = false
 	return nil
