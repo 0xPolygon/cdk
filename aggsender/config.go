@@ -24,8 +24,7 @@ type Config struct {
 
 // String returns a string representation of the Config
 func (c Config) String() string {
-	return "AggSender Config:\n" +
-		"StoragePath: " + c.StoragePath + "\n" +
+	return "StoragePath: " + c.StoragePath + "\n" +
 		"AggLayerURL: " + c.AggLayerURL + "\n" +
 		"BlockGetInterval: " + c.BlockGetInterval.String() + "\n" +
 		"CheckSettledInterval: " + c.CheckSettledInterval.String() + "\n" +

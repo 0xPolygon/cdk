@@ -90,6 +90,7 @@ func (c *Certificate) String() string {
 	res := fmt.Sprintf("NetworkID: %d, Height: %d, PrevLocalExitRoot: %s, NewLocalExitRoot: %s,  Metadata: %s\n",
 		c.NetworkID, c.Height, common.Bytes2Hex(c.PrevLocalExitRoot[:]),
 		common.Bytes2Hex(c.NewLocalExitRoot[:]), common.Bytes2Hex(c.Metadata[:]))
+
 	if c.BridgeExits == nil {
 		res += "    BridgeExits: nil\n"
 	} else {
@@ -105,6 +106,7 @@ func (c *Certificate) String() string {
 			res += fmt.Sprintf("    ImportedBridgeExit[%d]: %s\n", i, importedBridgeExit.String())
 		}
 	}
+
 	return res
 }
 
@@ -154,7 +156,7 @@ type SignedCertificate struct {
 }
 
 func (s *SignedCertificate) String() string {
-	return fmt.Sprintf("Certificate:%s, \nSignature: %s", s.Certificate.String(), s.Signature.String())
+	return fmt.Sprintf("Certificate:%s,\nSignature: %s", s.Certificate.String(), s.Signature.String())
 }
 
 // CopyWithDefaulting returns a shallow copy of the signed certificate
@@ -216,6 +218,11 @@ func (g *GlobalIndex) Hash() common.Hash {
 	)
 }
 
+func (g *GlobalIndex) String() string {
+	return fmt.Sprintf("MainnetFlag: %t, RollupIndex: %d, LeafIndex: %d",
+		g.MainnetFlag, g.RollupIndex, g.LeafIndex)
+}
+
 // BridgeExit represents a token bridge exit
 type BridgeExit struct {
 	LeafType           LeafType       `json:"leaf_type"`
@@ -229,11 +236,13 @@ type BridgeExit struct {
 func (b *BridgeExit) String() string {
 	res := fmt.Sprintf("LeafType: %s,  DestinationNetwork: %d, DestinationAddress: %s, Amount: %s, Metadata: %s",
 		b.LeafType.String(), b.DestinationNetwork, b.DestinationAddress.String(), b.Amount.String(), string(b.Metadata))
+
 	if b.TokenInfo == nil {
 		res += ", TokenInfo: nil"
 	} else {
 		res += fmt.Sprintf(", TokenInfo: %s", b.TokenInfo.String())
 	}
+
 	return res
 }
 
@@ -320,6 +329,10 @@ func (m *MerkleProof) Hash() common.Hash {
 	)
 }
 
+func (m *MerkleProof) String() string {
+	return fmt.Sprintf("Root: %s, Proof: %v", m.Root.String(), m.Proof)
+}
+
 // L1InfoTreeLeafInner represents the inner part of the L1 info tree leaf
 type L1InfoTreeLeafInner struct {
 	GlobalExitRoot common.Hash `json:"global_exit_root"`
@@ -349,6 +362,11 @@ func (l *L1InfoTreeLeafInner) MarshalJSON() ([]byte, error) {
 	})
 }
 
+func (l *L1InfoTreeLeafInner) String() string {
+	return fmt.Sprintf("GlobalExitRoot: %s, BlockHash: %s, Timestamp: %d",
+		l.GlobalExitRoot.String(), l.BlockHash.String(), l.Timestamp)
+}
+
 // L1InfoTreeLeaf represents the leaf of the L1 info tree
 type L1InfoTreeLeaf struct {
 	L1InfoTreeIndex uint32               `json:"l1_info_tree_index"`
@@ -362,11 +380,21 @@ func (l *L1InfoTreeLeaf) Hash() common.Hash {
 	return l.Inner.Hash()
 }
 
+func (l *L1InfoTreeLeaf) String() string {
+	return fmt.Sprintf("L1InfoTreeIndex: %d, RollupExitRoot: %s, MainnetExitRoot: %s, Inner: %s",
+		l.L1InfoTreeIndex,
+		common.Bytes2Hex(l.RollupExitRoot[:]),
+		common.Bytes2Hex(l.MainnetExitRoot[:]),
+		l.Inner.String(),
+	)
+}
+
 // Claim is the interface that will be implemented by the different types of claims
 type Claim interface {
 	Type() string
 	Hash() common.Hash
 	MarshalJSON() ([]byte, error)
+	String() string
 }
 
 // ClaimFromMainnnet represents a claim originating from the mainnet
@@ -401,6 +429,11 @@ func (c *ClaimFromMainnnet) Hash() common.Hash {
 		c.ProofGERToL1Root.Hash().Bytes(),
 		c.L1Leaf.Hash().Bytes(),
 	)
+}
+
+func (c *ClaimFromMainnnet) String() string {
+	return fmt.Sprintf("ProofLeafMER: %s, ProofGERToL1Root: %s, L1Leaf: %s",
+		c.ProofLeafMER.String(), c.ProofGERToL1Root.String(), c.L1Leaf.String())
 }
 
 // ClaimFromRollup represents a claim originating from a rollup
@@ -440,6 +473,11 @@ func (c *ClaimFromRollup) Hash() common.Hash {
 	)
 }
 
+func (c *ClaimFromRollup) String() string {
+	return fmt.Sprintf("ProofLeafLER: %s, ProofLERToRER: %s, ProofGERToL1Root: %s, L1Leaf: %s",
+		c.ProofLeafLER.String(), c.ProofLERToRER.String(), c.ProofGERToL1Root.String(), c.L1Leaf.String())
+}
+
 // ImportedBridgeExit represents a token bridge exit originating on another network but claimed on the current network.
 type ImportedBridgeExit struct {
 	BridgeExit  *BridgeExit  `json:"bridge_exit"`
@@ -449,17 +487,21 @@ type ImportedBridgeExit struct {
 
 func (c *ImportedBridgeExit) String() string {
 	var res string
+
 	if c.BridgeExit == nil {
 		res = "BridgeExit: nil"
 	} else {
 		res = fmt.Sprintf("BridgeExit: %s", c.BridgeExit.String())
 	}
+
 	if c.GlobalIndex == nil {
 		res += ", GlobalIndex: nil"
 	} else {
-		res += fmt.Sprintf(", GlobalIndex: %v", c.GlobalIndex)
+		res += fmt.Sprintf(", GlobalIndex: %s", c.GlobalIndex.String())
 	}
-	res += fmt.Sprintf("ClaimData: %v", c.ClaimData)
+
+	res += fmt.Sprintf("ClaimData: %s", c.ClaimData.String())
+
 	return res
 }
 

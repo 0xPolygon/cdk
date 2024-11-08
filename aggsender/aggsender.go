@@ -64,7 +64,7 @@ func New(
 		return nil, err
 	}
 
-	logger.Info(cfg.String())
+	logger.Infof("Aggsender Config: %s.", cfg.String())
 
 	return &AggSender{
 		cfg:              cfg,
@@ -169,11 +169,14 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.saveCertificateToFile(signedCertificate)
 	a.log.Debugf("certificate ready to be send to AggLayer: %s", signedCertificate.String())
+
 	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
 	if err != nil {
 		return nil, fmt.Errorf("error sending certificate: %w", err)
 	}
+
 	a.log.Debugf("certificate send: Height: %d hash: %s", signedCertificate.Height, certificateHash.String())
+
 	certInfo := aggsendertypes.CertificateInfo{
 		Height:           certificate.Height,
 		CertificateID:    certificateHash,

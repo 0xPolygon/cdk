@@ -45,8 +45,7 @@ func TestConfigString(t *testing.T) {
 		SaveCertificatesToFilesPath: "/path/to/certificates",
 	}
 
-	expected := "AggSender Config:\n" +
-		"StoragePath: /path/to/storage\n" +
+	expected := "StoragePath: /path/to/storage\n" +
 		"AggLayerURL: http://agglayer.url\n" +
 		"BlockGetInterval: 10s\n" +
 		"CheckSettledInterval: 20s\n" +
