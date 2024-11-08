@@ -235,7 +235,8 @@ type BridgeExit struct {
 
 func (b *BridgeExit) String() string {
 	res := fmt.Sprintf("LeafType: %s,  DestinationNetwork: %d, DestinationAddress: %s, Amount: %s, Metadata: %s",
-		b.LeafType.String(), b.DestinationNetwork, b.DestinationAddress.String(), b.Amount.String(), common.Bytes2Hex(b.Metadata))
+		b.LeafType.String(), b.DestinationNetwork, b.DestinationAddress.String(),
+		b.Amount.String(), common.Bytes2Hex(b.Metadata))
 
 	if b.TokenInfo == nil {
 		res += ", TokenInfo: nil"
