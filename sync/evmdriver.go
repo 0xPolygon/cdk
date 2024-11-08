@@ -123,9 +123,9 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFun
 				attempts++
 				d.log.Errorf("error adding block %d to tracker: %v", b.Num, err)
 				d.rh.Handle("handleNewBlock", attempts)
-				continue
+			} else {
+				succeed = true
 			}
-			succeed = true
 		}
 		if succeed {
 			break
@@ -154,9 +154,9 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFun
 				attempts++
 				d.log.Errorf("error processing events for block %d, err: ", b.Num, err)
 				d.rh.Handle("handleNewBlock", attempts)
-				continue
+			} else {
+				succeed = true
 			}
-			succeed = true
 		}
 		if succeed {
 			break
