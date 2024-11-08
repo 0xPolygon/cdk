@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	context "context"
+
 	types "github.com/0xPolygon/cdk/aggsender/types"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -18,6 +20,39 @@ type EpochNotifier_Expecter struct {
 
 func (_m *EpochNotifier) EXPECT() *EpochNotifier_Expecter {
 	return &EpochNotifier_Expecter{mock: &_m.Mock}
+}
+
+// Start provides a mock function with given fields: ctx
+func (_m *EpochNotifier) Start(ctx context.Context) {
+	_m.Called(ctx)
+}
+
+// EpochNotifier_Start_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Start'
+type EpochNotifier_Start_Call struct {
+	*mock.Call
+}
+
+// Start is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *EpochNotifier_Expecter) Start(ctx interface{}) *EpochNotifier_Start_Call {
+	return &EpochNotifier_Start_Call{Call: _e.mock.On("Start", ctx)}
+}
+
+func (_c *EpochNotifier_Start_Call) Run(run func(ctx context.Context)) *EpochNotifier_Start_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *EpochNotifier_Start_Call) Return() *EpochNotifier_Start_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *EpochNotifier_Start_Call) RunAndReturn(run func(context.Context)) *EpochNotifier_Start_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // String provides a mock function with given fields:

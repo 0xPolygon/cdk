@@ -133,7 +133,7 @@ func start(cliCtx *cli.Context) error {
 				log.Fatal(err)
 			}
 
-			aggsender.Start(cliCtx.Context)
+			go aggsender.Start(cliCtx.Context)
 		}
 	}
 

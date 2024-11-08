@@ -1,6 +1,8 @@
 package aggsender
 
 import (
+	"fmt"
+
 	"github.com/0xPolygon/cdk/config/types"
 )
 
@@ -23,6 +25,20 @@ type Config struct {
 	// BlocksBeforeEpochEnding indicates how many blocks before the epoch ending
 	// the AggSender should send the certificate
 	BlocksBeforeEpochEnding uint `mapstructure:"BlocksBeforeEpochEnding"`
-	// SaveCertificatesToFiles is a flag which tells the AggSender to save the certificates to a file
-	SaveCertificatesToFiles bool `mapstructure:"SaveCertificatesToFiles"`
+	// SaveCertificatesToFilesPath if != "" tells  the AggSender to save the certificates to a file in this path
+	SaveCertificatesToFilesPath string `mapstructure:"SaveCertificatesToFilesPath"`
+}
+
+// String returns a string representation of the Config
+func (c Config) String() string {
+	return "StoragePath: " + c.StoragePath + "\n" +
+		"AggLayerURL: " + c.AggLayerURL + "\n" +
+		"BlockGetInterval: " + c.BlockGetInterval.String() + "\n" +
+		"CheckSettledInterval: " + c.CheckSettledInterval.String() + "\n" +
+		"AggsenderPrivateKeyPath: " + c.AggsenderPrivateKey.Path + "\n" +
+		"AggsenderPrivateKeyPassword: " + c.AggsenderPrivateKey.Password + "\n" +
+		"URLRPCL2: " + c.URLRPCL2 + "\n" +
+		"BlockFinality: " + c.BlockFinality + "\n" +
+		"BlocksBeforeEpochEnding: " + fmt.Sprintf("%d", c.BlocksBeforeEpochEnding) + "\n" +
+		"SaveCertificatesToFilesPath: " + c.SaveCertificatesToFilesPath + "\n"
 }

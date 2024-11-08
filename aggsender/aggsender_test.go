@@ -49,6 +49,8 @@ func TestConfigString(t *testing.T) {
 		CheckSettledInterval:        types.Duration{Duration: 20 * time.Second},
 		AggsenderPrivateKey:         types.KeystoreFileConfig{Path: "/path/to/key", Password: "password"},
 		URLRPCL2:                    "http://l2.rpc.url",
+		BlockFinality:               "latestBlock",
+		BlocksBeforeEpochEnding:     10,
 		SaveCertificatesToFilesPath: "/path/to/certificates",
 	}
 
@@ -59,6 +61,8 @@ func TestConfigString(t *testing.T) {
 		"AggsenderPrivateKeyPath: /path/to/key\n" +
 		"AggsenderPrivateKeyPassword: password\n" +
 		"URLRPCL2: http://l2.rpc.url\n" +
+		"BlockFinality: latestBlock\n" +
+		"BlocksBeforeEpochEnding: 10\n" +
 		"SaveCertificatesToFilesPath: /path/to/certificates\n"
 
 	require.Equal(t, expected, config.String())
@@ -909,7 +913,7 @@ func TestSendCertificate(t *testing.T) {
 
 		if cfg.shouldSendCertificate != nil || cfg.getLastSentCertificate != nil ||
 			cfg.saveLastSentCertificate != nil {
-			mockStorage = mocks.NewAggSenderStorageMock(t)
+			mockStorage = mocks.NewAggSenderStorage(t)
 			mockStorage.On("GetCertificatesByStatus", nonSettledStatuses).
 				Return(cfg.shouldSendCertificate...).Once()
 
@@ -1489,10 +1493,10 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	mockStorage := mocks.NewAggSenderStorageMock(t)
-	mockL2Syncer := mocks.NewL2BridgeSyncerMock(t)
+	mockStorage := mocks.NewAggSenderStorage(t)
+	mockL2Syncer := mocks.NewL2BridgeSyncer(t)
 	mockAggLayerClient := agglayer.NewAgglayerClientMock(t)
-	mockL1InfoTreeSyncer := mocks.NewL1InfoTreeSyncerMock(t)
+	mockL1InfoTreeSyncer := mocks.NewL1InfoTreeSyncer(t)
 
 	aggSender := &AggSender{
 		log:              log.WithFields("aggsender-test", "no claims test"),

@@ -93,7 +93,7 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 		select {
 		case epoch := <-chEpoch:
 			a.log.Infof("Epoch %d received", epoch.Epoch)
-			if err := a.sendCertificate(ctx); err != nil {
+			if _, err := a.sendCertificate(ctx); err != nil {
 				log.Error(err)
 			}
 		case <-ctx.Done():
@@ -186,7 +186,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	}
 
 	createdTime := time.Now().UTC().UnixMilli()
-	certInfo := aggsendertypes.CertificateInfo{
+	certInfo := types.CertificateInfo{
 		Height:            certificate.Height,
 		CertificateID:     certificateHash,
 		NewLocalExitRoot:  certificate.NewLocalExitRoot,
@@ -227,7 +227,7 @@ func (a *AggSender) saveCertificateToFile(signedCertificate *agglayer.SignedCert
 
 // getNextHeightAndPreviousLER returns the height and previous LER for the new certificate
 func (a *AggSender) getNextHeightAndPreviousLER(
-	lastSentCertificateInfo *aggsendertypes.CertificateInfo) (uint64, common.Hash) {
+	lastSentCertificateInfo *types.CertificateInfo) (uint64, common.Hash) {
 	height := lastSentCertificateInfo.Height + 1
 	if lastSentCertificateInfo.Status == agglayer.InError {
 		// previous certificate was in error, so we need to resend it
