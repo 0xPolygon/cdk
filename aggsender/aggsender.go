@@ -177,12 +177,21 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.log.Debugf("certificate send: Height: %d hash: %s", signedCertificate.Height, certificateHash.String())
 
+	raw, err := json.Marshal(signedCertificate)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling signed certificate: %w", err)
+	}
+
+	createdTime := time.Now().UTC().UnixMilli()
 	certInfo := aggsendertypes.CertificateInfo{
-		Height:           certificate.Height,
-		CertificateID:    certificateHash,
-		NewLocalExitRoot: certificate.NewLocalExitRoot,
-		FromBlock:        fromBlock,
-		ToBlock:          toBlock,
+		Height:            certificate.Height,
+		CertificateID:     certificateHash,
+		NewLocalExitRoot:  certificate.NewLocalExitRoot,
+		FromBlock:         fromBlock,
+		ToBlock:           toBlock,
+		CreatedAt:         createdTime,
+		UpdatedAt:         createdTime,
+		SignedCertificate: string(raw),
 	}
 
 	if err := a.storage.SaveLastSentCertificate(ctx, certInfo); err != nil {
@@ -504,6 +513,7 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
 				certificateHeader.String(), certificate.Status, certificateHeader.Status)
 
 			certificate.Status = certificateHeader.Status
+			certificate.UpdatedAt = time.Now().UTC().UnixMilli()
 
 			if err := a.storage.UpdateCertificateStatus(ctx, *certificate); err != nil {
 				a.log.Errorf("error updating certificate %s status in storage: %w", certificateHeader.String(), err)

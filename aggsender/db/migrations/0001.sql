@@ -8,5 +8,8 @@ CREATE TABLE certificate_info (
     status                      INTEGER NOT NULL,
     new_local_exit_root         VARCHAR NOT NULL,
     from_block                  INTEGER NOT NULL,
-    to_block                    INTEGER NOT NULL
+    to_block                    INTEGER NOT NULL,
+    created_at                  INTEGER NOT NULL,
+    updated_at                  INTEGER NOT NULL,
+    signed_certificate          TEXT
 );
