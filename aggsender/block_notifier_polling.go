@@ -80,11 +80,6 @@ func (b *BlockNotifierPolling) String() string {
 	return res
 }
 
-// StartAsync starts the BlockNotifierPolling in a new goroutine
-func (b *BlockNotifierPolling) StartAsync(ctx context.Context) {
-	go b.Start(ctx)
-}
-
 // Start starts the BlockNotifierPolling blocking the current goroutine
 func (b *BlockNotifierPolling) Start(ctx context.Context) {
 	ticker := time.NewTimer(b.config.CheckNewBlockInterval)
@@ -97,9 +92,12 @@ func (b *BlockNotifierPolling) Start(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			delay, newStatus := b.step(ctx, status)
+			delay, newStatus, event := b.step(ctx, status)
 			status = newStatus
 			b.setGlobalStatus(status)
+			if event != nil {
+				b.Publish(*event)
+			}
 			ticker.Reset(delay)
 		}
 	}
@@ -121,67 +119,70 @@ func (b *BlockNotifierPolling) getGlobalStatus() *blockNotifierPollingInternalSt
 	return &copyStatus
 }
 
+// step is the main function of the BlockNotifierPolling, it checks if there is a new block
+// it returns:
+// - the delay for the next check
+// - the new status
+// - the new even to emit or nil
 func (b *BlockNotifierPolling) step(ctx context.Context,
-	status *blockNotifierPollingInternalStatus) (time.Duration, *blockNotifierPollingInternalStatus) {
+	previousState *blockNotifierPollingInternalStatus) (time.Duration,
+	*blockNotifierPollingInternalStatus, *types.EventNewBlock) {
 	currentBlock, err := b.ethClient.HeaderByNumber(ctx, b.blockFinality)
-	if err != nil || currentBlock == nil {
+	if err == nil && currentBlock == nil {
+		err = fmt.Errorf("failed to get block number: return a nil block")
+	}
+	if err != nil {
 		b.logger.Errorf("Failed to get block number: %v", err)
-		return b.nextBlockRequestDelay(status, err), status.clear()
+		newState := previousState.clear()
+		return b.nextBlockRequestDelay(nil, err), newState, nil
 	}
-	if status == nil {
-		status = status.intialBlock(currentBlock.Number.Uint64())
-		return b.nextBlockRequestDelay(status, nil), status
+	if previousState == nil {
+		newState := previousState.intialBlock(currentBlock.Number.Uint64())
+		return b.nextBlockRequestDelay(previousState, nil), newState, nil
+	}
+	if currentBlock.Number.Uint64() == previousState.lastBlockSeen {
+		// No new block, so no changes on state
+		return b.nextBlockRequestDelay(previousState, nil), previousState, nil
+	}
+	// New blockNumber!
+	eventToEmit := &types.EventNewBlock{
+		BlockNumber:       currentBlock.Number.Uint64(),
+		BlockFinalityType: b.config.BlockFinalityType,
 	}
 
-	if currentBlock.Number.Uint64() != status.lastBlockSeen {
-		b.Publish(types.EventNewBlock{
-			BlockNumber:       currentBlock.Number.Uint64(),
-			BlockFinalityType: b.config.BlockFinalityType,
-		})
-		now := timeNowFunc()
-		timePreviousBlock := now.Sub(status.lastBlockTime)
-		status.previousBlockTime = &timePreviousBlock
-		status.lastBlockTime = now
-
-		if currentBlock.Number.Uint64()-status.lastBlockSeen != 1 {
-			b.logger.Warnf("Missed block(s) [finality:%s]: %d -> %d",
-				b.config.BlockFinalityType, status.lastBlockSeen, currentBlock.Number.Uint64())
-			status.previousBlockTime = nil
-			status.lastBlockSeen = currentBlock.Number.Uint64()
-			return b.nextBlockRequestDelay(status, nil), status
-		}
-
-		status.lastBlockSeen = currentBlock.Number.Uint64()
-
-		b.logger.Debugf("New block seen [finality:%s]: %d. blockRate:%s",
-			b.config.BlockFinalityType, currentBlock.Number.Uint64(), status.previousBlockTime)
+	if currentBlock.Number.Uint64()-previousState.lastBlockSeen != 1 {
+		b.logger.Warnf("Missed block(s) [finality:%s]: %d -> %d",
+			b.config.BlockFinalityType, previousState.lastBlockSeen, currentBlock.Number.Uint64())
+		// It start from scratch because something fails in calculation of block period
+		newState := previousState.clear()
+		return b.nextBlockRequestDelay(nil, nil), newState, eventToEmit
 	}
-	return b.nextBlockRequestDelay(status, nil), status
+	newState := previousState.incommingNewBlock(currentBlock.Number.Uint64())
+	b.logger.Debugf("New block seen [finality:%s]: %d. blockRate:%s",
+		b.config.BlockFinalityType, currentBlock.Number.Uint64(), newState.previousBlockTime)
+
+	return b.nextBlockRequestDelay(newState, nil), newState, eventToEmit
 }
 
 func (b *BlockNotifierPolling) nextBlockRequestDelay(status *blockNotifierPollingInternalStatus,
 	err error) time.Duration {
 	if b.config.CheckNewBlockInterval == AutomaticBlockInterval {
-		if status == nil {
-			return minBlockInterval
-		}
-		if status.previousBlockTime == nil {
-			// First interation is done with maximum precision
-			return minBlockInterval
-		}
-		if status.previousBlockTime != nil {
-			now := timeNowFunc()
-			expectedTimeNextBlock := status.lastBlockTime.Add(*status.previousBlockTime)
-			distanceToNextBlock := expectedTimeNextBlock.Sub(now)
-			interval := distanceToNextBlock * 4 / 5 //nolint:mnd //  80% of for reach the next block
-			return max(minBlockInterval, min(maxBlockInterval, interval))
-		}
-	}
-	if err == nil {
 		return b.config.CheckNewBlockInterval
 	}
-	// If error we wait twice the interval
-	return b.config.CheckNewBlockInterval * 2 //nolint:mnd // 2 times the interval
+	// Initial stages wait the minimum interval to increas accuracy
+	if status == nil || status.previousBlockTime == nil {
+		return minBlockInterval
+	}
+	if err != nil {
+		// If error we wait twice the min interval
+		return minBlockInterval * 2 //nolint:mnd // 2 times the interval
+	}
+	// we have a previous block time so we can calculate the interval
+	now := timeNowFunc()
+	expectedTimeNextBlock := status.lastBlockTime.Add(*status.previousBlockTime)
+	distanceToNextBlock := expectedTimeNextBlock.Sub(now)
+	interval := distanceToNextBlock * 4 / 5 //nolint:mnd //  80% of for reach the next block
+	return max(minBlockInterval, min(maxBlockInterval, interval))
 }
 
 type blockNotifierPollingInternalStatus struct {
@@ -209,9 +210,12 @@ func (s *blockNotifierPollingInternalStatus) intialBlock(block uint64) *blockNot
 	}
 }
 
-func (s *blockNotifierPollingInternalStatus) incommingBlock(block uint64) *blockNotifierPollingInternalStatus {
+func (s *blockNotifierPollingInternalStatus) incommingNewBlock(block uint64) *blockNotifierPollingInternalStatus {
+	now := timeNowFunc()
+	timePreviousBlock := now.Sub(s.lastBlockTime)
 	return &blockNotifierPollingInternalStatus{
-		lastBlockSeen: block,
-		lastBlockTime: timeNowFunc(),
+		lastBlockSeen:     block,
+		lastBlockTime:     now,
+		previousBlockTime: &timePreviousBlock,
 	}
 }

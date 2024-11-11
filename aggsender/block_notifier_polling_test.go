@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk/aggsender/mocks"
+	aggsendertypes "github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -29,7 +30,7 @@ func TestExploratoryBlockNotifierPolling(t *testing.T) {
 			BlockFinalityType: etherman.LatestBlock,
 		}, log.WithFields("test", "test"), nil)
 	require.NoError(t, errSut)
-	sut.StartAsync(context.Background())
+	go sut.Start(context.Background())
 	ch := sut.Subscribe("test")
 	for {
 		select {
@@ -38,6 +39,97 @@ func TestExploratoryBlockNotifierPolling(t *testing.T) {
 		}
 	}
 }
+
+func TestBlockNotifierPollingStep(t *testing.T) {
+	time0 := time.Unix(1731322117, 0)
+	period0 := time.Second * 10
+	period0_80percent := time.Second * 8
+	time1 := time0.Add(period0)
+	tests := []struct {
+		name                      string
+		previousStatus            *blockNotifierPollingInternalStatus
+		HeaderByNumberError       bool
+		HeaderByNumberErrorNumber uint64
+		forcedTime                time.Time
+		expectedStatus            *blockNotifierPollingInternalStatus
+		expectedDelay             time.Duration
+		expectedEvent             *aggsendertypes.EventNewBlock
+	}{
+		{
+			name:                      "initial->receive block",
+			previousStatus:            nil,
+			HeaderByNumberError:       false,
+			HeaderByNumberErrorNumber: 100,
+			forcedTime:                time0,
+			expectedStatus: &blockNotifierPollingInternalStatus{
+				lastBlockSeen: 100,
+				lastBlockTime: time0,
+			},
+			expectedDelay: minBlockInterval,
+			expectedEvent: nil,
+		},
+		{
+			name:                "received block->error",
+			previousStatus:      nil,
+			HeaderByNumberError: true,
+			forcedTime:          time0,
+			expectedStatus:      &blockNotifierPollingInternalStatus{},
+			expectedDelay:       minBlockInterval,
+			expectedEvent:       nil,
+		},
+
+		{
+			name: "have block period->receive new block",
+			previousStatus: &blockNotifierPollingInternalStatus{
+				lastBlockSeen:     100,
+				lastBlockTime:     time0,
+				previousBlockTime: &period0,
+			},
+			HeaderByNumberError:       false,
+			HeaderByNumberErrorNumber: 101,
+			forcedTime:                time1,
+			expectedStatus: &blockNotifierPollingInternalStatus{
+				lastBlockSeen:     101,
+				lastBlockTime:     time1,
+				previousBlockTime: &period0,
+			},
+			expectedDelay: period0_80percent,
+			expectedEvent: &aggsendertypes.EventNewBlock{
+				BlockNumber: 101,
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			//t.Parallel()
+			testData := newBlockNotifierPollingTestData(t, nil)
+
+			timeNowFunc = func() time.Time {
+				return tt.forcedTime
+			}
+
+			if tt.HeaderByNumberError == false {
+				hdr1 := &types.Header{
+					Number: big.NewInt(int64(tt.HeaderByNumberErrorNumber)),
+				}
+				testData.ethClientMock.EXPECT().HeaderByNumber(mock.Anything, mock.Anything).Return(hdr1, nil).Once()
+			} else {
+				testData.ethClientMock.EXPECT().HeaderByNumber(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("error")).Once()
+			}
+			delay, newStatus, event := testData.sut.step(context.TODO(), tt.previousStatus)
+			require.Equal(t, tt.expectedDelay, delay, "delay")
+			require.Equal(t, tt.expectedStatus, newStatus, "new_status")
+			if tt.expectedEvent == nil {
+				require.Nil(t, event, "send_event")
+			} else {
+				require.Equal(t, tt.expectedEvent.BlockNumber, event.BlockNumber, "send_event")
+			}
+		})
+	}
+
+}
+
 func TestDelayNoPreviousBLock(t *testing.T) {
 	testData := newBlockNotifierPollingTestData(t, nil)
 	status := blockNotifierPollingInternalStatus{
