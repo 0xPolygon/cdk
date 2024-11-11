@@ -859,13 +859,8 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 				},
 			}
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			go aggSender.checkIfCertificatesAreSettled(ctx)
-
-			time.Sleep(2 * time.Second)
-			cancel()
+			ctx := context.TODO()
+			aggSender.checkPendingCertificatesStatus(ctx)
 
 			mockAggLayerClient.AssertExpectations(t)
 			mockStorage.AssertExpectations(t)
