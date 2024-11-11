@@ -52,6 +52,7 @@ setup() {
     echo "Initial receiver balance of native token on L2 $initial_receiver_balance" >&3
 
     echo "Running LxLy deposit on L1" >&3
+    destination_addr=$sender_addr
     run bridgeAsset "$native_token_addr" "$l1_rpc_url"
     assert_success
 
