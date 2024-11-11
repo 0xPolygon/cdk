@@ -62,9 +62,6 @@ setup() {
     assert_success
 
     run verify_balance "$l2_rpc_url" "$weth_token_addr" "$destination_addr" "$initial_receiver_balance" "$ether_value"
-    if [ $status -eq 0 ]; then
-        break
-    fi
     assert_success
 
      echo "bridgeAsset L2 WETH to L1 ETH" >&3
