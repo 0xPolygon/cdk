@@ -82,8 +82,7 @@ func New(
 
 // Start starts the AggSender
 func (a *AggSender) Start(ctx context.Context) {
-	go a.sendCertificates(ctx)
-	go a.checkIfCertificatesAreSettled(ctx)
+	a.sendCertificates(ctx)
 }
 
 // sendCertificates sends certificates to the aggLayer
@@ -92,7 +91,8 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 	for {
 		select {
 		case epoch := <-chEpoch:
-			a.log.Infof("Epoch %d received", epoch.Epoch)
+			a.log.Infof("Epoch received: %s", epoch.String())
+			a.checkPendingCertificatesStatus(ctx)
 			if _, err := a.sendCertificate(ctx); err != nil {
 				log.Error(err)
 			}
@@ -476,19 +476,6 @@ func (a *AggSender) signCertificate(certificate *agglayer.Certificate) (*agglaye
 			OddParity: isOddParity,
 		},
 	}, nil
-}
-
-// checkIfCertificatesAreSettled checks if certificates are settled
-func (a *AggSender) checkIfCertificatesAreSettled(ctx context.Context) {
-	ticker := time.NewTicker(a.cfg.CheckSettledInterval.Duration)
-	for {
-		select {
-		case <-ticker.C:
-			a.checkPendingCertificatesStatus(ctx)
-		case <-ctx.Done():
-			return
-		}
-	}
 }
 
 // checkPendingCertificatesStatus checks the status of pending certificates
