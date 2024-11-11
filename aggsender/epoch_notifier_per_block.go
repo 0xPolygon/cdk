@@ -112,7 +112,7 @@ func (e *EpochNotifierPerBlock) startInternal(ctx context.Context, eventNewBlock
 			var event *types.EpochEvent
 			status, event = e.step(status, newBlock)
 			if event != nil {
-				e.logger.Infof("new Epoch Event: %s", event.String())
+				e.logger.Debugf("new Epoch Event: %s", event.String())
 				e.GenericSubscriber.Publish(*event)
 			}
 		}
