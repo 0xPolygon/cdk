@@ -48,11 +48,12 @@ setup() {
 }
 
 @test "Native gas token deposit to WETH" {
+    destination_addr=$sender_addr
     local initial_receiver_balance=$(cast call --rpc-url "$l2_rpc_url" "$weth_token_addr" "$balance_of_fn_sig" "$destination_addr" | awk '{print $1}')
     echo "Initial receiver balance of native token on L2 $initial_receiver_balance" >&3
 
     echo "=== Running LxLy deposit on L1 to network: $l2_rpc_network_id native_token: $native_token_addr" >&3
-    destination_addr=$sender_addr
+    
     destination_net=$l2_rpc_network_id
     run bridgeAsset "$native_token_addr" "$l1_rpc_url"
     assert_success
