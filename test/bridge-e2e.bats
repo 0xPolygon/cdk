@@ -155,3 +155,30 @@ setup() {
     fi
     assert_success
 }
+
+@test "transfer ETH L1 to L2 to L1" {
+    
+    destination_addr=$sender_addr
+    destination_net=1
+    echo "   bridgeAsset (ETH->WETH) L1 to L2 dest: $destination_addr eth:$ether_value" >&3
+    run bridgeAsset "0x0000000000000000000000000000000000000000" "$l1_rpc_url"
+    assert_success
+
+    echo "*** Claim in L2" >&3
+    timeout="120"
+    claim_frequency="30"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url"
+    assert_success
+
+    echo "  bridgeAsset (WETH->ETH) L2 to L1" >&3
+    destination_addr=$sender_addr
+    destination_net=0
+    run bridgeAsset "$weth_token_addr" "$l2_rpc_url"
+    assert_success
+
+    echo "   Claim in L1" >&3
+    timeout="360"
+    claim_frequency="60"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url"
+    assert_success
+}
