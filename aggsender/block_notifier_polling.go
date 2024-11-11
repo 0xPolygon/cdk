@@ -44,9 +44,7 @@ type BlockNotifierPolling struct {
 // NewBlockNotifierPolling creates a new BlockNotifierPolling.
 // if param `subscriber` is nil a new GenericSubscriberImpl[types.EventNewBlock] will be created.
 // To use this class you need to subscribe and each time that a new block appear the subscriber
-//
-//	will be notified through the channel. (check unit tests TestExploratoryBlockNotifierPolling
-//
+// will be notified through the channel. (check unit tests TestExploratoryBlockNotifierPolling
 // for more information)
 func NewBlockNotifierPolling(ethClient types.EthClient,
 	config ConfigBlockNotifierPolling,
