@@ -447,4 +447,4 @@ EOF
 echo " -----------------------------------------------------------"
 echo " "
 echo " - rembember to clean previous execution data: "
-echo "     rm -Rf ${path_rw_data}/*"
+echo "     rm -Rf ${zkevm_path_rw_data}/*"
