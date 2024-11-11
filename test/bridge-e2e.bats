@@ -68,12 +68,11 @@ setup() {
     assert_success
 
      echo "bridgeAsset L2 WETH to L1 ETH" >&3
-    destination_addr=$sender_addr
     destination_net=0
     run bridgeAsset "$weth_token_addr" "$l2_rpc_url"
     assert_success
 
-    echo "Claim in L1" >&3
+    echo "Claim in L1 ETH" >&3
     timeout="400"
     claim_frequency="60"
     run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url"
