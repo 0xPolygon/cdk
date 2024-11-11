@@ -154,7 +154,7 @@ func (b *BlockNotifierPolling) step(ctx context.Context,
 		b.logger.Warnf("Missed block(s) [finality:%s]: %d -> %d",
 			b.config.BlockFinalityType, previousState.lastBlockSeen, currentBlock.Number.Uint64())
 		// It start from scratch because something fails in calculation of block period
-		newState := previousState.clear()
+		newState := previousState.intialBlock(currentBlock.Number.Uint64())
 		return b.nextBlockRequestDelay(nil, nil), newState, eventToEmit
 	}
 	newState := previousState.incommingNewBlock(currentBlock.Number.Uint64())
