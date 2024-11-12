@@ -20,12 +20,15 @@ type ConfigEpochNotifierPerBlock struct {
 	StartingEpochBlock uint64
 	NumBlockPerEpoch   uint
 
-	// Num blocks before the end of the epoch to notify it
-	NotifyPendingBlocksBeforeEndEpoch uint
+	// EpochNotificationPercentage
+	// 0 -> begining new Epoch
+	// 50 -> middle of epoch
+	// 100 -> end of epoch (same as 0)
+	EpochNotificationPercentage uint
 }
 
 func NewConfigEpochNotifierPerBlock(aggLayer agglayer.AggLayerClientGetEpochConfiguration,
-	notifyPendingBlocksBeforeEndEpoch uint) (*ConfigEpochNotifierPerBlock, error) {
+	epochNotificationPercentage uint) (*ConfigEpochNotifierPerBlock, error) {
 	if aggLayer == nil {
 		return nil, fmt.Errorf("newConfigEpochNotifierPerBlock: aggLayerClient is required")
 	}
@@ -34,9 +37,9 @@ func NewConfigEpochNotifierPerBlock(aggLayer agglayer.AggLayerClientGetEpochConf
 		return nil, fmt.Errorf("newConfigEpochNotifierPerBlock: error getting clock configuration from AggLayer: %w", err)
 	}
 	return &ConfigEpochNotifierPerBlock{
-		StartingEpochBlock:                clockConfig.GenesisBlock,
-		NumBlockPerEpoch:                  uint(clockConfig.EpochDuration),
-		NotifyPendingBlocksBeforeEndEpoch: notifyPendingBlocksBeforeEndEpoch,
+		StartingEpochBlock:          clockConfig.GenesisBlock,
+		NumBlockPerEpoch:            uint(clockConfig.EpochDuration),
+		EpochNotificationPercentage: epochNotificationPercentage,
 	}, nil
 }
 
@@ -44,8 +47,8 @@ func (c *ConfigEpochNotifierPerBlock) Validate() error {
 	if c.NumBlockPerEpoch == 0 {
 		return fmt.Errorf("numBlockPerEpoch: num block per epoch is required > 0 ")
 	}
-	if c.NumBlockPerEpoch-c.NotifyPendingBlocksBeforeEndEpoch == 0 {
-		return fmt.Errorf("notifyPendingBlocksBeforeEndEpoch: Notify before num blocks end of epoch  is required > 0")
+	if c.EpochNotificationPercentage >= 100 {
+		return fmt.Errorf("epochNotificationPercentage: must be between 0 and 99")
 	}
 	return nil
 }
@@ -83,8 +86,8 @@ func NewEpochNotifierPerBlock(blockNotifier types.BlockNotifier,
 
 func (e *EpochNotifierPerBlock) String() string {
 	return fmt.Sprintf("EpochNotifierPerBlock: startingEpochBlock=%d, numBlockPerEpoch=%d,"+
-		" notifyPendingBlocksBeforeEndEpoch=%d",
-		e.Config.StartingEpochBlock, e.Config.NumBlockPerEpoch, e.Config.NotifyPendingBlocksBeforeEndEpoch)
+		" EpochNotificationPercentage=%d",
+		e.Config.StartingEpochBlock, e.Config.NumBlockPerEpoch, e.Config.EpochNotificationPercentage)
 }
 
 // StartAsync starts the notifier in a goroutine
@@ -139,14 +142,10 @@ func (e *EpochNotifierPerBlock) step(status internalStatus,
 	}
 	status.lastBlockSeen = currentBlock
 
-	needNotify, closingEpoch := e.isClosingEpochBlock(currentBlock, status.waitingForEpoch)
+	needNotify, closingEpoch := e.isNotificationRequired(currentBlock, status.waitingForEpoch)
 	if needNotify {
 		// Notify the epoch has started
 		info := e.infoEpoch(currentBlock, closingEpoch)
-		if status.waitingForEpoch == 0 && info.PendingBlocks > int(e.Config.NotifyPendingBlocksBeforeEndEpoch) {
-			// We are in the first epoch, but we are not near the end of the epoch
-			return status, nil
-		}
 		status.waitingForEpoch = closingEpoch + 1
 		return status, &types.EpochEvent{
 			Epoch:     closingEpoch,
@@ -162,10 +161,23 @@ func (e *EpochNotifierPerBlock) infoEpoch(currentBlock, newEpochNotified uint64)
 		PendingBlocks: int(nextBlockStartingEpoch - currentBlock),
 	}
 }
-func (e *EpochNotifierPerBlock) isClosingEpochBlock(currentBlock, lastEpochNotified uint64) (bool, uint64) {
-	nextEpoch := e.epochNumber(currentBlock + uint64(e.Config.NotifyPendingBlocksBeforeEndEpoch))
+func (e *EpochNotifierPerBlock) percentEpoch(currentBlock uint64) float64 {
+	epoch := e.epochNumber(currentBlock)
+	startingBlock := e.startingBlockEpoch(epoch)
+	elapsedBlocks := currentBlock - startingBlock
+	return float64(elapsedBlocks) / float64(e.Config.NumBlockPerEpoch)
+}
+func (e *EpochNotifierPerBlock) isNotificationRequired(currentBlock, lastEpochNotified uint64) (bool, uint64) {
+	percentEpoch := e.percentEpoch(currentBlock)
+	thresholdPercent := float64(e.Config.EpochNotificationPercentage) / 100.0
+	if percentEpoch < thresholdPercent {
+		e.logger.Debugf("Block %d is at %f%% of the epoch no notify", currentBlock, percentEpoch*100)
+		return false, e.epochNumber(currentBlock)
+	}
+	nextEpoch := e.epochNumber(currentBlock) + 1
 	return nextEpoch > lastEpochNotified, e.epochNumber(currentBlock)
 }
+
 func (e *EpochNotifierPerBlock) startingBlockEpoch(epoch uint64) uint64 {
 	if epoch == 0 {
 		return e.Config.StartingEpochBlock - 1

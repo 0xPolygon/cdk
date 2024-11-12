@@ -342,6 +342,6 @@ BlockGetInterval = "2s"
 URLRPCL2="{{L2URL}}"
 CheckSettledInterval = "2s"
 BlockFinality = "LatestBlock"
-BlocksBeforeEpochEnding = 2
+EpochNotificationPercentage = 50
 SaveCertificatesToFiles = false
 `

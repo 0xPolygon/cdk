@@ -50,7 +50,7 @@ func TestConfigString(t *testing.T) {
 		AggsenderPrivateKey:         types.KeystoreFileConfig{Path: "/path/to/key", Password: "password"},
 		URLRPCL2:                    "http://l2.rpc.url",
 		BlockFinality:               "latestBlock",
-		BlocksBeforeEpochEnding:     10,
+		EpochNotificationPercentage: 50,
 		SaveCertificatesToFilesPath: "/path/to/certificates",
 	}
 
@@ -62,7 +62,7 @@ func TestConfigString(t *testing.T) {
 		"AggsenderPrivateKeyPassword: password\n" +
 		"URLRPCL2: http://l2.rpc.url\n" +
 		"BlockFinality: latestBlock\n" +
-		"BlocksBeforeEpochEnding: 10\n" +
+		"EpochNotificationPercentage: 50\n" +
 		"SaveCertificatesToFilesPath: /path/to/certificates\n"
 
 	require.Equal(t, expected, config.String())

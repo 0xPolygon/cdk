@@ -16,9 +16,9 @@ import (
 
 func TestStartingBlockEpoch(t *testing.T) {
 	testData := newNotifierPerBlockTestData(t, &ConfigEpochNotifierPerBlock{
-		StartingEpochBlock:                9,
-		NumBlockPerEpoch:                  10,
-		NotifyPendingBlocksBeforeEndEpoch: 1,
+		StartingEpochBlock:          9,
+		NumBlockPerEpoch:            10,
+		EpochNotificationPercentage: 80,
 	})
 	// EPOCH: ---0 ----+----1 -----+----2 ----+----3 ----+----4 ----+----5 ----+----
 	// BLOCK:          9           19  	      29         39         49
@@ -29,9 +29,9 @@ func TestStartingBlockEpoch(t *testing.T) {
 
 func TestEpochStep(t *testing.T) {
 	testData := newNotifierPerBlockTestData(t, &ConfigEpochNotifierPerBlock{
-		StartingEpochBlock:                9,
-		NumBlockPerEpoch:                  10,
-		NotifyPendingBlocksBeforeEndEpoch: 1,
+		StartingEpochBlock:          9,
+		NumBlockPerEpoch:            10,
+		EpochNotificationPercentage: 50,
 	})
 	// EPOCH: ---0 ----+----1 -----+----2 ----+----3 ----+----4 ----+----5 ----+----
 	// BLOCK:          9           19  	      29         39         49
@@ -138,9 +138,9 @@ func TestStepNotifyEpoch(t *testing.T) {
 
 func TestBlockEpochNumber(t *testing.T) {
 	testData := newNotifierPerBlockTestData(t, &ConfigEpochNotifierPerBlock{
-		StartingEpochBlock:                105,
-		NumBlockPerEpoch:                  10,
-		NotifyPendingBlocksBeforeEndEpoch: 1,
+		StartingEpochBlock:          105,
+		NumBlockPerEpoch:            10,
+		EpochNotificationPercentage: 1,
 	})
 	require.Equal(t, uint64(0), testData.sut.epochNumber(0))
 	require.Equal(t, uint64(0), testData.sut.epochNumber(104))
@@ -154,9 +154,9 @@ func TestBlockEpochNumber(t *testing.T) {
 
 func TestBlockBeforeEpoch(t *testing.T) {
 	testData := newNotifierPerBlockTestData(t, &ConfigEpochNotifierPerBlock{
-		StartingEpochBlock:                105,
-		NumBlockPerEpoch:                  10,
-		NotifyPendingBlocksBeforeEndEpoch: 1,
+		StartingEpochBlock:          105,
+		NumBlockPerEpoch:            10,
+		EpochNotificationPercentage: 1,
 	})
 	status := internalStatus{
 		lastBlockSeen:   104,
@@ -184,9 +184,9 @@ func newNotifierPerBlockTestData(t *testing.T, config *ConfigEpochNotifierPerBlo
 	t.Helper()
 	if config == nil {
 		config = &ConfigEpochNotifierPerBlock{
-			StartingEpochBlock:                0,
-			NumBlockPerEpoch:                  10,
-			NotifyPendingBlocksBeforeEndEpoch: 1,
+			StartingEpochBlock:          0,
+			NumBlockPerEpoch:            10,
+			EpochNotificationPercentage: 50,
 		}
 	}
 	blockNotifierMock := mocks.NewBlockNotifier(t)

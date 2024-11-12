@@ -158,7 +158,7 @@ func createAggSender(
 		return nil, err
 	}
 
-	notifierCfg, err := aggsender.NewConfigEpochNotifierPerBlock(agglayerClient, cfg.BlocksBeforeEpochEnding)
+	notifierCfg, err := aggsender.NewConfigEpochNotifierPerBlock(agglayerClient, cfg.EpochNotificationPercentage)
 	if err != nil {
 		return nil, fmt.Errorf("cant generate config for Epoch Notifier because: %w", err)
 	}

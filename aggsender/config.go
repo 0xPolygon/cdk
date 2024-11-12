@@ -22,9 +22,11 @@ type Config struct {
 	URLRPCL2 string `mapstructure:"URLRPCL2"`
 	// BlockFinality indicates which finality follows AggLayer
 	BlockFinality string `jsonschema:"enum=LatestBlock, enum=SafeBlock, enum=PendingBlock, enum=FinalizedBlock, enum=EarliestBlock" mapstructure:"BlockFinality"` //nolint:lll
-	// BlocksBeforeEpochEnding indicates how many blocks before the epoch ending
+	// EpochNotificationPercentage indicates the percentage of the epoch
 	// the AggSender should send the certificate
-	BlocksBeforeEpochEnding uint `mapstructure:"BlocksBeforeEpochEnding"`
+	// 0 -> Begining
+	// 50 -> Middle
+	EpochNotificationPercentage uint `mapstructure:"EpochNotificationPercentage"`
 	// SaveCertificatesToFilesPath if != "" tells  the AggSender to save the certificates to a file in this path
 	SaveCertificatesToFilesPath string `mapstructure:"SaveCertificatesToFilesPath"`
 }
@@ -39,6 +41,6 @@ func (c Config) String() string {
 		"AggsenderPrivateKeyPassword: " + c.AggsenderPrivateKey.Password + "\n" +
 		"URLRPCL2: " + c.URLRPCL2 + "\n" +
 		"BlockFinality: " + c.BlockFinality + "\n" +
-		"BlocksBeforeEpochEnding: " + fmt.Sprintf("%d", c.BlocksBeforeEpochEnding) + "\n" +
+		"EpochNotificationPercentage: " + fmt.Sprintf("%d", c.EpochNotificationPercentage) + "\n" +
 		"SaveCertificatesToFilesPath: " + c.SaveCertificatesToFilesPath + "\n"
 }
