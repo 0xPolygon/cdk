@@ -36,7 +36,6 @@ func newSimulatedClient(t *testing.T) (
 	*verifybatchesmock.Verifybatchesmock,
 ) {
 	t.Helper()
-
 	ctx := context.Background()
 	client, setup := helpers.SimulatedBackend(t, nil, 0)
 
