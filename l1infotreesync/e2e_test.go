@@ -78,11 +78,21 @@ func TestE2E(t *testing.T) {
 		client.Commit()
 		g, err := gerSc.L1InfoRootMap(nil, uint32(i+1))
 		require.NoError(t, err)
-		// Let the processor catch up
-		time.Sleep(time.Millisecond * 100)
 		receipt, err := client.Client().TransactionReceipt(ctx, tx.Hash())
 		require.NoError(t, err)
 		require.Equal(t, receipt.Status, types.ReceiptStatusSuccessful)
+		// Let the processor catch up
+		processorUpdated := false
+		for i := 0; i < 60; i++ {
+			lpb, err := syncer.GetLastProcessedBlock(ctx)
+			require.NoError(t, err)
+			if receipt.BlockNumber.Uint64() == lpb {
+				processorUpdated = true
+				break
+			}
+			time.Sleep(time.Millisecond * 10)
+		}
+		require.True(t, processorUpdated)
 
 		expectedGER, err := gerSc.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
@@ -118,7 +128,7 @@ func TestE2E(t *testing.T) {
 
 			// Let the processor catch
 			processorUpdated := false
-			for i := 0; i < 30; i++ {
+			for i := 0; i < 60; i++ {
 				lpb, err := syncer.GetLastProcessedBlock(ctx)
 				require.NoError(t, err)
 				if receipt.BlockNumber.Uint64() == lpb {

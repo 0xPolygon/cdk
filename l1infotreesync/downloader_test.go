@@ -10,7 +10,6 @@ import (
 	mocks_l1infotreesync "github.com/0xPolygon/cdk/l1infotreesync/mocks"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -53,9 +52,4 @@ func TestBuildAppenderVerifiedContractAddr(t *testing.T) {
 	flags := FlagNone
 	_, err = buildAppender(l1Client, globalExitRoot, rollupManager, flags)
 	require.NoError(t, err)
-}
-
-func TestFoo(t *testing.T) {
-	updateL1InfoTreeSignatureV1 = crypto.Keccak256Hash([]byte("VerifyBatchesTrustedAggregator(uint32,uint64,bytes32,bytes32,address)"))
-	require.Equal(t, "", updateL1InfoTreeSignatureV1.Hex())
 }
