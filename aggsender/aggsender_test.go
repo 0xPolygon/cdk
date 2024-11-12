@@ -750,17 +750,17 @@ func generateTestProof(t *testing.T) treeTypes.Proof {
 }
 
 func TestCheckIfCertificatesAreSettled(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
-		name                     string
-		pendingCertificates      []*aggsendertypes.CertificateInfo
-		certificateHeaders       map[common.Hash]*agglayer.CertificateHeader
-		getFromDBError           error
-		clientError              error
-		updateDBError            error
-		expectedErrorLogMessages []string
-		expectedInfoMessages     []string
+		name                         string
+		pendingCertificates          []*aggsendertypes.CertificateInfo
+		certificateHeaders           map[common.Hash]*agglayer.CertificateHeader
+		getFromDBError               error
+		clientError                  error
+		updateDBError                error
+		expectedErrorLogMessages     []string
+		expectedInfoMessages         []string
+		expectedThereArePendingCerts bool
+		expectedError                bool
 	}{
 		{
 			name: "All certificates settled - update successful",
@@ -796,6 +796,8 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 			expectedErrorLogMessages: []string{
 				"error getting pending certificates: %w",
 			},
+			expectedThereArePendingCerts: true,
+			expectedError:                true,
 		},
 		{
 			name: "Error getting certificate header",
@@ -809,6 +811,8 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 			expectedErrorLogMessages: []string{
 				"error getting header of certificate %s with height: %d from agglayer: %w",
 			},
+			expectedThereArePendingCerts: true,
+			expectedError:                true,
 		},
 		{
 			name: "Error updating certificate status",
@@ -825,6 +829,8 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 			expectedInfoMessages: []string{
 				"certificate %s changed status to %s",
 			},
+			expectedThereArePendingCerts: true,
+			expectedError:                true,
 		},
 	}
 
@@ -832,8 +838,6 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			mockStorage := mocks.NewAggSenderStorage(t)
 			mockAggLayerClient := agglayer.NewAgglayerClientMock(t)
 			mockLogger := log.WithFields("test", "unittest")
@@ -860,8 +864,9 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 			}
 
 			ctx := context.TODO()
-			aggSender.checkPendingCertificatesStatus(ctx)
-
+			thereArePendingCerts, err := aggSender.checkPendingCertificatesStatus(ctx)
+			require.Equal(t, tt.expectedThereArePendingCerts, thereArePendingCerts)
+			require.Equal(t, tt.expectedError, err != nil)
 			mockAggLayerClient.AssertExpectations(t)
 			mockStorage.AssertExpectations(t)
 		})

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
@@ -92,9 +93,14 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 		select {
 		case epoch := <-chEpoch:
 			a.log.Infof("Epoch received: %s", epoch.String())
-			a.checkPendingCertificatesStatus(ctx)
-			if _, err := a.sendCertificate(ctx); err != nil {
-				log.Error(err)
+			thereArePendingCerts, err := a.checkPendingCertificatesStatus(ctx)
+			if err == nil && !thereArePendingCerts {
+				if _, err := a.sendCertificate(ctx); err != nil {
+					log.Error(err)
+				}
+			} else {
+				log.Warnf("Skipping epoch %s because there are pending certificates %v or error: %w",
+					epoch.String(), thereArePendingCerts, err)
 			}
 		case <-ctx.Done():
 			a.log.Info("AggSender stopped")
@@ -480,19 +486,28 @@ func (a *AggSender) signCertificate(certificate *agglayer.Certificate) (*agglaye
 
 // checkPendingCertificatesStatus checks the status of pending certificates
 // and updates in the storage if it changed on agglayer
-func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
+// It returns:
+// bool -> if there are pending certificates
+// error -> if there was an error
+func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) (bool, error) {
 	pendingCertificates, err := a.storage.GetCertificatesByStatus(nonSettledStatuses)
 	if err != nil {
-		a.log.Errorf("error getting pending certificates: %w", err)
-		return
+		err = fmt.Errorf("error getting pending certificates: %w", err)
+		a.log.Error(err)
+		return true, err
 	}
+	thereArePendingCertificates := false
 	a.log.Debugf("checkPendingCertificatesStatus num of pendingCertificates: %d", len(pendingCertificates))
 	for _, certificate := range pendingCertificates {
 		certificateHeader, err := a.aggLayerClient.GetCertificateHeader(certificate.CertificateID)
 		if err != nil {
-			a.log.Errorf("error getting certificate header of %s from agglayer: %w",
-				certificate.String(), err)
-			continue
+			err = fmt.Errorf("error getting certificate header of %d/%s from agglayer: %w",
+				certificate.Height, certificate.String(), err)
+			a.log.Error(err)
+			return true, err
+		}
+		if slices.Contains(nonSettledStatuses, certificateHeader.Status) {
+			thereArePendingCertificates = true
 		}
 		a.log.Debugf("aggLayerClient.GetCertificateHeader status [%s] of certificate %s ",
 			certificateHeader.Status,
@@ -506,11 +521,13 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
 			certificate.UpdatedAt = time.Now().UTC().UnixMilli()
 
 			if err := a.storage.UpdateCertificateStatus(ctx, *certificate); err != nil {
-				a.log.Errorf("error updating certificate %s status in storage: %w", certificateHeader.String(), err)
-				continue
+				err = fmt.Errorf("error updating certificate %s status in storage: %w", certificateHeader.String(), err)
+				a.log.Error(err)
+				return true, err
 			}
 		}
 	}
+	return thereArePendingCertificates, nil
 }
 
 // shouldSendCertificate checks if a certificate should be sent at given time

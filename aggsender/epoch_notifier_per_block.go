@@ -8,6 +8,10 @@ import (
 	"github.com/0xPolygon/cdk/aggsender/types"
 )
 
+const (
+	maxPercent = 100.0
+)
+
 type ExtraInfoEventEpoch struct {
 	PendingBlocks int
 }
@@ -21,7 +25,7 @@ type ConfigEpochNotifierPerBlock struct {
 	NumBlockPerEpoch   uint
 
 	// EpochNotificationPercentage
-	// 0 -> begining new Epoch
+	// 0 -> begin new Epoch
 	// 50 -> middle of epoch
 	// 100 -> end of epoch (same as 0)
 	EpochNotificationPercentage uint
@@ -47,7 +51,7 @@ func (c *ConfigEpochNotifierPerBlock) Validate() error {
 	if c.NumBlockPerEpoch == 0 {
 		return fmt.Errorf("numBlockPerEpoch: num block per epoch is required > 0 ")
 	}
-	if c.EpochNotificationPercentage >= 100 {
+	if c.EpochNotificationPercentage >= maxPercent {
 		return fmt.Errorf("epochNotificationPercentage: must be between 0 and 99")
 	}
 	return nil
@@ -169,13 +173,13 @@ func (e *EpochNotifierPerBlock) percentEpoch(currentBlock uint64) float64 {
 }
 func (e *EpochNotifierPerBlock) isNotificationRequired(currentBlock, lastEpochNotified uint64) (bool, uint64) {
 	percentEpoch := e.percentEpoch(currentBlock)
-	thresholdPercent := float64(e.Config.EpochNotificationPercentage) / 100.0
+	thresholdPercent := float64(e.Config.EpochNotificationPercentage) / maxPercent
 	maxTresholdPercent := float64(e.Config.NumBlockPerEpoch-1) / float64(e.Config.NumBlockPerEpoch)
 	if thresholdPercent > maxTresholdPercent {
 		thresholdPercent = maxTresholdPercent
 	}
 	if percentEpoch < thresholdPercent {
-		e.logger.Debugf("Block %d is at %f%% of the epoch no notify", currentBlock, percentEpoch*100)
+		e.logger.Debugf("Block %d is at %f%% of the epoch no notify", currentBlock, percentEpoch*maxPercent)
 		return false, e.epochNumber(currentBlock)
 	}
 	nextEpoch := e.epochNumber(currentBlock) + 1

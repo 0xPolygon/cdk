@@ -24,7 +24,7 @@ type Config struct {
 	BlockFinality string `jsonschema:"enum=LatestBlock, enum=SafeBlock, enum=PendingBlock, enum=FinalizedBlock, enum=EarliestBlock" mapstructure:"BlockFinality"` //nolint:lll
 	// EpochNotificationPercentage indicates the percentage of the epoch
 	// the AggSender should send the certificate
-	// 0 -> Begining
+	// 0 -> Begin
 	// 50 -> Middle
 	EpochNotificationPercentage uint `mapstructure:"EpochNotificationPercentage"`
 	// SaveCertificatesToFilesPath if != "" tells  the AggSender to save the certificates to a file in this path
