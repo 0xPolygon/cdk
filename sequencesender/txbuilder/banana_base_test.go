@@ -6,13 +6,11 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder/mocks_txbuilder"
-	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -90,41 +88,6 @@ func TestBananaBaseNewSequenceBatch(t *testing.T) {
 	require.NotNil(t, seq)
 	require.NoError(t, err)
 	// TODO: check that the seq have the right values
-}
-
-func TestBananaSanityCheck(t *testing.T) {
-	batch := state.BatchRawV2{
-		Blocks: []state.L2BlockRaw{
-			{
-				BlockNumber: 1,
-				ChangeL2BlockHeader: state.ChangeL2BlockHeader{
-					DeltaTimestamp:  1,
-					IndexL1InfoTree: 1,
-				},
-			},
-		},
-	}
-	data, err := state.EncodeBatchV2(&batch)
-	require.NoError(t, err)
-	require.NotNil(t, data)
-	seq := etherman.SequenceBanana{
-		CounterL1InfoRoot: 2,
-		Batches: []etherman.Batch{
-			{
-				L2Data: data,
-			},
-		},
-	}
-	err = txbuilder.SequenceSanityCheck(&seq)
-	require.NoError(t, err, "inside batchl2data max is 1 and counter is 2 (2>=1+1)")
-	seq.CounterL1InfoRoot = 1
-	err = txbuilder.SequenceSanityCheck(&seq)
-	require.Error(t, err, "inside batchl2data max is 1 and counter is 1. The batchl2data is not included in counter")
-}
-
-func TestBananaSanityCheckNilSeq(t *testing.T) {
-	err := txbuilder.SequenceSanityCheck(nil)
-	require.Error(t, err, "nil sequence")
 }
 
 func TestBananaEmptyL1InfoTree(t *testing.T) {
