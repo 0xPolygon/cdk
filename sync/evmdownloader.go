@@ -163,7 +163,7 @@ func (d *EVMDownloaderImplementation) WaitForNewBlocks(
 		case <-ticker.C:
 			header, err := d.ethClient.HeaderByNumber(ctx, d.blockFinality)
 			if err != nil {
-				if errors.Is(err, context.Canceled) {
+				if ctx.Err() == nil {
 					attempts++
 					d.log.Error("error getting last block num from eth client: ", err)
 					d.rh.Handle("waitForNewBlocks", attempts)
