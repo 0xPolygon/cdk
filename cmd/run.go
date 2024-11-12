@@ -125,6 +125,7 @@ func start(cliCtx *cli.Context) error {
 			aggsender, err := createAggSender(
 				cliCtx.Context,
 				c.AggSender,
+				l1Client,
 				l1InfoTreeSync,
 				l2BridgeSync,
 			)
@@ -144,13 +145,35 @@ func start(cliCtx *cli.Context) error {
 func createAggSender(
 	ctx context.Context,
 	cfg aggsender.Config,
+	l1EthClient *ethclient.Client,
 	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
-	l2Syncer *bridgesync.BridgeSync,
-) (*aggsender.AggSender, error) {
+	l2Syncer *bridgesync.BridgeSync) (*aggsender.AggSender, error) {
 	logger := log.WithFields("module", cdkcommon.AGGSENDER)
 	agglayerClient := agglayer.NewAggLayerClient(cfg.AggLayerURL)
+	blockNotifier, err := aggsender.NewBlockNotifierPolling(l1EthClient, aggsender.ConfigBlockNotifierPolling{
+		BlockFinalityType:     etherman.BlockNumberFinality(cfg.BlockFinality),
+		CheckNewBlockInterval: aggsender.AutomaticBlockInterval,
+	}, logger, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	return aggsender.New(ctx, logger, cfg, agglayerClient, l1InfoTreeSync, l2Syncer)
+	notifierCfg, err := aggsender.NewConfigEpochNotifierPerBlock(agglayerClient, cfg.EpochNotificationPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("cant generate config for Epoch Notifier because: %w", err)
+	}
+	epochNotifier, err := aggsender.NewEpochNotifierPerBlock(
+		blockNotifier,
+		logger,
+		*notifierCfg, nil)
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Starting blockNotifier: %s", blockNotifier.String())
+	go blockNotifier.Start(ctx)
+	log.Infof("Starting epochNotifier: %s", epochNotifier.String())
+	go epochNotifier.Start(ctx)
+	return aggsender.New(ctx, logger, cfg, agglayerClient, l1InfoTreeSync, l2Syncer, epochNotifier)
 }
 
 func createAggregator(ctx context.Context, c config.Config, runMigrations bool) *aggregator.Aggregator {

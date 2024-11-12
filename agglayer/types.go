@@ -629,3 +629,14 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+// ClockConfiguration represents the configuration of the epoch clock
+// returned by the interop_GetEpochConfiguration RPC call
+type ClockConfiguration struct {
+	EpochDuration uint64 `json:"epoch_duration"`
+	GenesisBlock  uint64 `json:"genesis_block"`
+}
+
+func (c ClockConfiguration) String() string {
+	return fmt.Sprintf("EpochDuration: %d, GenesisBlock: %d", c.EpochDuration, c.GenesisBlock)
+}
