@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	mutex "sync"
 
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/l1infotreesync/migrations"
@@ -28,6 +29,7 @@ type processor struct {
 	db             *sql.DB
 	l1InfoTree     *tree.AppendOnlyTree
 	rollupExitTree *tree.UpdatableTree
+	mu             mutex.RWMutex
 	halted         bool
 	haltedReason   string
 }
@@ -267,6 +269,8 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		return err
 	}
 	if rowsAffected > 0 {
+		p.mu.Lock()
+		defer p.mu.Unlock()
 		p.halted = false
 		p.haltedReason = ""
 	}
@@ -277,10 +281,13 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 // ProcessBlock process the events of the block to build the rollup exit tree and the l1 info tree
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
+	p.mu.RLock()
 	if p.halted {
 		log.Errorf("processor is halted due to: %s", p.haltedReason)
+		p.mu.RUnlock()
 		return sync.ErrInconsistentState
 	}
+	p.mu.RUnlock()
 	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
@@ -361,8 +368,10 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 					block.Num,
 				)
 				log.Error(errStr)
+				p.mu.Lock()
 				p.haltedReason = errStr
 				p.halted = true
+				p.mu.Unlock()
 				return sync.ErrInconsistentState
 			}
 		}
@@ -463,4 +472,10 @@ func (p *processor) getDBQuerier(tx db.Txer) db.Querier {
 		return tx
 	}
 	return p.db
+}
+
+func (p *processor) isHalted() bool {
+	p.mu.RLock()
+	p.mu.RUnlock()
+	return p.halted
 }
