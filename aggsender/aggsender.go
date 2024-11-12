@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
 	"github.com/0xPolygon/cdk/aggsender/db"
-	aggsendertypes "github.com/0xPolygon/cdk/aggsender/types"
+	"github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/bridgesync"
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/l1infotreesync"
@@ -33,10 +34,11 @@ var (
 
 // AggSender is a component that will send certificates to the aggLayer
 type AggSender struct {
-	log aggsendertypes.Logger
+	log types.Logger
 
-	l2Syncer         aggsendertypes.L2BridgeSyncer
-	l1infoTreeSyncer aggsendertypes.L1InfoTreeSyncer
+	l2Syncer         types.L2BridgeSyncer
+	l1infoTreeSyncer types.L1InfoTreeSyncer
+	epochNotifier    types.EpochNotifier
 
 	storage        db.AggSenderStorage
 	aggLayerClient agglayer.AgglayerClientInterface
@@ -53,7 +55,8 @@ func New(
 	cfg Config,
 	aggLayerClient agglayer.AgglayerClientInterface,
 	l1InfoTreeSyncer *l1infotreesync.L1InfoTreeSync,
-	l2Syncer *bridgesync.BridgeSync) (*AggSender, error) {
+	l2Syncer *bridgesync.BridgeSync,
+	epochNotifier types.EpochNotifier) (*AggSender, error) {
 	storage, err := db.NewAggSenderSQLStorage(logger, cfg.StoragePath)
 	if err != nil {
 		return nil, err
@@ -74,24 +77,30 @@ func New(
 		aggLayerClient:   aggLayerClient,
 		l1infoTreeSyncer: l1InfoTreeSyncer,
 		sequencerKey:     sequencerPrivateKey,
+		epochNotifier:    epochNotifier,
 	}, nil
 }
 
 // Start starts the AggSender
 func (a *AggSender) Start(ctx context.Context) {
-	go a.sendCertificates(ctx)
-	go a.checkIfCertificatesAreSettled(ctx)
+	a.sendCertificates(ctx)
 }
 
 // sendCertificates sends certificates to the aggLayer
 func (a *AggSender) sendCertificates(ctx context.Context) {
-	ticker := time.NewTicker(a.cfg.BlockGetInterval.Duration)
-
+	chEpoch := a.epochNotifier.Subscribe("aggsender")
 	for {
 		select {
-		case <-ticker.C:
-			if _, err := a.sendCertificate(ctx); err != nil {
-				log.Error(err)
+		case epoch := <-chEpoch:
+			a.log.Infof("Epoch received: %s", epoch.String())
+			thereArePendingCerts, err := a.checkPendingCertificatesStatus(ctx)
+			if err == nil && !thereArePendingCerts {
+				if _, err := a.sendCertificate(ctx); err != nil {
+					log.Error(err)
+				}
+			} else {
+				log.Warnf("Skipping epoch %s because there are pending certificates %v or error: %w",
+					epoch.String(), thereArePendingCerts, err)
 			}
 		case <-ctx.Done():
 			a.log.Info("AggSender stopped")
@@ -183,7 +192,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	}
 
 	createdTime := time.Now().UTC().UnixMilli()
-	certInfo := aggsendertypes.CertificateInfo{
+	certInfo := types.CertificateInfo{
 		Height:            certificate.Height,
 		CertificateID:     certificateHash,
 		NewLocalExitRoot:  certificate.NewLocalExitRoot,
@@ -224,7 +233,7 @@ func (a *AggSender) saveCertificateToFile(signedCertificate *agglayer.SignedCert
 
 // getNextHeightAndPreviousLER returns the height and previous LER for the new certificate
 func (a *AggSender) getNextHeightAndPreviousLER(
-	lastSentCertificateInfo *aggsendertypes.CertificateInfo) (uint64, common.Hash) {
+	lastSentCertificateInfo *types.CertificateInfo) (uint64, common.Hash) {
 	height := lastSentCertificateInfo.Height + 1
 	if lastSentCertificateInfo.Status == agglayer.InError {
 		// previous certificate was in error, so we need to resend it
@@ -247,7 +256,7 @@ func (a *AggSender) getNextHeightAndPreviousLER(
 func (a *AggSender) buildCertificate(ctx context.Context,
 	bridges []bridgesync.Bridge,
 	claims []bridgesync.Claim,
-	lastSentCertificateInfo aggsendertypes.CertificateInfo,
+	lastSentCertificateInfo types.CertificateInfo,
 	toBlock uint64) (*agglayer.Certificate, error) {
 	if len(bridges) == 0 && len(claims) == 0 {
 		return nil, errNoBridgesAndClaims
@@ -475,34 +484,30 @@ func (a *AggSender) signCertificate(certificate *agglayer.Certificate) (*agglaye
 	}, nil
 }
 
-// checkIfCertificatesAreSettled checks if certificates are settled
-func (a *AggSender) checkIfCertificatesAreSettled(ctx context.Context) {
-	ticker := time.NewTicker(a.cfg.CheckSettledInterval.Duration)
-	for {
-		select {
-		case <-ticker.C:
-			a.checkPendingCertificatesStatus(ctx)
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
 // checkPendingCertificatesStatus checks the status of pending certificates
 // and updates in the storage if it changed on agglayer
-func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
+// It returns:
+// bool -> if there are pending certificates
+// error -> if there was an error
+func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) (bool, error) {
 	pendingCertificates, err := a.storage.GetCertificatesByStatus(nonSettledStatuses)
 	if err != nil {
-		a.log.Errorf("error getting pending certificates: %w", err)
-		return
+		err = fmt.Errorf("error getting pending certificates: %w", err)
+		a.log.Error(err)
+		return true, err
 	}
+	thereArePendingCertificates := false
 	a.log.Debugf("checkPendingCertificatesStatus num of pendingCertificates: %d", len(pendingCertificates))
 	for _, certificate := range pendingCertificates {
 		certificateHeader, err := a.aggLayerClient.GetCertificateHeader(certificate.CertificateID)
 		if err != nil {
-			a.log.Errorf("error getting certificate header of %s from agglayer: %w",
-				certificate.String(), err)
-			continue
+			err = fmt.Errorf("error getting certificate header of %d/%s from agglayer: %w",
+				certificate.Height, certificate.String(), err)
+			a.log.Error(err)
+			return true, err
+		}
+		if slices.Contains(nonSettledStatuses, certificateHeader.Status) {
+			thereArePendingCertificates = true
 		}
 		a.log.Debugf("aggLayerClient.GetCertificateHeader status [%s] of certificate %s ",
 			certificateHeader.Status,
@@ -516,11 +521,13 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) {
 			certificate.UpdatedAt = time.Now().UTC().UnixMilli()
 
 			if err := a.storage.UpdateCertificateStatus(ctx, *certificate); err != nil {
-				a.log.Errorf("error updating certificate %s status in storage: %w", certificateHeader.String(), err)
-				continue
+				err = fmt.Errorf("error updating certificate %s status in storage: %w", certificateHeader.String(), err)
+				a.log.Error(err)
+				return true, err
 			}
 		}
 	}
+	return thereArePendingCertificates, nil
 }
 
 // shouldSendCertificate checks if a certificate should be sent at given time

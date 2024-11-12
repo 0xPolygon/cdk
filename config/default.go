@@ -7,6 +7,7 @@ L1URL = "http://localhost:8545"
 L2URL = "http://localhost:8123"
 AggLayerURL = "https://agglayer-dev.polygon.technology"
 
+
 ForkId = 9
 ContractVersions = "elderberry"
 IsValidiumMode = false
@@ -215,7 +216,7 @@ DBPath = "{{PathRWData}}/reorgdetectorl2.sqlite"
 DBPath = "{{PathRWData}}/L1InfoTreeSync.sqlite"
 GlobalExitRootAddr="{{NetworkConfig.L1.GlobalExitRootManagerAddr}}"
 RollupManagerAddr = "{{NetworkConfig.L1.RollupManagerAddr}}"
-SyncBlockChunkSize=10
+SyncBlockChunkSize=100
 BlockFinality="LatestBlock"
 URLRPCL1="{{L1URL}}"
 WaitForNewBlocksPeriod="100ms"
@@ -340,5 +341,7 @@ AggsenderPrivateKey = {Path = "{{SequencerPrivateKeyPath}}", Password = "{{Seque
 BlockGetInterval = "2s"
 URLRPCL2="{{L2URL}}"
 CheckSettledInterval = "2s"
+BlockFinality = "LatestBlock"
+EpochNotificationPercentage = 50
 SaveCertificatesToFiles = false
 `

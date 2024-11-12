@@ -2,6 +2,7 @@ package agglayer
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -36,10 +37,7 @@ func (c *CertificateStatus) UnmarshalJSON(data []byte) error {
 	if strings.Contains(dataStr, "InError") {
 		status = "InError"
 	} else {
-		err := json.Unmarshal(data, &status)
-		if err != nil {
-			return err
-		}
+		status = string(data)
 	}
 
 	switch status {
@@ -199,6 +197,7 @@ type TokenInfo struct {
 	OriginTokenAddress common.Address `json:"origin_token_address"`
 }
 
+// String returns a string representation of the TokenInfo struct
 func (t *TokenInfo) String() string {
 	return fmt.Sprintf("OriginNetwork: %d, OriginTokenAddress: %s", t.OriginNetwork, t.OriginTokenAddress.String())
 }
@@ -210,6 +209,11 @@ type GlobalIndex struct {
 	LeafIndex   uint32 `json:"leaf_index"`
 }
 
+// String returns a string representation of the GlobalIndex struct
+func (g *GlobalIndex) String() string {
+	return fmt.Sprintf("MainnetFlag: %t, RollupIndex: %d, LeafIndex: %d", g.MainnetFlag, g.RollupIndex, g.LeafIndex)
+}
+
 func (g *GlobalIndex) Hash() common.Hash {
 	return crypto.Keccak256Hash(
 		cdkcommon.BigIntToLittleEndianBytes(
@@ -218,9 +222,27 @@ func (g *GlobalIndex) Hash() common.Hash {
 	)
 }
 
-func (g *GlobalIndex) String() string {
-	return fmt.Sprintf("MainnetFlag: %t, RollupIndex: %d, LeafIndex: %d",
-		g.MainnetFlag, g.RollupIndex, g.LeafIndex)
+func (g *GlobalIndex) UnmarshalFromMap(data map[string]interface{}) error {
+	rollupIndex, err := convertMapValue[uint32](data, "rollup_index")
+	if err != nil {
+		return err
+	}
+
+	leafIndex, err := convertMapValue[uint32](data, "leaf_index")
+	if err != nil {
+		return err
+	}
+
+	mainnetFlag, err := convertMapValue[bool](data, "mainnet_flag")
+	if err != nil {
+		return err
+	}
+
+	g.RollupIndex = rollupIndex
+	g.LeafIndex = leafIndex
+	g.MainnetFlag = mainnetFlag
+
+	return nil
 }
 
 // BridgeExit represents a token bridge exit
@@ -525,9 +547,96 @@ type CertificateHeader struct {
 	NewLocalExitRoot common.Hash       `json:"new_local_exit_root"`
 	Status           CertificateStatus `json:"status"`
 	Metadata         common.Hash       `json:"metadata"`
+	Error            PPError           `json:"-"`
 }
 
 func (c CertificateHeader) String() string {
-	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s",
-		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String())
+	errors := ""
+	if c.Error != nil {
+		errors = c.Error.String()
+	}
+
+	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s. Status: %s. Errors: %s",
+		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String(), c.Status.String(), errors)
+}
+
+func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
+	// we define an alias to avoid infinite recursion
+	type Alias CertificateHeader
+	aux := &struct {
+		Status interface{} `json:"status"`
+		*Alias
+	}{
+		Alias: (*Alias)(c),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// Process Status field
+	switch status := aux.Status.(type) {
+	case string: // certificate not InError
+		if err := c.Status.UnmarshalJSON([]byte(status)); err != nil {
+			return err
+		}
+	case map[string]interface{}: // certificate has errors
+		inErrMap, err := convertMapValue[map[string]interface{}](status, "InError")
+		if err != nil {
+			return err
+		}
+
+		inErrDataMap, err := convertMapValue[map[string]interface{}](inErrMap, "error")
+		if err != nil {
+			return err
+		}
+
+		var ppError PPError
+
+		for key, value := range inErrDataMap {
+			switch key {
+			case "ProofGenerationError":
+				p := &ProofGenerationError{}
+				if err := p.Unmarshal(value); err != nil {
+					return err
+				}
+
+				ppError = p
+			case "TypeConversionError":
+				t := &TypeConversionError{}
+				if err := t.Unmarshal(value); err != nil {
+					return err
+				}
+
+				ppError = t
+			case "ProofVerificationError":
+				p := &ProofVerificationError{}
+				if err := p.Unmarshal(value); err != nil {
+					return err
+				}
+
+				ppError = p
+			default:
+				return fmt.Errorf("invalid error type: %s", key)
+			}
+		}
+
+		c.Status = InError
+		c.Error = ppError
+	default:
+		return errors.New("invalid status type")
+	}
+
+	return nil
+}
+
+// ClockConfiguration represents the configuration of the epoch clock
+// returned by the interop_GetEpochConfiguration RPC call
+type ClockConfiguration struct {
+	EpochDuration uint64 `json:"epoch_duration"`
+	GenesisBlock  uint64 `json:"genesis_block"`
+}
+
+func (c ClockConfiguration) String() string {
+	return fmt.Sprintf("EpochDuration: %d, GenesisBlock: %d", c.EpochDuration, c.GenesisBlock)
 }
