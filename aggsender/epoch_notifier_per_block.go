@@ -170,6 +170,10 @@ func (e *EpochNotifierPerBlock) percentEpoch(currentBlock uint64) float64 {
 func (e *EpochNotifierPerBlock) isNotificationRequired(currentBlock, lastEpochNotified uint64) (bool, uint64) {
 	percentEpoch := e.percentEpoch(currentBlock)
 	thresholdPercent := float64(e.Config.EpochNotificationPercentage) / 100.0
+	maxTresholdPercent := float64(e.Config.NumBlockPerEpoch-1) / float64(e.Config.NumBlockPerEpoch)
+	if thresholdPercent > maxTresholdPercent {
+		thresholdPercent = maxTresholdPercent
+	}
 	if percentEpoch < thresholdPercent {
 		e.logger.Debugf("Block %d is at %f%% of the epoch no notify", currentBlock, percentEpoch*100)
 		return false, e.epochNumber(currentBlock)

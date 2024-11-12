@@ -27,6 +27,24 @@ func TestStartingBlockEpoch(t *testing.T) {
 	require.Equal(t, uint64(19), testData.sut.startingBlockEpoch(2))
 }
 
+func TestEpochNotifyPercentageEdgeCase0(t *testing.T) {
+	testData := newNotifierPerBlockTestData(t, nil)
+	testData.sut.Config.EpochNotificationPercentage = 0
+	notify, epoch := testData.sut.isNotificationRequired(9, 0)
+	require.True(t, notify)
+	require.Equal(t, uint64(1), epoch)
+}
+
+// if percent is 99 means at end of epoch, so in a config 0, epoch-size=10,
+// 99% means last block of epoch
+func TestEpochNotifyPercentageEdgeCase99(t *testing.T) {
+	testData := newNotifierPerBlockTestData(t, nil)
+	testData.sut.Config.EpochNotificationPercentage = 99
+	notify, epoch := testData.sut.isNotificationRequired(9, 0)
+	require.True(t, notify)
+	require.Equal(t, uint64(1), epoch)
+}
+
 func TestEpochStep(t *testing.T) {
 	testData := newNotifierPerBlockTestData(t, &ConfigEpochNotifierPerBlock{
 		StartingEpochBlock:          9,
