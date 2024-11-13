@@ -312,7 +312,7 @@ func TestStressAndReorgs(t *testing.T) {
 		}
 	}
 
-	commitBlocks(t, client, 2, time.Millisecond*10)
+	commitBlocks(t, client, 1, time.Millisecond*10)
 
 	waitForSyncerToCatchUp(ctx, t, syncer, client)
 
@@ -340,9 +340,17 @@ func TestStressAndReorgs(t *testing.T) {
 
 func waitForSyncerToCatchUp(ctx context.Context, t *testing.T, syncer *l1infotreesync.L1InfoTreeSync, client *simulated.Backend) {
 	t.Helper()
-	lastBlockNum, err := client.Client().BlockNumber(ctx)
-	require.NoError(t, err)
-	helpers.RequireProcessorUpdated(t, syncer, lastBlockNum)
+	for {
+		lastBlockNum, err := client.Client().BlockNumber(ctx)
+		require.NoError(t, err)
+		helpers.RequireProcessorUpdated(t, syncer, lastBlockNum)
+		lastBlockNum2, err := client.Client().BlockNumber(ctx)
+		require.NoError(t, err)
+		time.Sleep(time.Second / 2)
+		if lastBlockNum == lastBlockNum2 {
+			return
+		}
+	}
 }
 
 // commitBlocks commits the specified number of blocks with the given client and waits for the specified duration after each block
