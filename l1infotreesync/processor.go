@@ -253,6 +253,11 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		return err
 	}
 
+	// res, err = tx.Exec(`DELETE FROM l1info_leaf WHERE block_num >= $1;`, firstReorgedBlock)
+	// if err != nil {
+	// 	return err
+	// }
+
 	if err = p.l1InfoTree.Reorg(tx, firstReorgedBlock); err != nil {
 		return err
 	}
@@ -275,6 +280,9 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		p.haltedReason = ""
 	}
 	shouldRollback = false
+	log.Debugf("reorged until block %d (included)", firstReorgedBlock)
+	info, _ := p.GetLastInfo()
+	log.Debugf("last info: %+v", info)
 	return nil
 }
 

@@ -86,7 +86,7 @@ reset:
 	cancellableCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	log.Info("Starting sync...", " lastProcessedBlock", lastProcessedBlock)
+	d.log.Infof("Starting sync... lastProcessedBlock %d", lastProcessedBlock)
 	// start downloading
 	downloadCh := make(chan EVMBlock, d.downloadBufferSize)
 	go d.downloader.Download(cancellableCtx, lastProcessedBlock+1, downloadCh)
