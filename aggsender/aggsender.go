@@ -55,7 +55,7 @@ func New(
 	cfg Config,
 	aggLayerClient agglayer.AgglayerClientInterface,
 	l1InfoTreeSyncer *l1infotreesync.L1InfoTreeSync,
-	l2Syncer *bridgesync.BridgeSync,
+	l2Syncer types.L2BridgeSyncer,
 	epochNotifier types.EpochNotifier) (*AggSender, error) {
 	storage, err := db.NewAggSenderSQLStorage(logger, cfg.StoragePath)
 	if err != nil {
@@ -525,14 +525,13 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) bool {
 			}
 		}
 		if slices.Contains(nonSettledStatuses, certificateHeader.Status) {
-
-			logErrMsg += fmt.Sprintf("certificate %s is still pending, elapsed_time:%s ", certificateHeader.String(), elapsedTime)
+			logErrMsg += fmt.Sprintf("certificate %s is still pending, elapsed_time:%s ",
+				certificateHeader.String(), elapsedTime)
 		}
 	}
 	if logErrMsg != "" {
 		a.log.Infof(logErrMsg)
 		return true
-
 	}
 	return false
 }

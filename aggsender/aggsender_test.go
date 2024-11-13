@@ -280,20 +280,32 @@ func TestGetBridgeExits(t *testing.T) {
 	}
 }
 
-func TestNewAggSender(t *testing.T) {
+func TestAggSendersendCertificates(t *testing.T) {
 	AggLayerMock := agglayer.NewAgglayerClientMock(t)
 	epochNotifierMock := mocks.NewEpochNotifier(t)
-
+	bridgeL2SyncerMock := mocks.NewL2BridgeSyncer(t)
+	ctx, cancel := context.WithCancel(context.Background())
 	aggSender, err := New(
-		context.TODO(),
+		ctx,
 		log.WithFields("test", "unittest"),
-		Config{},
+		Config{
+			StoragePath: "file::memory:?cache=shared",
+		},
 		AggLayerMock,
 		nil,
-		nil,
+		bridgeL2SyncerMock,
 		epochNotifierMock)
 	require.NoError(t, err)
 	require.NotNil(t, aggSender)
+	ch := make(chan aggsendertypes.EpochEvent)
+	epochNotifierMock.EXPECT().Subscribe("aggsender").Return(ch)
+	bridgeL2SyncerMock.EXPECT().GetLastProcessedBlock(mock.Anything).Return(uint64(0), nil)
+	go aggSender.Start(ctx)
+	ch <- aggsendertypes.EpochEvent{
+		Epoch: 1,
+	}
+	time.Sleep(100 * time.Millisecond)
+	cancel()
 
 }
 
