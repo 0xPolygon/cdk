@@ -93,14 +93,14 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 		select {
 		case epoch := <-chEpoch:
 			a.log.Infof("Epoch received: %s", epoch.String())
-			thereArePendingCerts, err := a.checkPendingCertificatesStatus(ctx)
-			if err == nil && !thereArePendingCerts {
+			err := a.checkPendingCertificatesStatus(ctx)
+			if err == nil {
 				if _, err := a.sendCertificate(ctx); err != nil {
 					log.Error(err)
 				}
 			} else {
-				log.Warnf("Skipping epoch %s because there are pending certificates %v or error: %w",
-					epoch.String(), thereArePendingCerts, err)
+				log.Infof("Skipping epoch %s because  error: %w",
+					epoch.String(), err)
 			}
 		case <-ctx.Done():
 			a.log.Info("AggSender stopped")
@@ -177,7 +177,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	}
 
 	a.saveCertificateToFile(signedCertificate)
-	a.log.Debugf("certificate ready to be send to AggLayer: %s", signedCertificate.String())
+	a.log.Infof("certificate ready to be send to AggLayer: %s", signedCertificate.String())
 
 	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
 	if err != nil {
@@ -489,14 +489,14 @@ func (a *AggSender) signCertificate(certificate *agglayer.Certificate) (*agglaye
 // It returns:
 // bool -> if there are pending certificates
 // error -> if there was an error
-func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) (bool, error) {
+func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) error {
 	pendingCertificates, err := a.storage.GetCertificatesByStatus(nonSettledStatuses)
 	if err != nil {
 		err = fmt.Errorf("error getting pending certificates: %w", err)
 		a.log.Error(err)
-		return true, err
+		return err
 	}
-	thereArePendingCertificates := false
+	logErrMsg := ""
 	a.log.Debugf("checkPendingCertificatesStatus num of pendingCertificates: %d", len(pendingCertificates))
 	for _, certificate := range pendingCertificates {
 		certificateHeader, err := a.aggLayerClient.GetCertificateHeader(certificate.CertificateID)
@@ -504,18 +504,17 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) (bool, e
 			err = fmt.Errorf("error getting certificate header of %d/%s from agglayer: %w",
 				certificate.Height, certificate.String(), err)
 			a.log.Error(err)
-			return true, err
+			return err
 		}
-		if slices.Contains(nonSettledStatuses, certificateHeader.Status) {
-			thereArePendingCertificates = true
-		}
-		a.log.Debugf("aggLayerClient.GetCertificateHeader status [%s] of certificate %s ",
+		elapsedTime := time.Now().UTC().Sub(time.UnixMilli(certificate.CreatedAt))
+		a.log.Debugf("aggLayerClient.GetCertificateHeader status [%s] of certificate %s  elapsed_time:%s",
 			certificateHeader.Status,
-			certificateHeader.String())
+			certificateHeader.String(),
+			elapsedTime)
 
 		if certificateHeader.Status != certificate.Status {
-			a.log.Infof("certificate %s changed status from [%s] to [%s]",
-				certificateHeader.String(), certificate.Status, certificateHeader.Status)
+			a.log.Infof("certificate %s changed status from [%s] to [%s] elapsed_time: %s",
+				certificateHeader.String(), certificate.Status, certificateHeader.Status, elapsedTime)
 
 			certificate.Status = certificateHeader.Status
 			certificate.UpdatedAt = time.Now().UTC().UnixMilli()
@@ -523,11 +522,19 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) (bool, e
 			if err := a.storage.UpdateCertificateStatus(ctx, *certificate); err != nil {
 				err = fmt.Errorf("error updating certificate %s status in storage: %w", certificateHeader.String(), err)
 				a.log.Error(err)
-				return true, err
+				return err
 			}
 		}
+		if slices.Contains(nonSettledStatuses, certificateHeader.Status) {
+
+			logErrMsg += fmt.Sprintf("certificate %s is still pending, elapsed_time:%s ", certificateHeader.String(), elapsedTime)
+		}
 	}
-	return thereArePendingCertificates, nil
+	if logErrMsg != "" {
+		a.log.Infof(logErrMsg)
+		return fmt.Errorf(logErrMsg)
+	}
+	return nil
 }
 
 // shouldSendCertificate checks if a certificate should be sent at given time
