@@ -98,15 +98,10 @@ type Event struct {
 	Claim  *Claim
 }
 
-type BridgeContractor interface {
-	LastUpdatedDepositCount(ctx context.Context, BlockNumber uint64) (uint32, error)
-}
-
 type processor struct {
-	db             *sql.DB
-	exitTree       *tree.AppendOnlyTree
-	log            *log.Logger
-	bridgeContract BridgeContractor
+	db       *sql.DB
+	exitTree *tree.AppendOnlyTree
+	log      *log.Logger
 }
 
 func newProcessor(dbPath, loggerPrefix string) (*processor, error) {

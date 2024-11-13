@@ -33,12 +33,12 @@ func (tc TestClient) Client() *rpc.Client {
 
 // SimulatedBackendSetup defines the setup for a simulated backend.
 type SimulatedBackendSetup struct {
-	UserAuth                   *bind.TransactOpts
-	DeployerAuth               *bind.TransactOpts
-	EBZkevmBridgeAddr          common.Address
-	EBZkevmBridgeContract      *polygonzkevmbridgev2.Polygonzkevmbridgev2
-	EBZkevmBridgeProxyAddr     common.Address
-	EBZkevmBridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	UserAuth            *bind.TransactOpts
+	DeployerAuth        *bind.TransactOpts
+	BridgeAddr          common.Address
+	BridgeContract      *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	BridgeProxyAddr     common.Address
+	BridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
 }
 
 // SimulatedBackend creates a simulated backend with two accounts: user and deployer.
@@ -125,11 +125,11 @@ func SimulatedBackend(
 	}
 
 	return client, &SimulatedBackendSetup{
-		UserAuth:                   userAuth,
-		DeployerAuth:               deployerAuth,
-		EBZkevmBridgeAddr:          ebZkevmBridgeAddr,
-		EBZkevmBridgeContract:      ebZkevmBridgeContract,
-		EBZkevmBridgeProxyAddr:     ebZkevmBridgeProxyAddr,
-		EBZkevmBridgeProxyContract: ebZkevmBridgeProxyContract,
+		UserAuth:            userAuth,
+		DeployerAuth:        deployerAuth,
+		BridgeAddr:          ebZkevmBridgeAddr,
+		BridgeContract:      ebZkevmBridgeContract,
+		BridgeProxyAddr:     ebZkevmBridgeProxyAddr,
+		BridgeProxyContract: ebZkevmBridgeProxyContract,
 	}
 }

@@ -773,15 +773,6 @@ func TestInsertAndGetClaim(t *testing.T) {
 	require.Equal(t, testClaim, &claims[0])
 }
 
-type mockBridgeContract struct {
-	lastUpdatedDepositCount uint32
-	err                     error
-}
-
-func (m *mockBridgeContract) LastUpdatedDepositCount(ctx context.Context, blockNumber uint64) (uint32, error) {
-	return m.lastUpdatedDepositCount, m.err
-}
-
 func TestGetBridgesPublished(t *testing.T) {
 	t.Parallel()
 

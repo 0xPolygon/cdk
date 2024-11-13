@@ -13,7 +13,6 @@ import (
 	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/log"
-	"github.com/0xPolygon/cdk/test/aggoraclehelpers"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -23,10 +22,10 @@ import (
 func TestE2EL1toEVML2(t *testing.T) {
 	// start other needed components
 	ctx := context.Background()
-	env := aggoraclehelpers.SetupAggoracleWithEVMChain(t)
+	env := helpers.NewE2EEnvWithEVML2(t)
 	dbPathBridgeSyncL1 := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	testClient := helpers.TestClient{ClientRenamed: env.L1Client.Client()}
-	bridgeSyncL1, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, env.BridgeL1Addr, 10, etherman.LatestBlock, env.ReorgDetector, testClient, 0, time.Millisecond*10, 0, 0, 1)
+	bridgeSyncL1, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, env.BridgeL1Addr, 10, etherman.LatestBlock, env.ReorgDetectorL1, testClient, 0, time.Millisecond*10, 0, 0, 1)
 	require.NoError(t, err)
 	go bridgeSyncL1.Start(ctx)
 
