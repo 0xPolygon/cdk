@@ -5,6 +5,6 @@ setup() {
 
 @test "Verify batches" {
     echo "Waiting 10 minutes to get some settle certificate...."
-    run $PROJECT_ROOT/../test/scripts/agglayer_certificates_monitor.sh 1 600
+    run $PROJECT_ROOT/../scripts/agglayer_certificates_monitor.sh 1 600
     assert_success
 }
