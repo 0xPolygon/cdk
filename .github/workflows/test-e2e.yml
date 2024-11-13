@@ -18,6 +18,7 @@ jobs:
           - "fork11-rollup"
           - "fork12-validium"
           - "fork12-rollup"
+          - "fork12-pessimistic"
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code

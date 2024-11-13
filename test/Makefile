@@ -96,6 +96,11 @@ test-e2e-fork12-rollup: stop
 	./run-e2e.sh fork12 rollup
 	bats .
 
+.PHONY: test-e2e-fork12-pessimistic
+test-e2e-fork12-pessimistic: stop
+	./run-e2e.sh fork12 pessimistic
+	bats .
+
 .PHONY: stop
 stop:
 	kurtosis clean --all
