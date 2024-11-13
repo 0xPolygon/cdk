@@ -118,8 +118,8 @@ func CommonSetup(t *testing.T) (
 	go rdL1.Start(ctx) //nolint:errcheck
 
 	// L1 info tree sync
-	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	l1InfoTreeSync, err := l1infotreesync.New(ctx, dbPathSyncer,
+	dbPathL1InfoTreeSync := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	l1InfoTreeSync, err := l1infotreesync.New(ctx, dbPathL1InfoTreeSync,
 		gerL1Addr, common.Address{},
 		syncBlockChunkSize, etherman.LatestBlock,
 		rdL1, l1Client.Client(),
@@ -129,7 +129,8 @@ func CommonSetup(t *testing.T) (
 
 	// Bridge sync
 	testClient := TestClient{ClientRenamed: l1Client.Client()}
-	bridgeL1Sync, err := bridgesync.NewL1(ctx, dbPathSyncer, bridgeL1Addr, 10, etherman.LatestBlock, rdL1, testClient, 0, time.Millisecond*10, 0, 0, 1)
+	dbPathBridgeSync := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	bridgeL1Sync, err := bridgesync.NewL1(ctx, dbPathBridgeSync, bridgeL1Addr, 10, etherman.LatestBlock, rdL1, testClient, 0, time.Millisecond*10, 0, 0, 1)
 	require.NoError(t, err)
 	go bridgeL1Sync.Start(ctx)
 

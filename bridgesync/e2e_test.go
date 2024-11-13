@@ -4,8 +4,10 @@ import (
 	"context"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/0xPolygon/cdk/bridgesync"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -13,35 +15,77 @@ import (
 )
 
 func TestBridgeEventE2E(t *testing.T) {
+	const (
+		totalBridges          = 100
+		totalReorgs           = 10
+		maxReorgDepth         = 5
+		reorgEveryXIterations = 10
+	)
 	env := helpers.NewE2EEnvWithEVML2(t)
 	ctx := context.Background()
 
 	// Send bridge txs
+	bridgesSent := 0
+	reorgs := 0
 	expectedBridges := []bridgesync.Bridge{}
-
-	for i := 0; i < 100; i++ {
+	lastDepositCount := uint32(0)
+	for i := 1; i > 0; i++ {
+		// Send bridge
 		bridge := bridgesync.Bridge{
-			BlockNum:           uint64(4 + i),
 			Amount:             big.NewInt(0),
-			DepositCount:       uint32(i),
-			DestinationNetwork: 3,
+			DepositCount:       lastDepositCount,
+			DestinationNetwork: uint32(i),
 			DestinationAddress: common.HexToAddress("f00"),
 			Metadata:           []byte{},
 		}
+		lastDepositCount++
 		tx, err := env.BridgeL1Contract.BridgeAsset(
 			env.AuthL1,
 			bridge.DestinationNetwork,
 			bridge.DestinationAddress,
 			bridge.Amount,
 			bridge.OriginAddress,
-			false, nil,
+			true, nil,
 		)
 		require.NoError(t, err)
-		env.L1Client.Commit()
+		helpers.CommitBlocks(t, env.L1Client, 1, time.Millisecond*100)
+		bn, err := env.L1Client.Client().BlockNumber(ctx)
+		require.NoError(t, err)
+		bridge.BlockNum = bn
 		receipt, err := env.L1Client.Client().TransactionReceipt(ctx, tx.Hash())
 		require.NoError(t, err)
 		require.Equal(t, receipt.Status, types.ReceiptStatusSuccessful)
 		expectedBridges = append(expectedBridges, bridge)
+		bridgesSent++
+
+		// Trigger reorg
+		if i%reorgEveryXIterations == 0 {
+			blocksToReorg := 1 + i%maxReorgDepth
+			bn, err := env.L1Client.Client().BlockNumber(ctx)
+			require.NoError(t, err)
+			helpers.Reorg(t, env.L1Client, uint64(blocksToReorg))
+			// Clean expected bridges
+			lastValidBlock := bn - uint64(blocksToReorg)
+			reorgEffective := false
+			for i := len(expectedBridges) - 1; i >= 0; i-- {
+				if expectedBridges[i].BlockNum > lastValidBlock {
+					log.Debugf("removing expectedBridge with depositCount %d due to reorg", expectedBridges[i].DepositCount)
+					lastDepositCount = expectedBridges[i].DepositCount
+					expectedBridges = expectedBridges[0:i]
+					reorgEffective = true
+					bridgesSent--
+				}
+			}
+			if reorgEffective {
+				reorgs++
+				log.Debug("reorgs: ", reorgs)
+			}
+		}
+
+		// Finish condition
+		if bridgesSent >= totalBridges && reorgs >= totalReorgs {
+			break
+		}
 	}
 
 	// TODO: replace wait with the one in  package helpers once merged
@@ -57,7 +101,10 @@ func TestBridgeEventE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	// Assert bridges
+	expectedRoot, err := env.BridgeL1Contract.GetRoot(nil)
+	require.NoError(t, err)
+	root, err := env.BridgeL1Sync.GetExitRootByIndex(ctx, expectedBridges[len(expectedBridges)-1].DepositCount)
+	require.NoError(t, err)
+	require.Equal(t, common.Hash(expectedRoot).Hex(), root.Hash.Hex())
 	require.Equal(t, expectedBridges, actualBridges)
 }
-
-// TODO: test claims and claims + bridges combined
