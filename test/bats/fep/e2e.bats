@@ -1,5 +1,5 @@
 setup() {
-    load 'helpers/common-setup'
+    load '../../helpers/common-setup'
     _common_setup
 }
 
