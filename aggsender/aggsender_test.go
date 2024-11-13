@@ -285,6 +285,7 @@ func TestAggSendersendCertificates(t *testing.T) {
 	epochNotifierMock := mocks.NewEpochNotifier(t)
 	bridgeL2SyncerMock := mocks.NewL2BridgeSyncer(t)
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	aggSender, err := New(
 		ctx,
 		log.WithFields("test", "unittest"),
@@ -305,8 +306,6 @@ func TestAggSendersendCertificates(t *testing.T) {
 		Epoch: 1,
 	}
 	time.Sleep(100 * time.Millisecond)
-	cancel()
-
 }
 
 //nolint:dupl
