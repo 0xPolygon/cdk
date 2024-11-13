@@ -23,7 +23,7 @@ function check_timeout(){
     local _end_time=$1
     current_time=$(date +%s)
     if ((current_time > _end_time)); then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Exiting... Timeout reached!"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Exiting... Timeout reached not found the expected numbers of settled certs!"
         exit 1
     fi
 }
