@@ -301,11 +301,12 @@ func TestAggSendersendCertificates(t *testing.T) {
 	ch := make(chan aggsendertypes.EpochEvent)
 	epochNotifierMock.EXPECT().Subscribe("aggsender").Return(ch)
 	bridgeL2SyncerMock.EXPECT().GetLastProcessedBlock(mock.Anything).Return(uint64(0), nil)
+
 	go aggSender.Start(ctx)
 	ch <- aggsendertypes.EpochEvent{
 		Epoch: 1,
 	}
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 }
 
 //nolint:dupl
