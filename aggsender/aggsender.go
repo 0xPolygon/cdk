@@ -93,14 +93,14 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 		select {
 		case epoch := <-chEpoch:
 			a.log.Infof("Epoch received: %s", epoch.String())
-			err := a.checkPendingCertificatesStatus(ctx)
-			if err == nil {
+			thereArePendingCerts := a.checkPendingCertificatesStatus(ctx)
+			if !thereArePendingCerts {
 				if _, err := a.sendCertificate(ctx); err != nil {
 					log.Error(err)
 				}
 			} else {
-				log.Infof("Skipping epoch %s because  error: %w",
-					epoch.String(), err)
+				log.Infof("Skipping epoch %s because there are pending certificates",
+					epoch.String())
 			}
 		case <-ctx.Done():
 			a.log.Info("AggSender stopped")
@@ -488,13 +488,12 @@ func (a *AggSender) signCertificate(certificate *agglayer.Certificate) (*agglaye
 // and updates in the storage if it changed on agglayer
 // It returns:
 // bool -> if there are pending certificates
-// error -> if there was an error
-func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) error {
+func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) bool {
 	pendingCertificates, err := a.storage.GetCertificatesByStatus(nonSettledStatuses)
 	if err != nil {
 		err = fmt.Errorf("error getting pending certificates: %w", err)
 		a.log.Error(err)
-		return err
+		return true
 	}
 	logErrMsg := ""
 	a.log.Debugf("checkPendingCertificatesStatus num of pendingCertificates: %d", len(pendingCertificates))
@@ -504,7 +503,7 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) error {
 			err = fmt.Errorf("error getting certificate header of %d/%s from agglayer: %w",
 				certificate.Height, certificate.String(), err)
 			a.log.Error(err)
-			return err
+			return true
 		}
 		elapsedTime := time.Now().UTC().Sub(time.UnixMilli(certificate.CreatedAt))
 		a.log.Debugf("aggLayerClient.GetCertificateHeader status [%s] of certificate %s  elapsed_time:%s",
@@ -522,7 +521,7 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) error {
 			if err := a.storage.UpdateCertificateStatus(ctx, *certificate); err != nil {
 				err = fmt.Errorf("error updating certificate %s status in storage: %w", certificateHeader.String(), err)
 				a.log.Error(err)
-				return err
+				return true
 			}
 		}
 		if slices.Contains(nonSettledStatuses, certificateHeader.Status) {
@@ -532,9 +531,10 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) error {
 	}
 	if logErrMsg != "" {
 		a.log.Infof(logErrMsg)
-		return fmt.Errorf(logErrMsg)
+		return true
+
 	}
-	return nil
+	return false
 }
 
 // shouldSendCertificate checks if a certificate should be sent at given time

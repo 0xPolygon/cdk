@@ -280,6 +280,23 @@ func TestGetBridgeExits(t *testing.T) {
 	}
 }
 
+func TestNewAggSender(t *testing.T) {
+	AggLayerMock := agglayer.NewAgglayerClientMock(t)
+	epochNotifierMock := mocks.NewEpochNotifier(t)
+
+	aggSender, err := New(
+		context.TODO(),
+		log.WithFields("test", "unittest"),
+		Config{},
+		AggLayerMock,
+		nil,
+		nil,
+		epochNotifierMock)
+	require.NoError(t, err)
+	require.NotNil(t, aggSender)
+
+}
+
 //nolint:dupl
 func TestGetImportedBridgeExits(t *testing.T) {
 	t.Parallel()
@@ -860,8 +877,8 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 			}
 
 			ctx := context.TODO()
-			err := aggSender.checkPendingCertificatesStatus(ctx)
-			require.Equal(t, tt.expectedError, err != nil)
+			thereArePendingCerts := aggSender.checkPendingCertificatesStatus(ctx)
+			require.Equal(t, tt.expectedError, thereArePendingCerts)
 			mockAggLayerClient.AssertExpectations(t)
 			mockStorage.AssertExpectations(t)
 		})
