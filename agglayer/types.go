@@ -556,7 +556,7 @@ func (c CertificateHeader) String() string {
 		errors = c.Error.String()
 	}
 
-	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s. Status: %s. Errors: %s",
+	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s. Status: %s. Errors: [%s]",
 		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String(), c.Status.String(), errors)
 }
 
