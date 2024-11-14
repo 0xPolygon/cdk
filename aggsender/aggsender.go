@@ -506,13 +506,13 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) bool {
 			return true
 		}
 		elapsedTime := time.Now().UTC().Sub(time.UnixMilli(certificate.CreatedAt))
-		a.log.Debugf("aggLayerClient.GetCertificateHeader status [%s] of certificate %s  elapsed_time:%s",
+		a.log.Debugf("aggLayerClient.GetCertificateHeader status [%s] of certificate %s  elapsed time:%s",
 			certificateHeader.Status,
 			certificateHeader.String(),
 			elapsedTime)
 
 		if certificateHeader.Status != certificate.Status {
-			a.log.Infof("certificate %s changed status from [%s] to [%s] elapsed_time: %s",
+			a.log.Infof("certificate %s changed status from [%s] to [%s] elapsed time: %s",
 				certificateHeader.String(), certificate.Status, certificateHeader.Status, elapsedTime)
 
 			certificate.Status = certificateHeader.Status
@@ -525,7 +525,7 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) bool {
 			}
 		}
 		if slices.Contains(nonSettledStatuses, certificateHeader.Status) {
-			a.log.Infof("certificate %s is still pending, elapsed_time:%s ",
+			a.log.Infof("certificate %s is still pending, elapsed time:%s ",
 				certificateHeader.String(), elapsedTime)
 			thereArePendingCerts = true
 		}
