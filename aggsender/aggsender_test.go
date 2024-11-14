@@ -337,13 +337,11 @@ func TestAggSenderSendCertificates(t *testing.T) {
 		Status: agglayer.Pending,
 	}, nil)
 	require.NoError(t, err)
-	//bridgeL2SyncerMock.EXPECT().GetLastProcessedBlock(mock.Anything).Return(uint64(0), nil)
 	ch <- aggsendertypes.EpochEvent{
 		Epoch: 1,
 	}
 	go aggSender.sendCertificates(ctx)
 	time.Sleep(200 * time.Millisecond)
-
 }
 
 //nolint:dupl
