@@ -88,8 +88,8 @@ func TestBridgeEventE2E(t *testing.T) {
 		}
 	}
 
-	// TODO: replace wait with the one in  package helpers once merged
 	// Wait for syncer to catch up
+	time.Sleep(time.Second) // sleeping since the processor could be up to date, but have pending reorgs
 	lb, err := env.L1Client.Client().BlockNumber(ctx)
 	require.NoError(t, err)
 	helpers.RequireProcessorUpdated(t, env.BridgeL1Sync, lb)

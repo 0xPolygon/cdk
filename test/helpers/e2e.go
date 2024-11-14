@@ -63,32 +63,42 @@ func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChainEnv {
 	oracle, err := aggoracle.New(
 		log.GetDefaultLogger(), sender,
 		l1Client.Client(), syncer,
-		etherman.LatestBlock, time.Millisecond*20) //nolint:mnd
+		etherman.LatestBlock, time.Millisecond*20, //nolint:mnd
+	)
 	require.NoError(t, err)
 	go oracle.Start(ctx)
 
 	return &AggoracleWithEVMChainEnv{
-		L1Client:         l1Client,
-		L2Client:         l2Client,
-		L1InfoTreeSync:   syncer,
-		GERL1Contract:    gerL1Contract,
-		GERL1Addr:        gerL1Addr,
-		GERL2Contract:    gerL2Contract,
-		GERL2Addr:        gerL2Addr,
-		AuthL1:           authL1,
-		AuthL2:           authL2,
-		AggOracle:        oracle,
-		AggOracleSender:  sender,
-		ReorgDetectorL1:  rdL1,
-		ReorgDetectorL2:  rdL2,
+		L1Client: l1Client,
+		L2Client: l2Client,
+
+		L1InfoTreeSync: syncer,
+
+		GERL1Contract: gerL1Contract,
+		GERL1Addr:     gerL1Addr,
+
+		GERL2Contract: gerL2Contract,
+		GERL2Addr:     gerL2Addr,
+
+		AuthL1: authL1,
+		AuthL2: authL2,
+
+		AggOracle:       oracle,
+		AggOracleSender: sender,
+
+		ReorgDetectorL1: rdL1,
+		ReorgDetectorL2: rdL2,
+
 		BridgeL1Contract: bridgeL1Contract,
 		BridgeL1Addr:     bridgeL1Addr,
 		BridgeL1Sync:     bridgeL1Sync,
+
 		BridgeL2Contract: bridgeL2Contract,
 		BridgeL2Addr:     bridgeL2Addr,
 		BridgeL2Sync:     bridgeL2Sync,
-		NetworkIDL2:      NetworkIDL2,
-		EthTxManMockL2:   ethTxManMockL2,
+
+		NetworkIDL2:    NetworkIDL2,
+		EthTxManMockL2: ethTxManMockL2,
 	}
 }
 
@@ -112,25 +122,27 @@ func CommonSetup(t *testing.T) (
 	l1Client, authL1, gerL1Addr, gerL1Contract, bridgeL1Addr, bridgeL1Contract := newSimulatedL1(t)
 
 	// Reorg detector
-	dbPathReorgDetector := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	rdL1, err := reorgdetector.New(l1Client.Client(), reorgdetector.Config{DBPath: dbPathReorgDetector})
+	dbPathReorgDetectorL1 := path.Join(t.TempDir(), "ReorgDetectorL1.sqlite")
+	rdL1, err := reorgdetector.New(l1Client.Client(), reorgdetector.Config{DBPath: dbPathReorgDetectorL1})
 	require.NoError(t, err)
 	go rdL1.Start(ctx) //nolint:errcheck
 
 	// L1 info tree sync
-	dbPathL1InfoTreeSync := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	l1InfoTreeSync, err := l1infotreesync.New(ctx, dbPathL1InfoTreeSync,
+	dbPathL1InfoTreeSync := path.Join(t.TempDir(), "L1InfoTreeSync.sqlite")
+	l1InfoTreeSync, err := l1infotreesync.New(
+		ctx, dbPathL1InfoTreeSync,
 		gerL1Addr, common.Address{},
 		syncBlockChunkSize, etherman.LatestBlock,
 		rdL1, l1Client.Client(),
-		time.Millisecond, 0, periodRetry, retries, l1infotreesync.FlagAllowWrongContractsAddrs)
+		time.Millisecond, 0, periodRetry, retries, l1infotreesync.FlagAllowWrongContractsAddrs,
+	)
 	require.NoError(t, err)
 	go l1InfoTreeSync.Start(ctx)
 
 	// Bridge sync
 	testClient := TestClient{ClientRenamed: l1Client.Client()}
-	dbPathBridgeSync := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	bridgeL1Sync, err := bridgesync.NewL1(ctx, dbPathBridgeSync, bridgeL1Addr, 10, etherman.LatestBlock, rdL1, testClient, 0, time.Millisecond*10, 0, 0, 1)
+	dbPathBridgeSyncL1 := path.Join(t.TempDir(), "BridgeSyncL1.sqlite")
+	bridgeL1Sync, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, bridgeL1Addr, 10, etherman.LatestBlock, rdL1, testClient, 0, time.Millisecond*10, 0, 0, 1)
 	require.NoError(t, err)
 	go bridgeL1Sync.Start(ctx)
 
@@ -153,22 +165,23 @@ func L2SetupEVM(t *testing.T) (
 
 	l2Client, authL2, gerL2Addr, gerL2Sc, bridgeL2Addr, bridgeL2Sc := newSimulatedEVMAggSovereignChain(t)
 	ethTxManMock := NewEthTxManMock(t, l2Client, authL2)
-	sender, err := chaingersender.NewEVMChainGERSender(log.GetDefaultLogger(),
-		gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50) //nolint:mnd
+	sender, err := chaingersender.NewEVMChainGERSender(
+		log.GetDefaultLogger(),
+		gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50, //nolint:mnd
+	)
 	require.NoError(t, err)
-
 	ctx := context.Background()
-	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	dbPathReorg := path.Join(t.TempDir(), "file::memory:?cache=shared")
 
 	// Reorg detector
-	rdL2, err := reorgdetector.New(l2Client.Client(), reorgdetector.Config{DBPath: dbPathReorg})
+	dbPathReorgL2 := path.Join(t.TempDir(), "ReorgDetectorL2.sqlite")
+	rdL2, err := reorgdetector.New(l2Client.Client(), reorgdetector.Config{DBPath: dbPathReorgL2})
 	require.NoError(t, err)
 	go rdL2.Start(ctx) //nolint:errcheck
 
 	// Bridge sync
+	dbPathL2BridgeSync := path.Join(t.TempDir(), "BridgeSyncL2.sqlite")
 	testClient := TestClient{ClientRenamed: l2Client.Client()}
-	bridgeL2Sync, err := bridgesync.NewL2(ctx, dbPathSyncer, bridgeL2Addr, 10, etherman.LatestBlock, rdL2, testClient, 0, time.Millisecond*10, 0, 0, 1)
+	bridgeL2Sync, err := bridgesync.NewL2(ctx, dbPathL2BridgeSync, bridgeL2Addr, 10, etherman.LatestBlock, rdL2, testClient, 0, time.Millisecond*10, 0, 0, 1)
 	require.NoError(t, err)
 	go bridgeL2Sync.Start(ctx)
 
@@ -214,7 +227,8 @@ func newSimulatedEVMAggSovereignChain(t *testing.T) (
 	precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2) //nolint:mnd
 
 	gerAddr, _, gerContract, err := gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(
-		setup.DeployerAuth, client.Client(), setup.UserAuth.From)
+		setup.DeployerAuth, client.Client(), setup.UserAuth.From,
+	)
 	require.NoError(t, err)
 	client.Commit()
 

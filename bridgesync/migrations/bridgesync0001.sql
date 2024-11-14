@@ -4,12 +4,12 @@ DROP TABLE IF EXISTS claim;
 DROP TABLE IF EXISTS bridge;
 
 -- +migrate Up
-CREATE TABLE block (
+CREATE TABLE block_bridge (
     num   BIGINT PRIMARY KEY
 );
 
 CREATE TABLE bridge (
-	block_num           INTEGER NOT NULL REFERENCES block(num) ON DELETE CASCADE,
+	block_num           INTEGER NOT NULL REFERENCES block_bridge(num) ON DELETE CASCADE,
 	block_pos           INTEGER NOT NULL,
 	leaf_type           INTEGER NOT NULL,
 	origin_network      INTEGER NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE bridge (
 );
 
 CREATE TABLE claim (
-	block_num               INTEGER NOT NULL REFERENCES block(num) ON DELETE CASCADE,
+	block_num               INTEGER NOT NULL REFERENCES block_bridge(num) ON DELETE CASCADE,
 	block_pos               INTEGER NOT NULL,
 	global_index           	TEXT NOT NULL,
 	origin_network          INTEGER NOT NULL,

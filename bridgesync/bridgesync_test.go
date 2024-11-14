@@ -2,6 +2,7 @@ package bridgesync_test
 
 import (
 	"context"
+	"path"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ type MockBridgeContractor struct {
 
 func TestNewLx(t *testing.T) {
 	ctx := context.Background()
-	dbPath := "test_db_path"
+	dbPath := path.Join(t.TempDir(), "TestNewLx.sqlite")
 	bridge := common.HexToAddress("0x1234567890abcdef1234567890abcdef12345678")
 	syncBlockChunkSize := uint64(100)
 	blockFinalityType := etherman.SafeBlock

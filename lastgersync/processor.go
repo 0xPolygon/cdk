@@ -111,7 +111,9 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 }
 
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
+	log.Debug("<xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  LASTGER SYNC   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 	_, err := p.db.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
+	log.Debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  LASTGER SYNC   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx>")
 	return err
 }
 
