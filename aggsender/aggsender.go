@@ -495,7 +495,7 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) bool {
 		a.log.Error(err)
 		return true
 	}
-	logErrMsg := ""
+	thereArePendingCerts := false
 	a.log.Debugf("checkPendingCertificatesStatus num of pendingCertificates: %d", len(pendingCertificates))
 	for _, certificate := range pendingCertificates {
 		certificateHeader, err := a.aggLayerClient.GetCertificateHeader(certificate.CertificateID)
@@ -525,15 +525,12 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) bool {
 			}
 		}
 		if slices.Contains(nonSettledStatuses, certificateHeader.Status) {
-			logErrMsg += fmt.Sprintf("certificate %s is still pending, elapsed_time:%s ",
+			a.log.Infof("certificate %s is still pending, elapsed_time:%s ",
 				certificateHeader.String(), elapsedTime)
+			thereArePendingCerts = true
 		}
 	}
-	if logErrMsg != "" {
-		a.log.Infof(logErrMsg)
-		return true
-	}
-	return false
+	return thereArePendingCerts
 }
 
 // shouldSendCertificate checks if a certificate should be sent at given time
