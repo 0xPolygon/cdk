@@ -47,37 +47,57 @@ setup() {
     readonly weth_token_addr=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'WETHToken()' | cast parse-bytes32-address)
 }
 
-@test "Native gas token deposit to WETH" {
+# Helper function to run native gas token deposit to WETH
+native_gas_token_deposit_to_WETH() {
+    local is_asset="$1"
+
+    local bridge_type="bridgeMessage"
+    if [[ $is_asset == "true" ]]; then
+        bridge_type="bridgeAsset"
+    fi
+
+    echo "IsAsset: $is_asset, bridge_type: $bridge_type" >&3
+
     destination_addr=$sender_addr
     local initial_receiver_balance=$(cast call --rpc-url "$l2_rpc_url" "$weth_token_addr" "$balance_of_fn_sig" "$destination_addr" | awk '{print $1}')
     echo "Initial receiver balance of native token on L2 $initial_receiver_balance" >&3
 
-    echo "=== Running LxLy deposit on L1 to network: $l2_rpc_network_id native_token: $native_token_addr" >&3
+    echo "=== Running LxLy deposit $bridge_type on L1 to network: $l2_rpc_network_id native_token: $native_token_addr" >&3
     
     destination_net=$l2_rpc_network_id
-    run bridgeAsset "$native_token_addr" "$l1_rpc_url"
+
+    run bridge "$native_token_addr" "$l1_rpc_url" "$is_asset"
     assert_success
 
     echo "=== Running LxLy claim on L2" >&3
     timeout="120"
     claim_frequency="10"
-    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url" "true"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url" "$is_asset"
     assert_success
 
     run verify_balance "$l2_rpc_url" "$weth_token_addr" "$destination_addr" "$initial_receiver_balance" "$ether_value"
     assert_success
 
-    echo "=== bridgeAsset L2 WETH: $weth_token_addr to L1 ETH" >&3
+    echo "=== $bridge_type L2 WETH: $weth_token_addr to L1 ETH" >&3
     destination_addr=$sender_addr
     destination_net=0
-    run bridgeAsset "$weth_token_addr" "$l2_rpc_url"
+
+    run bridge "$weth_token_addr" "$l2_rpc_url" "$is_asset"
     assert_success
 
     echo "=== Claim in L1 ETH" >&3
     timeout="400"
     claim_frequency="60"
-    run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url" "true"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url" "$is_asset"
     assert_success
+}
+
+@test "Native gas token deposit to WETH - BridgeAsset" {
+    run native_gas_token_deposit_to_WETH "true"
+}
+
+@test "Native gas token deposit to WETH - BridgeMessage" {
+   run native_gas_token_deposit_to_WETH "false"
 }
 
 @test "Custom gas token deposit" {
@@ -127,7 +147,7 @@ setup() {
     destination_addr=$receiver
     destination_net=$l2_rpc_network_id
     amount=$wei_amount
-    run bridgeAsset "$gas_token_addr" "$l1_rpc_url"
+    run bridge "$gas_token_addr" "$l1_rpc_url" "true"
     assert_success
 
     # Claim deposits (settle them on the L2)
@@ -150,7 +170,7 @@ setup() {
     echo "Receiver balance of gas token on L1 $initial_receiver_balance" >&3
 
     destination_net=$l1_rpc_network_id
-    run bridgeAsset "$native_token_addr" "$l2_rpc_url"
+    run bridge "$native_token_addr" "$l2_rpc_url" "true"
     assert_success
 
     # Claim withdrawals (settle them on the L1)
@@ -165,39 +185,5 @@ setup() {
     if [ $status -eq 0 ]; then
         break
     fi
-    assert_success
-}
-
-@test "Bridge message with native token" {
-    destination_addr=$sender_addr
-    local initial_receiver_balance=$(cast call --rpc-url "$l2_rpc_url" "$weth_token_addr" "$balance_of_fn_sig" "$destination_addr" | awk '{print $1}')
-
-    echo "Initial receiver balance of native token on L2 $initial_receiver_balance" >&3
-
-    echo "=== Running LxLy deposit on L1 to network with bridge message: $l2_rpc_network_id native_token: $native_token_addr" >&3
-    
-    destination_net=$l2_rpc_network_id
-    run bridgeMessage "$native_token_addr" "$l1_rpc_url"
-    assert_success
-
-    echo "=== Running LxLy claim message on L2" >&3
-    timeout="120"
-    claim_frequency="10"
-    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url" "false"
-    assert_success
-
-    run verify_balance "$l2_rpc_url" "$weth_token_addr" "$destination_addr" "$initial_receiver_balance" "$ether_value"
-    assert_success
-
-    echo "=== bridgeMessage L2 WETH: $weth_token_addr to L1 ETH" >&3
-    destination_addr=$sender_addr
-    destination_net=0
-    run bridgeMessage "$weth_token_addr" "$l2_rpc_url"
-    assert_success
-
-    echo "=== Claim message in L1 ETH" >&3
-    timeout="400"
-    claim_frequency="60"
-    run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url" "false"
     assert_success
 }
