@@ -93,9 +93,9 @@ func (hl *headersList) get(num uint64) *header {
 
 // getSorted returns headers in sorted order
 func (hl *headersList) getSorted() []header {
+	hl.RLock()
 	sortedBlocks := make([]header, 0, len(hl.headers))
 
-	hl.RLock()
 	for _, b := range hl.headers {
 		sortedBlocks = append(sortedBlocks, b)
 	}
