@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -50,13 +51,14 @@ const (
 )
 
 type mox struct {
-	stateMock          *mocks.StateInterfaceMock
+	storageMock        *mocks.StorageInterfaceMock
 	ethTxManager       *mocks.EthTxManagerClientMock
 	etherman           *mocks.EthermanMock
 	proverMock         *mocks.ProverInterfaceMock
 	aggLayerClientMock *agglayer.AgglayerClientMock
 	synchronizerMock   *mocks.SynchronizerInterfaceMock
 	rpcMock            *mocks.RPCInterfaceMock
+	txerMock           *mocks.TxerMock
 }
 
 func WaitUntil(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
@@ -76,7 +78,7 @@ func WaitUntil(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
 }
 
 func Test_Start(t *testing.T) {
-	mockState := new(mocks.StateInterfaceMock)
+	mockStorage := new(mocks.StorageInterfaceMock)
 	mockL1Syncr := new(mocks.SynchronizerInterfaceMock)
 	mockEtherman := new(mocks.EthermanMock)
 	mockEthTxManager := new(mocks.EthTxManagerClientMock)
@@ -84,21 +86,21 @@ func Test_Start(t *testing.T) {
 	mockL1Syncr.On("Sync", mock.Anything).Return(nil)
 	mockEtherman.On("GetLatestVerifiedBatchNum").Return(uint64(90), nil).Once()
 	mockEtherman.On("GetBatchAccInputHash", mock.Anything, uint64(90)).Return(common.Hash{}, nil).Once()
-	mockState.On("DeleteUngeneratedProofs", mock.Anything, nil).Return(nil).Once()
-	mockState.On("CleanupLockedProofs", mock.Anything, "", nil).Return(int64(0), nil)
+	mockStorage.On("DeleteUngeneratedProofs", mock.Anything, nil).Return(nil).Once()
+	mockStorage.On("CleanupLockedProofs", mock.Anything, "", nil).Return(int64(0), nil)
 
 	mockEthTxManager.On("Start").Return(nil)
 
 	ctx := context.Background()
 	a := &Aggregator{
-		state:                   mockState,
+		storage:                 mockStorage,
 		logger:                  log.GetDefaultLogger(),
 		halted:                  atomic.Bool{},
 		l1Syncr:                 mockL1Syncr,
 		etherman:                mockEtherman,
 		ethTxManager:            mockEthTxManager,
 		ctx:                     ctx,
-		stateDBMutex:            &sync.Mutex{},
+		storageMutex:            &sync.Mutex{},
 		timeSendFinalProofMutex: &sync.RWMutex{},
 		timeCleanupLockedProofs: types.Duration{Duration: 5 * time.Second},
 		accInputHashes:          make(map[uint64]common.Hash),
@@ -117,26 +119,26 @@ func Test_handleReorg(t *testing.T) {
 	t.Parallel()
 
 	mockL1Syncr := new(mocks.SynchronizerInterfaceMock)
-	mockState := new(mocks.StateInterfaceMock)
+	mockStorage := new(mocks.StorageInterfaceMock)
 	reorgData := synchronizer.ReorgExecutionResult{}
 
 	a := &Aggregator{
 		l1Syncr: mockL1Syncr,
-		state:   mockState,
+		storage: mockStorage,
 		logger:  log.GetDefaultLogger(),
 		halted:  atomic.Bool{},
 		ctx:     context.Background(),
 	}
 
 	mockL1Syncr.On("GetLastestVirtualBatchNumber", mock.Anything).Return(uint64(100), nil).Once()
-	mockState.On("DeleteGeneratedProofs", mock.Anything, mock.Anything, mock.Anything, nil).Return(nil).Once()
-	mockState.On("DeleteUngeneratedProofs", mock.Anything, nil).Return(nil).Once()
+	mockStorage.On("DeleteGeneratedProofs", mock.Anything, mock.Anything, mock.Anything, nil).Return(nil).Once()
+	mockStorage.On("DeleteUngeneratedProofs", mock.Anything, nil).Return(nil).Once()
 
 	go a.handleReorg(reorgData)
 	time.Sleep(3 * time.Second)
 
 	assert.True(t, a.halted.Load())
-	mockState.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
 	mockL1Syncr.AssertExpectations(t)
 }
 
@@ -144,7 +146,7 @@ func Test_handleRollbackBatches(t *testing.T) {
 	t.Parallel()
 
 	mockEtherman := new(mocks.EthermanMock)
-	mockState := new(mocks.StateInterfaceMock)
+	mockStorage := new(mocks.StorageInterfaceMock)
 
 	// Test data
 	rollbackData := synchronizer.RollbackBatchesData{
@@ -153,13 +155,13 @@ func Test_handleRollbackBatches(t *testing.T) {
 
 	mockEtherman.On("GetLatestVerifiedBatchNum").Return(uint64(90), nil).Once()
 	mockEtherman.On("GetBatchAccInputHash", mock.Anything, uint64(90)).Return(common.Hash{}, nil).Once()
-	mockState.On("DeleteUngeneratedProofs", mock.Anything, mock.Anything).Return(nil).Once()
-	mockState.On("DeleteGeneratedProofs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	mockStorage.On("DeleteUngeneratedProofs", mock.Anything, mock.Anything).Return(nil).Once()
+	mockStorage.On("DeleteGeneratedProofs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	a := Aggregator{
 		ctx:                 context.Background(),
 		etherman:            mockEtherman,
-		state:               mockState,
+		storage:             mockStorage,
 		logger:              log.GetDefaultLogger(),
 		halted:              atomic.Bool{},
 		accInputHashes:      make(map[uint64]common.Hash),
@@ -171,18 +173,18 @@ func Test_handleRollbackBatches(t *testing.T) {
 
 	assert.False(t, a.halted.Load())
 	mockEtherman.AssertExpectations(t)
-	mockState.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
 }
 
 func Test_handleRollbackBatchesHalt(t *testing.T) {
 	t.Parallel()
 
 	mockEtherman := new(mocks.EthermanMock)
-	mockState := new(mocks.StateInterfaceMock)
+	mockStorage := new(mocks.StorageInterfaceMock)
 
 	mockEtherman.On("GetLatestVerifiedBatchNum").Return(uint64(110), nil).Once()
-	mockState.On("DeleteUngeneratedProofs", mock.Anything, mock.Anything).Return(nil).Once()
-	mockState.On("DeleteGeneratedProofs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	mockStorage.On("DeleteUngeneratedProofs", mock.Anything, mock.Anything).Return(nil).Once()
+	mockStorage.On("DeleteGeneratedProofs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
 	// Test data
 	rollbackData := synchronizer.RollbackBatchesData{
@@ -192,7 +194,7 @@ func Test_handleRollbackBatchesHalt(t *testing.T) {
 	a := Aggregator{
 		ctx:                 context.Background(),
 		etherman:            mockEtherman,
-		state:               mockState,
+		storage:             mockStorage,
 		logger:              log.GetDefaultLogger(),
 		halted:              atomic.Bool{},
 		accInputHashes:      make(map[uint64]common.Hash),
@@ -211,7 +213,7 @@ func Test_handleRollbackBatchesError(t *testing.T) {
 	t.Parallel()
 
 	mockEtherman := new(mocks.EthermanMock)
-	mockState := new(mocks.StateInterfaceMock)
+	mockStorage := new(mocks.StorageInterfaceMock)
 
 	mockEtherman.On("GetLatestVerifiedBatchNum").Return(uint64(110), fmt.Errorf("error")).Once()
 
@@ -223,7 +225,7 @@ func Test_handleRollbackBatchesError(t *testing.T) {
 	a := Aggregator{
 		ctx:                 context.Background(),
 		etherman:            mockEtherman,
-		state:               mockState,
+		storage:             mockStorage,
 		logger:              log.GetDefaultLogger(),
 		halted:              atomic.Bool{},
 		accInputHashes:      make(map[uint64]common.Hash),
@@ -308,7 +310,7 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			stateMock := mocks.NewStateInterfaceMock(t)
+			storageMock := mocks.NewStorageInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
 			aggLayerClient := agglayer.NewAgglayerClientMock(t)
@@ -319,14 +321,14 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 			require.NoError(err, "error generating key")
 
 			a := Aggregator{
-				state:                   stateMock,
+				storage:                 storageMock,
 				etherman:                etherman,
 				ethTxManager:            ethTxManager,
 				aggLayerClient:          aggLayerClient,
 				finalProof:              make(chan finalProofMsg),
 				logger:                  log.GetDefaultLogger(),
 				verifyingProof:          false,
-				stateDBMutex:            &sync.Mutex{},
+				storageMutex:            &sync.Mutex{},
 				timeSendFinalProofMutex: &sync.RWMutex{},
 				sequencerPrivateKey:     privateKey,
 				rpcClient:               rpcMock,
@@ -336,7 +338,7 @@ func Test_sendFinalProofSuccess(t *testing.T) {
 			a.ctx, a.exit = context.WithCancel(context.Background())
 
 			m := mox{
-				stateMock:          stateMock,
+				storageMock:        storageMock,
 				ethTxManager:       ethTxManager,
 				etherman:           etherman,
 				aggLayerClientMock: aggLayerClient,
@@ -418,7 +420,7 @@ func Test_sendFinalProofError(t *testing.T) {
 					fmt.Println("Stopping sendFinalProof")
 					a.exit()
 				}).Return(nil, errTest).Once()
-				m.stateMock.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
+				m.storageMock.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
 			},
 			asserts: func(a *Aggregator) {
 				assert.False(a.verifyingProof)
@@ -442,7 +444,7 @@ func Test_sendFinalProofError(t *testing.T) {
 					fmt.Println("Stopping sendFinalProof")
 					a.exit()
 				}).Return(errTest)
-				m.stateMock.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
+				m.storageMock.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil).Once()
 			},
 			asserts: func(a *Aggregator) {
 				assert.False(a.verifyingProof)
@@ -464,7 +466,7 @@ func Test_sendFinalProofError(t *testing.T) {
 					fmt.Println("Stopping sendFinalProof")
 					a.exit()
 				}).Return(nil, nil, errTest)
-				m.stateMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Return(nil).Once()
+				m.storageMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Return(nil).Once()
 			},
 			asserts: func(a *Aggregator) {
 				assert.False(a.verifyingProof)
@@ -488,7 +490,7 @@ func Test_sendFinalProofError(t *testing.T) {
 					fmt.Println("Stopping sendFinalProof")
 					a.exit()
 				}).Return(nil, errTest).Once()
-				m.stateMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Return(nil).Once()
+				m.storageMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Return(nil).Once()
 			},
 			asserts: func(a *Aggregator) {
 				assert.False(a.verifyingProof)
@@ -499,7 +501,7 @@ func Test_sendFinalProofError(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			stateMock := mocks.NewStateInterfaceMock(t)
+			storageMock := mocks.NewStorageInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
 			aggLayerClient := agglayer.NewAgglayerClientMock(t)
@@ -510,14 +512,14 @@ func Test_sendFinalProofError(t *testing.T) {
 			require.NoError(err, "error generating key")
 
 			a := Aggregator{
-				state:                   stateMock,
+				storage:                 storageMock,
 				etherman:                etherman,
 				ethTxManager:            ethTxManager,
 				aggLayerClient:          aggLayerClient,
 				finalProof:              make(chan finalProofMsg),
 				logger:                  log.GetDefaultLogger(),
 				verifyingProof:          false,
-				stateDBMutex:            &sync.Mutex{},
+				storageMutex:            &sync.Mutex{},
 				timeSendFinalProofMutex: &sync.RWMutex{},
 				sequencerPrivateKey:     privateKey,
 				rpcClient:               rpcMock,
@@ -527,7 +529,7 @@ func Test_sendFinalProofError(t *testing.T) {
 			a.ctx, a.exit = context.WithCancel(context.Background())
 
 			m := mox{
-				stateMock:          stateMock,
+				storageMock:        storageMock,
 				ethTxManager:       ethTxManager,
 				etherman:           etherman,
 				aggLayerClientMock: aggLayerClient,
@@ -626,16 +628,16 @@ func Test_buildFinalProof(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			proverMock := mocks.NewProverInterfaceMock(t)
-			stateMock := mocks.NewStateInterfaceMock(t)
+			storageMock := mocks.NewStorageInterfaceMock(t)
 			rpcMock := mocks.NewRPCInterfaceMock(t)
 			m := mox{
-				proverMock: proverMock,
-				stateMock:  stateMock,
-				rpcMock:    rpcMock,
+				proverMock:  proverMock,
+				storageMock: storageMock,
+				rpcMock:     rpcMock,
 			}
 			a := Aggregator{
-				state:  stateMock,
-				logger: log.GetDefaultLogger(),
+				storage: storageMock,
+				logger:  log.GetDefaultLogger(),
 				cfg: Config{
 					SenderAddress: common.BytesToAddress([]byte("from")).Hex(),
 				},
@@ -656,9 +658,8 @@ func Test_tryBuildFinalProof(t *testing.T) {
 	errTest := errors.New("test error")
 	from := common.BytesToAddress([]byte("from"))
 	cfg := Config{
-		VerifyProofInterval:        types.Duration{Duration: time.Millisecond * 1},
-		TxProfitabilityCheckerType: ProfitabilityAcceptAll,
-		SenderAddress:              from.Hex(),
+		VerifyProofInterval: types.Duration{Duration: time.Millisecond * 1},
+		SenderAddress:       from.Hex(),
 	}
 	latestVerifiedBatchNum := uint64(22)
 	batchNum := uint64(23)
@@ -728,10 +729,10 @@ func Test_tryBuildFinalProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr").Twice()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
-				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
-				proofGeneratingTrueCall := m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(nil).Once()
+				m.storageMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
+				proofGeneratingTrueCall := m.storageMock.On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(nil).Once()
 				m.proverMock.On("FinalProof", proofToVerify.Proof, from.String()).Return(nil, errTest).Once()
-				m.stateMock.
+				m.storageMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proofToVerify, nil).
 					Return(nil).
 					Once().
@@ -749,11 +750,11 @@ func Test_tryBuildFinalProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr").Twice()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
-				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
-				proofGeneratingTrueCall := m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(nil).Once()
+				m.storageMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
+				proofGeneratingTrueCall := m.storageMock.On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(nil).Once()
 				m.proverMock.On("FinalProof", proofToVerify.Proof, from.String()).Return(&finalProofID, nil).Once()
 				m.proverMock.On("WaitFinalProof", mock.MatchedBy(matchProverCtxFn), finalProofID).Return(nil, errTest).Once()
-				m.stateMock.
+				m.storageMock.
 					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proofToVerify, nil).
 					Return(nil).
 					Once().
@@ -771,7 +772,7 @@ func Test_tryBuildFinalProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return(proverID).Once()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
-				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(nil, errTest).Once()
+				m.storageMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(nil, errTest).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -785,7 +786,7 @@ func Test_tryBuildFinalProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return(proverID).Once()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
-				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(nil, state.ErrNotFound).Once()
+				m.storageMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(nil, state.ErrNotFound).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -799,8 +800,8 @@ func Test_tryBuildFinalProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return(proverID).Twice()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
-				m.stateMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
-				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(nil).Once()
+				m.storageMock.On("GetProofReadyToVerify", mock.MatchedBy(matchProverCtxFn), latestVerifiedBatchNum, nil).Return(&proofToVerify, nil).Once()
+				m.storageMock.On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(nil).Once()
 				m.proverMock.On("FinalProof", proofToVerify.Proof, from.String()).Return(&finalProofID, nil).Once()
 				m.proverMock.On("WaitFinalProof", mock.MatchedBy(matchProverCtxFn), finalProofID).Return(&finalProof, nil).Once()
 			},
@@ -822,7 +823,7 @@ func Test_tryBuildFinalProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return(proverID).Once()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
-				m.stateMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(false, errTest).Once()
+				m.storageMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(false, errTest).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -851,7 +852,7 @@ func Test_tryBuildFinalProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Once()
 				m.proverMock.On("Addr").Return(proverID).Once()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
-				m.stateMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(false, nil).Once()
+				m.storageMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(false, nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -866,7 +867,7 @@ func Test_tryBuildFinalProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return(proverID).Twice()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(latestVerifiedBatchNum, nil).Once()
-				m.stateMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(true, nil).Once()
+				m.storageMock.On("CheckProofContainsCompleteSequences", mock.MatchedBy(matchProverCtxFn), &proofToVerify, nil).Return(true, nil).Once()
 				m.proverMock.On("FinalProof", proofToVerify.Proof, from.String()).Return(&finalProofID, nil).Once()
 				m.proverMock.On("WaitFinalProof", mock.MatchedBy(matchProverCtxFn), finalProofID).Return(&finalProof, nil).Once()
 			},
@@ -885,18 +886,18 @@ func Test_tryBuildFinalProof(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			stateMock := mocks.NewStateInterfaceMock(t)
+			storageMock := mocks.NewStorageInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
 			proverMock := mocks.NewProverInterfaceMock(t)
 
 			a := Aggregator{
 				cfg:                     cfg,
-				state:                   stateMock,
+				storage:                 storageMock,
 				etherman:                etherman,
 				ethTxManager:            ethTxManager,
 				logger:                  log.GetDefaultLogger(),
-				stateDBMutex:            &sync.Mutex{},
+				storageMutex:            &sync.Mutex{},
 				timeSendFinalProofMutex: &sync.RWMutex{},
 				timeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
 				finalProof:              make(chan finalProofMsg),
@@ -907,7 +908,7 @@ func Test_tryBuildFinalProof(t *testing.T) {
 			aggregatorCtx := context.WithValue(context.Background(), "owner", ownerAggregator) //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
 			m := mox{
-				stateMock:    stateMock,
+				storageMock:  storageMock,
 				ethTxManager: ethTxManager,
 				etherman:     etherman,
 				proverMock:   proverMock,
@@ -974,7 +975,7 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, nil, errTest).Once()
+				m.storageMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, nil, errTest).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -987,7 +988,7 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
-				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, nil, state.ErrNotFound).Once()
+				m.storageMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, nil, state.ErrNotFound).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -1000,12 +1001,12 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
-				dbTx := &mocks.DbTxMock{}
-				dbTx.On("Rollback", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
-				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Once()
-				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
+				m.txerMock.On("Rollback").Return(nil).Once()
+				m.storageMock.On("BeginTx", mock.Anything, (*sql.TxOptions)(nil)).Return(m.txerMock, nil).Once()
+				m.storageMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
+
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1019,18 +1020,19 @@ func Test_tryAggregateProofs(t *testing.T) {
 				assert.ErrorIs(err, errTest)
 			},
 		},
+
 		{
 			name: "AggregatedProof error",
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
-				dbTx := &mocks.DbTxMock{}
-				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Once()
-				lockProofsTxCommit := dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
-				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
-				proof1GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
+
+				lockProofsTxBegin := m.storageMock.On("BeginTx", mock.MatchedBy(matchProverCtxFn), (*sql.TxOptions)(nil)).Return(m.txerMock, nil).Once()
+				// lockProofsTxCommit := m.proverMock.On("Commit").Return(nil).Once()
+				m.storageMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
+				proof1GeneratingTrueCall := m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1038,8 +1040,8 @@ func Test_tryAggregateProofs(t *testing.T) {
 					}).
 					Return(nil).
 					Once()
-				proof2GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
+				proof2GeneratingTrueCall := m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, mock.Anything).
 					Run(func(args mock.Arguments) {
 						// Use a type assertion with a check
 						proofArg, ok := args[1].(*state.Proof)
@@ -1051,9 +1053,9 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Return(nil).
 					Once()
 				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(nil, errTest).Once()
-				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchAggregatorCtxFn)).Return(dbTx, nil).Once().NotBefore(lockProofsTxBegin)
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
+				m.storageMock.On("BeginTx", mock.Anything, (*sql.TxOptions)(nil)).Return(m.txerMock, nil).Once().NotBefore(lockProofsTxBegin)
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						if !ok {
@@ -1064,8 +1066,8 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Return(nil).
 					Once().
 					NotBefore(proof1GeneratingTrueCall)
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, dbTx).
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						if !ok {
@@ -1076,25 +1078,25 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Return(nil).
 					Once().
 					NotBefore(proof2GeneratingTrueCall)
-				dbTx.On("Commit", mock.MatchedBy(matchAggregatorCtxFn)).Return(nil).Once().NotBefore(lockProofsTxCommit)
+				m.txerMock.On("Commit").Return(nil)
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errTest)
 			},
 		},
+
 		{
 			name: "WaitRecursiveProof prover error",
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
-				dbTx := &mocks.DbTxMock{}
-				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Once()
-				lockProofsTxCommit := dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
-				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
-				proof1GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
+				lockProofsTxBegin := m.storageMock.On("BeginTx", mock.MatchedBy(matchProverCtxFn), (*sql.TxOptions)(nil)).Return(m.txerMock, nil).Once()
+				// lockProofsTxCommit := dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
+				m.storageMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
+				proof1GeneratingTrueCall := m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						if !ok {
@@ -1104,8 +1106,8 @@ func Test_tryAggregateProofs(t *testing.T) {
 					}).
 					Return(nil).
 					Once()
-				proof2GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
+				proof2GeneratingTrueCall := m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1115,9 +1117,9 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Once()
 				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
 				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return("", common.Hash{}, errTest).Once()
-				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchAggregatorCtxFn)).Return(dbTx, nil).Once().NotBefore(lockProofsTxBegin)
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
+				m.storageMock.On("BeginTx", mock.MatchedBy(matchAggregatorCtxFn), (*sql.TxOptions)(nil)).Return(m.txerMock, nil).Once().NotBefore(lockProofsTxBegin)
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1126,8 +1128,8 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Return(nil).
 					Once().
 					NotBefore(proof1GeneratingTrueCall)
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, dbTx).
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1136,25 +1138,25 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Return(nil).
 					Once().
 					NotBefore(proof2GeneratingTrueCall)
-				dbTx.On("Commit", mock.MatchedBy(matchAggregatorCtxFn)).Return(nil).Once().NotBefore(lockProofsTxCommit)
+				m.txerMock.On("Commit").Return(nil)
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errTest)
 			},
 		},
+
 		{
 			name: "unlockProofsToAggregate error after WaitRecursiveProof prover error",
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return(proverID)
-				dbTx := &mocks.DbTxMock{}
-				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Once()
-				dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
-				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
-				proof1GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
+				// lockProofsTxBegin := m.storageMock.On("BeginTx", mock.MatchedBy(matchProverCtxFn)).Return(m.txerMock, nil).Once()
+				m.txerMock.On("Commit").Return(nil)
+				m.storageMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
+				proof1GeneratingTrueCall := m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1162,8 +1164,8 @@ func Test_tryAggregateProofs(t *testing.T) {
 					}).
 					Return(nil).
 					Once()
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1173,9 +1175,9 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Once()
 				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
 				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return("", common.Hash{}, errTest).Once()
-				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchAggregatorCtxFn)).Return(dbTx, nil).Once().NotBefore(lockProofsTxBegin)
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
+				m.storageMock.On("BeginTx", mock.Anything, (*sql.TxOptions)(nil)).Return(m.txerMock, nil)
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1184,7 +1186,7 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Return(errTest).
 					Once().
 					NotBefore(proof1GeneratingTrueCall)
-				dbTx.On("Rollback", mock.MatchedBy(matchAggregatorCtxFn)).Return(nil).Once()
+				m.txerMock.On("Rollback").Return(nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -1197,12 +1199,11 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
-				dbTx := &mocks.DbTxMock{}
-				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
-				lockProofsTxCommit := dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
-				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
-				proof1GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
+				// lockProofsTxBegin := m.storageMock.On("BeginTx", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
+				// lockProofsTxCommit := dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
+				m.storageMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
+				proof1GeneratingTrueCall := m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1210,8 +1211,8 @@ func Test_tryAggregateProofs(t *testing.T) {
 					}).
 					Return(nil).
 					Once()
-				proof2GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
+				proof2GeneratingTrueCall := m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1221,11 +1222,11 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Once()
 				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
 				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, common.Hash{}, nil).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchProverCtxFn), proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(errTest).Once()
-				dbTx.On("Rollback", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
-				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchAggregatorCtxFn)).Return(dbTx, nil).Once().NotBefore(lockProofsTxBegin)
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
+				m.storageMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchProverCtxFn), proof1.BatchNumber, proof2.BatchNumberFinal, mock.Anything).Return(errTest).Once()
+				m.txerMock.On("Rollback").Return(nil).Once()
+				m.storageMock.On("BeginTx", mock.Anything, (*sql.TxOptions)(nil)).Return(m.txerMock, nil)
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1234,8 +1235,8 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Return(nil).
 					Once().
 					NotBefore(proof1GeneratingTrueCall)
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, dbTx).
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1244,25 +1245,25 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Return(nil).
 					Once().
 					NotBefore(proof2GeneratingTrueCall)
-				dbTx.On("Commit", mock.MatchedBy(matchAggregatorCtxFn)).Return(nil).Once().NotBefore(lockProofsTxCommit)
+				m.txerMock.On("Commit").Return(nil)
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
 				assert.ErrorIs(err, errTest)
 			},
 		},
+
 		{
 			name: "rollback after AddGeneratedProof error in db transaction",
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("Name").Return(proverName).Twice()
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
-				dbTx := &mocks.DbTxMock{}
-				lockProofsTxBegin := m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
-				lockProofsTxCommit := dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
-				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
-				proof1GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
+				// lockProofsTxBegin := m.storageMock.On("BeginTx", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
+				// lockProofsTxCommit := dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
+				m.storageMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
+				proof1GeneratingTrueCall := m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1270,8 +1271,8 @@ func Test_tryAggregateProofs(t *testing.T) {
 					}).
 					Return(nil).
 					Once()
-				proof2GeneratingTrueCall := m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
+				proof2GeneratingTrueCall := m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1281,12 +1282,12 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Once()
 				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
 				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, common.Hash{}, nil).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchProverCtxFn), proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(nil).Once()
-				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, dbTx).Return(errTest).Once()
-				dbTx.On("Rollback", mock.MatchedBy(matchProverCtxFn)).Return(nil).Once()
-				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchAggregatorCtxFn)).Return(dbTx, nil).Once().NotBefore(lockProofsTxBegin)
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, dbTx).
+				m.storageMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchProverCtxFn), proof1.BatchNumber, proof2.BatchNumberFinal, mock.Anything).Return(nil).Once()
+				m.storageMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, mock.Anything).Return(errTest).Once()
+				m.txerMock.On("Rollback").Return(nil).Once()
+				m.storageMock.On("BeginTx", mock.Anything, (*sql.TxOptions)(nil)).Return(m.txerMock, nil)
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof1, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1295,8 +1296,8 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Return(nil).
 					Once().
 					NotBefore(proof1GeneratingTrueCall)
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, dbTx).
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), &proof2, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1305,7 +1306,7 @@ func Test_tryAggregateProofs(t *testing.T) {
 					Return(nil).
 					Once().
 					NotBefore(proof2GeneratingTrueCall)
-				dbTx.On("Commit", mock.MatchedBy(matchAggregatorCtxFn)).Return(nil).Once().NotBefore(lockProofsTxCommit)
+				m.txerMock.On("Commit").Return(nil)
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -1319,12 +1320,11 @@ func Test_tryAggregateProofs(t *testing.T) {
 				m.proverMock.On("Name").Return(proverName).Times(3)
 				m.proverMock.On("ID").Return(proverID).Times(3)
 				m.proverMock.On("Addr").Return("addr")
-				dbTx := &mocks.DbTxMock{}
-				m.stateMock.On("BeginStateTransaction", mock.MatchedBy(matchProverCtxFn)).Return(dbTx, nil).Twice()
-				dbTx.On("Commit", mock.MatchedBy(matchProverCtxFn)).Return(nil).Twice()
-				m.stateMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, dbTx).
+				m.storageMock.On("BeginTx", mock.Anything, (*sql.TxOptions)(nil)).Return(m.txerMock, nil)
+				m.txerMock.On("Commit").Return(nil)
+				m.storageMock.On("GetProofsToAggregate", mock.MatchedBy(matchProverCtxFn), nil).Return(&proof1, &proof2, nil).Once()
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof1, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1332,8 +1332,8 @@ func Test_tryAggregateProofs(t *testing.T) {
 					}).
 					Return(nil).
 					Once()
-				m.stateMock.
-					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, dbTx).
+				m.storageMock.
+					On("UpdateGeneratedProof", mock.MatchedBy(matchProverCtxFn), &proof2, mock.Anything).
 					Run(func(args mock.Arguments) {
 						proofArg, ok := args[1].(*state.Proof)
 						assert.True(ok, "Expected argument of type *state.Proof")
@@ -1344,14 +1344,14 @@ func Test_tryAggregateProofs(t *testing.T) {
 
 				m.proverMock.On("AggregatedProof", proof1.Proof, proof2.Proof).Return(&proofID, nil).Once()
 				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, common.Hash{}, nil).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchProverCtxFn), proof1.BatchNumber, proof2.BatchNumberFinal, dbTx).Return(nil).Once()
+				m.storageMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchProverCtxFn), proof1.BatchNumber, proof2.BatchNumberFinal, mock.Anything).Return(nil).Once()
 				expectedInputProver := map[string]interface{}{
 					"recursive_proof_1": proof1.Proof,
 					"recursive_proof_2": proof2.Proof,
 				}
 				b, err := json.Marshal(expectedInputProver)
 				require.NoError(err)
-				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, dbTx).Run(
+				m.storageMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, mock.Anything).Run(
 					func(args mock.Arguments) {
 						proof, ok := args[1].(*state.Proof)
 						if !ok {
@@ -1368,7 +1368,7 @@ func Test_tryAggregateProofs(t *testing.T) {
 				).Return(nil).Once()
 
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(uint64(42), errTest).Once()
-				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
+				m.storageMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof, ok := args[1].(*state.Proof)
 						if !ok {
@@ -1393,17 +1393,18 @@ func Test_tryAggregateProofs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			stateMock := mocks.NewStateInterfaceMock(t)
+			storageMock := mocks.NewStorageInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
 			proverMock := mocks.NewProverInterfaceMock(t)
+			txerMock := mocks.NewTxerMock(t)
 			a := Aggregator{
 				cfg:                     cfg,
-				state:                   stateMock,
+				storage:                 storageMock,
 				etherman:                etherman,
 				ethTxManager:            ethTxManager,
 				logger:                  log.GetDefaultLogger(),
-				stateDBMutex:            &sync.Mutex{},
+				storageMutex:            &sync.Mutex{},
 				timeSendFinalProofMutex: &sync.RWMutex{},
 				timeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
 				finalProof:              make(chan finalProofMsg),
@@ -1413,10 +1414,11 @@ func Test_tryAggregateProofs(t *testing.T) {
 			aggregatorCtx := context.WithValue(context.Background(), "owner", ownerAggregator) //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
 			m := mox{
-				stateMock:    stateMock,
+				storageMock:  storageMock,
 				ethTxManager: ethTxManager,
 				etherman:     etherman,
 				proverMock:   proverMock,
+				txerMock:     txerMock,
 			}
 			if tc.setup != nil {
 				tc.setup(m, &a)
@@ -1438,7 +1440,6 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 	from := common.BytesToAddress([]byte("from"))
 	cfg := Config{
 		VerifyProofInterval:                      types.Duration{Duration: time.Duration(10000000)},
-		TxProfitabilityCheckerType:               ProfitabilityAcceptAll,
 		SenderAddress:                            from.Hex(),
 		IntervalAfterWhichBatchConsolidateAnyway: types.Duration{Duration: time.Second * 1},
 		ChainID:                                  uint64(1),
@@ -1536,8 +1537,8 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 
 				m.synchronizerMock.On("GetVirtualBatchByBatchNumber", mock.Anything, lastVerifiedBatchNum).Return(&virtualBatch, nil).Once()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
-				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(true, nil).Once()
-				m.stateMock.On("CleanupGeneratedProofs", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+				m.storageMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1, nil).Return(true, nil).Once()
+				m.storageMock.On("CleanupGeneratedProofs", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 				sequence := synchronizer.SequencedBatches{
 					FromBatchNumber: uint64(10),
 					ToBatchNumber:   uint64(20),
@@ -1548,8 +1549,8 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
 				m.rpcMock.On("GetWitness", lastVerifiedBatchNum, false).Return([]byte("witness"), nil)
 				m.rpcMock.On("GetBatch", lastVerifiedBatchNum).Return(rpcBatch, nil)
-				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
-				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
+				m.storageMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
+				m.storageMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof, ok := args[1].(*state.Proof)
 						if !ok {
@@ -1570,7 +1571,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				}, nil)
 
 				m.proverMock.On("BatchProof", mock.Anything).Return(nil, errTest).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), batchToProve.BatchNumber, batchToProve.BatchNumber, nil).Return(nil).Once()
+				m.storageMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), batchToProve.BatchNumber, batchToProve.BatchNumber, nil).Return(nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -1606,7 +1607,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				m.synchronizerMock.On("GetVirtualBatchByBatchNumber", mock.Anything, lastVerifiedBatchNum+1).Return(&virtualBatch, nil).Once()
 
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
-				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
+				m.storageMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
 				sequence := synchronizer.SequencedBatches{
 					FromBatchNumber: uint64(10),
 					ToBatchNumber:   uint64(20),
@@ -1615,8 +1616,8 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				rpcBatch := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
 				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
 				m.rpcMock.On("GetWitness", lastVerifiedBatchNum+1, false).Return([]byte("witness"), nil)
-				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
-				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
+				m.storageMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
+				m.storageMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof, ok := args[1].(*state.Proof)
 						if !ok {
@@ -1643,7 +1644,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
 				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return("", common.Hash{}, errTest).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), batchToProve.BatchNumber, batchToProve.BatchNumber, nil).Return(nil).Once()
+				m.storageMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), batchToProve.BatchNumber, batchToProve.BatchNumber, nil).Return(nil).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -1671,7 +1672,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				}
 
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
-				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
+				m.storageMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
 				sequence := synchronizer.SequencedBatches{
 					FromBatchNumber: uint64(10),
 					ToBatchNumber:   uint64(20),
@@ -1680,8 +1681,8 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				rpcBatch := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, batchL2Data, common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
 				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
 				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, nil)
-				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
-				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
+				m.storageMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
+				m.storageMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof, ok := args[1].(*state.Proof)
 						if !ok {
@@ -1717,7 +1718,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
 				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return("", common.Hash{}, errTest).Once()
-				m.stateMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), batchToProve.BatchNumber, batchToProve.BatchNumber, nil).Return(errTest).Once()
+				m.storageMock.On("DeleteGeneratedProofs", mock.MatchedBy(matchAggregatorCtxFn), batchToProve.BatchNumber, batchToProve.BatchNumber, nil).Return(errTest).Once()
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -1746,15 +1747,15 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				}
 
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
-				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
+				m.storageMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
 				sequence := synchronizer.SequencedBatches{
 					FromBatchNumber: uint64(10),
 					ToBatchNumber:   uint64(20),
 				}
 				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum+1).Return(&sequence, nil).Once()
 
-				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
-				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
+				m.storageMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
+				m.storageMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof, ok := args[1].(*state.Proof)
 						if !ok {
@@ -1793,7 +1794,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
 				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, common.Hash{}, nil).Once()
-				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
+				m.storageMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof, ok := args[1].(*state.Proof)
 						if !ok {
@@ -1837,7 +1838,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				}
 
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
-				m.stateMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
+				m.storageMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.AnythingOfType("uint64"), nil).Return(false, nil).Once()
 				sequence := synchronizer.SequencedBatches{
 					FromBatchNumber: uint64(10),
 					ToBatchNumber:   uint64(20),
@@ -1859,8 +1860,8 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				rpcBatch.SetLastL2BLockTimestamp(uint64(time.Now().Unix()))
 				m.rpcMock.On("GetBatch", lastVerifiedBatchNum+1).Return(rpcBatch, nil)
 
-				m.stateMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
-				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
+				m.storageMock.On("AddSequence", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(nil).Once()
+				m.storageMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof, ok := args[1].(*state.Proof)
 						if !ok {
@@ -1887,7 +1888,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
 				m.proverMock.On("WaitRecursiveProof", mock.MatchedBy(matchProverCtxFn), proofID).Return(recursiveProof, common.Hash{}, nil).Once()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(uint64(42), errTest).Once()
-				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
+				m.storageMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof, ok := args[1].(*state.Proof)
 						if !ok {
@@ -1912,7 +1913,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			stateMock := mocks.NewStateInterfaceMock(t)
+			storageMock := mocks.NewStorageInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
 			etherman := mocks.NewEthermanMock(t)
 			proverMock := mocks.NewProverInterfaceMock(t)
@@ -1921,15 +1922,14 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 
 			a := Aggregator{
 				cfg:                     cfg,
-				state:                   stateMock,
+				storage:                 storageMock,
 				etherman:                etherman,
 				ethTxManager:            ethTxManager,
 				logger:                  log.GetDefaultLogger(),
-				stateDBMutex:            &sync.Mutex{},
+				storageMutex:            &sync.Mutex{},
 				timeSendFinalProofMutex: &sync.RWMutex{},
 				timeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
 				finalProof:              make(chan finalProofMsg),
-				profitabilityChecker:    NewTxProfitabilityCheckerAcceptAll(stateMock, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration),
 				l1Syncr:                 synchronizerMock,
 				rpcClient:               mockRPC,
 				accInputHashes:          make(map[uint64]common.Hash),
@@ -1939,7 +1939,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
 
 			m := mox{
-				stateMock:        stateMock,
+				storageMock:      storageMock,
 				ethTxManager:     ethTxManager,
 				etherman:         etherman,
 				proverMock:       proverMock,

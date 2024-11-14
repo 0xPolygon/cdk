@@ -4,15 +4,14 @@ import (
 	"embed"
 	"fmt"
 
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/stdlib"
 	migrate "github.com/rubenv/sql-migrate"
 )
 
 const (
 	// AggregatorMigrationName is the name of the migration used to associate with the migrations dir
-	AggregatorMigrationName = "zkevm-aggregator-db"
+	AggregatorMigrationName = "aggregator-db"
 )
 
 var (
@@ -28,37 +27,32 @@ func init() {
 }
 
 // RunMigrationsUp runs migrate-up for the given config.
-func RunMigrationsUp(cfg Config, name string) error {
+func RunMigrationsUp(dbPath string, name string) error {
 	log.Info("running migrations up")
 
-	return runMigrations(cfg, name, migrate.Up)
+	return runMigrations(dbPath, name, migrate.Up)
 }
 
 // CheckMigrations runs migrate-up for the given config.
-func CheckMigrations(cfg Config, name string) error {
-	return checkMigrations(cfg, name)
+func CheckMigrations(dbPath string, name string) error {
+	return checkMigrations(dbPath, name)
 }
 
 // RunMigrationsDown runs migrate-down for the given config.
-func RunMigrationsDown(cfg Config, name string) error {
+func RunMigrationsDown(dbPath string, name string) error {
 	log.Info("running migrations down")
 
-	return runMigrations(cfg, name, migrate.Down)
+	return runMigrations(dbPath, name, migrate.Down)
 }
 
 // runMigrations will execute pending migrations if needed to keep
 // the database updated with the latest changes in either direction,
 // up or down.
-func runMigrations(cfg Config, name string, direction migrate.MigrationDirection) error {
-	c, err := pgx.ParseConfig(fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s",
-		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name,
-	))
+func runMigrations(dbPath string, name string, direction migrate.MigrationDirection) error {
+	db, err := db.NewSQLiteDB(dbPath)
 	if err != nil {
 		return err
 	}
-
-	db := stdlib.OpenDB(*c)
 
 	embedMigration, ok := embedMigrations[name]
 	if !ok {
@@ -80,16 +74,11 @@ func runMigrations(cfg Config, name string, direction migrate.MigrationDirection
 	return nil
 }
 
-func checkMigrations(cfg Config, name string) error {
-	c, err := pgx.ParseConfig(fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s",
-		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name,
-	))
+func checkMigrations(dbPath string, name string) error {
+	db, err := db.NewSQLiteDB(dbPath)
 	if err != nil {
 		return err
 	}
-
-	db := stdlib.OpenDB(*c)
 
 	embedMigration, ok := embedMigrations[name]
 	if !ok {

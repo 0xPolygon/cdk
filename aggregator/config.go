@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygon/cdk/aggregator/db"
 	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
@@ -62,14 +61,6 @@ type Config struct {
 	// ProofStatePollingInterval is the interval time to polling the prover about the generation state of a proof
 	ProofStatePollingInterval types.Duration `mapstructure:"ProofStatePollingInterval"`
 
-	// TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
-	// possible values: base/acceptall
-	TxProfitabilityCheckerType TxProfitabilityCheckerType `mapstructure:"TxProfitabilityCheckerType"`
-
-	// TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch
-	// this parameter is used for the base tx profitability checker
-	TxProfitabilityMinReward TokenAmountWithDecimals `mapstructure:"TxProfitabilityMinReward"`
-
 	// IntervalAfterWhichBatchConsolidateAnyway is the interval duration for the main sequencer to check
 	// if there are no transactions. If there are no transactions in this interval, the sequencer will
 	// consolidate the batch anyway.
@@ -117,8 +108,8 @@ type Config struct {
 	// UseFullWitness is a flag to enable the use of full witness in the aggregator
 	UseFullWitness bool `mapstructure:"UseFullWitness"`
 
-	// DB is the database configuration
-	DB db.Config `mapstructure:"DB"`
+	// DBPath is the path to the database
+	DBPath string `mapstructure:"DBPath"`
 
 	// EthTxManager is the config for the ethtxmanager
 	EthTxManager ethtxmanager.Config `mapstructure:"EthTxManager"`
