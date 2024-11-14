@@ -139,7 +139,6 @@ func (l *L1InfoTreeLeaf) globalExitRoot() common.Hash {
 }
 
 func newProcessor(dbPath string) (*processor, error) {
-	log.Debugf("=========> DB path for L1 Info Sync: %s <=========", dbPath)
 	err := migrations.RunMigrations(dbPath)
 	if err != nil {
 		return nil, err
@@ -252,15 +251,29 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		}
 	}()
 
+	log.Debug("xxxxxxxxxxxx going to delete")
 	res, err := tx.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
 	if err != nil {
 		return err
 	}
-
-	_, err = tx.Exec(`DELETE FROM l1info_leaf WHERE block_num >= $1;`, firstReorgedBlock)
+	info := &L1InfoTreeLeaf{}
+	err = meddler.QueryRow(tx, info, `
+		SELECT * FROM l1info_leaf
+		ORDER BY block_num DESC, block_pos DESC
+		LIMIT 1;
+	`)
 	if err != nil {
-		return err
+		panic("nope " + err.Error())
 	}
+	if info.BlockNumber >= firstReorgedBlock {
+		log.Fatal("on the tx 1 !!!!! unsuccessful reorg, l1 info table has invalid info")
+	}
+	log.Debug("done deleting xxxxxxxxxxxx")
+
+	// _, err = tx.Exec(`DELETE FROM l1info_leaf WHERE block_num >= $1;`, firstReorgedBlock)
+	// if err != nil {
+	// 	return err
+	// }
 
 	if err = p.l1InfoTree.Reorg(tx, firstReorgedBlock); err != nil {
 		return err
@@ -274,7 +287,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		return err
 	}
 
-	info := &L1InfoTreeLeaf{}
+	info = &L1InfoTreeLeaf{}
 	err = meddler.QueryRow(tx, info, `
 		SELECT * FROM l1info_leaf
 		ORDER BY block_num DESC, block_pos DESC
@@ -285,7 +298,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	}
 	log.Debugf("last info: %+v", info)
 	if info.BlockNumber >= firstReorgedBlock {
-		log.Fatal("on the fucking tx !!!!! unsuccessful reorg, l1 info table has invalid info")
+		log.Fatal("on the tx 2 !!!!! unsuccessful reorg, l1 info table has invalid info")
 	}
 	if err := tx.Commit(); err != nil {
 		return err

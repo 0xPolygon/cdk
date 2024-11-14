@@ -105,7 +105,6 @@ type processor struct {
 }
 
 func newProcessor(dbPath, loggerPrefix string) (*processor, error) {
-	log.Debugf("=========> DB path for Bridge Sync: %s <=========", dbPath)
 	err := migrations.RunMigrations(dbPath)
 	if err != nil {
 		return nil, err
@@ -220,7 +219,7 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 
 func (p *processor) getLastProcessedBlockWithTx(tx db.Querier) (uint64, error) {
 	var lastProcessedBlock uint64
-	row := tx.QueryRow("SELECT num FROM block_bridge ORDER BY num DESC LIMIT 1;")
+	row := tx.QueryRow("SELECT num FROM block ORDER BY num DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedBlock)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
@@ -244,7 +243,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		}
 	}()
 
-	_, err = tx.Exec(`DELETE FROM block_bridge WHERE num >= $1;`, firstReorgedBlock)
+	_, err = tx.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
 	if err != nil {
 		return err
 	}
@@ -277,7 +276,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		}
 	}()
 
-	if _, err := tx.Exec(`INSERT INTO block_bridge (num) VALUES ($1)`, block.Num); err != nil {
+	if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, block.Num); err != nil {
 		return err
 	}
 	for _, e := range block.Events {
