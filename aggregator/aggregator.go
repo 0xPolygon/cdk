@@ -1199,6 +1199,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 
 	// Log params to calculate acc input hash
 	a.logger.Debugf("Calculated acc input hash for batch %d: %v", batchNumberToVerify, accInputHash)
+	a.logger.Debugf("OldAccInputHash: %v", oldAccInputHash)
 	a.logger.Debugf("L1InfoRoot: %v", virtualBatch.L1InfoRoot)
 	// a.logger.Debugf("LastL2BLockTimestamp: %v", rpcBatch.LastL2BLockTimestamp())
 	a.logger.Debugf("TimestampLimit: %v", uint64(sequence.Timestamp.Unix()))
@@ -1217,10 +1218,11 @@ func (a *Aggregator) getAndLockBatchToProve(
 		AccInputHash:    accInputHash,
 		L1InfoTreeIndex: rpcBatch.L1InfoTreeIndex(),
 		L1InfoRoot:      *virtualBatch.L1InfoRoot,
-		Timestamp:       time.Unix(int64(rpcBatch.LastL2BLockTimestamp()), 0),
-		GlobalExitRoot:  rpcBatch.GlobalExitRoot(),
-		ChainID:         a.cfg.ChainID,
-		ForkID:          a.cfg.ForkId,
+		// Timestamp:       time.Unix(int64(rpcBatch.LastL2BLockTimestamp()), 0),
+		Timestamp:      sequence.Timestamp,
+		GlobalExitRoot: rpcBatch.GlobalExitRoot(),
+		ChainID:        a.cfg.ChainID,
+		ForkID:         a.cfg.ForkId,
 	}
 
 	// Request the witness from the server, if it is busy just keep looping until it is available
