@@ -1166,7 +1166,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	// Ensure the old acc input hash is in memory
 	oldAccInputHash := a.getAccInputHash(batchNumberToVerify - 1)
 	if oldAccInputHash == (common.Hash{}) && batchNumberToVerify > 1 {
-		tmpLogger.Warnf("AccInputHash for batch - 1 (%d) is not in memory. Waiting ...", batchNumberToVerify-1)
+		tmpLogger.Warnf("AccInputHash for previous batch (%d) is not in memory. Waiting ...", batchNumberToVerify-1)
 		return nil, nil, nil, state.ErrNotFound
 	}
 
@@ -1359,7 +1359,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 	// Sanity Check: state root from the proof must match the one from the batch
 	if a.cfg.BatchProofSanityCheckEnabled && (stateRoot != common.Hash{}) && (stateRoot != batchToProve.StateRoot) {
 		for {
-			tmpLogger.Errorf("State root from the proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]",
+			tmpLogger.Errorf("HALTING: State root from the proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]",
 				batchToProve.BatchNumber, stateRoot.String(), batchToProve.StateRoot.String(),
 			)
 			time.Sleep(a.cfg.RetryTime.Duration)
@@ -1372,7 +1372,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 	if a.cfg.BatchProofSanityCheckEnabled && (accInputHash != common.Hash{}) &&
 		(accInputHash != batchToProve.AccInputHash) {
 		for {
-			tmpLogger.Errorf("Acc input hash from the proof does not match the expected for "+
+			tmpLogger.Errorf("HALTING: Acc input hash from the proof does not match the expected for "+
 				"batch %d: Proof = [%s] Expected = [%s]",
 				batchToProve.BatchNumber, accInputHash.String(), batchToProve.AccInputHash.String(),
 			)
@@ -1544,8 +1544,8 @@ func (a *Aggregator) buildInputProver(
 	// Ensure the old acc input hash is in memory
 	oldAccInputHash := a.getAccInputHash(batchToVerify.BatchNumber - 1)
 	if oldAccInputHash == (common.Hash{}) && batchToVerify.BatchNumber > 1 {
-		a.logger.Warnf("AccInputHash for batch - 1 (%d) is not in memory. Waiting ...", batchToVerify.BatchNumber-1)
-		return nil, fmt.Errorf("acc input hash for batch - 1 (%d) is not in memory", batchToVerify.BatchNumber-1)
+		a.logger.Warnf("AccInputHash for previous batch (%d) is not in memory. Waiting ...", batchToVerify.BatchNumber-1)
+		return nil, fmt.Errorf("acc input hash for previous batch (%d) is not in memory", batchToVerify.BatchNumber-1)
 	}
 
 	inputProver := &prover.StatelessInputProver{
