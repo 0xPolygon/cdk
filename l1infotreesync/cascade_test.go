@@ -13,11 +13,11 @@ import (
 )
 
 func TestCascade(t *testing.T) {
-	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPath := path.Join(t.TempDir(), "TestCascade.sqlite")
 	p, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	ctx := context.Background()
-	for i := 1; i < 10000; i++ {
+	for i := 1; i < 10_000; i++ {
 		// insert block and info
 		tx, err := db.NewTx(ctx, p.db)
 		require.NoError(t, err)
@@ -42,13 +42,13 @@ func TestCascade(t *testing.T) {
 		if i%3 == 0 {
 			tx, err = db.NewTx(ctx, p.db)
 			require.NoError(t, err)
-			_, err = tx.Exec(`delete from block where num >= $1;`, i-1)
+			_, err = tx.Exec(`delete from block where num >= $1;`, i)
 			require.NoError(t, err)
 			require.NoError(t, tx.Commit())
 			// assert that info table is empty
 			info, err = p.GetLastInfo()
 			require.NoError(t, err)
-			require.Equal(t, info.BlockNumber, uint64(i-2))
+			require.Equal(t, info.BlockNumber, uint64(i-1))
 		}
 	}
 }

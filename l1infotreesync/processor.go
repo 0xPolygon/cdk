@@ -251,12 +251,19 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		}
 	}()
 
+	info := &L1InfoTreeLeaf{}
+	err = meddler.QueryRow(tx, info, `
+		SELECT * FROM l1info_leaf
+		ORDER BY block_num DESC, block_pos DESC
+		LIMIT 1;
+	`)
+	log.Debugf("info before delete: %d", info.BlockNumber)
 	log.Debug("xxxxxxxxxxxx going to delete")
 	res, err := tx.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
 	if err != nil {
 		return err
 	}
-	info := &L1InfoTreeLeaf{}
+	info = &L1InfoTreeLeaf{}
 	err = meddler.QueryRow(tx, info, `
 		SELECT * FROM l1info_leaf
 		ORDER BY block_num DESC, block_pos DESC
@@ -266,7 +273,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		panic("nope " + err.Error())
 	}
 	if info.BlockNumber >= firstReorgedBlock {
-		log.Fatal("on the tx 1 !!!!! unsuccessful reorg, l1 info table has invalid info")
+		log.Fatalf("on the tx: info block num before reorg: %d")
 	}
 	log.Debug("done deleting xxxxxxxxxxxx")
 

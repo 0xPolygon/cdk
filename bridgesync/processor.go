@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	mutex "sync"
 
 	"github.com/0xPolygon/cdk/bridgesync/migrations"
 	"github.com/0xPolygon/cdk/db"
@@ -99,9 +100,12 @@ type Event struct {
 }
 
 type processor struct {
-	db       *sql.DB
-	exitTree *tree.AppendOnlyTree
-	log      *log.Logger
+	db           *sql.DB
+	exitTree     *tree.AppendOnlyTree
+	log          *log.Logger
+	mu           mutex.RWMutex
+	halted       bool
+	haltedReason string
 }
 
 func newProcessor(dbPath, loggerPrefix string) (*processor, error) {
@@ -243,7 +247,11 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		}
 	}()
 
-	_, err = tx.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
+	res, err := tx.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
 	if err != nil {
 		return err
 	}
@@ -254,6 +262,12 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+	if rowsAffected > 0 {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		p.halted = false
+		p.haltedReason = ""
+	}
 
 	log.Debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  BRIDGE SYNC   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx>")
 	return nil
@@ -262,6 +276,10 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 // ProcessBlock process the events of the block to build the exit tree
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
+	if p.isHalted() {
+		log.Errorf("processor is halted due to: %s", p.haltedReason)
+		return sync.ErrInconsistentState
+	}
 	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
@@ -289,7 +307,13 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 				Index: event.Bridge.DepositCount,
 				Hash:  event.Bridge.Hash(),
 			}); err != nil {
-				return err
+				if errors.Is(err, tree.ErrInvalidIndex) {
+					p.mu.Lock()
+					p.halted = true
+					p.haltedReason = fmt.Sprintf("error adding leaf to the exit tree: %v", err)
+					p.mu.Unlock()
+				}
+				return sync.ErrInconsistentState
 			}
 			if err = meddler.Insert(tx, "bridge", event.Bridge); err != nil {
 				return err
@@ -376,4 +400,10 @@ func DecodeGlobalIndex(globalIndex *big.Int) (mainnetFlag bool,
 
 func convertBytesToUint32(bytes []byte) uint32 {
 	return uint32(big.NewInt(0).SetBytes(bytes).Uint64())
+}
+
+func (p *processor) isHalted() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.halted
 }

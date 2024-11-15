@@ -14,6 +14,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+const (
+	DefaultWaitPeriodBlockNotFound = time.Millisecond * 100
+)
+
 type EthClienter interface {
 	ethereum.LogFilterer
 	ethereum.BlockNumberReader
@@ -275,6 +279,17 @@ func (d *EVMDownloaderImplementation) GetBlockHeader(ctx context.Context, blockN
 			if errors.Is(err, context.Canceled) {
 				// context is canceled, we don't want to fatal on max attempts in this case
 				return EVMBlockHeader{}, true
+			}
+			if errors.Is(err, ethereum.NotFound) {
+				// block num can temporarly disappear from the execution client due to a reorg,
+				// in this case, we want to wait and not panic
+				log.Warnf("block %d not found on the ethereum client: %v", blockNum, err)
+				if d.rh.RetryAfterErrorPeriod != 0 {
+					time.Sleep(d.rh.RetryAfterErrorPeriod)
+				} else {
+					time.Sleep(DefaultWaitPeriodBlockNotFound)
+				}
+				continue
 			}
 
 			attempts++

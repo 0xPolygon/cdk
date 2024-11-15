@@ -16,10 +16,10 @@ import (
 
 func TestBridgeEventE2E(t *testing.T) {
 	const (
-		totalBridges          = 100
-		totalReorgs           = 10
+		totalBridges          = 1000
+		totalReorgs           = 700
 		maxReorgDepth         = 5
-		reorgEveryXIterations = 10
+		reorgEveryXIterations = 7 // every X blocks go back [1,maxReorgDepth] blocks
 	)
 	env := helpers.NewE2EEnvWithEVML2(t)
 	ctx := context.Background()
@@ -48,7 +48,7 @@ func TestBridgeEventE2E(t *testing.T) {
 			true, nil,
 		)
 		require.NoError(t, err)
-		helpers.CommitBlocks(t, env.L1Client, 1, time.Millisecond*100)
+		helpers.CommitBlocks(t, env.L1Client, 1, time.Millisecond)
 		bn, err := env.L1Client.Client().BlockNumber(ctx)
 		require.NoError(t, err)
 		bridge.BlockNum = bn
@@ -89,7 +89,7 @@ func TestBridgeEventE2E(t *testing.T) {
 	}
 
 	// Wait for syncer to catch up
-	time.Sleep(time.Second) // sleeping since the processor could be up to date, but have pending reorgs
+	time.Sleep(time.Second * 2) // sleeping since the processor could be up to date, but have pending reorgs
 	lb, err := env.L1Client.Client().BlockNumber(ctx)
 	require.NoError(t, err)
 	helpers.RequireProcessorUpdated(t, env.BridgeL1Sync, lb)
