@@ -405,9 +405,6 @@ func (p *Prover) call(req *AggregatorMessage) (*ProverMessage, error) {
 
 // GetSanityCheckHashFromProof returns info from the proof
 func GetSanityCheckHashFromProof(logger *log.Logger, proof string, startIndex, endIndex int) (common.Hash, error) {
-	// Log received proof
-	logger.Debugf("Received proof to get SR from: %s", proof)
-
 	type Publics struct {
 		Publics []string `mapstructure:"publics"`
 	}
