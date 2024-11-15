@@ -71,7 +71,7 @@ jobs:
       with:
         repository: 0xPolygon/kurtosis-cdk
         path: "kurtosis-cdk"
-        ref: "jesteban/bump_aggsender"
+        ref: "v0.2.20"
 
     - name: Setup Bats and bats libs
       uses: bats-core/bats-action@2.0.0

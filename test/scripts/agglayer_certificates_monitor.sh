@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-
 # This script monitors the agglayer certificates progress of pessimistic proof.
-###############################################################################
 
-
-###############################################################################
 function parse_params(){
     # Check if the required arguments are provided.
     if [ "$#" -lt 2 ]; then
@@ -18,7 +14,7 @@ function parse_params(){
     # The script timeout (in seconds).
     timeout="$2"
 }
-###############################################################################
+
 function check_timeout(){
     local _end_time=$1
     current_time=$(date +%s)
@@ -28,7 +24,6 @@ function check_timeout(){
     fi
 }
 
-###############################################################################
 function check_num_certificates(){
     local _cmd="echo 'select status, count(*) from certificate_info group by status;' | sqlite3 /tmp/aggsender.sqlite"
     local _outcmd=$(mktemp)
@@ -52,10 +47,7 @@ function check_num_certificates(){
     fi
 }
 
-###############################################################################
 # MAIN
-###############################################################################
-
 declare -A aggsender_status_map=(
     [0]="Pending"
     [1]="Proven"
