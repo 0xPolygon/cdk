@@ -1170,15 +1170,29 @@ func (a *Aggregator) getAndLockBatchToProve(
 		return nil, nil, nil, state.ErrNotFound
 	}
 
+	forcedBlockHashL1 := rpcBatch.ForcedBlockHashL1()
+	l1InfoRoot = *virtualBatch.L1InfoRoot
+
+	if batchNumberToVerify == 1 {
+		l1Block, err := a.l1Syncr.GetL1BlockByNumber(ctx, virtualBatch.BlockNumber)
+		if err != nil {
+			a.logger.Errorf("Error getting l1 block: %v", err)
+			return nil, nil, nil, err
+		}
+
+		forcedBlockHashL1 = l1Block.ParentHash
+		l1InfoRoot = rpcBatch.GlobalExitRoot()
+	}
+
 	// Calculate acc input hash as the RPC is not returning the correct one at the moment
 	accInputHash := cdkcommon.CalculateAccInputHash(
 		a.logger,
 		oldAccInputHash,
 		virtualBatch.BatchL2Data,
-		*virtualBatch.L1InfoRoot,
+		l1InfoRoot,
 		uint64(sequence.Timestamp.Unix()),
 		rpcBatch.LastCoinbase(),
-		rpcBatch.ForcedBlockHashL1(),
+		forcedBlockHashL1,
 	)
 	// Store the acc input hash
 	a.setAccInputHash(batchNumberToVerify, accInputHash)
