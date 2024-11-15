@@ -11,7 +11,9 @@ import (
 )
 
 const (
-	dir = "../../test/vectors/proofs"
+	dir                 = "../../test/vectors/proofs"
+	stateRootStartIndex = 19
+	stateRootFinalIndex = stateRootStartIndex + 8
 )
 
 type TestStateRoot struct {
@@ -40,7 +42,7 @@ func TestCalculateStateRoots(t *testing.T) {
 		require.NoError(t, err)
 
 		// Get the state root from the batch proof
-		fileStateRoot, err := prover.GetStateRootFromProof(log.GetDefaultLogger(), string(data))
+		fileStateRoot, err := prover.GetSanityCheckHashFromProof(log.GetDefaultLogger(), string(data), stateRootStartIndex, stateRootFinalIndex)
 		require.NoError(t, err)
 
 		// Get the expected state root

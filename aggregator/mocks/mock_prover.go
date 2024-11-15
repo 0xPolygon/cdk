@@ -220,7 +220,7 @@ func (_m *ProverInterfaceMock) WaitFinalProof(ctx context.Context, proofID strin
 }
 
 // WaitRecursiveProof provides a mock function with given fields: ctx, proofID
-func (_m *ProverInterfaceMock) WaitRecursiveProof(ctx context.Context, proofID string) (string, common.Hash, error) {
+func (_m *ProverInterfaceMock) WaitRecursiveProof(ctx context.Context, proofID string) (string, common.Hash, common.Hash, error) {
 	ret := _m.Called(ctx, proofID)
 
 	if len(ret) == 0 {
@@ -229,8 +229,9 @@ func (_m *ProverInterfaceMock) WaitRecursiveProof(ctx context.Context, proofID s
 
 	var r0 string
 	var r1 common.Hash
-	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (string, common.Hash, error)); ok {
+	var r2 common.Hash
+	var r3 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (string, common.Hash, common.Hash, error)); ok {
 		return rf(ctx, proofID)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
@@ -247,13 +248,21 @@ func (_m *ProverInterfaceMock) WaitRecursiveProof(ctx context.Context, proofID s
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, string) error); ok {
+	if rf, ok := ret.Get(2).(func(context.Context, string) common.Hash); ok {
 		r2 = rf(ctx, proofID)
 	} else {
-		r2 = ret.Error(2)
+		if ret.Get(2) != nil {
+			r2 = ret.Get(2).(common.Hash)
+		}
 	}
 
-	return r0, r1, r2
+	if rf, ok := ret.Get(3).(func(context.Context, string) error); ok {
+		r3 = rf(ctx, proofID)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
 }
 
 // NewProverInterfaceMock creates a new instance of ProverInterfaceMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

@@ -30,7 +30,7 @@ type ProverInterface interface {
 	BatchProof(input *prover.StatelessInputProver) (*string, error)
 	AggregatedProof(inputProof1, inputProof2 string) (*string, error)
 	FinalProof(inputProof string, aggregatorAddr string) (*string, error)
-	WaitRecursiveProof(ctx context.Context, proofID string) (string, common.Hash, error)
+	WaitRecursiveProof(ctx context.Context, proofID string) (string, common.Hash, common.Hash, error)
 	WaitFinalProof(ctx context.Context, proofID string) (*prover.FinalProof, error)
 }
 
