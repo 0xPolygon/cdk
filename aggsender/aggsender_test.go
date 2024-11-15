@@ -1611,3 +1611,10 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 	mockAggLayerClient.AssertExpectations(t)
 	mockL1InfoTreeSyncer.AssertExpectations(t)
 }
+
+func TestMetadataConversions(t *testing.T) {
+	toBlock := uint64(123567890)
+	c := createCertificateMetadata(toBlock)
+	extractBlock := extractFromCertificateMetadataToBlock(c)
+	require.Equal(t, toBlock, extractBlock)
+}

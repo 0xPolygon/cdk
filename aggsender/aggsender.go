@@ -627,5 +627,5 @@ func createCertificateMetadata(toBlock uint64) common.Hash {
 }
 
 func extractFromCertificateMetadataToBlock(metadata common.Hash) uint64 {
-	return common.HashToBig(metadata).Uint64()
+	return metadata.Big().Uint64()
 }
