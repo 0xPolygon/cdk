@@ -1121,7 +1121,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	// Not found, so it it not possible to verify the batch yet
 	if sequence == nil || errors.Is(err, entities.ErrNotFound) {
 		tmpLogger.Infof("Sequencing event for batch %d has not been synced yet, "+
-			"so it is not possible to verify it yet. Waiting...", batchNumberToVerify)
+			"so it is not possible to verify it yet. Waiting ...", batchNumberToVerify)
 
 		return nil, nil, nil, state.ErrNotFound
 	}
@@ -1138,7 +1138,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 		return nil, nil, nil, err
 	} else if errors.Is(err, entities.ErrNotFound) {
 		a.logger.Infof("Virtual batch %d has not been synced yet, "+
-			"so it is not possible to verify it yet. Waiting...", batchNumberToVerify)
+			"so it is not possible to verify it yet. Waiting ...", batchNumberToVerify)
 		return nil, nil, nil, state.ErrNotFound
 	}
 
@@ -1163,10 +1163,17 @@ func (a *Aggregator) getAndLockBatchToProve(
 		virtualBatch.L1InfoRoot = &l1InfoRoot
 	}
 
+	// Ensure the old acc input hash is in memory
+	oldAccInputHash := a.getAccInputHash(batchNumberToVerify - 1)
+	if oldAccInputHash == (common.Hash{}) && batchNumberToVerify > 1 {
+		tmpLogger.Warnf("AccInputHash for batch - 1 (%d) is not in memory. Waiting ...", batchNumberToVerify-1)
+		return nil, nil, nil, state.ErrNotFound
+	}
+
 	// Calculate acc input hash as the RPC is not returning the correct one at the moment
 	accInputHash := cdkcommon.CalculateAccInputHash(
 		a.logger,
-		a.getAccInputHash(batchNumberToVerify-1),
+		oldAccInputHash,
 		virtualBatch.BatchL2Data,
 		*virtualBatch.L1InfoRoot,
 		uint64(sequence.Timestamp.Unix()),
