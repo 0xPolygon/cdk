@@ -238,7 +238,6 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err != nil {
 		return err
 	}
-	log.Debug("<xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  BRIDGE SYNC   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 	defer func() {
 		if err != nil {
 			if errRllbck := tx.Rollback(); errRllbck != nil {
@@ -269,7 +268,6 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		p.haltedReason = ""
 	}
 
-	log.Debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  BRIDGE SYNC   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx>")
 	return nil
 }
 
@@ -284,7 +282,6 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if err != nil {
 		return err
 	}
-	p.log.Debug("<=======================  BRIDGE SYNC  =================================")
 	shouldRollback := true
 	defer func() {
 		if shouldRollback {
@@ -332,7 +329,6 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	shouldRollback = false
 
 	p.log.Debugf("processed %d events until block %d", len(block.Events), block.Num)
-	p.log.Debug("=======================  BRIDGE SYNC  =================================>")
 	return nil
 }
 

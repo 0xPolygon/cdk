@@ -239,8 +239,6 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err != nil {
 		return err
 	}
-	log.Debug("<xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  L1INFO   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-	log.Debugf("init reorg, first reorged block: %d", firstReorgedBlock)
 	shouldRollback := true
 	defer func() {
 		if shouldRollback {
@@ -251,36 +249,10 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		}
 	}()
 
-	info := &L1InfoTreeLeaf{}
-	err = meddler.QueryRow(tx, info, `
-		SELECT * FROM l1info_leaf
-		ORDER BY block_num DESC, block_pos DESC
-		LIMIT 1;
-	`)
-	log.Debugf("info before delete: %d", info.BlockNumber)
-	log.Debug("xxxxxxxxxxxx going to delete")
 	res, err := tx.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
 	if err != nil {
 		return err
 	}
-	info = &L1InfoTreeLeaf{}
-	err = meddler.QueryRow(tx, info, `
-		SELECT * FROM l1info_leaf
-		ORDER BY block_num DESC, block_pos DESC
-		LIMIT 1;
-	`)
-	if err != nil {
-		panic("nope " + err.Error())
-	}
-	if info.BlockNumber >= firstReorgedBlock {
-		log.Fatalf("on the tx: info block num before reorg: %d")
-	}
-	log.Debug("done deleting xxxxxxxxxxxx")
-
-	// _, err = tx.Exec(`DELETE FROM l1info_leaf WHERE block_num >= $1;`, firstReorgedBlock)
-	// if err != nil {
-	// 	return err
-	// }
 
 	if err = p.l1InfoTree.Reorg(tx, firstReorgedBlock); err != nil {
 		return err
@@ -294,19 +266,6 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		return err
 	}
 
-	info = &L1InfoTreeLeaf{}
-	err = meddler.QueryRow(tx, info, `
-		SELECT * FROM l1info_leaf
-		ORDER BY block_num DESC, block_pos DESC
-		LIMIT 1;
-	`)
-	if err != nil {
-		panic("nope " + err.Error())
-	}
-	log.Debugf("last info: %+v", info)
-	if info.BlockNumber >= firstReorgedBlock {
-		log.Fatal("on the tx 2 !!!!! unsuccessful reorg, l1 info table has invalid info")
-	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
@@ -316,14 +275,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		p.halted = false
 		p.haltedReason = ""
 	}
-	shouldRollback = false
-	log.Debugf("reorged until block %d (included)", firstReorgedBlock)
-	info, _ = p.GetLastInfo()
-	log.Debugf("last info: %+v", info)
-	if info.BlockNumber >= firstReorgedBlock {
-		log.Fatal("unsuccessful reorg, l1 info table has invalid info")
-	}
-	log.Debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  L1INFO   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx>")
+
 	return nil
 }
 
@@ -338,7 +290,6 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if err != nil {
 		return err
 	}
-	log.Debug("<=======================  L1 INFO  =================================")
 	log.Debugf("init block processing for block %d", block.Num)
 	shouldRollback := true
 	defer func() {
@@ -450,7 +401,6 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	}
 	shouldRollback = false
 	log.Infof("block %d processed with %d events", block.Num, len(block.Events))
-	log.Debug("=======================  L1 INFO  =================================>")
 	return nil
 }
 

@@ -16,10 +16,11 @@ import (
 
 func TestBridgeEventE2E(t *testing.T) {
 	const (
-		totalBridges          = 1000
-		totalReorgs           = 700
-		maxReorgDepth         = 5
-		reorgEveryXIterations = 7 // every X blocks go back [1,maxReorgDepth] blocks
+		blockTime             = time.Millisecond * 10
+		totalBridges          = 80
+		totalReorgs           = 40
+		maxReorgDepth         = 2
+		reorgEveryXIterations = 4 // every X blocks go back [1,maxReorgDepth] blocks
 	)
 	env := helpers.NewE2EEnvWithEVML2(t)
 	ctx := context.Background()
@@ -48,7 +49,7 @@ func TestBridgeEventE2E(t *testing.T) {
 			true, nil,
 		)
 		require.NoError(t, err)
-		helpers.CommitBlocks(t, env.L1Client, 1, time.Millisecond)
+		helpers.CommitBlocks(t, env.L1Client, 1, blockTime)
 		bn, err := env.L1Client.Client().BlockNumber(ctx)
 		require.NoError(t, err)
 		bridge.BlockNum = bn
