@@ -1190,7 +1190,8 @@ func (a *Aggregator) getAndLockBatchToProve(
 		oldAccInputHash,
 		virtualBatch.BatchL2Data,
 		l1InfoRoot,
-		uint64(sequence.Timestamp.Unix()),
+		// uint64(sequence.Timestamp.Unix()),
+		rpcBatch.LastL2BLockTimestamp(),
 		rpcBatch.LastCoinbase(),
 		forcedBlockHashL1,
 	)
@@ -1201,8 +1202,8 @@ func (a *Aggregator) getAndLockBatchToProve(
 	a.logger.Debugf("Calculated acc input hash for batch %d: %v", batchNumberToVerify, accInputHash)
 	a.logger.Debugf("OldAccInputHash: %v", oldAccInputHash)
 	a.logger.Debugf("L1InfoRoot: %v", virtualBatch.L1InfoRoot)
-	// a.logger.Debugf("LastL2BLockTimestamp: %v", rpcBatch.LastL2BLockTimestamp())
-	a.logger.Debugf("TimestampLimit: %v", uint64(sequence.Timestamp.Unix()))
+	a.logger.Debugf("TimestampLimit: %v", rpcBatch.LastL2BLockTimestamp())
+	// a.logger.Debugf("TimestampLimit: %v", uint64(sequence.Timestamp.Unix()))
 	a.logger.Debugf("LastCoinbase: %v", rpcBatch.LastCoinbase())
 	a.logger.Debugf("ForcedBlockHashL1: %v", rpcBatch.ForcedBlockHashL1())
 
@@ -1218,8 +1219,8 @@ func (a *Aggregator) getAndLockBatchToProve(
 		AccInputHash:    accInputHash,
 		L1InfoTreeIndex: rpcBatch.L1InfoTreeIndex(),
 		L1InfoRoot:      *virtualBatch.L1InfoRoot,
-		// Timestamp:       time.Unix(int64(rpcBatch.LastL2BLockTimestamp()), 0),
-		Timestamp:      sequence.Timestamp,
+		Timestamp:       time.Unix(int64(rpcBatch.LastL2BLockTimestamp()), 0),
+		// Timestamp:      sequence.Timestamp,
 		GlobalExitRoot: rpcBatch.GlobalExitRoot(),
 		ChainID:        a.cfg.ChainID,
 		ForkID:         a.cfg.ForkId,
