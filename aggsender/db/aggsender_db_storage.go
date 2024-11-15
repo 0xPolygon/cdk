@@ -23,7 +23,7 @@ type AggSenderStorage interface {
 	// GetCertificateByHeight returns a certificate by its height
 	GetCertificateByHeight(height uint64) (types.CertificateInfo, error)
 	// GetLastSentCertificate returns the last certificate sent to the aggLayer
-	GetLastSentCertificate() (types.CertificateInfo, error)
+	GetLastSentCertificate() (*types.CertificateInfo, error)
 	// SaveLastSentCertificate saves the last certificate sent to the aggLayer
 	SaveLastSentCertificate(ctx context.Context, certificate types.CertificateInfo) error
 	// DeleteCertificate deletes a certificate from the storage
@@ -105,14 +105,14 @@ func getCertificateByHeight(db meddler.DB,
 }
 
 // GetLastSentCertificate returns the last certificate sent to the aggLayer
-func (a *AggSenderSQLStorage) GetLastSentCertificate() (types.CertificateInfo, error) {
+func (a *AggSenderSQLStorage) GetLastSentCertificate() (*types.CertificateInfo, error) {
 	var certificateInfo types.CertificateInfo
 	if err := meddler.QueryRow(a.db, &certificateInfo,
 		"SELECT * FROM certificate_info ORDER BY height DESC LIMIT 1;"); err != nil {
-		return types.CertificateInfo{}, getSelectQueryError(0, err)
+		return nil, getSelectQueryError(0, err)
 	}
 
-	return certificateInfo, nil
+	return &certificateInfo, nil
 }
 
 // SaveLastSentCertificate saves the last certificate sent to the aggLayer

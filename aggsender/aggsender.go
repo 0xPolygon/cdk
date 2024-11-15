@@ -30,6 +30,8 @@ var (
 
 	zeroLER            = common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
 	nonSettledStatuses = []agglayer.CertificateStatus{agglayer.Pending, agglayer.Candidate, agglayer.Proven}
+
+	retryInitialStatus = 60 * time.Second
 )
 
 // AggSender is a component that will send certificates to the aggLayer
@@ -83,7 +85,64 @@ func New(
 
 // Start starts the AggSender
 func (a *AggSender) Start(ctx context.Context) {
+	var err error
+	for {
+		select {
+		case <-ctx.Done():
+			a.log.Info("AggSender stopped")
+			return
+		default:
+			err = a.checkInitialStatus(ctx)
+			if err != nil {
+				log.Errorf("error checking initial status: %w, retrying in %s", err, retryInitialStatus)
+				time.Sleep(retryInitialStatus)
+			}
+		}
+	}
 	a.sendCertificates(ctx)
+}
+
+// checkInitialStatus check local status vs agglayer status
+func (a *AggSender) checkInitialStatus(ctx context.Context) error {
+	aggLayerLastCert, err := a.aggLayerClient.GetLatestKnownCertificateHeader(a.l2Syncer.OriginNetwork())
+	// TODO: Case no certificate in agglayer
+	if err != nil {
+		return fmt.Errorf("error getting latest known certificate header from agglayer: %w", err)
+	}
+	localLastCert, err := a.storage.GetLastSentCertificate()
+	if err != nil {
+		return fmt.Errorf("error getting last sent certificate from local storage: %w", err)
+	}
+	if localLastCert == nil && aggLayerLastCert == nil {
+		log.Info("No certificates in local storage and agglayer: initial state")
+		return nil
+	}
+	if localLastCert == nil && aggLayerLastCert != nil {
+		log.Info("No certificates in local storage but agglayer have one: recovery")
+		return a.updateLocalStorageWithAggLayerCert(ctx, aggLayerLastCert)
+	}
+	if localLastCert.CertificateID != aggLayerLastCert.CertificateID {
+		a.log.Errorf("local certificate %s is different from agglayer certificate %s",
+			localLastCert.String(), aggLayerLastCert.String())
+		localLastCert.Status = agglayer.InError
+		return fmt.Errorf("mismatch between local and agglayer certificates")
+	}
+	return nil
+}
+
+func (a *AggSender) updateLocalStorageWithAggLayerCert(ctx context.Context, aggLayerCert *agglayer.CertificateHeader) error {
+	certInfo := types.CertificateInfo{
+		Height:            aggLayerCert.Height,
+		CertificateID:     aggLayerCert.CertificateID,
+		NewLocalExitRoot:  aggLayerCert.NewLocalExitRoot,
+		FromBlock:         0,
+		ToBlock:           extractFromCertificateMetadataToBlock(aggLayerCert.Metadata),
+		CreatedAt:         time.Now().UTC().UnixMilli(),
+		UpdatedAt:         time.Now().UTC().UnixMilli(),
+		SignedCertificate: "",
+	}
+	log.Infof("setting initial certificate from AggLayer: %s", certInfo.String())
+	return a.storage.SaveLastSentCertificate(ctx, certInfo)
 }
 
 // sendCertificates sends certificates to the aggLayer
@@ -132,6 +191,10 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	if err != nil {
 		return nil, err
 	}
+	if lastSentCertificateInfo == nil {
+		// There are no certificates, so we set that to a empty one
+		lastSentCertificateInfo = &types.CertificateInfo{}
+	}
 
 	previousToBlock := lastSentCertificateInfo.ToBlock
 	if lastSentCertificateInfo.Status == agglayer.InError {
@@ -166,7 +229,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
 
-	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo, toBlock)
+	certificate, err := a.buildCertificate(ctx, bridges, claims, *lastSentCertificateInfo, toBlock)
 	if err != nil {
 		return nil, fmt.Errorf("error building certificate: %w", err)
 	}
@@ -561,4 +624,8 @@ func extractSignatureData(signature []byte) (r, s common.Hash, isOddParity bool,
 // createCertificateMetadata creates a certificate metadata from given input
 func createCertificateMetadata(toBlock uint64) common.Hash {
 	return common.BigToHash(new(big.Int).SetUint64(toBlock))
+}
+
+func extractFromCertificateMetadataToBlock(metadata common.Hash) uint64 {
+	return common.HashToBig(metadata).Uint64()
 }

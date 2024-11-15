@@ -30,6 +30,7 @@ type AgglayerClientInterface interface {
 	WaitTxToBeMined(hash common.Hash, ctx context.Context) error
 	SendCertificate(certificate *SignedCertificate) (common.Hash, error)
 	GetCertificateHeader(certificateHash common.Hash) (*CertificateHeader, error)
+	GetLatestKnownCertificateHeader(networkId uint32) (*CertificateHeader, error)
 	AggLayerClientGetEpochConfiguration
 }
 
@@ -122,6 +123,26 @@ func (c *AggLayerClient) SendCertificate(certificate *SignedCertificate) (common
 // GetCertificateHeader returns the certificate header associated to the hash
 func (c *AggLayerClient) GetCertificateHeader(certificateHash common.Hash) (*CertificateHeader, error) {
 	response, err := rpc.JSONRPCCall(c.url, "interop_getCertificateHeader", certificateHash)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Error != nil {
+		return nil, fmt.Errorf("%d %s", response.Error.Code, response.Error.Message)
+	}
+
+	var result *CertificateHeader
+	err = json.Unmarshal(response.Result, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// GetLatestKnownCertificateHeader returns the last certificate header submitted by networkId
+func (c *AggLayerClient) GetLatestKnownCertificateHeader(networkId uint32) (*CertificateHeader, error) {
+	response, err := jSONRPCCall(c.url, "interop_getLatestKnownCertificateHeader", networkId)
 	if err != nil {
 		return nil, err
 	}

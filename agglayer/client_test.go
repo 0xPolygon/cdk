@@ -14,11 +14,16 @@ const (
 
 func TestExploratoryClient(t *testing.T) {
 	t.Skip("This test is for exploratory purposes only")
-	sut := NewAggLayerClient("http://127.0.0.1:32853")
+	sut := NewAggLayerClient("http://127.0.0.1:32781")
 	config, err := sut.GetEpochConfiguration()
 	require.NoError(t, err)
 	require.NotNil(t, config)
 	fmt.Printf("Config: %s", config.String())
+
+	lastCert, err := sut.GetLatestKnownCertificateHeader(1)
+	require.NoError(t, err)
+	require.NotNil(t, lastCert)
+	fmt.Printf("LastCert: %s", lastCert.String())
 }
 
 func TestGetEpochConfigurationResponseWithError(t *testing.T) {

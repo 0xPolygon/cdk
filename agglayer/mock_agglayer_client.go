@@ -138,6 +138,64 @@ func (_c *AgglayerClientMock_GetEpochConfiguration_Call) RunAndReturn(run func()
 	return _c
 }
 
+// GetLatestKnownCertificateHeader provides a mock function with given fields: networkId
+func (_m *AgglayerClientMock) GetLatestKnownCertificateHeader(networkId uint32) (*CertificateHeader, error) {
+	ret := _m.Called(networkId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLatestKnownCertificateHeader")
+	}
+
+	var r0 *CertificateHeader
+	var r1 error
+	if rf, ok := ret.Get(0).(func(uint32) (*CertificateHeader, error)); ok {
+		return rf(networkId)
+	}
+	if rf, ok := ret.Get(0).(func(uint32) *CertificateHeader); ok {
+		r0 = rf(networkId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*CertificateHeader)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(uint32) error); ok {
+		r1 = rf(networkId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// AgglayerClientMock_GetLatestKnownCertificateHeader_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLatestKnownCertificateHeader'
+type AgglayerClientMock_GetLatestKnownCertificateHeader_Call struct {
+	*mock.Call
+}
+
+// GetLatestKnownCertificateHeader is a helper method to define mock.On call
+//   - networkId uint32
+func (_e *AgglayerClientMock_Expecter) GetLatestKnownCertificateHeader(networkId interface{}) *AgglayerClientMock_GetLatestKnownCertificateHeader_Call {
+	return &AgglayerClientMock_GetLatestKnownCertificateHeader_Call{Call: _e.mock.On("GetLatestKnownCertificateHeader", networkId)}
+}
+
+func (_c *AgglayerClientMock_GetLatestKnownCertificateHeader_Call) Run(run func(networkId uint32)) *AgglayerClientMock_GetLatestKnownCertificateHeader_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(uint32))
+	})
+	return _c
+}
+
+func (_c *AgglayerClientMock_GetLatestKnownCertificateHeader_Call) Return(_a0 *CertificateHeader, _a1 error) *AgglayerClientMock_GetLatestKnownCertificateHeader_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *AgglayerClientMock_GetLatestKnownCertificateHeader_Call) RunAndReturn(run func(uint32) (*CertificateHeader, error)) *AgglayerClientMock_GetLatestKnownCertificateHeader_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SendCertificate provides a mock function with given fields: certificate
 func (_m *AgglayerClientMock) SendCertificate(certificate *SignedCertificate) (common.Hash, error) {
 	ret := _m.Called(certificate)

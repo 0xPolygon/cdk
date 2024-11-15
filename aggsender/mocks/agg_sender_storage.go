@@ -188,22 +188,24 @@ func (_c *AggSenderStorage_GetCertificatesByStatus_Call) RunAndReturn(run func([
 }
 
 // GetLastSentCertificate provides a mock function with given fields:
-func (_m *AggSenderStorage) GetLastSentCertificate() (types.CertificateInfo, error) {
+func (_m *AggSenderStorage) GetLastSentCertificate() (*types.CertificateInfo, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetLastSentCertificate")
 	}
 
-	var r0 types.CertificateInfo
+	var r0 *types.CertificateInfo
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (types.CertificateInfo, error)); ok {
+	if rf, ok := ret.Get(0).(func() (*types.CertificateInfo, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() types.CertificateInfo); ok {
+	if rf, ok := ret.Get(0).(func() *types.CertificateInfo); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(types.CertificateInfo)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*types.CertificateInfo)
+		}
 	}
 
 	if rf, ok := ret.Get(1).(func() error); ok {
@@ -232,12 +234,12 @@ func (_c *AggSenderStorage_GetLastSentCertificate_Call) Run(run func()) *AggSend
 	return _c
 }
 
-func (_c *AggSenderStorage_GetLastSentCertificate_Call) Return(_a0 types.CertificateInfo, _a1 error) *AggSenderStorage_GetLastSentCertificate_Call {
+func (_c *AggSenderStorage_GetLastSentCertificate_Call) Return(_a0 *types.CertificateInfo, _a1 error) *AggSenderStorage_GetLastSentCertificate_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *AggSenderStorage_GetLastSentCertificate_Call) RunAndReturn(run func() (types.CertificateInfo, error)) *AggSenderStorage_GetLastSentCertificate_Call {
+func (_c *AggSenderStorage_GetLastSentCertificate_Call) RunAndReturn(run func() (*types.CertificateInfo, error)) *AggSenderStorage_GetLastSentCertificate_Call {
 	_c.Call.Return(run)
 	return _c
 }
