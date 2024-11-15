@@ -1526,10 +1526,17 @@ func (a *Aggregator) buildInputProver(
 		}
 	}
 
+	// Ensure the old acc input hash is in memory
+	oldAccInputHash := a.getAccInputHash(batchToVerify.BatchNumber - 1)
+	if oldAccInputHash == (common.Hash{}) && batchToVerify.BatchNumber > 1 {
+		a.logger.Warnf("AccInputHash for batch - 1 (%d) is not in memory. Waiting ...", batchToVerify.BatchNumber-1)
+		return nil, fmt.Errorf("acc input hash for batch - 1 (%d) is not in memory", batchToVerify.BatchNumber-1)
+	}
+
 	inputProver := &prover.StatelessInputProver{
 		PublicInputs: &prover.StatelessPublicInputs{
 			Witness:           witness,
-			OldAccInputHash:   a.getAccInputHash(batchToVerify.BatchNumber - 1).Bytes(),
+			OldAccInputHash:   oldAccInputHash.Bytes(),
 			OldBatchNum:       batchToVerify.BatchNumber - 1,
 			ChainId:           batchToVerify.ChainID,
 			ForkId:            batchToVerify.ForkID,
