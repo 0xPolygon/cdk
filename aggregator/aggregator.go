@@ -970,7 +970,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover ProverInterf
 	tmpLogger.Infof("Proof ID for aggregated proof: %v", *proof.ProofID)
 	tmpLogger = tmpLogger.WithFields("proofId", *proof.ProofID)
 
-	recursiveProof, _, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
+	recursiveProof, _, _, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
 	if err != nil {
 		err = fmt.Errorf("failed to get aggregated proof from prover, %w", err)
 		tmpLogger.Error(FirstToUpper(err.Error()))
@@ -1332,7 +1332,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 
 	tmpLogger = tmpLogger.WithFields("proofId", *proof.ProofID)
 
-	resGetProof, stateRoot, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
+	resGetProof, stateRoot, accInputHash, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
 	if err != nil {
 		err = fmt.Errorf("failed to get proof from prover, %w", err)
 		tmpLogger.Error(FirstToUpper(err.Error()))
@@ -1351,6 +1351,20 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 		}
 	} else {
 		tmpLogger.Infof("State root sanity check for batch %d passed", batchToProve.BatchNumber)
+	}
+
+	// Sanity Check: acc input hash from the proof must match the one from the batch
+	if a.cfg.BatchProofSanityCheckEnabled && (accInputHash != common.Hash{}) &&
+		(accInputHash != batchToProve.AccInputHash) {
+		for {
+			tmpLogger.Errorf("Acc input hash from the proof does not match the expected for "+
+				"batch %d: Proof = [%s] Expected = [%s]",
+				batchToProve.BatchNumber, accInputHash.String(), batchToProve.AccInputHash.String(),
+			)
+			time.Sleep(a.cfg.RetryTime.Duration)
+		}
+	} else {
+		tmpLogger.Infof("Acc input hash sanity check for batch %d passed", batchToProve.BatchNumber)
 	}
 
 	proof.Proof = resGetProof
