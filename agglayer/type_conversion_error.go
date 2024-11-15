@@ -3,6 +3,8 @@ package agglayer
 import (
 	"errors"
 	"fmt"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -12,6 +14,7 @@ const (
 	BalanceUnderflowErrorType              = "BalanceUnderflow"
 	BalanceProofGenerationFailedErrorType  = "BalanceProofGenerationFailed"
 	NullifierPathGenerationFailedErrorType = "NullifierPathGenerationFailed"
+	L1InfoRootIncorrectErrorType           = "L1InfoRootIncorrect"
 )
 
 // TypeConversionError is an error that is returned when verifying a certficate
@@ -57,6 +60,12 @@ func (p *TypeConversionError) Unmarshal(data interface{}) error {
 				return nil, err
 			}
 			return nullifierPathGenerationFailed, nil
+		case L1InfoRootIncorrectErrorType:
+			l1InfoRootIncorrect := &L1InfoRootIncorrect{}
+			if err := l1InfoRootIncorrect.Unmarshal(value); err != nil {
+				return nil, err
+			}
+			return l1InfoRootIncorrect, nil
 		default:
 			return nil, fmt.Errorf("unknown type conversion error type: %v", key)
 		}
@@ -252,4 +261,46 @@ func (e *NullifierPathGenerationFailed) UnmarshalFromMap(data interface{}) error
 
 	e.GlobalIndex = &GlobalIndex{}
 	return e.GlobalIndex.UnmarshalFromMap(globalIndexMap)
+}
+
+// L1InfoRootIncorrect is an error that is returned when the L1 Info Root is invalid or unsettled
+type L1InfoRootIncorrect struct {
+	Declared  common.Hash `json:"declared"`
+	Retrieved common.Hash `json:"retrieved"`
+	LeafCount uint32      `json:"leaf_count"`
+}
+
+// String is the implementation of the Error interface
+func (e *L1InfoRootIncorrect) String() string {
+	return fmt.Sprintf("%s: The L1 Info Root is incorrect. Declared: %s, Retrieved: %s, LeafCount: %d",
+		L1InfoRootIncorrectErrorType, e.Declared.String(), e.Retrieved.String(), e.LeafCount)
+}
+
+// Unmarshal unmarshals the data from a map into a L1InfoRootIncorrect struct.
+func (e *L1InfoRootIncorrect) Unmarshal(data interface{}) error {
+	dataMap, ok := data.(map[string]interface{})
+	if !ok {
+		return errNotMap
+	}
+
+	declared, err := convertMapValue[string](dataMap, "declared")
+	if err != nil {
+		return err
+	}
+
+	retrieved, err := convertMapValue[string](dataMap, "retrieved")
+	if err != nil {
+		return err
+	}
+
+	leafCount, err := convertMapValue[uint32](dataMap, "leaf_count")
+	if err != nil {
+		return err
+	}
+
+	e.Declared = common.HexToHash(declared)
+	e.Retrieved = common.HexToHash(retrieved)
+	e.LeafCount = leafCount
+
+	return nil
 }

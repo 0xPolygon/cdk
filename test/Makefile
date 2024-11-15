@@ -68,7 +68,7 @@ generate-mocks-aggsender: ## Generates mocks for aggsender, using mockery tool
 
 .PHONY: generate-mocks-agglayer
 generate-mocks-agglayer: ## Generates mocks for agglayer, using mockery tool
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AgglayerClientInterface --dir=../agglayer --output=../agglayer --outpkg=agglayer --inpackage --structname=AgglayerClientMock --filename=mock_agglayer_client.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AgglayerClientInterface --dir=../agglayer --output=../agglayer --outpkg=agglayer --inpackage --structname=AgglayerClientMock --filename=mock_agglayer_client.go ${COMMON_MOCKERY_PARAMS}
 
 .PHONY: generate-mocks-bridgesync
 generate-mocks-bridgesync: ## Generates mocks for bridgesync, using mockery tool
