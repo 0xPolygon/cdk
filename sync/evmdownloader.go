@@ -281,7 +281,7 @@ func (d *EVMDownloaderImplementation) GetBlockHeader(ctx context.Context, blockN
 				return EVMBlockHeader{}, true
 			}
 			if errors.Is(err, ethereum.NotFound) {
-				// block num can temporarly disappear from the execution client due to a reorg,
+				// block num can temporary disappear from the execution client due to a reorg,
 				// in this case, we want to wait and not panic
 				log.Warnf("block %d not found on the ethereum client: %v", blockNum, err)
 				if d.rh.RetryAfterErrorPeriod != 0 {
