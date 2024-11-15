@@ -1359,7 +1359,8 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 	// Sanity Check: state root from the proof must match the one from the batch
 	if a.cfg.BatchProofSanityCheckEnabled && (stateRoot != common.Hash{}) && (stateRoot != batchToProve.StateRoot) {
 		for {
-			tmpLogger.Errorf("HALTING: State root from the proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]",
+			tmpLogger.Errorf("HALTING: "+
+				"State root from the proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]",
 				batchToProve.BatchNumber, stateRoot.String(), batchToProve.StateRoot.String(),
 			)
 			time.Sleep(a.cfg.RetryTime.Duration)
