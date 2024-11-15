@@ -24,7 +24,7 @@ function bridge_message() {
             echo "cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $is_forced $meta_bytes" >&3
             cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $is_forced $meta_bytes
         else
-            echo "cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr \"$bridge_sig\" $destination_net $destination_addr $is_forced $meta_bytes"
+            echo "cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $is_forced $meta_bytes"
             cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $is_forced $meta_bytes
         fi
     fi
@@ -54,7 +54,7 @@ function bridge_asset() {
             echo "cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes" >&3
             cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         else
-            echo "cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr \"$bridge_sig\" $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes"
+            echo "cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes"
             cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         fi
     fi

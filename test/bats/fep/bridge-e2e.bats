@@ -68,7 +68,7 @@ native_gas_token_deposit_to_WETH() {
     fi
     assert_success
 
-    echo "=== Running LxLy claim on L2" >&3
+    echo "=== Claiming on L2..." >&3
     timeout="120"
     claim_frequency="10"
     run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url" "$bridge_type"
@@ -88,7 +88,7 @@ native_gas_token_deposit_to_WETH() {
     fi
     assert_success
 
-    echo "=== Claim in L1 ETH" >&3
+    echo "=== Claiming on L1..." >&3
     timeout="400"
     claim_frequency="60"
     run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url" "$bridge_type"
