@@ -28,7 +28,6 @@ type testCase struct {
 }
 
 func TestClaimCalldata(t *testing.T) {
-	return
 	testCases := []testCase{}
 	// Setup Docker L1
 	log.Debug("starting docker")
