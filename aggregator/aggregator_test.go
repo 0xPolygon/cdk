@@ -1315,6 +1315,7 @@ func Test_tryAggregateProofs(t *testing.T) {
 		{
 			name: "time to send final, state error",
 			setup: func(m mox, a *Aggregator) {
+				a.accInputHashes = make(map[uint64]common.Hash)
 				a.cfg.VerifyProofInterval = types.Duration{Duration: time.Nanosecond}
 				m.proverMock.On("Name").Return(proverName).Times(3)
 				m.proverMock.On("ID").Return(proverID).Times(3)
