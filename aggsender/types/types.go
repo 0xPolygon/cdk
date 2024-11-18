@@ -15,6 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+var ZeroHash = common.Hash{}
+
 // L1InfoTreeSyncer is an interface defining functions that an L1InfoTreeSyncer should implement
 type L1InfoTreeSyncer interface {
 	GetInfoByGlobalExitRoot(globalExitRoot common.Hash) (*l1infotreesync.L1InfoTreeLeaf, error)
@@ -63,6 +65,10 @@ type CertificateInfo struct {
 	CreatedAt         int64                      `meddler:"created_at"`
 	UpdatedAt         int64                      `meddler:"updated_at"`
 	SignedCertificate string                     `meddler:"signed_certificate"`
+}
+
+func (c CertificateInfo) IsNil() bool {
+	return c.CertificateID == ZeroHash
 }
 
 func (c CertificateInfo) String() string {

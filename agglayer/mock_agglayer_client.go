@@ -138,9 +138,9 @@ func (_c *AgglayerClientMock_GetEpochConfiguration_Call) RunAndReturn(run func()
 	return _c
 }
 
-// GetLatestKnownCertificateHeader provides a mock function with given fields: networkId
-func (_m *AgglayerClientMock) GetLatestKnownCertificateHeader(networkId uint32) (*CertificateHeader, error) {
-	ret := _m.Called(networkId)
+// GetLatestKnownCertificateHeader provides a mock function with given fields: networkID
+func (_m *AgglayerClientMock) GetLatestKnownCertificateHeader(networkID uint32) (*CertificateHeader, error) {
+	ret := _m.Called(networkID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetLatestKnownCertificateHeader")
@@ -149,10 +149,10 @@ func (_m *AgglayerClientMock) GetLatestKnownCertificateHeader(networkId uint32) 
 	var r0 *CertificateHeader
 	var r1 error
 	if rf, ok := ret.Get(0).(func(uint32) (*CertificateHeader, error)); ok {
-		return rf(networkId)
+		return rf(networkID)
 	}
 	if rf, ok := ret.Get(0).(func(uint32) *CertificateHeader); ok {
-		r0 = rf(networkId)
+		r0 = rf(networkID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*CertificateHeader)
@@ -160,7 +160,7 @@ func (_m *AgglayerClientMock) GetLatestKnownCertificateHeader(networkId uint32) 
 	}
 
 	if rf, ok := ret.Get(1).(func(uint32) error); ok {
-		r1 = rf(networkId)
+		r1 = rf(networkID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -174,12 +174,12 @@ type AgglayerClientMock_GetLatestKnownCertificateHeader_Call struct {
 }
 
 // GetLatestKnownCertificateHeader is a helper method to define mock.On call
-//   - networkId uint32
-func (_e *AgglayerClientMock_Expecter) GetLatestKnownCertificateHeader(networkId interface{}) *AgglayerClientMock_GetLatestKnownCertificateHeader_Call {
-	return &AgglayerClientMock_GetLatestKnownCertificateHeader_Call{Call: _e.mock.On("GetLatestKnownCertificateHeader", networkId)}
+//   - networkID uint32
+func (_e *AgglayerClientMock_Expecter) GetLatestKnownCertificateHeader(networkID interface{}) *AgglayerClientMock_GetLatestKnownCertificateHeader_Call {
+	return &AgglayerClientMock_GetLatestKnownCertificateHeader_Call{Call: _e.mock.On("GetLatestKnownCertificateHeader", networkID)}
 }
 
-func (_c *AgglayerClientMock_GetLatestKnownCertificateHeader_Call) Run(run func(networkId uint32)) *AgglayerClientMock_GetLatestKnownCertificateHeader_Call {
+func (_c *AgglayerClientMock_GetLatestKnownCertificateHeader_Call) Run(run func(networkID uint32)) *AgglayerClientMock_GetLatestKnownCertificateHeader_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(uint32))
 	})

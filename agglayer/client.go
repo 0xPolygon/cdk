@@ -30,7 +30,7 @@ type AgglayerClientInterface interface {
 	WaitTxToBeMined(hash common.Hash, ctx context.Context) error
 	SendCertificate(certificate *SignedCertificate) (common.Hash, error)
 	GetCertificateHeader(certificateHash common.Hash) (*CertificateHeader, error)
-	GetLatestKnownCertificateHeader(networkId uint32) (*CertificateHeader, error)
+	GetLatestKnownCertificateHeader(networkID uint32) (*CertificateHeader, error)
 	AggLayerClientGetEpochConfiguration
 }
 
@@ -140,9 +140,9 @@ func (c *AggLayerClient) GetCertificateHeader(certificateHash common.Hash) (*Cer
 	return result, nil
 }
 
-// GetLatestKnownCertificateHeader returns the last certificate header submitted by networkId
-func (c *AggLayerClient) GetLatestKnownCertificateHeader(networkId uint32) (*CertificateHeader, error) {
-	response, err := jSONRPCCall(c.url, "interop_getLatestKnownCertificateHeader", networkId)
+// GetLatestKnownCertificateHeader returns the last certificate header submitted by networkID
+func (c *AggLayerClient) GetLatestKnownCertificateHeader(networkID uint32) (*CertificateHeader, error) {
+	response, err := jSONRPCCall(c.url, "interop_getLatestKnownCertificateHeader", networkID)
 	if err != nil {
 		return nil, err
 	}
