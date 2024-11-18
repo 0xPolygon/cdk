@@ -637,7 +637,8 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 }
 
 // updateLocalStorageWithAggLayerCert updates the local storage with the certificate from the AggLayer
-func (a *AggSender) updateLocalStorageWithAggLayerCert(ctx context.Context, aggLayerCert *agglayer.CertificateHeader) error {
+func (a *AggSender) updateLocalStorageWithAggLayerCert(ctx context.Context,
+	aggLayerCert *agglayer.CertificateHeader) error {
 	certInfo := types.CertificateInfo{
 		Height:            aggLayerCert.Height,
 		CertificateID:     aggLayerCert.CertificateID,

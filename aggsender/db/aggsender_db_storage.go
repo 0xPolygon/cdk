@@ -218,9 +218,9 @@ func (a *AggSenderSQLStorage) UpdateCertificate(ctx context.Context, certificate
 	return nil
 }
 
-// clean deletes all the data from the storage
+// Clean deletes all the data from the storage
 // NOTE: Used only in tests
-func (a *AggSenderSQLStorage) clean() error {
+func (a *AggSenderSQLStorage) Clean() error {
 	if _, err := a.db.Exec(`DELETE FROM certificate_info;`); err != nil {
 		return err
 	}
