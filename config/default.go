@@ -3,45 +3,75 @@ package config
 // This values doesnt have a default value because depend on the
 // environment / deployment
 const DefaultMandatoryVars = `
+
+# Layer 1 (Ethereum) RPC provider URL
 L1URL = "http://localhost:8545"
+
+# Layer 2 Sequencer RPC URL
+# Usually running on the same machine as cdk-node
 L2URL = "http://localhost:8123"
+
+# AggLayer URL
 AggLayerURL = "https://agglayer-dev.polygon.technology"
 
+# ForkId is the fork id of the chain
+ForkId = 12
 
-ForkId = 9
-ContractVersions = "elderberry"
+# ContractVersions is the version of the contracts used in the chain
+ContractVersions = "banana"
+# Set if it's a Validium or a Rollup chain
 IsValidiumMode = false
 
+# L2Coinbase is the address that will receive the fees
 L2Coinbase = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
+# SequencerPrivateKeyPath is the path to the sequencer private key
 SequencerPrivateKeyPath = "/app/sequencer.keystore"
+# SequencerPrivateKeyPassword is the password to the sequencer private key
 SequencerPrivateKeyPassword = "test"
+# WitnessURL is the URL of the RPC node that will be used to get the witness
 WitnessURL = "http://localhost:8123"
 
+# AggregatorPrivateKeyPath is the path to the aggregator private key
 AggregatorPrivateKeyPath = "/app/keystore/aggregator.keystore"
+# AggregatorPrivateKeyPassword is the password to the aggregator private key
 AggregatorPrivateKeyPassword = "testonly"
-# Who send Proof to L1? AggLayer addr, or aggregator addr?
+# SenderProofToL1Addr is the address that sends the proof to L1
 SenderProofToL1Addr = "0x0000000000000000000000000000000000000000"
+# polygonBridgeAddr is the address of the bridge contract
 polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
 
-
+##################################################
 # This values can be override directly from genesis.json
+# rollupCreationBlockNumber is the block number where the rollup contract was created
 rollupCreationBlockNumber = 0
+# rollupManagerCreationBlockNumber is the block number where the rollup manager contract was created
 rollupManagerCreationBlockNumber = 0
+# genesisBlockNumber is the block number of the genesis block
 genesisBlockNumber = 0
+
+##################################################
+# This values are used to configure the L1 network
 [L1Config]
+	# chainId is the chain id of the L1 network
 	chainId = 0
+	# polygonZkEVMGlobalExitRootAddress is the address of the global exit root contract
 	polygonZkEVMGlobalExitRootAddress = "0x0000000000000000000000000000000000000000"
+	# polygonRollupManagerAddress is the address of the rollup manager contract
 	polygonRollupManagerAddress = "0x0000000000000000000000000000000000000000"
+	# polTokenAddress is the address of the POL token
 	polTokenAddress = "0x0000000000000000000000000000000000000000"
+	# polygonZkEVMAddress is the address of the ZkEVM contract
 	polygonZkEVMAddress = "0x0000000000000000000000000000000000000000"
 
-
+##################################################
+# This values are used to configure the L2 network
 [L2Config]
+	# GlobalExitRootAddr is the address of the global exit root contract
 	GlobalExitRootAddr = "0x0000000000000000000000000000000000000000"
 
 `
 
-// This doesnt below to config, but are the vars used
+// This doesnt belong to config, but are the vars used
 // to avoid repetition in config-files
 const DefaultVars = `
 PathRWData = "/tmp/cdk"
@@ -51,65 +81,160 @@ L1URLSyncChunkSize = 100
 
 // DefaultValues is the default configuration
 const DefaultValues = `
+# This is the default configuration for the cdk-node
+
+# ForkUpgradeBatchNumber is the batch number of the fork upgrade
+# when the batch number is reached the node will stop to allow the fork upgrade
 ForkUpgradeBatchNumber = 0
+# ForkUpgradeNewForkId is the new fork id that will be used after the fork upgrade
 ForkUpgradeNewForkId = 0
 
-
+# Log configuration
 [Log]
+# Environment is the environment where the node is running
 Environment = "development" # "production" or "development"
+# Level is the log level
 Level = "info"
+# Outputs are the outputs where the logs will be written
 Outputs = ["stderr"]
 
+# Etherman configuration
 [Etherman]
+	# URL is the URL of the L1 RPC node, usually an Ethereum node or and RPC provider
 	URL="{{L1URL}}"
+	# ForkIDChunkSize is the chunk size used to get the fork id.
+	# This depends on the RPC provider, some providers don't support big chunk sizes
+	# so this should be adjusted to what the provider supports
 	ForkIDChunkSize={{L1URLSyncChunkSize}}
+
+	# EthermanConfig is the configuration of the Etherman
 	[Etherman.EthermanConfig]
+		# URL is the URL of the L1 RPC node, usually an Ethereum node or and RPC provider
 		URL="{{L1URL}}"
+		# MultiGasProvider is used to get the gas price from multiple providers
 		MultiGasProvider=false
+		# L1ChainID is the chain id of the L1 network
 		L1ChainID={{NetworkConfig.L1.L1ChainID}}
+		# HTTPHeaders additional headers that will be used in the HTTP requests
 		HTTPHeaders=[]
 		[Etherman.EthermanConfig.Etherscan]
 			ApiKey=""
 			Url="https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey="
 
+# Common configuration
 [Common]
+# NetworkID is the network id of the CDK chain
 NetworkID = 1
+# IsValidiumMode is true if the chain is a Validium chain false if it's a Rollup chain
 IsValidiumMode = {{IsValidiumMode}}
+# Versions of the contracts used in the chain
 ContractVersions = "{{ContractVersions}}"
 
+# SequenceSender configuration
 [SequenceSender]
+# WaitPeriodSendSequence is the wait period between sending sequences
 WaitPeriodSendSequence = "15s"
+# LastBatchVirtualizationTimeMaxWaitPeriod is the max wait period to virtualize the last batch
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
+# L1BlockTimestampMargin is the margin of the L1 block timestamp
 L1BlockTimestampMargin = "30s"
+# MaxTxSizeForL1 is the max size of the transaction that will be sent to L1
 MaxTxSizeForL1 = 131072
+# L2Coinbase is the address that will receive the fees
 L2Coinbase = "{{L2Coinbase}}"
+# PrivateKey is the private key of the squence-sender
 PrivateKey = { Path = "{{SequencerPrivateKeyPath}}", Password = "{{SequencerPrivateKeyPassword}}"}
+# SequencesTxFileName is the file name to store sequences sent to L1
 SequencesTxFileName = "sequencesender.json"
+# GasOffset is the amount of gas to be added to the gas estimation in order
+# to provide an amount that is higher than the estimated one. This is used
+# to avoid the TX getting reverted in case something has changed in the network
+# state after the estimation which can cause the TX to require more gas to be
+# executed.
+#
+#  ex:
+#  gas estimation: 1000
+#  gas offset: 100
+#  final gas: 1100
 GasOffset = 80000
+# WaitPeriodPurgeTxFile is the wait period to purge the tx file
 WaitPeriodPurgeTxFile = "15m"
+# MaxPendingTx is the max number of pending transactions
 MaxPendingTx = 1
+# MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx
 MaxBatchesForL1 = 300
+# BlockFinality indicates the status of the blocks that will be queried in order to sync
 BlockFinality = "FinalizedBlock"
+# RPCURL is the URL of the L2 RPC node
 RPCURL = "{{L2URL}}"
+# GetBatchWaitInterval is the time to wait to query for a new batch when there are no more batches available
 GetBatchWaitInterval = "10s"
 	[SequenceSender.EthTxManager]
+		# FrequencyToMonitorTxs frequency of the resending failed txs
 		FrequencyToMonitorTxs = "1s"
+		# WaitTxToBeMined time to wait after transaction was sent to the ethereum
 		WaitTxToBeMined = "2m"
+		# GetReceiptMaxTime is the max time to wait to get the receipt of the mined transaction
 		GetReceiptMaxTime = "250ms"
+		# GetReceiptWaitInterval is the time to sleep before trying to get the receipt of the mined transaction
 		GetReceiptWaitInterval = "1s"
+		# PrivateKeys defines all the key store files that are going
+		# to be read in order to provide the private keys to sign the L1 txs
 		PrivateKeys = [
 			{Path = "{{SequencerPrivateKeyPath}}", Password = "{{SequencerPrivateKeyPassword}}"},
 		]
+		# ForcedGas is the amount of gas to be forced in case of gas estimation error
 		ForcedGas = 0
+		# GasPriceMarginFactor is used to multiply the suggested gas price provided by the network
+		# in order to allow a different gas price to be set for all the transactions and making it
+		# easier to have the txs prioritized in the pool, default value is 1.
+		#
+		# ex:
+		# suggested gas price: 100
+		# GasPriceMarginFactor: 1
+		# gas price = 100
+		#
+		# suggested gas price: 100
+		# GasPriceMarginFactor: 1.1
+		# gas price = 110
 		GasPriceMarginFactor = 1
+		# MaxGasPriceLimit helps avoiding transactions to be sent over an specified
+		# gas price amount, default value is 0, which means no limit.
+		# If the gas price provided by the network and adjusted by the GasPriceMarginFactor
+		# is greater than this configuration, transaction will have its gas price set to
+		# the value configured in this config as the limit.
+		#
+		# ex:
+		#
+		# suggested gas price: 100
+		# gas price margin factor: 20%
+		# max gas price limit: 150
+		# tx gas price = 120
+		#
+		# suggested gas price: 100
+		# gas price margin factor: 20%
+		# max gas price limit: 110
+		# tx gas price = 110
 		MaxGasPriceLimit = 0
+		# StoragePath is the path of the internal storage
 		StoragePath = "ethtxmanager.sqlite"
+		# ReadPendingL1Txs is a flag to enable the reading of pending L1 txs
+		# It can only be enabled if DBPath is empty
 		ReadPendingL1Txs = false
+		# SafeStatusL1NumberOfBlocks overwrites the number of blocks to consider a tx as safe
+		# overwriting the default value provided by the network
+		# 0 means that the default value will be used
 		SafeStatusL1NumberOfBlocks = 0
+		# FinalizedStatusL1NumberOfBlocks overwrites the number of blocks to consider a tx as finalized
+		# overwriting the default value provided by the network
+		# 0 means that the default value will be used
 		FinalizedStatusL1NumberOfBlocks = 0
 			[SequenceSender.EthTxManager.Etherman]
+				# URL is the URL of the Ethereum node for L1
 				URL = "{{L1URL}}"
+				# allow that L1 gas price calculation use multiples sources
 				MultiGasProvider = false
+				# L1ChainID is the chain ID of the L1
 				L1ChainID = {{NetworkConfig.L1.L1ChainID}}
 [Aggregator]
 # GRPC server host
@@ -220,7 +345,7 @@ SyncBlockChunkSize=100
 BlockFinality="LatestBlock"
 URLRPCL1="{{L1URL}}"
 WaitForNewBlocksPeriod="100ms"
-InitialBlock=0
+InitialBlock={{rollupManagerCreationBlockNumber}}
 
 [AggOracle]
 TargetChainType="EVM"
