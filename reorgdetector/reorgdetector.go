@@ -92,7 +92,7 @@ func (rd *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, num uin
 	}
 	rd.trackedBlocksLock.RUnlock()
 
-	if existingHeader := trackedBlocks.get(num); existingHeader != nil && existingHeader.Hash == hash {
+	if existingHeader, err := trackedBlocks.get(num); err == nil && existingHeader.Hash == hash {
 		return nil
 	}
 

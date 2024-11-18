@@ -22,7 +22,7 @@ func Test_ReorgDetector(t *testing.T) {
 	clientL1 := simulated.NewBackend(nil, simulated.WithBlockGasLimit(10000000))
 
 	// Create test DB dir
-	testDir := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	testDir := path.Join(t.TempDir(), "reorgdetectorTest_ReorgDetector.sqlite")
 
 	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
 	require.NoError(t, err)
@@ -33,31 +33,49 @@ func Test_ReorgDetector(t *testing.T) {
 	reorgSub, err := reorgDetector.Subscribe(subID)
 	require.NoError(t, err)
 
-	remainingHeader, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit()) // Block 2
+	// Block 1
+	header1, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit())
 	require.NoError(t, err)
-	err = reorgDetector.AddBlockToTrack(ctx, subID, remainingHeader.Number.Uint64(), remainingHeader.Hash()) // Adding block 2
+	require.Equal(t, uint64(1), header1.Number.Uint64())
+	err = reorgDetector.AddBlockToTrack(ctx, subID, header1.Number.Uint64(), header1.Hash()) // Adding block 1
 	require.NoError(t, err)
-	reorgHeader, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit()) // Block 3
-	require.NoError(t, err)
-	firstHeaderAfterReorg, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit()) // Block 4
-	require.NoError(t, err)
-	err = reorgDetector.AddBlockToTrack(ctx, subID, firstHeaderAfterReorg.Number.Uint64(), firstHeaderAfterReorg.Hash()) // Adding block 4
-	require.NoError(t, err)
-	header, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit()) // Block 5
-	require.NoError(t, err)
-	err = reorgDetector.AddBlockToTrack(ctx, subID, header.Number.Uint64(), header.Hash()) // Adding block 5
-	require.NoError(t, err)
-	err = clientL1.Fork(reorgHeader.Hash()) // Reorg on block 3
-	require.NoError(t, err)
-	clientL1.Commit() // Next block 4 after reorg on block 3
-	clientL1.Commit() // Block 5
-	clientL1.Commit() // Block 6
 
-	// Expect reorg on added blocks 4 -> all further blocks should be removed
+	// Block 2
+	header2, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit())
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), header2.Number.Uint64())
+	err = reorgDetector.AddBlockToTrack(ctx, subID, header2.Number.Uint64(), header2.Hash()) // Adding block 1
+	require.NoError(t, err)
+
+	// Block 3
+	header3Reorged, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit())
+	require.NoError(t, err)
+	require.Equal(t, uint64(3), header3Reorged.Number.Uint64())
+	err = reorgDetector.AddBlockToTrack(ctx, subID, header3Reorged.Number.Uint64(), header3Reorged.Hash()) // Adding block 3
+	require.NoError(t, err)
+
+	// Block 4
+	header4Reorged, err := clientL1.Client().HeaderByHash(ctx, clientL1.Commit())
+	require.Equal(t, uint64(4), header4Reorged.Number.Uint64())
+	require.NoError(t, err)
+	err = reorgDetector.AddBlockToTrack(ctx, subID, header4Reorged.Number.Uint64(), header4Reorged.Hash()) // Adding block 4
+	require.NoError(t, err)
+
+	err = clientL1.Fork(header2.Hash()) // Reorg on block 2 (block 2 is still valid)
+	require.NoError(t, err)
+
+	// Make sure that the new canonical chain is longer than the previous one so the reorg is visible to the detector
+	header3AfterReorg := clientL1.Commit() // Next block 3 after reorg on block 2
+	require.NotEqual(t, header3Reorged.Hash(), header3AfterReorg)
+	header4AfterReorg := clientL1.Commit() // Block 4
+	require.NotEqual(t, header4Reorged.Hash(), header4AfterReorg)
+	clientL1.Commit() // Block 5
+
+	// Expect reorg on added blocks 3 -> all further blocks should be removed
 	select {
 	case firstReorgedBlock := <-reorgSub.ReorgedBlock:
 		reorgSub.ReorgProcessed <- true
-		require.Equal(t, firstHeaderAfterReorg.Number.Uint64(), firstReorgedBlock)
+		require.Equal(t, header3Reorged.Number.Uint64(), firstReorgedBlock)
 	case <-time.After(5 * time.Second):
 		t.Fatal("timeout waiting for reorg")
 	}
@@ -69,13 +87,18 @@ func Test_ReorgDetector(t *testing.T) {
 	headersList, ok := reorgDetector.trackedBlocks[subID]
 	reorgDetector.trackedBlocksLock.Unlock()
 	require.True(t, ok)
-	require.Equal(t, 1, headersList.len()) // Only block 3 left
-	require.Equal(t, remainingHeader.Hash(), headersList.get(4).Hash)
+	require.Equal(t, 2, headersList.len()) // Only blocks 1 and 2 left
+	actualHeader1, err := headersList.get(1)
+	require.NoError(t, err)
+	require.Equal(t, header1.Hash(), actualHeader1.Hash)
+	actualHeader2, err := headersList.get(2)
+	require.NoError(t, err)
+	require.Equal(t, header2.Hash(), actualHeader2.Hash)
 }
 
 func TestGetTrackedBlocks(t *testing.T) {
 	clientL1 := simulated.NewBackend(nil, simulated.WithBlockGasLimit(10000000))
-	testDir := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	testDir := path.Join(t.TempDir(), "reorgdetector_TestGetTrackedBlocks.sqlite")
 	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
 	require.NoError(t, err)
 	list, err := reorgDetector.getTrackedBlocks()
@@ -129,7 +152,7 @@ func TestGetTrackedBlocks(t *testing.T) {
 
 func TestNotSubscribed(t *testing.T) {
 	clientL1 := simulated.NewBackend(nil, simulated.WithBlockGasLimit(10000000))
-	testDir := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	testDir := path.Join(t.TempDir(), "reorgdetectorTestNotSubscribed.sqlite")
 	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
 	require.NoError(t, err)
 	err = reorgDetector.AddBlockToTrack(context.Background(), "foo", 1, common.Hash{})

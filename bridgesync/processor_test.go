@@ -29,7 +29,7 @@ func TestBigIntString(t *testing.T) {
 	_, ok := new(big.Int).SetString(globalIndex.String(), 10)
 	require.True(t, ok)
 
-	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPath := path.Join(t.TempDir(), "bridgesyncTestBigIntString.sqlite")
 
 	err := migrationsBridge.RunMigrations(dbPath)
 	require.NoError(t, err)
@@ -78,7 +78,7 @@ func TestBigIntString(t *testing.T) {
 }
 
 func TestProceessor(t *testing.T) {
-	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	path := path.Join(t.TempDir(), "aggsenderTestProceessor.sqlite")
 	log.Debugf("sqlite path: %s", path)
 	err := migrationsBridge.RunMigrations(path)
 	require.NoError(t, err)
@@ -731,7 +731,7 @@ func TestDecodeGlobalIndex(t *testing.T) {
 }
 
 func TestInsertAndGetClaim(t *testing.T) {
-	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	path := path.Join(t.TempDir(), "aggsenderTestInsertAndGetClaim.sqlite")
 	log.Debugf("sqlite path: %s", path)
 	err := migrationsBridge.RunMigrations(path)
 	require.NoError(t, err)
@@ -817,7 +817,7 @@ func TestGetBridgesPublished(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			path := path.Join(t.TempDir(), "file::memory:?cache=shared")
+			path := path.Join(t.TempDir(), fmt.Sprintf("bridgesyncTestGetBridgesPublished_%s.sqlite", tc.name))
 			require.NoError(t, migrationsBridge.RunMigrations(path))
 			p, err := newProcessor(path, "foo")
 			require.NoError(t, err)

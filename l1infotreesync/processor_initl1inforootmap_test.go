@@ -2,6 +2,7 @@ package l1infotreesync
 
 import (
 	"context"
+	"path"
 	"testing"
 
 	"github.com/0xPolygon/cdk/sync"
@@ -10,7 +11,7 @@ import (
 )
 
 func TestInitL1InfoRootMap(t *testing.T) {
-	dbPath := "file:TestInitL1InfoRootMap?mode=memory&cache=shared"
+	dbPath := path.Join(t.TempDir(), "l1infotreesyncTestInitL1InfoRootMap.sqlite")
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	ctx := context.TODO()
@@ -37,7 +38,7 @@ func TestInitL1InfoRootMap(t *testing.T) {
 }
 
 func TestInitL1InfoRootMapDontAllow2Rows(t *testing.T) {
-	dbPath := "file:TestInitL1InfoRootMapDontAllow2Rows?mode=memory&cache=shared"
+	dbPath := path.Join(t.TempDir(), "l1infotreesyncTestInitL1InfoRootMapDontAllow2Rows.sqlite")
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	ctx := context.TODO()
@@ -58,7 +59,7 @@ func TestInitL1InfoRootMapDontAllow2Rows(t *testing.T) {
 }
 
 func TestGetInitL1InfoRootMap(t *testing.T) {
-	dbPath := "file:TestGetInitL1InfoRootMap?mode=memory&cache=shared"
+	dbPath := path.Join(t.TempDir(), "l1infotreesyncTestGetInitL1InfoRootMap.sqlite")
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	info, err := sut.GetInitL1InfoRootMap(nil)

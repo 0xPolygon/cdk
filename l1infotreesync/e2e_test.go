@@ -56,7 +56,7 @@ func newSimulatedClient(t *testing.T) (
 
 func TestE2E(t *testing.T) {
 	ctx, cancelCtx := context.WithCancel(context.Background())
-	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPath := path.Join(t.TempDir(), "l1infotreesyncTestE2E.sqlite")
 
 	rdm := mocks_l1infotreesync.NewReorgDetectorMock(t)
 	rdm.On("Subscribe", mock.Anything).Return(&reorgdetector.Subscription{}, nil)
@@ -142,8 +142,8 @@ func TestE2E(t *testing.T) {
 
 func TestWithReorgs(t *testing.T) {
 	ctx := context.Background()
-	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	dbPathReorg := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPathSyncer := path.Join(t.TempDir(), "l1infotreesyncTestWithReorgs_sync.sqlite")
+	dbPathReorg := path.Join(t.TempDir(), "l1infotreesyncTestWithReorgs_reorg.sqlite")
 
 	client, auth, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
 
@@ -260,8 +260,8 @@ func TestStressAndReorgs(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	dbPathSyncer := path.Join(t.TempDir(), "file:TestStressAndReorgs:memory:?cache=shared")
-	dbPathReorg := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPathSyncer := path.Join(t.TempDir(), "l1infotreesyncTestStressAndReorgs_sync.sqlite")
+	dbPathReorg := path.Join(t.TempDir(), "l1infotreesyncTestStressAndReorgs_reorg.sqlite")
 
 	client, auth, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
 

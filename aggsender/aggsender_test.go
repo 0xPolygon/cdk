@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -290,7 +291,7 @@ func TestAggSenderStart(t *testing.T) {
 		ctx,
 		log.WithFields("test", "unittest"),
 		Config{
-			StoragePath: "file::memory:?cache=shared",
+			StoragePath: path.Join(t.TempDir(), "aggsenderTestAggSenderStart.sqlite"),
 		},
 		AggLayerMock,
 		nil,
@@ -319,7 +320,7 @@ func TestAggSenderSendCertificates(t *testing.T) {
 		ctx,
 		log.WithFields("test", "unittest"),
 		Config{
-			StoragePath: "file::memory:?cache=shared",
+			StoragePath: path.Join(t.TempDir(), "aggsenderTestAggSenderSendCertificates.sqlite"),
 		},
 		AggLayerMock,
 		nil,

@@ -142,7 +142,7 @@ func CommonSetup(t *testing.T) (
 	// Bridge sync
 	testClient := TestClient{ClientRenamed: l1Client.Client()}
 	dbPathBridgeSyncL1 := path.Join(t.TempDir(), "BridgeSyncL1.sqlite")
-	bridgeL1Sync, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, bridgeL1Addr, 10, etherman.LatestBlock, rdL1, testClient, 0, time.Millisecond*10, 0, 0, 1) //nolint:mnd
+	bridgeL1Sync, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, bridgeL1Addr, 10, etherman.LatestBlock, rdL1, testClient, 0, time.Millisecond*10, 0, 0, 1, false) //nolint:mnd
 	require.NoError(t, err)
 	go bridgeL1Sync.Start(ctx)
 
@@ -181,7 +181,7 @@ func L2SetupEVM(t *testing.T) (
 	// Bridge sync
 	dbPathL2BridgeSync := path.Join(t.TempDir(), "BridgeSyncL2.sqlite")
 	testClient := TestClient{ClientRenamed: l2Client.Client()}
-	bridgeL2Sync, err := bridgesync.NewL2(ctx, dbPathL2BridgeSync, bridgeL2Addr, 10, etherman.LatestBlock, rdL2, testClient, 0, time.Millisecond*10, 0, 0, 1) //nolint:mnd
+	bridgeL2Sync, err := bridgesync.NewL2(ctx, dbPathL2BridgeSync, bridgeL2Addr, 10, etherman.LatestBlock, rdL2, testClient, 0, time.Millisecond*10, 0, 0, 1, false) //nolint:mnd
 	require.NoError(t, err)
 	go bridgeL2Sync.Start(ctx)
 

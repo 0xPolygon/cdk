@@ -730,6 +730,7 @@ func runBridgeSyncL1IfNeeded(
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
 		cfg.OriginNetwork,
+		false,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL1: %s", err)
@@ -763,6 +764,7 @@ func runBridgeSyncL2IfNeeded(
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
 		cfg.OriginNetwork,
+		true,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL2: %s", err)

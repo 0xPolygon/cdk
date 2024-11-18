@@ -43,6 +43,7 @@ func NewL1(
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
+	syncFullClaims bool,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -58,7 +59,7 @@ func NewL1(
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
 		originNetwork,
-		false,
+		syncFullClaims,
 	)
 }
 
@@ -76,6 +77,7 @@ func NewL2(
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
+	syncFullClaims bool,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -91,7 +93,7 @@ func NewL2(
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
 		originNetwork,
-		true,
+		syncFullClaims,
 	)
 }
 

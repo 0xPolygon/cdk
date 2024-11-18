@@ -2,6 +2,7 @@ package l1infotreesync
 
 import (
 	"fmt"
+	"path"
 	"testing"
 
 	"github.com/0xPolygon/cdk/db"
@@ -17,7 +18,7 @@ import (
 )
 
 func TestGetInfo(t *testing.T) {
-	dbPath := "file:TestGetInfo?mode=memory&cache=shared"
+	dbPath := path.Join(t.TempDir(), "l1infotreesyncTestGetInfo.sqlite")
 	p, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	ctx := context.Background()
@@ -116,7 +117,7 @@ func TestGetInfo(t *testing.T) {
 }
 
 func TestGetLatestInfoUntilBlockIfNotFoundReturnsErrNotFound(t *testing.T) {
-	dbPath := "file:TestGetLatestInfoUntilBlock?mode=memory&cache=shared"
+	dbPath := path.Join(t.TempDir(), "l1infotreesyncTestGetLatestInfoUntilBlockIfNotFoundReturnsErrNotFound.sqlite")
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	ctx := context.Background()
@@ -141,7 +142,7 @@ func Test_processor_GetL1InfoTreeMerkleProof(t *testing.T) {
 			getProcessor: func(t *testing.T) *processor {
 				t.Helper()
 
-				p, err := newProcessor("file:Test_processor_GetL1InfoTreeMerkleProof_1?mode=memory&cache=shared")
+				p, err := newProcessor(path.Join(t.TempDir(), "l1infotreesyncTest_processor_GetL1InfoTreeMerkleProof_1.sqlite"))
 				require.NoError(t, err)
 
 				return p
@@ -154,7 +155,7 @@ func Test_processor_GetL1InfoTreeMerkleProof(t *testing.T) {
 			getProcessor: func(t *testing.T) *processor {
 				t.Helper()
 
-				p, err := newProcessor("file:Test_processor_GetL1InfoTreeMerkleProof_2?mode=memory&cache=shared")
+				p, err := newProcessor(path.Join(t.TempDir(), "l1infotreesyncTest_processor_GetL1InfoTreeMerkleProof_2.sqlite"))
 				require.NoError(t, err)
 
 				info := &UpdateL1InfoTree{
@@ -217,7 +218,7 @@ func Test_processor_Reorg(t *testing.T) {
 			getProcessor: func(t *testing.T) *processor {
 				t.Helper()
 
-				p, err := newProcessor("file:Test_processor_Reorg_1?mode=memory&cache=shared")
+				p, err := newProcessor(path.Join(t.TempDir(), "l1infotreesyncTest_processor_Reorg_1.sqlite"))
 				require.NoError(t, err)
 				return p
 			},
@@ -229,7 +230,7 @@ func Test_processor_Reorg(t *testing.T) {
 			getProcessor: func(t *testing.T) *processor {
 				t.Helper()
 
-				p, err := newProcessor("file:Test_processor_Reorg_2?mode=memory&cache=shared")
+				p, err := newProcessor(path.Join(t.TempDir(), "l1infotreesyncTest_processor_Reorg_2.sqlite"))
 				require.NoError(t, err)
 
 				info := &UpdateL1InfoTree{
@@ -297,7 +298,7 @@ func TestProofsFromDifferentTrees(t *testing.T) {
 	fmt.Println(aggregatorProof)
 	fmt.Println("l1 info tree syncer L1InfoTree ===============================================")
 
-	dbPath := "file:l1InfoTreeTest?mode=memory&cache=shared"
+	dbPath := path.Join(t.TempDir(), "l1infotreesyncTestProofsFromDifferentTrees.sqlite")
 	require.NoError(t, migrations.RunMigrations(dbPath))
 
 	dbe, err := db.NewSQLiteDB(dbPath)
@@ -360,7 +361,7 @@ func createTestLeaves(t *testing.T, numOfLeaves int) []*L1InfoTreeLeaf {
 }
 
 func TestProcessBlockUpdateL1InfoTreeV2DontMatchTree(t *testing.T) {
-	sut, err := newProcessor("file:Test_processor_BlockUpdateL1InfoTreeV2?mode=memory&cache=shared")
+	sut, err := newProcessor(path.Join(t.TempDir(), "l1infotreesyncTestProcessBlockUpdateL1InfoTreeV2DontMatchTree.sqlite"))
 	require.NoError(t, err)
 	block := sync.Block{
 		Num: 10,

@@ -23,14 +23,14 @@ func TestE2EL1toEVML2(t *testing.T) {
 	// start other needed components
 	ctx := context.Background()
 	env := helpers.NewE2EEnvWithEVML2(t)
-	dbPathBridgeSyncL1 := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPathBridgeSyncL1 := path.Join(t.TempDir(), "claimsponsorTestE2EL1toEVML2_bs.sqlite")
 	testClient := helpers.TestClient{ClientRenamed: env.L1Client.Client()}
-	bridgeSyncL1, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, env.BridgeL1Addr, 10, etherman.LatestBlock, env.ReorgDetectorL1, testClient, 0, time.Millisecond*10, 0, 0, 1)
+	bridgeSyncL1, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, env.BridgeL1Addr, 10, etherman.LatestBlock, env.ReorgDetectorL1, testClient, 0, time.Millisecond*10, 0, 0, 1, false)
 	require.NoError(t, err)
 	go bridgeSyncL1.Start(ctx)
 
 	// start claim sponsor
-	dbPathClaimSponsor := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPathClaimSponsor := path.Join(t.TempDir(), "claimsponsorTestE2EL1toEVML2_cs.sqlite")
 	claimer, err := claimsponsor.NewEVMClaimSponsor(
 		log.GetDefaultLogger(),
 		dbPathClaimSponsor,

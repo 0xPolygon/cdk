@@ -19,11 +19,11 @@ import (
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
 	env := helpers.NewE2EEnvWithEVML2(t)
-	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPathSyncer := path.Join(t.TempDir(), "lastgersyncTestE2E.sqlite")
 	syncer, err := lastgersync.New(
 		ctx,
 		dbPathSyncer,
-		env.ReorgDetectorL1,
+		env.ReorgDetectorL2,
 		env.L2Client.Client(),
 		env.GERL2Addr,
 		env.L1InfoTreeSync,
