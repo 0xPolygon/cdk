@@ -1459,6 +1459,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 	proverName := "proverName"
 	proverID := "proverID"
 	errTest := errors.New("test error")
+	errAIH := fmt.Errorf("failed to build input prover, acc input hash for previous batch (22) is not in memory")
 	proverCtx := context.WithValue(context.Background(), "owner", ownerProver) //nolint:staticcheck
 	matchProverCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == ownerProver }
 	matchAggregatorCtxFn := func(ctx context.Context) bool { return ctx.Value("owner") == ownerAggregator }
@@ -1492,6 +1493,49 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 		setup   func(mox, *Aggregator)
 		asserts func(bool, *Aggregator, error)
 	}{
+		{
+			name: "getAndLockBatchToProve returns AIH error",
+			setup: func(m mox, a *Aggregator) {
+				sequence := synchronizer.SequencedBatches{
+					FromBatchNumber: uint64(1),
+					ToBatchNumber:   uint64(2),
+				}
+				l1InfoRoot := common.HexToHash("0x057e9950fbd39b002e323f37c2330d0c096e66919e24cc96fb4b2dfa8f4af782")
+
+				virtualBatch := synchronizer.VirtualBatch{
+					BatchNumber: 1,
+					BatchL2Data: []byte{
+						0xb, 0x0, 0x0, 0x0, 0x7b, 0x0, 0x0, 0x1, 0xc8, 0xb, 0x0, 0x0, 0x3, 0x15, 0x0, 0x1, 0x8a, 0xf8,
+					},
+					L1InfoRoot: &l1InfoRoot,
+				}
+				rpcBatch := rpctypes.NewRPCBatch(lastVerifiedBatchNum+1, common.Hash{}, []string{}, []byte("batchL2Data"), common.Hash{}, common.BytesToHash([]byte("mock LocalExitRoot")), common.BytesToHash([]byte("mock StateRoot")), common.Address{}, false)
+
+				m.proverMock.On("Name").Return(proverName)
+				m.proverMock.On("ID").Return(proverID)
+				m.proverMock.On("Addr").Return("addr")
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(uint64(0), nil)
+				m.stateMock.On("CheckProofExistsForBatch", mock.Anything, uint64(1), nil).Return(false, nil)
+				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.Anything, mock.Anything).Return(&sequence, nil)
+				m.synchronizerMock.On("GetVirtualBatchByBatchNumber", mock.Anything, mock.Anything).Return(&virtualBatch, nil)
+				m.synchronizerMock.On("GetL1BlockByNumber", mock.Anything, mock.Anything).Return(&synchronizer.L1Block{ParentHash: common.Hash{}}, nil)
+				m.rpcMock.On("GetBatch", mock.Anything).Return(rpcBatch, nil)
+				m.rpcMock.On("GetWitness", mock.Anything, false).Return([]byte("witness"), nil)
+				m.stateMock.On("AddGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil)
+				m.stateMock.On("AddSequence", mock.Anything, mock.Anything, nil).Return(nil)
+				m.stateMock.On("DeleteGeneratedProofs", mock.Anything, uint64(1), uint64(1), nil).Return(nil)
+				m.synchronizerMock.On("GetLeafsByL1InfoRoot", mock.Anything, l1InfoRoot).Return(l1InfoTreeLeaf, nil)
+				m.synchronizerMock.On("GetL1InfoTreeLeaves", mock.Anything, mock.Anything).Return(map[uint32]synchronizer.L1InfoTreeLeaf{
+					1: {
+						BlockNumber: uint64(1),
+					},
+				}, nil)
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorContains(err, errAIH.Error())
+			},
+		},
 		{
 			name: "getAndLockBatchToProve returns generic error",
 			setup: func(m mox, a *Aggregator) {
@@ -1764,7 +1808,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
+	for x, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			stateMock := mocks.NewStateInterfaceMock(t)
 			ethTxManager := mocks.NewEthTxManagerClientMock(t)
@@ -1786,12 +1830,14 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				profitabilityChecker:    NewTxProfitabilityCheckerAcceptAll(stateMock, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration),
 				l1Syncr:                 synchronizerMock,
 				rpcClient:               mockRPC,
+				accInputHashes:          make(map[uint64]common.Hash),
 				accInputHashesMutex:     &sync.Mutex{},
+			}
+			if x > 0 {
+				a.accInputHashes = populateAccInputHashes()
 			}
 			aggregatorCtx := context.WithValue(context.Background(), "owner", ownerAggregator) //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
-
-			a.accInputHashes = populateAccInputHashes()
 
 			m := mox{
 				stateMock:        stateMock,
@@ -1817,7 +1863,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 
 func populateAccInputHashes() map[uint64]common.Hash {
 	accInputHashes := make(map[uint64]common.Hash)
-	for i := 0; i < 200; i++ {
+	for i := 10; i < 200; i++ {
 		accInputHashes[uint64(i)] = common.BytesToHash([]byte(fmt.Sprintf("hash%d", i)))
 	}
 	return accInputHashes
