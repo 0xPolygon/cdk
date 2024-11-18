@@ -2,12 +2,17 @@ package prover_test
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/0xPolygon/cdk/aggregator/prover"
+	"github.com/0xPolygon/cdk/aggregator/prover/mocks"
+	"github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,6 +24,32 @@ type TestStateRoot struct {
 	Publics []string `mapstructure:"publics"`
 }
 
+func TestProver(t *testing.T) {
+
+	mockChannel := mocks.ChannelMock{}
+	var addr net.Addr
+
+	mockChannel.On("Send", mock.Anything).Return(nil)
+	mockChannel.On("Recv", mock.Anything).Return(&prover.ProverMessage{
+		Id: "test",
+		Response: &prover.ProverMessage_GetStatusResponse{
+			GetStatusResponse: &prover.GetStatusResponse{
+				Status:     prover.GetStatusResponse_STATUS_IDLE,
+				ProverName: "testName",
+				ProverId:   "testId",
+			},
+		},
+	}, nil)
+
+	p, err := prover.New(log.GetDefaultLogger(), &mockChannel, addr, types.Duration{Duration: time.Second * 5})
+	require.NoError(t, err)
+	name := p.Name()
+	require.Equal(t, "testName", name, "name does not match")
+	address := p.Addr()
+	require.Equal(t, "", address, "address does not match")
+	id := p.ID()
+	require.Equal(t, "testId", id, "id does not match")
+}
 func TestCalculateStateRoots(t *testing.T) {
 	var expectedStateRoots = map[string]string{
 		"1871.json": "0x0ed594d8bc0bb38f3190ff25fb1e5b4fe1baf0e2e0c1d7bf3307f07a55d3a60f",
