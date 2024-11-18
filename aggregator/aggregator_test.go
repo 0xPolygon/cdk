@@ -1443,6 +1443,7 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 		IntervalAfterWhichBatchConsolidateAnyway: types.Duration{Duration: time.Second * 1},
 		ChainID:                                  uint64(1),
 		ForkId:                                   uint64(12),
+		BatchProofSanityCheckEnabled:             true,
 	}
 	lastVerifiedBatchNum := uint64(22)
 
