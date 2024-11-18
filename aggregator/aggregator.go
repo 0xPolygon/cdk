@@ -342,10 +342,14 @@ func (a *Aggregator) Start() error {
 		}
 
 		// Get last verified batch number to set the starting point for verifications
-		lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
-		if err != nil {
-			return err
-		}
+		/*
+			lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
+			if err != nil {
+				return err
+			}
+		*/
+
+		lastVerifiedBatchNumber := uint64(75947)
 
 		a.logger.Infof("Last Verified Batch Number:%v", lastVerifiedBatchNumber)
 
