@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk/bridgesync"
 	mocksbridgesync "github.com/0xPolygon/cdk/bridgesync/mocks"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sync"
@@ -43,7 +42,7 @@ func TestNewLx(t *testing.T) {
 
 	mockReorgDetector.EXPECT().Subscribe(mock.Anything).Return(nil, nil)
 
-	bridgeSync, err := bridgesync.NewL1(
+	bridgeSync, err := NewL1(
 		ctx,
 		dbPath,
 		bridge,
@@ -64,7 +63,7 @@ func TestNewLx(t *testing.T) {
 	assert.Equal(t, originNetwork, bridgeSync.OriginNetwork())
 	assert.Equal(t, blockFinalityType, bridgeSync.BlockFinality())
 
-	bridgeSyncL2, err := bridgesync.NewL2(
+	bridgeSyncL2, err := NewL2(
 		ctx,
 		dbPath,
 		bridge,
