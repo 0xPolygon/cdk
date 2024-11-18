@@ -1,6 +1,7 @@
 package prover_test
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -25,12 +26,11 @@ type TestStateRoot struct {
 }
 
 func TestProver(t *testing.T) {
-
 	mockChannel := mocks.ChannelMock{}
 	var addr net.Addr
 
 	mockChannel.On("Send", mock.Anything).Return(nil)
-	mockChannel.On("Recv", mock.Anything).Return(&prover.ProverMessage{
+	mockChannel.On("Recv").Return(&prover.ProverMessage{
 		Id: "test",
 		Response: &prover.ProverMessage_GetStatusResponse{
 			GetStatusResponse: &prover.GetStatusResponse{
@@ -39,7 +39,7 @@ func TestProver(t *testing.T) {
 				ProverId:   "testId",
 			},
 		},
-	}, nil)
+	}, nil).Times(1)
 
 	p, err := prover.New(log.GetDefaultLogger(), &mockChannel, addr, types.Duration{Duration: time.Second * 5})
 	require.NoError(t, err)
@@ -49,6 +49,25 @@ func TestProver(t *testing.T) {
 	require.Equal(t, "", address, "address does not match")
 	id := p.ID()
 	require.Equal(t, "testId", id, "id does not match")
+
+	mockChannel.On("Recv").Return(&prover.ProverMessage{
+		Id: "test",
+		Response: &prover.ProverMessage_GetProofResponse{
+			GetProofResponse: &prover.GetProofResponse{
+				Proof: &prover.GetProofResponse_RecursiveProof{
+					RecursiveProof: "this is a proof",
+				},
+				Result: prover.GetProofResponse_RESULT_COMPLETED_OK,
+			},
+		},
+	}, nil)
+
+	proof, sr, accinputHash, err := p.WaitRecursiveProof(context.Background(), "proofID")
+	require.NoError(t, err)
+
+	require.NotNil(t, proof, "proof is nil")
+	require.NotNil(t, sr, "state root is nil")
+	require.Equal(t, common.Hash{}, accinputHash, "state root is not empty")
 }
 func TestCalculateStateRoots(t *testing.T) {
 	var expectedStateRoots = map[string]string{
