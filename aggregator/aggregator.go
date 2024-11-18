@@ -1388,7 +1388,8 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 	return true, nil
 }
 
-func (a *Aggregator) performSanityChecks(tmpLogger *log.Logger, stateRoot, accInputHash common.Hash, batchToProve *state.Batch) {
+func (a *Aggregator) performSanityChecks(tmpLogger *log.Logger, stateRoot, accInputHash common.Hash,
+	batchToProve *state.Batch) {
 	// Sanity Check: state root from the proof must match the one from the batch
 	if (stateRoot != common.Hash{}) && (stateRoot != batchToProve.StateRoot) {
 		for {
