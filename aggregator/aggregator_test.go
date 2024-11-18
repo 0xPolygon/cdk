@@ -1795,4 +1795,18 @@ func Test_sanityChecks(t *testing.T) {
 	}
 
 	aggregator.performSanityChecks(log.GetDefaultLogger(), batchToProve.StateRoot, batchToProve.AccInputHash, &batchToProve)
+
+	// Halt by SR sanity check
+	go func() {
+		aggregator.performSanityChecks(log.GetDefaultLogger(), common.HexToHash("0x03"), batchToProve.AccInputHash, &batchToProve)
+		time.Sleep(5 * time.Second)
+		return
+	}()
+
+	// Halt by AIH sanity check
+	go func() {
+		aggregator.performSanityChecks(log.GetDefaultLogger(), batchToProve.StateRoot, common.HexToHash("0x04"), &batchToProve)
+		time.Sleep(5 * time.Second)
+		return
+	}()
 }
