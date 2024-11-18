@@ -7,13 +7,12 @@ import (
 
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	"github.com/0xPolygon/cdk/log"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	dir                 = "../../test/vectors/proofs"
-	stateRootStartIndex = 19
-	stateRootFinalIndex = stateRootStartIndex + 8
+	dir = "../../test/vectors/proofs"
 )
 
 type TestStateRoot struct {
@@ -42,12 +41,17 @@ func TestCalculateStateRoots(t *testing.T) {
 		require.NoError(t, err)
 
 		// Get the state root from the batch proof
-		fileStateRoot, err := prover.GetSanityCheckHashFromProof(log.GetDefaultLogger(), string(data), stateRootStartIndex, stateRootFinalIndex)
+		fileStateRoot, err := prover.GetSanityCheckHashFromProof(log.GetDefaultLogger(), string(data), prover.StateRootStartIndex, prover.StateRootFinalIndex)
 		require.NoError(t, err)
 
 		// Get the expected state root
 		expectedStateRoot, ok := expectedStateRoots[file.Name()]
 		require.True(t, ok, "Expected state root not found")
+
+		// Check Acc Input Hash
+		accInputHash, err := prover.GetSanityCheckHashFromProof(log.GetDefaultLogger(), string(data), prover.AccInputHashStartIndex, prover.AccInputHashFinalIndex)
+		require.NotEqual(t, common.Hash{}, accInputHash, "Acc Input Hash is empty")
+		require.NoError(t, err)
 
 		// Compare the state roots
 		require.Equal(t, expectedStateRoot, fileStateRoot.String(), "State roots do not match")

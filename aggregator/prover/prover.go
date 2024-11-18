@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	stateRootStartIndex    = 19
-	stateRootFinalIndex    = stateRootStartIndex + 8
-	accInputHashStartIndex = 27
-	accInputHashFinalIndex = accInputHashStartIndex + 8
+	StateRootStartIndex    = 19
+	StateRootFinalIndex    = StateRootStartIndex + 8
+	AccInputHashStartIndex = 27
+	AccInputHashFinalIndex = AccInputHashStartIndex + 8
 )
 
 var (
@@ -298,13 +298,13 @@ func (p *Prover) WaitRecursiveProof(ctx context.Context, proofID string) (string
 		)
 	}
 
-	sr, err := GetSanityCheckHashFromProof(p.logger, resProof.RecursiveProof, stateRootStartIndex, stateRootFinalIndex)
+	sr, err := GetSanityCheckHashFromProof(p.logger, resProof.RecursiveProof, StateRootStartIndex, StateRootFinalIndex)
 	if err != nil && sr != (common.Hash{}) {
 		p.logger.Errorf("Error getting state root from proof: %v", err)
 	}
 
 	accInputHash, err := GetSanityCheckHashFromProof(p.logger, resProof.RecursiveProof,
-		accInputHashStartIndex, accInputHashFinalIndex)
+		AccInputHashStartIndex, AccInputHashFinalIndex)
 	if err != nil && accInputHash != (common.Hash{}) {
 		p.logger.Errorf("Error getting acc input hash from proof: %v", err)
 	}
