@@ -1357,32 +1357,9 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 	tmpLogger.Info("Batch proof generated")
 
 	// Sanity Check: state root from the proof must match the one from the batch
-	if a.cfg.BatchProofSanityCheckEnabled && (stateRoot != common.Hash{}) && (stateRoot != batchToProve.StateRoot) {
-		for {
-			tmpLogger.Errorf("HALTING: "+
-				"State root from the proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]",
-				batchToProve.BatchNumber, stateRoot.String(), batchToProve.StateRoot.String(),
-			)
-			time.Sleep(a.cfg.RetryTime.Duration)
-		}
-	} else {
-		tmpLogger.Infof("State root sanity check for batch %d passed", batchToProve.BatchNumber)
+	if a.cfg.BatchProofSanityCheckEnabled {
+		a.performSanityChecks(tmpLogger, stateRoot, accInputHash, batchToProve)
 	}
-
-	// Sanity Check: acc input hash from the proof must match the one from the batch
-	if a.cfg.BatchProofSanityCheckEnabled && (accInputHash != common.Hash{}) &&
-		(accInputHash != batchToProve.AccInputHash) {
-		for {
-			tmpLogger.Errorf("HALTING: Acc input hash from the proof does not match the expected for "+
-				"batch %d: Proof = [%s] Expected = [%s]",
-				batchToProve.BatchNumber, accInputHash.String(), batchToProve.AccInputHash.String(),
-			)
-			time.Sleep(a.cfg.RetryTime.Duration)
-		}
-	} else {
-		tmpLogger.Infof("Acc input hash sanity check for batch %d passed", batchToProve.BatchNumber)
-	}
-
 	proof.Proof = resGetProof
 
 	// NOTE(pg): the defer func is useless from now on, use a different variable
@@ -1409,6 +1386,34 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 	}
 
 	return true, nil
+}
+
+func (a *Aggregator) performSanityChecks(tmpLogger *log.Logger, stateRoot, accInputHash common.Hash, batchToProve *state.Batch) {
+	// Sanity Check: state root from the proof must match the one from the batch
+	if (stateRoot != common.Hash{}) && (stateRoot != batchToProve.StateRoot) {
+		for {
+			tmpLogger.Errorf("HALTING: "+
+				"State root from the proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]",
+				batchToProve.BatchNumber, stateRoot.String(), batchToProve.StateRoot.String(),
+			)
+			time.Sleep(a.cfg.RetryTime.Duration)
+		}
+	} else {
+		tmpLogger.Infof("State root sanity check for batch %d passed", batchToProve.BatchNumber)
+	}
+
+	// Sanity Check: acc input hash from the proof must match the one from the batch
+	if (accInputHash != common.Hash{}) && (accInputHash != batchToProve.AccInputHash) {
+		for {
+			tmpLogger.Errorf("HALTING: Acc input hash from the proof does not match the expected for "+
+				"batch %d: Proof = [%s] Expected = [%s]",
+				batchToProve.BatchNumber, accInputHash.String(), batchToProve.AccInputHash.String(),
+			)
+			time.Sleep(a.cfg.RetryTime.Duration)
+		}
+	} else {
+		tmpLogger.Infof("Acc input hash sanity check for batch %d passed", batchToProve.BatchNumber)
+	}
 }
 
 // canVerifyProof returns true if we have reached the timeout to verify a proof

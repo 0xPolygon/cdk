@@ -1780,3 +1780,18 @@ func Test_accInputHashFunctions(t *testing.T) {
 	aggregator.removeAccInputHashes(1, 2)
 	assert.Equal(t, 0, len(aggregator.accInputHashes))
 }
+
+func Test_sanityChecks(t *testing.T) {
+	batchToProve := state.Batch{
+		BatchNumber:  1,
+		StateRoot:    common.HexToHash("0x01"),
+		AccInputHash: common.HexToHash("0x02"),
+	}
+
+	aggregator := Aggregator{
+		accInputHashes:      make(map[uint64]common.Hash),
+		accInputHashesMutex: &sync.Mutex{},
+	}
+
+	aggregator.performSanityChecks(log.GetDefaultLogger(), batchToProve.StateRoot, batchToProve.AccInputHash, &batchToProve)
+}
