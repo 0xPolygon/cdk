@@ -79,9 +79,6 @@ func TestBigIntString(t *testing.T) {
 
 func TestProceessor(t *testing.T) {
 	path := path.Join(t.TempDir(), "aggsenderTestProceessor.sqlite")
-	log.Debugf("sqlite path: %s", path)
-	err := migrationsBridge.RunMigrations(path)
-	require.NoError(t, err)
 	p, err := newProcessor(path, "foo")
 	require.NoError(t, err)
 	actions := []processAction{
@@ -847,4 +844,20 @@ func TestGetBridgesPublished(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProcessBlockInvalidIndex(t *testing.T) {
+	path := path.Join(t.TempDir(), "aggsenderTestProceessor.sqlite")
+	p, err := newProcessor(path, "foo")
+	require.NoError(t, err)
+	err = p.ProcessBlock(context.Background(), sync.Block{
+		Num: 0,
+		Events: []interface{}{
+			Event{Bridge: &Bridge{DepositCount: 5}},
+		},
+	})
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
+	require.True(t, p.halted)
+	err = p.ProcessBlock(context.Background(), sync.Block{})
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
 }
