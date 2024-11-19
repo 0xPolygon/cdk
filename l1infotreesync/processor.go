@@ -269,13 +269,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	if rowsAffected > 0 {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		p.halted = false
-		p.haltedReason = ""
-	}
-
+	sync.UnhaltIfAffectedRows(&p.halted, &p.haltedReason, &p.mu, uint64(rowsAffected))
 	return nil
 }
 
