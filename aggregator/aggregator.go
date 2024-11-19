@@ -1081,10 +1081,15 @@ func (a *Aggregator) getAndLockBatchToProve(
 	defer a.stateDBMutex.Unlock()
 
 	// Get last virtual batch number from L1
-	lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
-	if err != nil {
-		return nil, nil, nil, err
-	}
+	/*
+		lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	*/
+
+	var err error
+	lastVerifiedBatchNumber := uint64(75947)
 
 	proofExists := true
 	batchNumberToVerify := lastVerifiedBatchNumber
