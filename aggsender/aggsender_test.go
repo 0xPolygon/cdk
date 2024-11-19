@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
+	"github.com/0xPolygon/cdk/aggsender/db"
 	"github.com/0xPolygon/cdk/aggsender/mocks"
 	aggsendertypes "github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/bridgesync"
@@ -23,6 +25,10 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	networkIDTest = uint32(1234)
 )
 
 func TestExploratoryGetCertificateHeader(t *testing.T) {
@@ -1657,425 +1663,165 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 	}
 }
 
-// TODO: Do CheckLastCertificateFromAgglayer tests
-/*
-//nolint:dupl
-func TestCheckLastCertificateFromAgglayer(t *testing.T) {
-	tests := []struct {
-		name          string
-		agglayerMock  func(*agglayer.AgglayerClientMock)
-		storageMock   func(*AggSender, *log.Logger)
-		storageCheck  func(*AggSender)
-		expectedError string
-	}{
-		{
-			name: "Get last certificate from agglayer error",
-			agglayerMock: func(agglayerClientMock *agglayer.AgglayerClientMock) {
-				agglayerClientMock.On("GetLatestKnownCertificateHeader", mock.Anything).Return(nil, errors.New("error")).Once()
-			},
-			expectedError: "error getting latest known certificate header from agglayer",
-		},
-		{
-			name: "Get last sent certificate from storage error",
-			agglayerMock: func(agglayerClientMock *agglayer.AgglayerClientMock) {
-				agglayerClientMock.On("GetLatestKnownCertificateHeader", mock.Anything).Return(&agglayer.CertificateHeader{
-					Height:           1,
-					NetworkID:        1,
-					CertificateID:    common.HexToHash("0x1"),
-					NewLocalExitRoot: common.HexToHash("0x2"),
-					Status:           agglayer.Pending,
-					Metadata:         createCertificateMetadata(10),
-				}, nil).Once()
-			},
-			storageMock: func(aggsender *AggSender, logger *log.Logger) {
-				storageMock := mocks.NewAggSenderStorage(t)
-				storageMock.On("GetLastSentCertificate").Return(nil, errors.New("error")).Once()
-				aggsender.storage = storageMock
-			},
-			storageCheck: func(aggsender *AggSender) {
-				storageMock, ok := aggsender.storage.(*mocks.AggSenderStorage)
-				require.True(t, ok)
-				storageMock.AssertExpectations(t)
-			},
-			expectedError: "error getting last sent certificate from local storage",
-		},
-		{
-			name: "No last sent certificate in local storage and in agglayer",
-			agglayerMock: func(agglayerClientMock *agglayer.AgglayerClientMock) {
-				agglayerClientMock.On("GetLatestKnownCertificateHeader", mock.Anything).Return(nil, nil).Once()
-			},
-			storageMock: func(aggsender *AggSender, logger *log.Logger) {
-				storageMock := mocks.NewAggSenderStorage(t)
-				storageMock.On("GetLastSentCertificate").Return(nil, nil).Once()
-				aggsender.storage = storageMock
-			},
-			storageCheck: func(aggsender *AggSender) {
-				storageMock, ok := aggsender.storage.(*mocks.AggSenderStorage)
-				require.True(t, ok)
-				storageMock.AssertExpectations(t)
-			},
-		},
-		{
-			name: "No last sent certificate in local storage, but exists one in agglayer",
-			agglayerMock: func(agglayerClientMock *agglayer.AgglayerClientMock) {
-				agglayerClientMock.On("GetLatestKnownCertificateHeader", mock.Anything).Return(&agglayer.CertificateHeader{
-					Height:           11112,
-					NetworkID:        1,
-					CertificateID:    common.HexToHash("0x1a111ca1"),
-					NewLocalExitRoot: common.HexToHash("0x2a2"),
-					Status:           agglayer.Pending,
-					Metadata:         createCertificateMetadata(1011),
-				}, nil).Once()
-			},
-			storageMock: func(aggsender *AggSender, logger *log.Logger) {
-				storage, err := db.NewAggSenderSQLStorage(logger, "file::memory:?cache=shared")
-				require.NoError(t, err)
+func TestCheckLastCertificateFromAgglayer_ErrorAggLayer(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).Return(nil, fmt.Errorf("unittest error")).Once()
 
-				aggsender.storage = storage
-			},
-			storageCheck: func(aggsender *AggSender) {
-				cert, err := aggsender.storage.GetLastSentCertificate()
-				require.NoError(t, err)
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
 
-				require.Equal(t, cert.Height, uint64(11112))
-				require.Equal(t, cert.CertificateID, common.HexToHash("0x1a111ca1"))
-				require.Equal(t, cert.NewLocalExitRoot, common.HexToHash("0x2a2"))
-				require.Equal(t, cert.Status, agglayer.Pending)
-				require.Equal(t, cert.ToBlock, uint64(1011))
+	require.Error(t, err)
+}
 
-				storageMock, ok := aggsender.storage.(*db.AggSenderSQLStorage)
-				require.True(t, ok)
-				require.NoError(t, storageMock.Clean())
-			},
-		},
-		{
-			name: "No last sent certificate in local storage, but exists one in agglayer - error on saving",
-			agglayerMock: func(agglayerClientMock *agglayer.AgglayerClientMock) {
-				agglayerClientMock.On("GetLatestKnownCertificateHeader", mock.Anything).Return(&agglayer.CertificateHeader{
-					Height:           1111223,
-					NetworkID:        1,
-					CertificateID:    common.HexToHash("0x1a111"),
-					NewLocalExitRoot: common.HexToHash("0x2a2"),
-					Status:           agglayer.Pending,
-					Metadata:         createCertificateMetadata(1011),
-				}, nil).Once()
-			},
-			storageMock: func(aggsender *AggSender, logger *log.Logger) {
-				storage := mocks.NewAggSenderStorage(t)
-				storage.On("GetLastSentCertificate").Return(nil, nil).Once()
-				storage.On("SaveLastSentCertificate", mock.Anything, mock.Anything).Return(errors.New("error")).Once()
-				aggsender.storage = storage
-			},
-			storageCheck: func(aggsender *AggSender) {
-				storageMock, ok := aggsender.storage.(*mocks.AggSenderStorage)
-				require.True(t, ok)
-				storageMock.AssertExpectations(t)
-			},
-			expectedError: "error updating local storage with agglayer certificate",
-		},
-		{
-			name: "Last sent certificate in local storage and in agglayer, but older than agglayer's",
-			agglayerMock: func(agglayerClientMock *agglayer.AgglayerClientMock) {
-				agglayerClientMock.On("GetLatestKnownCertificateHeader", mock.Anything).Return(&agglayer.CertificateHeader{
-					Height:           145678,
-					NetworkID:        1,
-					CertificateID:    common.HexToHash("0x11b1c"),
-					NewLocalExitRoot: common.HexToHash("0x22b2"),
-					Status:           agglayer.Settled,
-					Metadata:         createCertificateMetadata(100),
-				}, nil).Once()
-			},
-			storageMock: func(aggsender *AggSender, logger *log.Logger) {
-				storage, err := db.NewAggSenderSQLStorage(logger, "file::memory:?cache=shared")
-				require.NoError(t, err)
+func TestCheckLastCertificateFromAgglayer_ErrorStorageGetLastSentCertificate(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).Return(nil, nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(nil, fmt.Errorf("unittest error"))
 
-				aggsender.storage = storage
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
 
-				err = storage.SaveLastSentCertificate(context.TODO(), aggsendertypes.CertificateInfo{
-					Height:           145677,
-					CertificateID:    common.HexToHash("0x11b1a"),
-					NewLocalExitRoot: common.HexToHash("0x22b2"),
-					Status:           agglayer.Settled,
-					FromBlock:        0,
-					ToBlock:          90,
-				})
-				require.NoError(t, err)
-			},
-			storageCheck: func(aggsender *AggSender) {
-				cert, err := aggsender.storage.GetLastSentCertificate()
-				require.NoError(t, err)
+	require.Error(t, err)
+}
 
-				require.Equal(t, cert.Height, uint64(145678))
-				require.Equal(t, cert.CertificateID, common.HexToHash("0x11b1c"))
-				require.Equal(t, cert.NewLocalExitRoot, common.HexToHash("0x22b2"))
-				require.Equal(t, cert.Status, agglayer.Settled)
-				require.Equal(t, cert.ToBlock, uint64(100))
+// TestCheckLastCertificateFromAgglayer_Case1NoCerts
+// CASE 1: No certificates in local storage and agglayer
+// Aggsender and agglayer are empty so it's ok
+func TestCheckLastCertificateFromAgglayer_Case1NoCerts(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagNone)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).Return(nil, nil).Once()
 
-				storageMock, ok := aggsender.storage.(*db.AggSenderSQLStorage)
-				require.True(t, ok)
-				require.NoError(t, storageMock.Clean())
-			},
-		},
-		{
-			name: "Last sent certificate in local storage and in agglayer, but older than agglayer's - error on saving",
-			agglayerMock: func(agglayerClientMock *agglayer.AgglayerClientMock) {
-				agglayerClientMock.On("GetLatestKnownCertificateHeader", mock.Anything).Return(&agglayer.CertificateHeader{
-					Height:           14567821,
-					NetworkID:        1,
-					CertificateID:    common.HexToHash("0x11b1ca112"),
-					NewLocalExitRoot: common.HexToHash("0x22b2"),
-					Status:           agglayer.Settled,
-					Metadata:         createCertificateMetadata(100),
-				}, nil).Once()
-			},
-			storageMock: func(aggsender *AggSender, logger *log.Logger) {
-				storage := mocks.NewAggSenderStorage(t)
-				storage.On("GetLastSentCertificate").Return(aggsendertypes.CertificateInfo{
-					Height:           14567820,
-					CertificateID:    common.HexToHash("0x11b1a"),
-					NewLocalExitRoot: common.HexToHash("0x22b2"),
-					Status:           agglayer.Settled,
-					FromBlock:        0,
-					ToBlock:          90,
-				}, nil).Once()
-				storage.On("SaveLastSentCertificate", mock.Anything, mock.Anything).Return(errors.New("error")).Once()
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
 
-				aggsender.storage = storage
-			},
-			storageCheck: func(aggsender *AggSender) {
-				storageMock, ok := aggsender.storage.(*mocks.AggSenderStorage)
-				require.True(t, ok)
+	require.NoError(t, err)
+}
 
-				storageMock.AssertExpectations(t)
-			},
-			expectedError: "error updating local storage with agglayer certificate",
-		},
-		{
-			name: "Last sent certificate in local storage and in agglayer, but newer than agglayer's",
-			agglayerMock: func(agglayerClientMock *agglayer.AgglayerClientMock) {
-				agglayerClientMock.On("GetLatestKnownCertificateHeader", mock.Anything).Return(&agglayer.CertificateHeader{
-					Height:           1456,
-					NetworkID:        1,
-					CertificateID:    common.HexToHash("0x1111ac1"),
-					NewLocalExitRoot: common.HexToHash("0x2222"),
-					Status:           agglayer.Settled,
-					Metadata:         createCertificateMetadata(90),
-				}, nil).Once()
-			},
-			storageMock: func(aggsender *AggSender, logger *log.Logger) {
-				storage, err := db.NewAggSenderSQLStorage(logger, "file::memory:?cache=shared")
-				require.NoError(t, err)
+// TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemote
+// CASE 2: No certificates in local storage but agglayer has one
+// The local DB is empty and we set the lastCert reported by AggLayer
+func TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemote(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagNone)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
 
-				aggsender.storage = storage
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
 
-				err = storage.SaveLastSentCertificate(context.TODO(), aggsendertypes.CertificateInfo{
-					Height:           1457,
-					CertificateID:    common.HexToHash("0x1112ad1"),
-					NewLocalExitRoot: common.HexToHash("0x22222"),
-					Status:           agglayer.Pending,
-					FromBlock:        0,
-					ToBlock:          100,
-				})
-				require.NoError(t, err)
-			},
-			storageCheck: func(aggsender *AggSender) {
-				cert, err := aggsender.storage.GetLastSentCertificate()
-				require.NoError(t, err)
+	require.NoError(t, err)
+	localCert, err := testData.sut.storage.GetLastSentCertificate()
+	require.NoError(t, err)
+	require.Equal(t, testData.testCerts[0].CertificateID, localCert.CertificateID)
+}
 
-				require.Equal(t, cert.Height, uint64(1457))
-				require.Equal(t, cert.CertificateID, common.HexToHash("0x1112ad1"))
-				require.Equal(t, cert.NewLocalExitRoot, common.HexToHash("0x22222"))
-				require.Equal(t, cert.Status, agglayer.InError) // we mark it as InError to resend it again
-				require.Equal(t, cert.ToBlock, uint64(100))
+// TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemoteErrorStorage
+// sub case of previous one that fails to update local storage
+func TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemoteErrorStorage(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(nil, nil)
+	testData.storageMock.EXPECT().SaveLastSentCertificate(mock.Anything, mock.Anything).Return(fmt.Errorf("unittest error"))
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
 
-				storageMock, ok := aggsender.storage.(*db.AggSenderSQLStorage)
-				require.True(t, ok)
-				require.NoError(t, storageMock.Clean())
-			},
-		},
-		{
-			name: "Last sent certificate in local storage and in agglayer, but newer than agglayer's - error on saving",
-			agglayerMock: func(agglayerClientMock *agglayer.AgglayerClientMock) {
-				agglayerClientMock.On("GetLatestKnownCertificateHeader", mock.Anything).Return(&agglayer.CertificateHeader{
-					Height:           1456,
-					NetworkID:        1,
-					CertificateID:    common.HexToHash("0x1111ac1"),
-					NewLocalExitRoot: common.HexToHash("0x2222"),
-					Status:           agglayer.Settled,
-					Metadata:         createCertificateMetadata(90),
-				}, nil).Once()
-			},
-			storageMock: func(aggsender *AggSender, logger *log.Logger) {
-				storage := mocks.NewAggSenderStorage(t)
-				storage.On("GetLastSentCertificate").Return(aggsendertypes.CertificateInfo{
-					Height:           1457,
-					CertificateID:    common.HexToHash("0x1112ad1"),
-					NewLocalExitRoot: common.HexToHash("0x22222"),
-					Status:           agglayer.Pending,
-					FromBlock:        0,
-					ToBlock:          100,
-				}, nil).Once()
-				storage.On("UpdateCertificate", mock.Anything, mock.Anything).Return(errors.New("error")).Once()
+	require.Error(t, err)
+}
 
-				aggsender.storage = storage
-			},
-			storageCheck: func(aggsender *AggSender) {
-				storageMock, ok := aggsender.storage.(*mocks.AggSenderStorage)
-				require.True(t, ok)
+// // CASE 3: AggSender and AggLayer not same certificateID
+func TestCheckLastCertificateFromAgglayer_Case3Mismatch(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
 
-				storageMock.AssertExpectations(t)
-			},
-			expectedError: "rror updating certificate status",
-		},
-		{
-			name: "Last sent certificate in local storage and in agglayer, but not the same hash",
-			agglayerMock: func(agglayerClientMock *agglayer.AgglayerClientMock) {
-				agglayerClientMock.On("GetLatestKnownCertificateHeader", mock.Anything).Return(&agglayer.CertificateHeader{
-					Height:           2345,
-					NetworkID:        1,
-					CertificateID:    common.HexToHash("0x1111112"),
-					NewLocalExitRoot: common.HexToHash("0x222222"),
-					Status:           agglayer.Settled,
-					Metadata:         createCertificateMetadata(90),
-				}, nil).Once()
-			},
-			storageMock: func(aggsender *AggSender, logger *log.Logger) {
-				storage, err := db.NewAggSenderSQLStorage(logger, "file::memory:?cache=shared")
-				require.NoError(t, err)
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[1], nil)
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
 
-				aggsender.storage = storage
+	require.Error(t, err)
+}
 
-				err = storage.SaveLastSentCertificate(context.TODO(), aggsendertypes.CertificateInfo{
-					Height:           2345,
-					CertificateID:    common.HexToHash("0x1111112a"), // not the same hash
-					NewLocalExitRoot: common.HexToHash("0x222222"),
-					Status:           agglayer.Pending,
-					FromBlock:        91,
-					ToBlock:          100,
-				})
-				require.NoError(t, err)
-			},
-			storageCheck: func(aggsender *AggSender) {
-				cert, err := aggsender.storage.GetLastSentCertificate()
-				require.NoError(t, err)
+type testDataFlags = int
 
-				require.Equal(t, cert.Height, uint64(2345))
-				require.Equal(t, cert.CertificateID, common.HexToHash("0x1111112")) // updated hash
-				require.Equal(t, cert.NewLocalExitRoot, common.HexToHash("0x222222"))
-				require.Equal(t, cert.Status, agglayer.Settled)
-				require.Equal(t, cert.ToBlock, uint64(90))
+const (
+	testDataFlagNone        testDataFlags = 0
+	testDataFlagMockStorage testDataFlags = 1
+)
 
-				storageMock, ok := aggsender.storage.(*db.AggSenderSQLStorage)
-				require.True(t, ok)
-				require.NoError(t, storageMock.Clean())
-			},
-		},
-		{
-			name: "Last sent certificate in local storage and in agglayer, but not the same hash - error deleting old one",
-			agglayerMock: func(agglayerClientMock *agglayer.AgglayerClientMock) {
-				agglayerClientMock.On("GetLatestKnownCertificateHeader", mock.Anything).Return(&agglayer.CertificateHeader{
-					Height:           2345,
-					NetworkID:        1,
-					CertificateID:    common.HexToHash("0x1111112"),
-					NewLocalExitRoot: common.HexToHash("0x222222"),
-					Status:           agglayer.Settled,
-					Metadata:         createCertificateMetadata(90),
-				}, nil).Once()
-			},
-			storageMock: func(aggsender *AggSender, logger *log.Logger) {
-				storage := mocks.NewAggSenderStorage(t)
-				storage.On("GetLastSentCertificate").Return(aggsendertypes.CertificateInfo{
-					Height:           2345,
-					CertificateID:    common.HexToHash("0x1111112a"), // not the same hash
-					NewLocalExitRoot: common.HexToHash("0x222222"),
-					Status:           agglayer.Pending,
-					FromBlock:        91,
-					ToBlock:          100,
-				}, nil).Once()
-				storage.On("DeleteCertificate", mock.Anything, mock.Anything).Return(errors.New("error")).Once()
+type aggsenderTestData struct {
+	ctx                  context.Context
+	agglayerClientMock   *agglayer.AgglayerClientMock
+	l2syncerMock         *mocks.L2BridgeSyncer
+	l1InfoTreeSyncerMock *mocks.L1InfoTreeSyncer
+	storageMock          *mocks.AggSenderStorage
+	sut                  *AggSender
+	testCerts            []aggsendertypes.CertificateInfo
+}
 
-				aggsender.storage = storage
-			},
-			storageCheck: func(aggsender *AggSender) {
-				storageMock, ok := aggsender.storage.(*mocks.AggSenderStorage)
-				require.True(t, ok)
-
-				storageMock.AssertExpectations(t)
-			},
-			expectedError: "error deleting certificate",
-		},
-		{
-			name: "Last sent certificate in local storage and in agglayer, but not the same hash - error on update",
-			agglayerMock: func(agglayerClientMock *agglayer.AgglayerClientMock) {
-				agglayerClientMock.On("GetLatestKnownCertificateHeader", mock.Anything).Return(&agglayer.CertificateHeader{
-					Height:           2345,
-					NetworkID:        1,
-					CertificateID:    common.HexToHash("0x1111112"),
-					NewLocalExitRoot: common.HexToHash("0x222222"),
-					Status:           agglayer.Settled,
-					Metadata:         createCertificateMetadata(90),
-				}, nil).Once()
-			},
-			storageMock: func(aggsender *AggSender, logger *log.Logger) {
-				storage := mocks.NewAggSenderStorage(t)
-				storage.On("GetLastSentCertificate").Return(aggsendertypes.CertificateInfo{
-					Height:           2345,
-					CertificateID:    common.HexToHash("0x1111112a"), // not the same hash
-					NewLocalExitRoot: common.HexToHash("0x222222"),
-					Status:           agglayer.Pending,
-					FromBlock:        91,
-					ToBlock:          100,
-				}, nil).Once()
-				storage.On("DeleteCertificate", mock.Anything, mock.Anything).Return(nil).Once()
-				storage.On("SaveLastSentCertificate", mock.Anything, mock.Anything).Return(errors.New("error")).Once()
-
-				aggsender.storage = storage
-			},
-			storageCheck: func(aggsender *AggSender) {
-				storageMock, ok := aggsender.storage.(*mocks.AggSenderStorage)
-				require.True(t, ok)
-
-				storageMock.AssertExpectations(t)
-			},
-			expectedError: "error updating local storage with agglayer certificate",
-		},
+func certInfoToCertHeader(certInfo *aggsendertypes.CertificateInfo, networkID uint32) *agglayer.CertificateHeader {
+	if certInfo == nil {
+		return nil
 	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			l2syncerMock := mocks.NewL2BridgeSyncer(t)
-			l2syncerMock.On("OriginNetwork").Return(uint32(1), nil).Once()
-
-			agglayerClientMock := agglayer.NewAgglayerClientMock(t)
-			logger := log.WithFields("aggsender-test", "checkLastCertificateFromAgglayer")
-			aggsender := &AggSender{
-				log:            logger,
-				l2Syncer:       l2syncerMock,
-				aggLayerClient: agglayerClientMock,
-			}
-
-			if test.agglayerMock != nil {
-				test.agglayerMock(agglayerClientMock)
-			}
-
-			if test.storageMock != nil {
-				test.storageMock(aggsender, logger)
-			}
-
-			err := aggsender.checkLastCertificateFromAgglayer(context.Background())
-			if test.expectedError != "" {
-				require.ErrorContains(t, err, test.expectedError)
-			} else {
-				require.NoError(t, err)
-			}
-
-			if test.storageCheck != nil {
-				test.storageCheck(aggsender)
-			}
-
-			l2syncerMock.AssertExpectations(t)
-			agglayerClientMock.AssertExpectations(t)
-		})
+	return &agglayer.CertificateHeader{
+		Height:           certInfo.Height,
+		NetworkID:        networkID,
+		CertificateID:    certInfo.CertificateID,
+		NewLocalExitRoot: certInfo.NewLocalExitRoot,
+		Status:           agglayer.Pending,
+		Metadata:         createCertificateMetadata(certInfo.ToBlock),
 	}
 }
-*/
+
+func newAggsenderTestData(t *testing.T, creationFlags testDataFlags) *aggsenderTestData {
+	t.Helper()
+	l2syncerMock := mocks.NewL2BridgeSyncer(t)
+	agglayerClientMock := agglayer.NewAgglayerClientMock(t)
+	l1InfoTreeSyncerMock := mocks.NewL1InfoTreeSyncer(t)
+	logger := log.WithFields("aggsender-test", "checkLastCertificateFromAgglayer")
+	var storageMock *mocks.AggSenderStorage
+	var storage db.AggSenderStorage
+	var err error
+	if creationFlags&testDataFlagMockStorage != 0 {
+		storageMock = mocks.NewAggSenderStorage(t)
+		storage = storageMock
+	} else {
+		pc, _, _, _ := runtime.Caller(1)
+		part := runtime.FuncForPC(pc)
+		dbPath := fmt.Sprintf("file:%d?mode=memory&cache=shared", part.Entry())
+		storage, err = db.NewAggSenderSQLStorage(logger, dbPath)
+		require.NoError(t, err)
+	}
+
+	ctx := context.TODO()
+	sut := &AggSender{
+		log:              logger,
+		l2Syncer:         l2syncerMock,
+		aggLayerClient:   agglayerClientMock,
+		storage:          storage,
+		l1infoTreeSyncer: l1InfoTreeSyncerMock,
+	}
+	testCerts := []aggsendertypes.CertificateInfo{
+		{
+			Height:           1,
+			CertificateID:    common.HexToHash("0x1"),
+			NewLocalExitRoot: common.HexToHash("0x2"),
+			Status:           agglayer.Pending,
+		},
+		{
+			Height:           2,
+			CertificateID:    common.HexToHash("0x1a111"),
+			NewLocalExitRoot: common.HexToHash("0x2a2"),
+			Status:           agglayer.Pending,
+		},
+	}
+
+	return &aggsenderTestData{
+		ctx:                  ctx,
+		agglayerClientMock:   agglayerClientMock,
+		l2syncerMock:         l2syncerMock,
+		l1InfoTreeSyncerMock: l1InfoTreeSyncerMock,
+		storageMock:          storageMock,
+		sut:                  sut,
+		testCerts:            testCerts,
+	}
+}
