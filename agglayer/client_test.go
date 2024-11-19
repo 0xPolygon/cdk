@@ -79,3 +79,30 @@ func TestGetEpochConfigurationOkResponse(t *testing.T) {
 		GenesisBlock:  1,
 	}, *clockConfig)
 }
+
+func TestGetLatestKnownCertificateHeaderErrorResponse(t *testing.T) {
+	sut := NewAggLayerClient(testURL)
+	jSONRPCCall = func(url, method string, params ...interface{}) (rpc.Response, error) {
+		return rpc.Response{}, fmt.Errorf("unittest error")
+	}
+
+	cert, err := sut.GetLatestKnownCertificateHeader(1)
+
+	require.Nil(t, cert)
+	require.Error(t, err)
+}
+
+func TestGetLatestKnownCertificateHeaderResponseBadJson(t *testing.T) {
+	sut := NewAggLayerClient(testURL)
+	response := rpc.Response{
+		Result: []byte(`{`),
+	}
+	jSONRPCCall = func(url, method string, params ...interface{}) (rpc.Response, error) {
+		return response, nil
+	}
+
+	cert, err := sut.GetLatestKnownCertificateHeader(1)
+
+	require.Nil(t, cert)
+	require.Error(t, err)
+}
