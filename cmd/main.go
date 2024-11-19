@@ -62,6 +62,13 @@ var (
 		Usage:    "Allow that config-files contains deprecated fields",
 		Required: false,
 	}
+
+	extendedConfigFlag = cli.StringFlag{
+		Name:     config.FlagExtendedConfig,
+		Aliases:  []string{"e"},
+		Usage:    "Save final configuration into to the indicated path (name: cdk-node-config.toml)",
+		Required: false,
+	}
 )
 
 func main() {
@@ -89,6 +96,13 @@ func main() {
 			Usage:   "Run the cdk client",
 			Action:  start,
 			Flags:   append(flags, &customNetworkFlag),
+		},
+		{
+			Name:    "config",
+			Aliases: []string{},
+			Usage:   "Output a default configuration file",
+			Action:  configCmd,
+			Flags:   []cli.Flag{&extendedConfigFlag},
 		},
 	}
 
