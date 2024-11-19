@@ -155,6 +155,10 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	if err != nil {
 		return nil, err
 	}
+	if lastSentCertificateInfo == nil {
+		// There are no certificates, so we set that to a empty one
+		lastSentCertificateInfo = &types.CertificateInfo{}
+	}
 
 	previousToBlock := lastSentCertificateInfo.ToBlock
 	if lastSentCertificateInfo.Status == agglayer.InError {
@@ -189,7 +193,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
 
-	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo, toBlock)
+	certificate, err := a.buildCertificate(ctx, bridges, claims, *lastSentCertificateInfo, toBlock)
 	if err != nil {
 		return nil, fmt.Errorf("error building certificate: %w", err)
 	}
@@ -579,60 +583,28 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 	if err != nil {
 		return fmt.Errorf("recovery: error getting last sent certificate from local storage: %w", err)
 	}
-
-	// first case, we have nothing in db
-	if localLastCert.IsNil() {
-		if aggLayerLastCert == nil {
-			log.Info("recovery: No certificates in local storage and agglayer: initial state")
-			return nil
-		} else {
-			log.Infof("recovery:  No certificates in local storage but agglayer have one %s", aggLayerLastCert.String())
-			if err := a.updateLocalStorageWithAggLayerCert(ctx, aggLayerLastCert); err != nil {
-				return fmt.Errorf("recovery: error updating local storage with agglayer certificate: %w", err)
-			}
-
-			return nil
-		}
+	// CASE 1: No certificates in local storage and agglayer
+	if localLastCert == nil && aggLayerLastCert == nil {
+		log.Info("recovery: No certificates in local storage and agglayer: initial state")
+		return nil
 	}
-
-	// second case, we have a certificate in db, but agglayer has a higher height
-	if localLastCert.Height < aggLayerLastCert.Height {
-		log.Infof("recovery: Local certificate %s is older than agglayer certificate %s.",
-			localLastCert.String(), aggLayerLastCert.String())
+	// CASE 2: No certificates in local storage but agglayer has one
+	if localLastCert == nil && aggLayerLastCert != nil {
+		log.Info("recovery: No certificates in local storage but agglayer have one: recovery aggSender cert: %s",
+			aggLayerLastCert.String())
 		if err := a.updateLocalStorageWithAggLayerCert(ctx, aggLayerLastCert); err != nil {
 			return fmt.Errorf("recovery: error updating local storage with agglayer certificate: %w", err)
 		}
-
 		return nil
 	}
-
-	// third case, we have a certificate in db, but agglayer has a lower height
-	if localLastCert.Height > aggLayerLastCert.Height {
-		log.Info("recovery: Local certificate is newer than agglayer certificate. We will mark it as in error to resend it.")
-
-		localLastCert.Status = agglayer.InError
-		localLastCert.UpdatedAt = time.Now().UTC().UnixMilli()
-		if err := a.storage.UpdateCertificate(ctx, localLastCert); err != nil {
-			return fmt.Errorf("recovery: error updating certificate status: %w", err)
-		}
-
-		return nil
-	}
-
-	// fourth case, we have a certificate in db, and agglayer has the same height
+	// CASE 3: AggSender and AggLayer are not at same page
+	//    note: we don't need to check indivual fields of the certificate
+	//          because certificationID is a hash of all the fields
 	if localLastCert.CertificateID != aggLayerLastCert.CertificateID {
-		log.Infof("recovery: Local certificate %s is different from agglayer certificate %s.",
+		a.log.Errorf("recovery: Local certificate %s is different from agglayer certificate %s",
 			localLastCert.String(), aggLayerLastCert.String())
-
-		if err := a.storage.DeleteCertificate(ctx, localLastCert.CertificateID); err != nil {
-			return fmt.Errorf("recovery: error deleting certificate: %w", err)
-		}
-
-		if err := a.updateLocalStorageWithAggLayerCert(ctx, aggLayerLastCert); err != nil {
-			return fmt.Errorf("recovery: error updating local storage with agglayer certificate: %w", err)
-		}
+		return fmt.Errorf("recovery: mismatch between local and agglayer certificates")
 	}
-
 	return nil
 }
 

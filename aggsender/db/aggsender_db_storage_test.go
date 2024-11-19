@@ -45,7 +45,7 @@ func Test_Storage(t *testing.T) {
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
 
-		require.Equal(t, certificate, certificateFromDB)
+		require.Equal(t, certificate, *certificateFromDB)
 		require.NoError(t, storage.Clean())
 	})
 
@@ -66,7 +66,7 @@ func Test_Storage(t *testing.T) {
 
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.ErrorIs(t, err, db.ErrNotFound)
-		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+		require.Nil(t, certificateFromDB)
 		require.NoError(t, storage.Clean())
 	})
 
@@ -74,7 +74,7 @@ func Test_Storage(t *testing.T) {
 		// try getting a certificate that doesn't exist
 		certificateFromDB, err := storage.GetLastSentCertificate()
 		require.NoError(t, err)
-		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+		require.Nil(t, certificateFromDB)
 
 		// try getting a certificate that exists
 		certificate := types.CertificateInfo{
@@ -91,8 +91,8 @@ func Test_Storage(t *testing.T) {
 
 		certificateFromDB, err = storage.GetLastSentCertificate()
 		require.NoError(t, err)
-
-		require.Equal(t, certificate, certificateFromDB)
+		require.NotNil(t, certificateFromDB)
+		require.Equal(t, certificate, *certificateFromDB)
 		require.NoError(t, storage.Clean())
 	})
 
@@ -100,12 +100,12 @@ func Test_Storage(t *testing.T) {
 		// try getting height 0
 		certificateFromDB, err := storage.GetCertificateByHeight(0)
 		require.NoError(t, err)
-		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+		require.Nil(t, certificateFromDB)
 
 		// try getting a certificate that doesn't exist
 		certificateFromDB, err = storage.GetCertificateByHeight(4)
 		require.ErrorIs(t, err, db.ErrNotFound)
-		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+		require.Nil(t, certificateFromDB)
 
 		// try getting a certificate that exists
 		certificate := types.CertificateInfo{
@@ -122,8 +122,8 @@ func Test_Storage(t *testing.T) {
 
 		certificateFromDB, err = storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
-
-		require.Equal(t, certificate, certificateFromDB)
+		require.NotNil(t, certificateFromDB)
+		require.Equal(t, certificate, *certificateFromDB)
 		require.NoError(t, storage.Clean())
 	})
 
@@ -251,7 +251,7 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
-		require.Equal(t, certificate, certificateFromDB)
+		require.Equal(t, certificate, *certificateFromDB)
 		require.NoError(t, storage.Clean())
 	})
 
@@ -281,7 +281,7 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 
 		certificateFromDB, err := storage.GetCertificateByHeight(updatedCertificate.Height)
 		require.NoError(t, err)
-		require.Equal(t, updatedCertificate, certificateFromDB)
+		require.Equal(t, updatedCertificate, *certificateFromDB)
 		require.NoError(t, storage.Clean())
 	})
 
@@ -310,7 +310,7 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.ErrorIs(t, err, db.ErrNotFound)
-		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+		require.Nil(t, certificateFromDB)
 		require.NoError(t, storage.Clean())
 	})
 
@@ -362,7 +362,7 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
-		require.Equal(t, certificate, certificateFromDB)
+		require.Equal(t, certificate, *certificateFromDB)
 		require.Equal(t, raw, []byte(certificateFromDB.SignedCertificate))
 
 		require.NoError(t, storage.Clean())
