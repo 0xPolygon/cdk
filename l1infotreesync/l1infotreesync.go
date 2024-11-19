@@ -106,7 +106,7 @@ func (s *L1InfoTreeSync) Start(ctx context.Context) {
 
 // GetL1InfoTreeMerkleProof creates a merkle proof for the L1 Info tree
 func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProof(ctx context.Context, index uint32) (types.Proof, types.Root, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return types.Proof{}, types.Root{}, sync.ErrInconsistentState
 	}
 	return s.processor.GetL1InfoTreeMerkleProof(ctx, index)
@@ -118,7 +118,7 @@ func (s *L1InfoTreeSync) GetRollupExitTreeMerkleProof(
 	networkID uint32,
 	root common.Hash,
 ) (types.Proof, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return types.Proof{}, sync.ErrInconsistentState
 	}
 	if networkID == 0 {
@@ -141,7 +141,7 @@ func translateError(err error) error {
 // - ErrBlockNotProcessed,
 // - ErrNotFound
 func (s *L1InfoTreeSync) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64) (*L1InfoTreeLeaf, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return nil, sync.ErrInconsistentState
 	}
 	leaf, err := s.processor.GetLatestInfoUntilBlock(ctx, blockNum)
@@ -150,7 +150,7 @@ func (s *L1InfoTreeSync) GetLatestInfoUntilBlock(ctx context.Context, blockNum u
 
 // GetInfoByIndex returns the value of a leaf (not the hash) of the L1 info tree
 func (s *L1InfoTreeSync) GetInfoByIndex(ctx context.Context, index uint32) (*L1InfoTreeLeaf, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return nil, sync.ErrInconsistentState
 	}
 	return s.processor.GetInfoByIndex(ctx, index)
@@ -158,7 +158,7 @@ func (s *L1InfoTreeSync) GetInfoByIndex(ctx context.Context, index uint32) (*L1I
 
 // GetL1InfoTreeRootByIndex returns the root of the L1 info tree at the moment the leaf with the given index was added
 func (s *L1InfoTreeSync) GetL1InfoTreeRootByIndex(ctx context.Context, index uint32) (types.Root, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return types.Root{}, sync.ErrInconsistentState
 	}
 	return s.processor.l1InfoTree.GetRootByIndex(ctx, index)
@@ -166,7 +166,7 @@ func (s *L1InfoTreeSync) GetL1InfoTreeRootByIndex(ctx context.Context, index uin
 
 // GetLastRollupExitRoot return the last rollup exit root processed
 func (s *L1InfoTreeSync) GetLastRollupExitRoot(ctx context.Context) (types.Root, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return types.Root{}, sync.ErrInconsistentState
 	}
 	return s.processor.rollupExitTree.GetLastRoot(nil)
@@ -174,7 +174,7 @@ func (s *L1InfoTreeSync) GetLastRollupExitRoot(ctx context.Context) (types.Root,
 
 // GetLastL1InfoTreeRoot return the last root and index processed from the L1 Info tree
 func (s *L1InfoTreeSync) GetLastL1InfoTreeRoot(ctx context.Context) (types.Root, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return types.Root{}, sync.ErrInconsistentState
 	}
 	return s.processor.l1InfoTree.GetLastRoot(nil)
@@ -182,7 +182,7 @@ func (s *L1InfoTreeSync) GetLastL1InfoTreeRoot(ctx context.Context) (types.Root,
 
 // GetLastProcessedBlock return the last processed block
 func (s *L1InfoTreeSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return 0, sync.ErrInconsistentState
 	}
 	return s.processor.GetLastProcessedBlock(ctx)
@@ -191,7 +191,7 @@ func (s *L1InfoTreeSync) GetLastProcessedBlock(ctx context.Context) (uint64, err
 func (s *L1InfoTreeSync) GetLocalExitRoot(
 	ctx context.Context, networkID uint32, rollupExitRoot common.Hash,
 ) (common.Hash, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return common.Hash{}, sync.ErrInconsistentState
 	}
 	if networkID == 0 {
@@ -202,56 +202,56 @@ func (s *L1InfoTreeSync) GetLocalExitRoot(
 }
 
 func (s *L1InfoTreeSync) GetLastVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return nil, sync.ErrInconsistentState
 	}
 	return s.processor.GetLastVerifiedBatches(rollupID)
 }
 
 func (s *L1InfoTreeSync) GetFirstVerifiedBatches(rollupID uint32) (*VerifyBatches, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return nil, sync.ErrInconsistentState
 	}
 	return s.processor.GetFirstVerifiedBatches(rollupID)
 }
 
 func (s *L1InfoTreeSync) GetFirstVerifiedBatchesAfterBlock(rollupID uint32, blockNum uint64) (*VerifyBatches, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return nil, sync.ErrInconsistentState
 	}
 	return s.processor.GetFirstVerifiedBatchesAfterBlock(rollupID, blockNum)
 }
 
 func (s *L1InfoTreeSync) GetFirstL1InfoWithRollupExitRoot(rollupExitRoot common.Hash) (*L1InfoTreeLeaf, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return nil, sync.ErrInconsistentState
 	}
 	return s.processor.GetFirstL1InfoWithRollupExitRoot(rollupExitRoot)
 }
 
 func (s *L1InfoTreeSync) GetLastInfo() (*L1InfoTreeLeaf, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return nil, sync.ErrInconsistentState
 	}
 	return s.processor.GetLastInfo()
 }
 
 func (s *L1InfoTreeSync) GetFirstInfo() (*L1InfoTreeLeaf, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return nil, sync.ErrInconsistentState
 	}
 	return s.processor.GetFirstInfo()
 }
 
 func (s *L1InfoTreeSync) GetFirstInfoAfterBlock(blockNum uint64) (*L1InfoTreeLeaf, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return nil, sync.ErrInconsistentState
 	}
 	return s.processor.GetFirstInfoAfterBlock(blockNum)
 }
 
 func (s *L1InfoTreeSync) GetInfoByGlobalExitRoot(ger common.Hash) (*L1InfoTreeLeaf, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return nil, sync.ErrInconsistentState
 	}
 	return s.processor.GetInfoByGlobalExitRoot(ger)
@@ -261,7 +261,7 @@ func (s *L1InfoTreeSync) GetInfoByGlobalExitRoot(ger common.Hash) (*L1InfoTreeLe
 func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProofFromIndexToRoot(
 	ctx context.Context, index uint32, root common.Hash,
 ) (types.Proof, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return types.Proof{}, sync.ErrInconsistentState
 	}
 	return s.processor.l1InfoTree.GetProof(ctx, index, root)
@@ -269,7 +269,7 @@ func (s *L1InfoTreeSync) GetL1InfoTreeMerkleProofFromIndexToRoot(
 
 // GetInitL1InfoRootMap returns the initial L1 info root map, nil if no root map has been set
 func (s *L1InfoTreeSync) GetInitL1InfoRootMap(ctx context.Context) (*L1InfoTreeInitial, error) {
-	if s.processor.halted {
+	if s.processor.isHalted() {
 		return nil, sync.ErrInconsistentState
 	}
 	return s.processor.GetInitL1InfoRootMap(nil)

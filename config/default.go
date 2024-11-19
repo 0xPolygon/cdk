@@ -336,5 +336,5 @@ URLRPCL2="{{L2URL}}"
 CheckSettledInterval = "2s"
 BlockFinality = "LatestBlock"
 EpochNotificationPercentage = 50
-SaveCertificatesToFiles = false
+SaveCertificatesToFilesPath = ""
 `

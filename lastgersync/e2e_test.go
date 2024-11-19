@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/lastgersync"
 	"github.com/0xPolygon/cdk/test/aggoraclehelpers"
+	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -49,22 +50,9 @@ func TestE2E(t *testing.T) {
 		require.True(t, isInjected, fmt.Sprintf("iteration %d, GER: %s", i, common.Bytes2Hex(expectedGER[:])))
 
 		// Wait for syncer to catch up
-		syncerUpToDate := false
-		var errMsg string
-		for i := 0; i < 10; i++ {
-			lpb, err := syncer.GetLastProcessedBlock(ctx)
-			require.NoError(t, err)
-			lb, err := env.L2Client.Client().BlockNumber(ctx)
-			require.NoError(t, err)
-			if lpb == lb {
-				syncerUpToDate = true
-
-				break
-			}
-			time.Sleep(time.Millisecond * 100)
-			errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb, lpb)
-		}
-		require.True(t, syncerUpToDate, errMsg)
+		lb, err := env.L2Client.Client().BlockNumber(ctx)
+		require.NoError(t, err)
+		helpers.RequireProcessorUpdated(t, syncer, lb)
 
 		e, err := syncer.GetFirstGERAfterL1InfoTreeIndex(ctx, uint32(i))
 		require.NoError(t, err, fmt.Sprint("iteration: ", i))

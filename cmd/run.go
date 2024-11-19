@@ -502,7 +502,7 @@ func runL1InfoTreeSyncerIfNeeded(
 	reorgDetector *reorgdetector.ReorgDetector,
 ) *l1infotreesync.L1InfoTreeSync {
 	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC,
-		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGSENDER}, components) {
+		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGSENDER, cdkcommon.L1INFOTREESYNC}, components) {
 		return nil
 	}
 	l1InfoTreeSync, err := l1infotreesync.New(
@@ -533,6 +533,7 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
 		cdkcommon.AGGORACLE, cdkcommon.RPC,
 		cdkcommon.AGGSENDER,
+		cdkcommon.L1INFOTREESYNC,
 	}, components) {
 		return nil
 	}
@@ -567,7 +568,8 @@ func runReorgDetectorL1IfNeeded(
 ) (*reorgdetector.ReorgDetector, chan error) {
 	if !isNeeded([]string{
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
-		cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER},
+		cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER,
+		cdkcommon.L1INFOTREESYNC},
 		components) {
 		return nil, nil
 	}

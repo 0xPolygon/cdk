@@ -2,7 +2,6 @@ package bridgesync_test
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"path"
 	"testing"
@@ -63,25 +62,9 @@ func TestBridgeEventE2E(t *testing.T) {
 	}
 
 	// Wait for syncer to catch up
-	syncerUpToDate := false
-
-	var errMsg string
 	lb, err := client.Client().BlockNumber(ctx)
 	require.NoError(t, err)
-
-	for i := 0; i < 10; i++ {
-		lpb, err := syncer.GetLastProcessedBlock(ctx)
-		require.NoError(t, err)
-		if lpb == lb {
-			syncerUpToDate = true
-
-			break
-		}
-
-		time.Sleep(time.Millisecond * 100)
-		errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb, lpb)
-	}
-	require.True(t, syncerUpToDate, errMsg)
+	helpers.RequireProcessorUpdated(t, syncer, lb)
 
 	// Get bridges
 	lastBlock, err := client.Client().BlockNumber(ctx)

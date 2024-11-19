@@ -59,7 +59,8 @@ generate-mocks-aggregator: ## Generates mocks for aggregator, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManagerClient --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthTxManagerClientMock --filename=mock_eth_tx_manager.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Txer --dir=../db --output=../aggregator/mocks --outpkg=mocks --structname=TxerMock --filename=mock_txer.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=RPCInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=RPCInterfaceMock --filename=mock_rpc.go
-
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AggregatorService_ChannelServer --dir=../aggregator/prover --output=../aggregator/prover/mocks --outpkg=mocks --structname=ChannelMock --filename=mock_channel.go
+	
 
 .PHONY: generate-mocks-aggsender
 generate-mocks-aggsender: ## Generates mocks for aggsender, using mockery tool
@@ -68,7 +69,7 @@ generate-mocks-aggsender: ## Generates mocks for aggsender, using mockery tool
 
 .PHONY: generate-mocks-agglayer
 generate-mocks-agglayer: ## Generates mocks for agglayer, using mockery tool
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AgglayerClientInterface --dir=../agglayer --output=../agglayer --outpkg=agglayer --inpackage --structname=AgglayerClientMock --filename=mock_agglayer_client.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AgglayerClientInterface --dir=../agglayer --output=../agglayer --outpkg=agglayer --inpackage --structname=AgglayerClientMock --filename=mock_agglayer_client.go ${COMMON_MOCKERY_PARAMS}
 
 .PHONY: generate-mocks-bridgesync
 generate-mocks-bridgesync: ## Generates mocks for bridgesync, using mockery tool

@@ -36,7 +36,6 @@ func newSimulatedClient(t *testing.T) (
 	*verifybatchesmock.Verifybatchesmock,
 ) {
 	t.Helper()
-
 	ctx := context.Background()
 	client, setup := helpers.SimulatedBackend(t, nil, 0)
 
@@ -79,11 +78,11 @@ func TestE2E(t *testing.T) {
 		client.Commit()
 		g, err := gerSc.L1InfoRootMap(nil, uint32(i+1))
 		require.NoError(t, err)
-		// Let the processor catch up
-		time.Sleep(time.Millisecond * 100)
 		receipt, err := client.Client().TransactionReceipt(ctx, tx.Hash())
 		require.NoError(t, err)
 		require.Equal(t, receipt.Status, types.ReceiptStatusSuccessful)
+		// Let the processor catch up
+		helpers.RequireProcessorUpdated(t, syncer, receipt.BlockNumber.Uint64())
 
 		expectedGER, err := gerSc.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
@@ -118,17 +117,7 @@ func TestE2E(t *testing.T) {
 			require.True(t, len(receipt.Logs) == 1+i%2+i%2)
 
 			// Let the processor catch
-			processorUpdated := false
-			for i := 0; i < 30; i++ {
-				lpb, err := syncer.GetLastProcessedBlock(ctx)
-				require.NoError(t, err)
-				if receipt.BlockNumber.Uint64() == lpb {
-					processorUpdated = true
-					break
-				}
-				time.Sleep(time.Millisecond * 10)
-			}
-			require.True(t, processorUpdated)
+			helpers.RequireProcessorUpdated(t, syncer, receipt.BlockNumber.Uint64())
 
 			// Assert rollup exit root
 			expectedRollupExitRoot, err := verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
@@ -351,24 +340,17 @@ func TestStressAndReorgs(t *testing.T) {
 
 func waitForSyncerToCatchUp(ctx context.Context, t *testing.T, syncer *l1infotreesync.L1InfoTreeSync, client *simulated.Backend) {
 	t.Helper()
-
-	syncerUpToDate := false
-	var errMsg string
-
-	for i := 0; i < 200; i++ {
-		lpb, err := syncer.GetLastProcessedBlock(ctx)
+	for {
+		lastBlockNum, err := client.Client().BlockNumber(ctx)
 		require.NoError(t, err)
-		lb, err := client.Client().BlockNumber(ctx)
-		require.NoError(t, err)
-		if lpb == lb {
-			syncerUpToDate = true
-			break
-		}
+		helpers.RequireProcessorUpdated(t, syncer, lastBlockNum)
 		time.Sleep(time.Second / 2)
-		errMsg = fmt.Sprintf("last block from client: %d, last block from syncer: %d", lb, lpb)
+		lastBlockNum2, err := client.Client().BlockNumber(ctx)
+		require.NoError(t, err)
+		if lastBlockNum == lastBlockNum2 {
+			return
+		}
 	}
-
-	require.True(t, syncerUpToDate, errMsg)
 }
 
 // commitBlocks commits the specified number of blocks with the given client and waits for the specified duration after each block
