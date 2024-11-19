@@ -970,7 +970,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover ProverInterf
 	tmpLogger.Infof("Proof ID for aggregated proof: %v", *proof.ProofID)
 	tmpLogger = tmpLogger.WithFields("proofId", *proof.ProofID)
 
-	recursiveProof, _, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
+	recursiveProof, _, _, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
 	if err != nil {
 		err = fmt.Errorf("failed to get aggregated proof from prover, %w", err)
 		tmpLogger.Error(FirstToUpper(err.Error()))
@@ -1121,7 +1121,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	// Not found, so it it not possible to verify the batch yet
 	if sequence == nil || errors.Is(err, entities.ErrNotFound) {
 		tmpLogger.Infof("Sequencing event for batch %d has not been synced yet, "+
-			"so it is not possible to verify it yet. Waiting...", batchNumberToVerify)
+			"so it is not possible to verify it yet. Waiting ...", batchNumberToVerify)
 
 		return nil, nil, nil, state.ErrNotFound
 	}
@@ -1138,7 +1138,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 		return nil, nil, nil, err
 	} else if errors.Is(err, entities.ErrNotFound) {
 		a.logger.Infof("Virtual batch %d has not been synced yet, "+
-			"so it is not possible to verify it yet. Waiting...", batchNumberToVerify)
+			"so it is not possible to verify it yet. Waiting ...", batchNumberToVerify)
 		return nil, nil, nil, state.ErrNotFound
 	}
 
@@ -1163,21 +1163,43 @@ func (a *Aggregator) getAndLockBatchToProve(
 		virtualBatch.L1InfoRoot = &l1InfoRoot
 	}
 
+	// Ensure the old acc input hash is in memory
+	oldAccInputHash := a.getAccInputHash(batchNumberToVerify - 1)
+	if oldAccInputHash == (common.Hash{}) && batchNumberToVerify > 1 {
+		tmpLogger.Warnf("AccInputHash for previous batch (%d) is not in memory. Waiting ...", batchNumberToVerify-1)
+		return nil, nil, nil, state.ErrNotFound
+	}
+
+	forcedBlockHashL1 := rpcBatch.ForcedBlockHashL1()
+	l1InfoRoot = *virtualBatch.L1InfoRoot
+
+	if batchNumberToVerify == 1 {
+		l1Block, err := a.l1Syncr.GetL1BlockByNumber(ctx, virtualBatch.BlockNumber)
+		if err != nil {
+			a.logger.Errorf("Error getting l1 block: %v", err)
+			return nil, nil, nil, err
+		}
+
+		forcedBlockHashL1 = l1Block.ParentHash
+		l1InfoRoot = rpcBatch.GlobalExitRoot()
+	}
+
 	// Calculate acc input hash as the RPC is not returning the correct one at the moment
 	accInputHash := cdkcommon.CalculateAccInputHash(
 		a.logger,
-		a.getAccInputHash(batchNumberToVerify-1),
+		oldAccInputHash,
 		virtualBatch.BatchL2Data,
-		*virtualBatch.L1InfoRoot,
+		l1InfoRoot,
 		uint64(sequence.Timestamp.Unix()),
 		rpcBatch.LastCoinbase(),
-		rpcBatch.ForcedBlockHashL1(),
+		forcedBlockHashL1,
 	)
 	// Store the acc input hash
 	a.setAccInputHash(batchNumberToVerify, accInputHash)
 
 	// Log params to calculate acc input hash
 	a.logger.Debugf("Calculated acc input hash for batch %d: %v", batchNumberToVerify, accInputHash)
+	a.logger.Debugf("OldAccInputHash: %v", oldAccInputHash)
 	a.logger.Debugf("L1InfoRoot: %v", virtualBatch.L1InfoRoot)
 	// a.logger.Debugf("LastL2BLockTimestamp: %v", rpcBatch.LastL2BLockTimestamp())
 	a.logger.Debugf("TimestampLimit: %v", uint64(sequence.Timestamp.Unix()))
@@ -1196,7 +1218,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 		AccInputHash:    accInputHash,
 		L1InfoTreeIndex: rpcBatch.L1InfoTreeIndex(),
 		L1InfoRoot:      *virtualBatch.L1InfoRoot,
-		Timestamp:       time.Unix(int64(rpcBatch.LastL2BLockTimestamp()), 0),
+		Timestamp:       sequence.Timestamp,
 		GlobalExitRoot:  rpcBatch.GlobalExitRoot(),
 		ChainID:         a.cfg.ChainID,
 		ForkID:          a.cfg.ForkId,
@@ -1325,7 +1347,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 
 	tmpLogger = tmpLogger.WithFields("proofId", *proof.ProofID)
 
-	resGetProof, stateRoot, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
+	resGetProof, stateRoot, accInputHash, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
 	if err != nil {
 		err = fmt.Errorf("failed to get proof from prover, %w", err)
 		tmpLogger.Error(FirstToUpper(err.Error()))
@@ -1335,17 +1357,9 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 	tmpLogger.Info("Batch proof generated")
 
 	// Sanity Check: state root from the proof must match the one from the batch
-	if a.cfg.BatchProofSanityCheckEnabled && (stateRoot != common.Hash{}) && (stateRoot != batchToProve.StateRoot) {
-		for {
-			tmpLogger.Errorf("State root from the proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]",
-				batchToProve.BatchNumber, stateRoot.String(), batchToProve.StateRoot.String(),
-			)
-			time.Sleep(a.cfg.RetryTime.Duration)
-		}
-	} else {
-		tmpLogger.Infof("State root sanity check for batch %d passed", batchToProve.BatchNumber)
+	if a.cfg.BatchProofSanityCheckEnabled {
+		a.performSanityChecks(tmpLogger, stateRoot, accInputHash, batchToProve)
 	}
-
 	proof.Proof = resGetProof
 
 	// NOTE(pg): the defer func is useless from now on, use a different variable
@@ -1372,6 +1386,35 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 	}
 
 	return true, nil
+}
+
+func (a *Aggregator) performSanityChecks(tmpLogger *log.Logger, stateRoot, accInputHash common.Hash,
+	batchToProve *state.Batch) {
+	// Sanity Check: state root from the proof must match the one from the batch
+	if (stateRoot != common.Hash{}) && (stateRoot != batchToProve.StateRoot) {
+		for {
+			tmpLogger.Errorf("HALTING: "+
+				"State root from the proof does not match the expected for batch %d: Proof = [%s] Expected = [%s]",
+				batchToProve.BatchNumber, stateRoot.String(), batchToProve.StateRoot.String(),
+			)
+			time.Sleep(a.cfg.RetryTime.Duration)
+		}
+	} else {
+		tmpLogger.Infof("State root sanity check for batch %d passed", batchToProve.BatchNumber)
+	}
+
+	// Sanity Check: acc input hash from the proof must match the one from the batch
+	if (accInputHash != common.Hash{}) && (accInputHash != batchToProve.AccInputHash) {
+		for {
+			tmpLogger.Errorf("HALTING: Acc input hash from the proof does not match the expected for "+
+				"batch %d: Proof = [%s] Expected = [%s]",
+				batchToProve.BatchNumber, accInputHash.String(), batchToProve.AccInputHash.String(),
+			)
+			time.Sleep(a.cfg.RetryTime.Duration)
+		}
+	} else {
+		tmpLogger.Infof("Acc input hash sanity check for batch %d passed", batchToProve.BatchNumber)
+	}
 }
 
 // canVerifyProof returns true if we have reached the timeout to verify a proof
@@ -1505,10 +1548,17 @@ func (a *Aggregator) buildInputProver(
 		}
 	}
 
+	// Ensure the old acc input hash is in memory
+	oldAccInputHash := a.getAccInputHash(batchToVerify.BatchNumber - 1)
+	if oldAccInputHash == (common.Hash{}) && batchToVerify.BatchNumber > 1 {
+		a.logger.Warnf("AccInputHash for previous batch (%d) is not in memory. Waiting ...", batchToVerify.BatchNumber-1)
+		return nil, fmt.Errorf("acc input hash for previous batch (%d) is not in memory", batchToVerify.BatchNumber-1)
+	}
+
 	inputProver := &prover.StatelessInputProver{
 		PublicInputs: &prover.StatelessPublicInputs{
 			Witness:           witness,
-			OldAccInputHash:   a.getAccInputHash(batchToVerify.BatchNumber - 1).Bytes(),
+			OldAccInputHash:   oldAccInputHash.Bytes(),
 			OldBatchNum:       batchToVerify.BatchNumber - 1,
 			ChainId:           batchToVerify.ChainID,
 			ForkId:            batchToVerify.ForkID,

@@ -59,7 +59,8 @@ generate-mocks-aggregator: ## Generates mocks for aggregator, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManagerClient --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthTxManagerClientMock --filename=mock_eth_tx_manager.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../aggregator/mocks --outpkg=mocks --structname=DbTxMock --filename=mock_dbtx.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=RPCInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=RPCInterfaceMock --filename=mock_rpc.go
-
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AggregatorService_ChannelServer --dir=../aggregator/prover --output=../aggregator/prover/mocks --outpkg=mocks --structname=ChannelMock --filename=mock_channel.go
+	
 
 .PHONY: generate-mocks-aggsender
 generate-mocks-aggsender: ## Generates mocks for aggsender, using mockery tool
