@@ -332,47 +332,85 @@ SyncModeOnlyEnabled = false
 				NumRequests = 1000
 				Interval = "1s"
 [ReorgDetectorL1]
+# DBPath is the path of the database
 DBPath = "{{PathRWData}}/reorgdetectorl1.sqlite"
 
 [ReorgDetectorL2]
+# DBPath is the path of the database
 DBPath = "{{PathRWData}}/reorgdetectorl2.sqlite"
 
 [L1InfoTreeSync]
+# DBPath is the path of the database
 DBPath = "{{PathRWData}}/L1InfoTreeSync.sqlite"
+# GlobalExitRootAddr is the address of the global exit root manager contract
 GlobalExitRootAddr="{{NetworkConfig.L1.GlobalExitRootManagerAddr}}"
+# RollupManagerAddr is the address of the rollup manager contract
 RollupManagerAddr = "{{NetworkConfig.L1.RollupManagerAddr}}"
+# SyncBlockChunkSize is the chunk size used to sync the blocks
 SyncBlockChunkSize=100
+# BlockFinality indicates the status of the blocks that will be queried in order to sync
 BlockFinality="LatestBlock"
+# URLRPCL1 is the URL of the L1 RPC node
 URLRPCL1="{{L1URL}}"
+# WaitForNewBlocksPeriod is the wait period to get new blocks
 WaitForNewBlocksPeriod="100ms"
+# InitialBlock is the initial block to start the sync
 InitialBlock={{rollupManagerCreationBlockNumber}}
 
 [AggOracle]
+# TargetChainType is the target chain type
 TargetChainType="EVM"
+# URLRPCL1 is the URL of the L1 RPC node
 URLRPCL1="{{L1URL}}"
+# BlockFinality indicates the status of the blocks that will be queried in order to sync
 BlockFinality="FinalizedBlock"
+# WaitPeriodNextGER is the wait period to get the next GER
 WaitPeriodNextGER="100ms"
 	[AggOracle.EVMSender]
+		# GlobalExitRootL2 is the address of the global exit root contract
 		GlobalExitRootL2="{{L2Config.GlobalExitRootAddr}}"
+		# URLRPCL2 is the URL of the L2 RPC node
 		URLRPCL2="{{L2URL}}"
+		# ChainIDL2 is the chain id of the L2 network
 		ChainIDL2=1337
+		# GasOffset is the gas offset to use when sending the txs
 		GasOffset=0
+		# WaitPeriodMonitorTx is the wait period to monitor the txs
 		WaitPeriodMonitorTx="100ms"
+		# SenderAddr is the address of the sender
 		SenderAddr="0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+		# EthTxManager is the configuration of the EthTxManager
 		[AggOracle.EVMSender.EthTxManager]
+				# FrequencyToMonitorTxs is the frequency to monitor the txs
 				FrequencyToMonitorTxs = "1s"
+				# WaitTxToBeMined is the wait period to wait for the tx to be mined
 				WaitTxToBeMined = "2s"
+				# GetReceiptMaxTime is the max time to get the receipt of the tx
 				GetReceiptMaxTime = "250ms"
+				# GetReceiptWaitInterval is the wait interval to get the receipt
 				GetReceiptWaitInterval = "1s"
+				# PrivateKeys is the private keys to use to sign the txs
 				PrivateKeys = [
 					{Path = "/app/keystore/aggoracle.keystore", Password = "testonly"},
 				]
+				# ForcedGas is the forced gas to use in case of gas estimation error
 				ForcedGas = 0
+				# GasPriceMarginFactor is the gas price margin factor
 				GasPriceMarginFactor = 1
+				# MaxGasPriceLimit is the max gas price limit
 				MaxGasPriceLimit = 0
+				# StoragePath is the path of the storage
 				StoragePath = "/{{PathRWData}}/ethtxmanager-sequencesender.sqlite"
+				# ReadPendingL1Txs is a flag to enable the reading of pending L1 txs
+				# It can only be enabled if PersistenceFilename is empty
 				ReadPendingL1Txs = false
+				# SafeStatusL1NumberOfBlocks overwrites the number of blocks to consider a tx as safe
+				# overwriting the default value provided by the network
+				# 0 means that the default value will be used
 				SafeStatusL1NumberOfBlocks = 5
+				# FinalizedStatusL1NumberOfBlocks overwrites the number of blocks to consider a tx as finalized
+				# overwriting the default value provided by the network
+				# 0 means that the default value will be used
 				FinalizedStatusL1NumberOfBlocks = 10
 					[AggOracle.EVMSender.EthTxManager.Etherman]
 						URL = "{{L2URL}}"
@@ -381,23 +419,44 @@ WaitPeriodNextGER="100ms"
 						HTTPHeaders = []
 
 [RPC]
+# Host defines the network adapter that will be used to serve the HTTP requests
 Host = "0.0.0.0"
+# Port defines the port to serve the endpoints via HTTP
 Port = 5576
+# ReadTimeout is the HTTP server read timeout
+# check net/http.server.ReadTimeout and net/http.server.ReadHeaderTimeout
 ReadTimeout = "2s"
+# WriteTimeout is the HTTP server write timeout
+# check net/http.server.WriteTimeout
 WriteTimeout = "2s"
+# MaxRequestsPerIPAndSecond defines how much requests a single IP can
+# send within a single second
 MaxRequestsPerIPAndSecond = 10
 
 [ClaimSponsor]
+# DBPath is the path of the database
 DBPath = "/{{PathRWData}}/claimsopnsor.sqlite"
+# Enabled indicates if the sponsor should be run or not
 Enabled = true
+# SenderAddr is the address that will be used to send the claim txs
 SenderAddr = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
+# BridgeAddrL2 is the address of the bridge smart contract on L2
 BridgeAddrL2 = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
+# MaxGas is the max gas (limit) allowed for a claim to be sponsored
 MaxGas = 200000
+# RetryAfterErrorPeriod is the time that will be waited when an unexpected error happens before retry
 RetryAfterErrorPeriod = "1s"
+# MaxRetryAttemptsAfterError is the maximum number of consecutive attempts that will happen before panicing.
+# Any number smaller than zero will be considered as unlimited retries
 MaxRetryAttemptsAfterError = -1
+# WaitTxToBeMinedPeriod is the period that will be used to ask if a given tx has been mined (or failed)
 WaitTxToBeMinedPeriod = "3s"
+# WaitOnEmptyQueue is the time that will be waited before trying to send the next claim of the queue
+# if the queue is empty
 WaitOnEmptyQueue = "3s"
+# GasOffset is the gas to add on top of the estimated gas when sending the claim txs
 GasOffset = 0
+	# EthTxManager is the configuration of the EthTxManager to be used by the claim sponsor
 	[ClaimSponsor.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
 		WaitTxToBeMined = "2s"
@@ -420,53 +479,101 @@ GasOffset = 0
 				HTTPHeaders = []
 
 [BridgeL1Sync]
+# DBPath path of the DB
 DBPath = "{{PathRWData}}/bridgel1sync.sqlite"
+# BlockFinality indicates the status of the blocks that will be queried in order to sync
 BlockFinality = "LatestBlock"
+# InitialBlockNum is the first block that will be queried when starting the synchronization from scratch.
+# It should be a number equal or bellow the creation of the bridge contract
 InitialBlockNum = 0
+# BridgeAddr is the address of the bridge smart contract
 BridgeAddr = "{{polygonBridgeAddr}}"
+# SyncBlockChunkSize is the amount of blocks that will be queried to the client on each request
 SyncBlockChunkSize = 100
+# RetryAfterErrorPeriod is the time that will be waited when an unexpected error happens before retry
 RetryAfterErrorPeriod = "1s"
+# MaxRetryAttemptsAfterError is the maximum number of consecutive attempts that will happen before panicing.
+# Any number smaller than zero will be considered as unlimited retries
 MaxRetryAttemptsAfterError = -1
+# WaitForNewBlocksPeriod time that will be waited when the synchronizer has reached the latest block
 WaitForNewBlocksPeriod = "3s"
+# OriginNetwork is the id of the network where the bridge is deployed
 OriginNetwork=0
 
 [BridgeL2Sync]
+# DBPath path of the DB
 DBPath = "{{PathRWData}}/bridgel2sync.sqlite"
+# BlockFinality indicates the status of the blocks that will be queried in order to sync
 BlockFinality = "LatestBlock"
+# InitialBlockNum is the first block that will be queried when starting the synchronization from scratch.
 InitialBlockNum = 0
+# BridgeAddr is the address of the bridge smart contract
 BridgeAddr = "{{polygonBridgeAddr}}"
+# SyncBlockChunkSize is the amount of blocks that will be queried to the client on each request
 SyncBlockChunkSize = 100
+# RetryAfterErrorPeriod is the time that will be waited when an unexpected error happens before retry
 RetryAfterErrorPeriod = "1s"
+# MaxRetryAttemptsAfterError is the maximum number of consecutive attempts that will happen before panicing.
 MaxRetryAttemptsAfterError = -1
+# WaitForNewBlocksPeriod time that will be waited when the synchronizer has reached the latest block
 WaitForNewBlocksPeriod = "3s"
+# OriginNetwork is the id of the network where the bridge is deployed
 OriginNetwork=1
 
 [LastGERSync]
+# DBPath path of the DB
 DBPath = "{{PathRWData}}/lastgersync.sqlite"
+# BlockFinality indicates the status of the blocks that will be queried in order to sync
 BlockFinality = "LatestBlock"
+#InitialBlockNum is the first block that will be queried when starting the synchronization from scratch.
+# It should be a number equal or bellow the creation of the bridge contract
 InitialBlockNum = 0
+# GlobalExitRootL2Addr is the address of the GER smart contract on L2
 GlobalExitRootL2Addr = "{{L2Config.GlobalExitRootAddr}}"
+# RetryAfterErrorPeriod is the time that will be waited when an unexpected error happens before retry
 RetryAfterErrorPeriod = "1s"
+# MaxRetryAttemptsAfterError is the maximum number of consecutive attempts that will happen before panicing.
+# Any number smaller than zero will be considered as unlimited retries
 MaxRetryAttemptsAfterError = -1
+# WaitForNewBlocksPeriod time that will be waited when the synchronizer has reached the latest block
 WaitForNewBlocksPeriod = "1s"
+# DownloadBufferSize buffer of events to be porcessed. When the buffer limit is reached,
+# downloading will stop until the processing catches up.
 DownloadBufferSize = 100
 
 [NetworkConfig.L1]
+# L1ChainID is the chain id of the L1 network
 L1ChainID = {{L1Config.chainId}}
+# PolAddr is the address of the POL token contract
 PolAddr = "{{L1Config.polTokenAddress}}"
+# ZkEVMAddr is the address of the ZkEVM contract
 ZkEVMAddr = "{{L1Config.polygonZkEVMAddress}}"
+# RollupManagerAddr is the address of the rollup manager contract
 RollupManagerAddr = "{{L1Config.polygonRollupManagerAddress}}"
+# GlobalExitRootManagerAddr is the address of the global exit root manager contract
 GlobalExitRootManagerAddr = "{{L1Config.polygonZkEVMGlobalExitRootAddress}}"
 
 
 [AggSender]
+# StoragePath is the path of the sqlite db on which the AggSender will store the data
 StoragePath = "{{PathRWData}}/aggsender.sqlite"
+# AggLayerURL is the URL of the AggLayer
 AggLayerURL = "{{AggLayerURL}}"
-AggsenderPrivateKey = {Path = "{{SequencerPrivateKeyPath}}", Password = "{{SequencerPrivateKeyPassword}}"}
+# BlockGetInterval is the interval at which the AggSender will get the blocks from L1
 BlockGetInterval = "2s"
-URLRPCL2="{{L2URL}}"
+# CheckSettledInterval is the interval at which the AggSender will check if the blocks are settled
 CheckSettledInterval = "2s"
+# AggsenderPrivateKey is the private key which is used to sign certificates
+AggsenderPrivateKey = {Path = "{{SequencerPrivateKeyPath}}", Password = "{{SequencerPrivateKeyPassword}}"}
+# URLRPCL2 is the URL of the L2 RPC node
+URLRPCL2="{{L2URL}}"
+# BlockFinality indicates which finality follows AggLayer
 BlockFinality = "LatestBlock"
+# EpochNotificationPercentage indicates the percentage of the epoch
+# the AggSender should send the certificate
+# 0 -> Begin
+# 50 -> Middle
 EpochNotificationPercentage = 50
+# SaveCertificatesToFilesPath if != "" tells  the AggSender to save the certificates to a file in this path
 SaveCertificatesToFilesPath = ""
 `
