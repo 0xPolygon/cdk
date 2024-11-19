@@ -31,7 +31,6 @@ func Test_Proof(t *testing.T) {
 	proof := state.Proof{
 		BatchNumber:      1,
 		BatchNumberFinal: 1,
-		GeneratingSince:  nil,
 	}
 
 	err = DBStorage.AddGeneratedProof(ctx, &proof, dbtxer)
@@ -55,6 +54,30 @@ func Test_Proof(t *testing.T) {
 
 	err = DBStorage.UpdateGeneratedProof(ctx, &proof, dbtxer)
 	assert.NoError(t, err)
+
+	sequence := state.Sequence{FromBatchNumber: 3, ToBatchNumber: 4}
+	proof3 := state.Proof{
+		BatchNumber:      3,
+		BatchNumberFinal: 3,
+	}
+	proof4 := state.Proof{
+		BatchNumber:      4,
+		BatchNumberFinal: 4,
+	}
+
+	err = DBStorage.AddSequence(ctx, sequence, dbtxer)
+	assert.NoError(t, err)
+
+	err = DBStorage.AddGeneratedProof(ctx, &proof3, dbtxer)
+	assert.NoError(t, err)
+
+	err = DBStorage.AddGeneratedProof(ctx, &proof4, dbtxer)
+	assert.NoError(t, err)
+
+	proof5, proof6, err := DBStorage.GetProofsToAggregate(ctx, dbtxer)
+	assert.NoError(t, err)
+	assert.NotNil(t, proof5)
+	assert.NotNil(t, proof6)
 
 	err = DBStorage.DeleteGeneratedProofs(ctx, 1, math.MaxInt, dbtxer)
 	assert.NoError(t, err)
