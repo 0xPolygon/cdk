@@ -247,7 +247,7 @@ func convertDurationToSeconds(duration string) (int64, error) {
 	// Parse the duration using time.ParseDuration
 	parsedDuration, err := time.ParseDuration(duration)
 	if err != nil {
-		return 0, fmt.Errorf("invalid duration format: %v", err)
+		return 0, fmt.Errorf("invalid duration format: %w", err)
 	}
 
 	// Return the duration in seconds
