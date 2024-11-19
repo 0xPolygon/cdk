@@ -137,7 +137,7 @@ SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
 AggLayerURL = "{{AggLayerURL}}"
 SyncModeOnlyEnabled = false
-DBPath = "file:{{PathRWData}}/aggregator_db.sqlite"
+DBPath = "{{PathRWData}}/aggregator_db.sqlite"
 	[Aggregator.SequencerPrivateKey]
 		Path = "{{SequencerPrivateKeyPath}}"
 		Password = "{{SequencerPrivateKeyPassword}}"
