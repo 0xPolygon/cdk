@@ -221,11 +221,11 @@ func (d *DBStorage) CleanupGeneratedProofs(ctx context.Context, batchNumber uint
 // CleanupLockedProofs deletes from the storage the proofs locked in generating
 // state for more than the provided threshold.
 func (d *DBStorage) CleanupLockedProofs(ctx context.Context, duration string, dbTx db.Txer) (int64, error) {
-	interval, err := toInterval(duration)
+	seconds, err := convertDurationToSeconds(duration)
 	if err != nil {
 		return 0, err
 	}
-	sql := fmt.Sprintf("DELETE FROM proof WHERE generating_since < (NOW() - interval '%s')", interval)
+	sql := fmt.Sprintf("DELETE FROM proof WHERE generating_since < (UNIXEPOCH() - %d)", seconds)
 	e := d.getExecQuerier(dbTx)
 	ct, err := e.Exec(sql)
 	if err != nil {
@@ -243,25 +243,13 @@ func (d *DBStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx db.Txer) e
 	return err
 }
 
-func toInterval(duration string) (string, error) {
-	unit := duration[len(duration)-1]
-	var pgUnit string
-
-	switch unit {
-	case 's':
-		pgUnit = "second"
-	case 'm':
-		pgUnit = "minute"
-	case 'h':
-		pgUnit = "hour"
-	default:
-		return "", state.ErrUnsupportedDuration
+func convertDurationToSeconds(duration string) (int64, error) {
+	// Parse the duration using time.ParseDuration
+	parsedDuration, err := time.ParseDuration(duration)
+	if err != nil {
+		return 0, fmt.Errorf("invalid duration format: %v", err)
 	}
 
-	isMoreThanOne := duration[0] != '1' || len(duration) > 2 //nolint:mnd
-	if isMoreThanOne {
-		pgUnit += "s"
-	}
-
-	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil
+	// Return the duration in seconds
+	return int64(parsedDuration.Seconds()), nil
 }
