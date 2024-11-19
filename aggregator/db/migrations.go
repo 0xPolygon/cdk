@@ -64,7 +64,7 @@ func runMigrations(dbPath string, name string, direction migrate.MigrationDirect
 		Root:       "migrations",
 	}
 
-	nMigrations, err := migrate.Exec(db, "postgres", migrations, direction)
+	nMigrations, err := migrate.Exec(db, "sqlite3", migrations, direction)
 	if err != nil {
 		return err
 	}
