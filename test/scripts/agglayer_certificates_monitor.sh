@@ -3,8 +3,8 @@
 
 function parse_params(){
     # Check if the required arguments are provided.
-    if [ "$#" -lt 2 ]; then
-    echo "Usage: $0 <settle_certificates_target> <timeout>"
+    if [ "$#" -lt 3 ]; then
+    echo "Usage: $0 <settle_certificates_target> <timeout> <l2_network_id>"
     exit 1
     fi
 
@@ -13,6 +13,9 @@ function parse_params(){
 
     # The script timeout (in seconds).
     timeout="$2"
+
+    # The network id of the L2 network.
+    l2_rpc_network_id="$3"
 }
 
 function check_timeout(){
@@ -25,39 +28,55 @@ function check_timeout(){
 }
 
 function check_num_certificates(){
-    local _cmd="echo 'select status, count(*) from certificate_info group by status;' | sqlite3 /tmp/aggsender.sqlite"
-    local _outcmd=$(mktemp)
-    kurtosis service exec cdk cdk-node-001 "$_cmd" > $_outcmd
+    readonly agglayer_rpc_url="$(kurtosis port print cdk agglayer agglayer)"
+
+    cast_output=$(cast rpc --rpc-url "$agglayer_rpc_url" "interop_getLatestKnownCertificateHeader" "$l2_rpc_network_id" 2>&1)
+
     if [ $? -ne 0 ]; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Error executing command kurtosis service: $_cmd"
-        # clean temp file
-        rm $_outcmd
-        return 
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Error executing command cast rpc: $cast_output"
+        return
     fi
-    local num_certs=$(cat $_outcmd |  tail -n +2 | cut -f 2 -d '|' | xargs |tr ' ' '+' | bc)
-    # Get the number of settled certificates "4|0"
-    local _num_settle_certs=$(cat $_outcmd |  tail -n +2 | grep ^${aggsender_status_settled} | cut -d'|' -f2)
-    [ -z "$_num_settle_certs" ] && _num_settle_certs=0
-    # clean temp file
-    rm $_outcmd 
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Num certificates on aggsender: $num_certs.  Settled certificates : $_num_settle_certs"
-    if [ $num_certs -ge $settle_certificates_target ]; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ Exiting... $num_certs certificates were settled! (total certs $num_certs)"
+
+    height=$(extract_certificate_height "$cast_output")
+    [[ -z "$height" ]] && {
+        echo "Error: Failed to extract certificate height: $height." >&3
+        return
+    }
+
+    status=$(extract_certificate_status "$cast_output")
+    [[ -z "$status" ]] && {
+        echo "Error: Failed to extract certificate status." >&3
+        return
+    }
+
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Last known agglayer certificate height: $height, status: $status" >&3
+
+    if (( height > settle_certificates_target - 1 )); then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ Success! The number of settled certificates has reached the target." >&3
         exit 0
+    fi
+
+    if (( height == settle_certificates_target - 1 )); then
+        if [ "$status" == "Settled" ]; then
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ Success! The number of settled certificates has reached the target." >&3
+            exit 0
+        fi
+        
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⚠️ Warning! The number of settled certificates is one less than the target." >&3
     fi
 }
 
+function extract_certificate_height() {
+    local cast_output="$1"
+    echo "$cast_output" | jq -r '.height'
+}
+
+function extract_certificate_status() {
+    local cast_output="$1"
+     echo "$cast_output" | jq -r '.status'
+}
+
 # MAIN
-declare -A aggsender_status_map=(
-    [0]="Pending"
-    [1]="Proven"
-    [2]="Candidate"
-    [3]="InError"
-    [4]="Settled"
-)
-
-readonly aggsender_status_settled=4
-
 
 parse_params $*
 start_time=$(date +%s)
