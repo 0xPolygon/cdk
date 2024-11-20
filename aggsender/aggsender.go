@@ -589,7 +589,7 @@ func (a *AggSender) shouldSendCertificate() (bool, error) {
 // checkLastCertificateFromAgglayer checks the last certificate from agglayer
 func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error {
 	networkID := a.l2Syncer.OriginNetwork()
-	a.log.Infof("recovery: checking last certificate from AggLayer for network %s", networkID)
+	a.log.Infof("recovery: checking last certificate from AggLayer for network %d", networkID)
 	aggLayerLastCert, err := a.aggLayerClient.GetLatestKnownCertificateHeader(networkID)
 	if err != nil {
 		return fmt.Errorf("recovery: error getting latest known certificate header from agglayer: %w", err)
@@ -621,14 +621,15 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 			localLastCert.String(), aggLayerLastCert.String())
 		return fmt.Errorf("recovery: mismatch between local and agglayer certificates")
 	}
-
+	// CASE 4: AggSender and AggLayer are at same page
+	//    just update status
 	err = a.updateCertificateStatus(ctx, localLastCert, aggLayerLastCert)
 	if err != nil {
 		log.Errorf("recovery: error updating status certificate: %s status: %w", aggLayerLastCert.String(), err)
 		return fmt.Errorf("recovery: error updating certificate status: %w", err)
 	}
 
-	a.log.Infof("recovery: successfully checked last certificate from AggLayer for network %s", networkID)
+	a.log.Infof("recovery: successfully checked last certificate from AggLayer for network %d", networkID)
 	return nil
 }
 
