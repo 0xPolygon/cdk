@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	testError = errors.New("unitest  error")
+	errTest = errors.New("unitest  error")
 )
 
 func TestExploratoryGetCertificateHeader(t *testing.T) {
@@ -1726,7 +1726,7 @@ func TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemoteErrorStorage
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
 		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
 	testData.storageMock.EXPECT().GetLastSentCertificate().Return(nil, nil)
-	testData.storageMock.EXPECT().SaveLastSentCertificate(mock.Anything, mock.Anything).Return(testError).Once()
+	testData.storageMock.EXPECT().SaveLastSentCertificate(mock.Anything, mock.Anything).Return(errTest).Once()
 	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
 
 	require.Error(t, err)
@@ -1783,7 +1783,7 @@ func TestCheckLastCertificateFromAgglayer_Case4ErrorUpdateStatus(t *testing.T) {
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
 		Return(aggLayerCert, nil).Once()
 	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[0], nil)
-	testData.storageMock.EXPECT().UpdateCertificate(mock.Anything, mock.Anything).Return(testError).Once()
+	testData.storageMock.EXPECT().UpdateCertificate(mock.Anything, mock.Anything).Return(errTest).Once()
 
 	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
 
