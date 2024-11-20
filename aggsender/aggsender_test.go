@@ -35,22 +35,6 @@ var (
 	errTest = errors.New("unitest  error")
 )
 
-func TestExploratoryGetCertificateHeader(t *testing.T) {
-	t.Skip("This test is exploratory and should be skipped")
-	aggLayerClient := agglayer.NewAggLayerClient("http://localhost:32796")
-	certificateID := common.HexToHash("0xf153e75e24591432ac5deafaeaafba3fec0fd851261c86051b9c0d540b38c369")
-	certificateHeader, err := aggLayerClient.GetCertificateHeader(certificateID)
-	require.NoError(t, err)
-	fmt.Print(certificateHeader)
-}
-func TestExploratoryGetEpochConfiguration(t *testing.T) {
-	t.Skip("This test is exploratory and should be skipped")
-	aggLayerClient := agglayer.NewAggLayerClient("http://localhost:32796")
-	clockConfig, err := aggLayerClient.GetEpochConfiguration()
-	require.NoError(t, err)
-	fmt.Print(clockConfig)
-}
-
 func TestConfigString(t *testing.T) {
 	config := Config{
 		StoragePath:                 "/path/to/storage",
