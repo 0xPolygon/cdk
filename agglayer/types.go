@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 	"strings"
 
 	"github.com/0xPolygon/cdk/bridgesync"
@@ -24,9 +25,30 @@ const (
 	Settled
 )
 
+var (
+	NonSettledStatuses = []CertificateStatus{Pending, Candidate, Proven}
+	ClosedStatuses     = []CertificateStatus{Settled, InError}
+)
+
 // String representation of the enum
 func (c CertificateStatus) String() string {
 	return [...]string{"Pending", "Proven", "Candidate", "InError", "Settled"}[c]
+}
+
+func (c CertificateStatus) IsClosed() bool {
+	return !c.IsOpen()
+}
+
+func (c CertificateStatus) IsSettled() bool {
+	return c == Settled
+}
+
+func (c CertificateStatus) IsInError() bool {
+	return c == InError
+}
+
+func (c CertificateStatus) IsOpen() bool {
+	return slices.Contains(NonSettledStatuses, c)
 }
 
 // UnmarshalJSON is the implementation of the json.Unmarshaler interface
@@ -548,6 +570,13 @@ type CertificateHeader struct {
 	Status           CertificateStatus `json:"status"`
 	Metadata         common.Hash       `json:"metadata"`
 	Error            PPError           `json:"-"`
+}
+
+func (c *CertificateHeader) ID() string {
+	if c == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%d/%s", c.Height, c.CertificateID.String())
 }
 
 func (c CertificateHeader) String() string {

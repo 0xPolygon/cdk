@@ -909,7 +909,7 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 			mockAggLayerClient := agglayer.NewAgglayerClientMock(t)
 			mockLogger := log.WithFields("test", "unittest")
 
-			mockStorage.On("GetCertificatesByStatus", nonSettledStatuses).Return(
+			mockStorage.On("GetCertificatesByStatus", agglayer.NonSettledStatuses).Return(
 				tt.pendingCertificates, tt.getFromDBError)
 			for certID, header := range tt.certificateHeaders {
 				mockAggLayerClient.On("GetCertificateHeader", certID).Return(header, tt.clientError)
@@ -980,7 +980,7 @@ func TestSendCertificate(t *testing.T) {
 		if cfg.shouldSendCertificate != nil || cfg.getLastSentCertificate != nil ||
 			cfg.saveLastSentCertificate != nil {
 			mockStorage = mocks.NewAggSenderStorage(t)
-			mockStorage.On("GetCertificatesByStatus", nonSettledStatuses).
+			mockStorage.On("GetCertificatesByStatus", agglayer.NonSettledStatuses).
 				Return(cfg.shouldSendCertificate...).Once()
 
 			aggsender.storage = mockStorage
@@ -1577,7 +1577,7 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("GetCertificatesByStatus", nonSettledStatuses).Return([]*aggsendertypes.CertificateInfo{}, nil).Once()
+	mockStorage.On("GetCertificatesByStatus", agglayer.NonSettledStatuses).Return([]*aggsendertypes.CertificateInfo{}, nil).Once()
 	mockStorage.On("GetLastSentCertificate").Return(&aggsendertypes.CertificateInfo{
 		NewLocalExitRoot: common.HexToHash("0x123"),
 		Height:           1,

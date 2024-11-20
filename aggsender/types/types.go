@@ -67,27 +67,51 @@ type CertificateInfo struct {
 	SignedCertificate string                     `meddler:"signed_certificate"`
 }
 
-func (c CertificateInfo) IsNil() bool {
-	return c.CertificateID == ZeroHash
+func (c *CertificateInfo) IsNil() bool {
+	return c == nil || c.CertificateID == ZeroHash
 }
 
-func (c CertificateInfo) String() string {
+func (c *CertificateInfo) String() string {
+	if c == nil {
+		return "nil"
+	}
 	return fmt.Sprintf(
-		"Height: %d\n"+
-			"CertificateID: %s\n"+
-			"FromBlock: %d\n"+
-			"ToBlock: %d\n"+
-			"NewLocalExitRoot: %s\n"+
-			"Status: %s\n"+
-			"CreatedAt: %s\n"+
-			"UpdatedAt: %s\n",
+		"Height: %d "+
+			"CertificateID: %s "+
+			"NewLocalExitRoot: %s "+
+			"Status: %s "+
+			"FromBlock: %d "+
+			"ToBlock: %d "+
+			"CreatedAt: %s "+
+			"UpdatedAt: %s",
 		c.Height,
 		c.CertificateID.String(),
-		c.FromBlock,
-		c.ToBlock,
 		c.NewLocalExitRoot.String(),
 		c.Status.String(),
+		c.FromBlock,
+		c.ToBlock,
 		time.UnixMilli(c.CreatedAt),
 		time.UnixMilli(c.UpdatedAt),
 	)
+}
+
+func (c *CertificateInfo) ID() string {
+	if c == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%d/%s", c.Height, c.CertificateID.String())
+}
+
+func (c *CertificateInfo) IsClosed() bool {
+	if c == nil {
+		return false
+	}
+	return c.Status.IsClosed()
+}
+
+func (c *CertificateInfo) ElapsedTimeSinceCreation() time.Duration {
+	if c == nil {
+		return 0
+	}
+	return time.Now().UTC().Sub(time.UnixMilli(c.CreatedAt))
 }
