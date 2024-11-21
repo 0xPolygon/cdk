@@ -70,7 +70,7 @@ genesisBlockNumber = 0
 
 `
 
-// This doesnt belong to config, but are the vars used
+// This doesn't belong to config, but are the vars used
 // to avoid repetition in config-files
 const DefaultVars = `
 PathRWData = "/tmp/cdk"
@@ -240,27 +240,66 @@ ForkUpgradeNewForkId = 0
   Host = "0.0.0.0"
   # GRPC server port
   Port = 50081
+  # RetryTime is the time the aggregator main loop sleeps if there are no proofs to aggregate
+	# or batches to generate proofs. It is also used in the isSynced loop
   RetryTime = "5s"
+  # VerifyProofInterval is the interval of time to verify/send an proof in L1
   VerifyProofInterval = "10s"
+  # ProofStatePollingInterval is the interval time to polling the prover about the generation state of a proof
   ProofStatePollingInterval = "5s"
+  # TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
+  # possible values: base/acceptall
   TxProfitabilityCheckerType = "acceptall"
+  # TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch
+  # this parameter is used for the base tx profitability checker
   TxProfitabilityMinReward = "1.1"
+  # IntervalAfterWhichBatchConsolidateAnyway is the interval duration for the main sequencer to check
+  # if there are no transactions. If there are no transactions in this interval, the sequencer will
+  # consolidate the batch anyway.
   IntervalAfterWhichBatchConsolidateAnyway="0s"
+  # BatchProofSanityCheckEnabled is a flag to enable the sanity check of the batch proof
   BatchProofSanityCheckEnabled = true
-  #  ChainID is L2ChainID. Is populated on runtimme
+  # ChainID is the L2 ChainID provided by the Network Config
   ChainID = 0
+  # ForkID is the L2 ForkID provided by the Network Config
   ForkId = {{ForkId}}
+  # SenderAddress defines which private key the eth tx manager needs to use
+	# to sign the L1 txs
   SenderAddress = "{{SenderProofToL1Addr}}"
+  # CleanupLockedProofsInterval is the interval of time to clean up locked proofs.
   CleanupLockedProofsInterval = "2m"
+  # GeneratingProofCleanupThreshold represents the time interval after
+	# which a proof in generating state is considered to be stuck and
+	# allowed to be cleared.
   GeneratingProofCleanupThreshold = "10m"
+  # GasOffset is the amount of gas to be added to the gas estimation in order
+	# to provide an amount that is higher than the estimated one. This is used
+	# to avoid the TX getting reverted in case something has changed in the network
+	# state after the estimation which can cause the TX to require more gas to be
+	# executed.
+	#
+	# ex:
+	# gas estimation: 1000
+	# gas offset: 100
+	# final gas: 1100
   GasOffset = 0
+  # RPCURL is the URL of the RPC server
   RPCURL = "{{L2URL}}"
+  # WitnessURL is the URL of the witness server
   WitnessURL = "{{WitnessURL}}"
+  # UseFullWitness is a flag to enable the use of full witness in the aggregator
   UseFullWitness = false
+  # SettlementBackend configuration defines how a final ZKP should be settled.
+	# It can be settled directly to L1 or over Agglayer.
   SettlementBackend = "l1"
+  # AggLayerTxTimeout is the interval time to wait for a tx to be mined from the agglayer
   AggLayerTxTimeout = "5m"
+  # AggLayerURL url of the agglayer service
   AggLayerURL = "{{AggLayerURL}}"
+  # SyncModeOnlyEnabled is a flag that activates sync mode exclusively.
+  # When enabled, the aggregator will sync data only from L1 and will not generate or read the data stream.
   SyncModeOnlyEnabled = false
+  # SequencerPrivateKey Private key of the trusted sequencer
   [Aggregator.SequencerPrivateKey]
     Path = "{{SequencerPrivateKeyPath}}"
     Password = "{{SequencerPrivateKeyPassword}}"
