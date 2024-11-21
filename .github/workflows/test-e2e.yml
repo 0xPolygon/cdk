@@ -77,15 +77,12 @@ jobs:
       uses: bats-core/bats-action@2.0.0
 
     - name: Test
-      with:
-        agglayer_prover_sp1_key: ${{ secrets.SP1_PRIVATE_KEY }}
-      env:
-        agglayer_prover_sp1_key: ${{ secrets.SP1_PRIVATE_KEY }}
       run: make test-e2e-${{ matrix.e2e-group }}
       working-directory: test
       env:
         KURTOSIS_FOLDER: ${{ github.workspace }}/kurtosis-cdk
         BATS_LIB_PATH: /usr/lib/
+        agglayer_prover_sp1_key: ${{ secrets.SP1_PRIVATE_KEY }}
     
     - name: Dump enclave logs
       if: failure()
