@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	signatureSize       = 65
-	maxRetriesStoreCert = 3
+	signatureSize              = 65
+	defaultMaxRetriesStoreCert = 3
 )
 
 var (
@@ -48,8 +48,9 @@ type AggSender struct {
 
 	cfg Config
 
-	sequencerKey *ecdsa.PrivateKey
-	retryDelay   time.Duration
+	sequencerKey        *ecdsa.PrivateKey
+	retryDelay          time.Duration
+	maxRetriesStoreCert int
 }
 
 // New returns a new AggSender
@@ -74,15 +75,16 @@ func New(
 	logger.Infof("Aggsender Config: %s.", cfg.String())
 
 	return &AggSender{
-		cfg:              cfg,
-		log:              logger,
-		storage:          storage,
-		l2Syncer:         l2Syncer,
-		aggLayerClient:   aggLayerClient,
-		l1infoTreeSyncer: l1InfoTreeSyncer,
-		sequencerKey:     sequencerPrivateKey,
-		epochNotifier:    epochNotifier,
-		retryDelay:       defaultRetryDelay,
+		cfg:                 cfg,
+		log:                 logger,
+		storage:             storage,
+		l2Syncer:            l2Syncer,
+		aggLayerClient:      aggLayerClient,
+		l1infoTreeSyncer:    l1InfoTreeSyncer,
+		sequencerKey:        sequencerPrivateKey,
+		epochNotifier:       epochNotifier,
+		retryDelay:          defaultRetryDelay,
+		maxRetriesStoreCert: defaultMaxRetriesStoreCert,
 	}, nil
 }
 
@@ -233,7 +235,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		SignedCertificate: string(raw),
 	}
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
-	err = a.saveCertificateToStorage(ctx, certInfo, maxRetriesStoreCert)
+	err = a.saveCertificateToStorage(ctx, certInfo, a.maxRetriesStoreCert)
 	if err != nil {
 		a.log.Errorf("error saving certificate to storage: %w", err)
 		return nil, fmt.Errorf("error saving last sent certificate %s in db: %w", certInfo.String(), err)
