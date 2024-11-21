@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS proof (
 	prover_id varchar NULL,
 	created_at BIGINT NOT NULL,
 	updated_at BIGINT NOT NULL,
-	generating_since BIGINT,
+	generating_since BIGINT DEFAULT NULL,
     PRIMARY KEY (batch_num, batch_num_final)
 );
 

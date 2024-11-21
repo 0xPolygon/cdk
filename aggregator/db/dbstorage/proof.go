@@ -290,8 +290,8 @@ func (d *DBStorage) UpdateGeneratedProof(ctx context.Context, proof *state.Proof
 		*updatedAt = uint64(now.Unix())
 	}
 	_, err := e.Exec(
-		addGeneratedProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID,
-		proof.InputProver, proof.Prover, proof.ProverID, generatingSince, updatedAt,
+		addGeneratedProofSQL, proof.Proof, proof.ProofID, proof.InputProver,
+		proof.Prover, proof.ProverID, generatingSince, updatedAt, proof.BatchNumber, proof.BatchNumberFinal,
 	)
 	return err
 }
@@ -326,7 +326,7 @@ func (d *DBStorage) CleanupLockedProofs(ctx context.Context, duration string, db
 
 	difference := time.Now().Unix() - seconds
 
-	sql := fmt.Sprintf("DELETE FROM proof WHERE generating_since < %d", difference)
+	sql := fmt.Sprintf("DELETE FROM proof WHERE generating_since is not null and generating_since < %d", difference)
 	e := d.getExecQuerier(dbTx)
 	ct, err := e.Exec(sql)
 	if err != nil {
