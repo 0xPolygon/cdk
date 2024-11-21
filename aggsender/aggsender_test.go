@@ -958,6 +958,7 @@ func TestSendCertificate(t *testing.T) {
 				log:          log.WithFields("aggsender", 1),
 				cfg:          Config{},
 				sequencerKey: cfg.sequencerKey,
+				retryDelay:   0,
 			}
 			mockStorage          *mocks.AggSenderStorage
 			mockL2Syncer         *mocks.L2BridgeSyncer
@@ -969,7 +970,7 @@ func TestSendCertificate(t *testing.T) {
 			cfg.saveLastSentCertificate != nil {
 			mockStorage = mocks.NewAggSenderStorage(t)
 			mockStorage.On("GetCertificatesByStatus", agglayer.NonSettledStatuses).
-				Return(cfg.shouldSendCertificate...).Once()
+				Return(cfg.shouldSendCertificate...)
 
 			aggsender.storage = mockStorage
 
@@ -978,7 +979,7 @@ func TestSendCertificate(t *testing.T) {
 			}
 
 			if cfg.saveLastSentCertificate != nil {
-				mockStorage.On("SaveLastSentCertificate", mock.Anything, mock.Anything).Return(cfg.saveLastSentCertificate...).Once()
+				mockStorage.On("SaveLastSentCertificate", mock.Anything, mock.Anything).Return(cfg.saveLastSentCertificate...)
 			}
 		}
 

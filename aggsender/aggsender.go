@@ -32,7 +32,7 @@ var (
 
 	zeroLER = common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
 
-	retryInitialStatus = 60 * time.Second
+	defaultRetryDelay = 60 * time.Second
 )
 
 // AggSender is a component that will send certificates to the aggLayer
@@ -49,6 +49,7 @@ type AggSender struct {
 	cfg Config
 
 	sequencerKey *ecdsa.PrivateKey
+	retryDelay   time.Duration
 }
 
 // New returns a new AggSender
@@ -81,6 +82,7 @@ func New(
 		l1infoTreeSyncer: l1InfoTreeSyncer,
 		sequencerKey:     sequencerPrivateKey,
 		epochNotifier:    epochNotifier,
+		retryDelay:       defaultRetryDelay,
 	}, nil
 }
 
@@ -92,12 +94,12 @@ func (a *AggSender) Start(ctx context.Context) {
 
 // checkInitialStatus check local status vs agglayer status
 func (a *AggSender) checkInitialStatus(ctx context.Context) {
-	ticker := time.NewTicker(retryInitialStatus)
+	ticker := time.NewTicker(a.retryDelay)
 	defer ticker.Stop()
 
 	for {
 		if err := a.checkLastCertificateFromAgglayer(ctx); err != nil {
-			log.Errorf("error checking initial status: %w, retrying in %s", err, retryInitialStatus)
+			log.Errorf("error checking initial status: %w, retrying in %s", err, a.retryDelay)
 		} else {
 			log.Info("Initial status checked successfully")
 			return
@@ -256,7 +258,7 @@ func (a *AggSender) saveCertificateToStorage(ctx context.Context, cert types.Cer
 				return fmt.Errorf("error saving last sent certificate %s in db: %w", cert.String(), err)
 			} else {
 				retries++
-				time.Sleep(retryInitialStatus)
+				time.Sleep(a.retryDelay)
 			}
 		}
 	}
