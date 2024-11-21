@@ -10,5 +10,5 @@ args:
   consensus_contract_type: pessimistic
   sequencer_type: erigon
   erigon_strict_mode: false
-  zkevm_use_gas_token_contract: true
+  gas_token_enabled: true
   enable_normalcy: true
