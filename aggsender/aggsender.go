@@ -93,16 +93,16 @@ func (a *AggSender) checkInitialStatus(ctx context.Context) {
 	defer ticker.Stop()
 
 	for {
+		if err := a.checkLastCertificateFromAgglayer(ctx); err != nil {
+			log.Errorf("error checking initial status: %w, retrying in %s", err, retryInitialStatus)
+		} else {
+			log.Info("Initial status checked successfully")
+			return
+		}
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := a.checkLastCertificateFromAgglayer(ctx); err != nil {
-				log.Errorf("error checking initial status: %w, retrying in %s", err, retryInitialStatus)
-				continue
-			}
-
-			return
 		}
 	}
 }
@@ -601,17 +601,29 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 	}
 	// CASE 1: No certificates in local storage and agglayer
 	if localLastCert == nil && aggLayerLastCert == nil {
-		log.Info("recovery: No certificates in local storage and agglayer: initial state")
+		a.log.Info("recovery: No certificates in local storage and agglayer: initial state")
 		return nil
 	}
 	// CASE 2: No certificates in local storage but agglayer has one
 	if localLastCert == nil && aggLayerLastCert != nil {
-		log.Info("recovery: No certificates in local storage but agglayer have one: recovery aggSender cert: %s",
+		a.log.Info("recovery: No certificates in local storage but agglayer have one: recovery aggSender cert: %s",
 			aggLayerLastCert.String())
 		if err := a.updateLocalStorageWithAggLayerCert(ctx, aggLayerLastCert); err != nil {
 			return fmt.Errorf("recovery: error updating local storage with agglayer certificate: %w", err)
 		}
 		return nil
+	}
+	// CASE 4: aggsender stopped between sending to agglayer and storing on DB
+	if aggLayerLastCert.Height == localLastCert.Height+1 {
+		localLastCert := NewCertificateInfoFromAgglayerCertHeader(aggLayerLastCert)
+		a.log.Info("recovery: AggLayer have next cert (height:%d), so is a recovery case: storing cert: %s",
+			aggLayerLastCert.Height, localLastCert.String())
+
+		err := a.storage.SaveLastSentCertificate(ctx, *localLastCert)
+		if err != nil {
+			log.Errorf("recovery: error updating status certificate: %s status: %w", aggLayerLastCert.String(), err)
+			return fmt.Errorf("recovery: error updating certificate status: %w", err)
+		}
 	}
 	// CASE 3: AggSender and AggLayer are not at same page
 	//    note: we don't need to check indivual fields of the certificate
@@ -636,20 +648,9 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 // updateLocalStorageWithAggLayerCert updates the local storage with the certificate from the AggLayer
 func (a *AggSender) updateLocalStorageWithAggLayerCert(ctx context.Context,
 	aggLayerCert *agglayer.CertificateHeader) error {
-	certInfo := types.CertificateInfo{
-		Height:            aggLayerCert.Height,
-		CertificateID:     aggLayerCert.CertificateID,
-		NewLocalExitRoot:  aggLayerCert.NewLocalExitRoot,
-		FromBlock:         0,
-		ToBlock:           extractFromCertificateMetadataToBlock(aggLayerCert.Metadata),
-		CreatedAt:         time.Now().UTC().UnixMilli(),
-		UpdatedAt:         time.Now().UTC().UnixMilli(),
-		SignedCertificate: "",
-		Status:            aggLayerCert.Status,
-	}
-
+	certInfo := NewCertificateInfoFromAgglayerCertHeader(aggLayerCert)
 	log.Infof("setting initial certificate from AggLayer: %s", certInfo.String())
-	return a.storage.SaveLastSentCertificate(ctx, certInfo)
+	return a.storage.SaveLastSentCertificate(ctx, *certInfo)
 }
 
 // extractSignatureData extracts the R, S, and V from a 65-byte signature
@@ -673,4 +674,22 @@ func createCertificateMetadata(toBlock uint64) common.Hash {
 
 func extractFromCertificateMetadataToBlock(metadata common.Hash) uint64 {
 	return metadata.Big().Uint64()
+}
+
+func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *types.CertificateInfo {
+	if c == nil {
+		return nil
+	}
+	now := time.Now().UTC().UnixMilli()
+	return &types.CertificateInfo{
+		Height:            c.Height,
+		CertificateID:     c.CertificateID,
+		NewLocalExitRoot:  c.NewLocalExitRoot,
+		FromBlock:         0,
+		ToBlock:           extractFromCertificateMetadataToBlock(c.Metadata),
+		Status:            c.Status,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+		SignedCertificate: "na/agglayer header",
+	}
 }
