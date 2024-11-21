@@ -4,11 +4,19 @@ import (
 	"context"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/0xPolygon/cdk/aggregator/db"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	proofID  = "proof_1"
+	prover   = "prover_1"
+	proverID = "prover_id"
+	now      = time.Now()
 )
 
 func Test_Proof(t *testing.T) {
@@ -31,6 +39,14 @@ func Test_Proof(t *testing.T) {
 	proof := state.Proof{
 		BatchNumber:      1,
 		BatchNumberFinal: 1,
+		Proof:            "proof content",
+		InputProver:      "input prover",
+		ProofID:          &proofID,
+		Prover:           &prover,
+		ProverID:         &proofID,
+		GeneratingSince:  nil,
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 
 	err = DBStorage.AddGeneratedProof(ctx, &proof, dbtxer)
@@ -47,9 +63,27 @@ func Test_Proof(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, proof2)
 
+	require.Equal(t, proof.BatchNumber, proof2.BatchNumber)
+	require.Equal(t, proof.BatchNumberFinal, proof2.BatchNumberFinal)
+	require.Equal(t, proof.Proof, proof2.Proof)
+	require.Equal(t, *proof.ProofID, *proof2.ProofID)
+	require.Equal(t, proof.InputProver, proof2.InputProver)
+	require.Equal(t, *proof.Prover, *proof2.Prover)
+	require.Equal(t, *proof.ProverID, *proof2.ProverID)
+	require.Equal(t, proof.CreatedAt.Unix(), proof2.CreatedAt.Unix())
+	require.Equal(t, proof.UpdatedAt.Unix(), proof2.UpdatedAt.Unix())
+
 	proof = state.Proof{
 		BatchNumber:      1,
-		BatchNumberFinal: 2,
+		BatchNumberFinal: 1,
+		Proof:            "proof content",
+		InputProver:      "input prover",
+		ProofID:          &proofID,
+		Prover:           &prover,
+		ProverID:         &proofID,
+		GeneratingSince:  &now,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
 	}
 
 	err = DBStorage.UpdateGeneratedProof(ctx, &proof, dbtxer)

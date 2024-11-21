@@ -9,9 +9,9 @@ CREATE TABLE IF NOT EXISTS proof (
 	input_prover varchar NULL,
 	prover varchar NULL,
 	prover_id varchar NULL,
-	created_at TIMESTAMP,
-	updated_at TIMESTAMP,
-	generating_since TIMESTAMP,
+	created_at BIGINT NOT NULL,
+	updated_at BIGINT NOT NULL,
+	generating_since BIGINT,
     PRIMARY KEY (batch_num, batch_num_final)
 );
 

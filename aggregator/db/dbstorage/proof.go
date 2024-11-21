@@ -68,11 +68,30 @@ func (d *DBStorage) GetProofReadyToVerify(
 
 	e := d.getExecQuerier(dbTx)
 	row := e.QueryRow(getProofReadyToVerifySQL, lastVerfiedBatchNumber+1)
+
+	var (
+		generatingSince *uint64
+		createdAt       *uint64
+		updatedAt       *uint64
+	)
 	err := row.Scan(
 		&proof.BatchNumber, &proof.BatchNumberFinal, &proof.Proof, &proof.ProofID,
-		&proof.InputProver, &proof.Prover, &proof.ProverID, &proof.GeneratingSince,
-		&proof.CreatedAt, &proof.UpdatedAt,
+		&proof.InputProver, &proof.Prover, &proof.ProverID, &generatingSince,
+		&createdAt, &updatedAt,
 	)
+
+	if generatingSince != nil {
+		timeSince := time.Unix(int64(*generatingSince), 0)
+		proof.GeneratingSince = &timeSince
+	}
+
+	if createdAt != nil {
+		proof.CreatedAt = time.Unix(int64(*createdAt), 0)
+	}
+
+	if updatedAt != nil {
+		proof.UpdatedAt = time.Unix(int64(*updatedAt), 0)
+	}
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
@@ -138,14 +157,47 @@ func (d *DBStorage) GetProofsToAggregate(ctx context.Context, dbTx db.Txer) (*st
 
 	e := d.getExecQuerier(dbTx)
 	row := e.QueryRow(getProofsToAggregateSQL)
+
+	var (
+		generatingSince1, generatingSince2 *uint64
+		createdAt1, createdAt2             *uint64
+		updatedAt1, updatedAt2             *uint64
+	)
+
 	err := row.Scan(
 		&proof1.BatchNumber, &proof1.BatchNumberFinal, &proof1.Proof, &proof1.ProofID,
-		&proof1.InputProver, &proof1.Prover, &proof1.ProverID, &proof1.GeneratingSince,
-		&proof1.CreatedAt, &proof1.UpdatedAt,
+		&proof1.InputProver, &proof1.Prover, &proof1.ProverID, &generatingSince1,
+		&createdAt1, &updatedAt1,
 		&proof2.BatchNumber, &proof2.BatchNumberFinal, &proof2.Proof, &proof2.ProofID,
-		&proof2.InputProver, &proof2.Prover, &proof2.ProverID, &proof2.GeneratingSince,
-		&proof2.CreatedAt, &proof2.UpdatedAt,
+		&proof2.InputProver, &proof2.Prover, &proof2.ProverID, &generatingSince2,
+		&createdAt1, &updatedAt1,
 	)
+
+	if generatingSince1 != nil {
+		timeSince1 := time.Unix(int64(*generatingSince1), 0)
+		proof1.GeneratingSince = &timeSince1
+	}
+
+	if generatingSince2 != nil {
+		timeSince2 := time.Unix(int64(*generatingSince2), 0)
+		proof2.GeneratingSince = &timeSince2
+	}
+
+	if createdAt1 != nil {
+		proof1.CreatedAt = time.Unix(int64(*createdAt1), 0)
+	}
+
+	if createdAt2 != nil {
+		proof2.CreatedAt = time.Unix(int64(*createdAt2), 0)
+	}
+
+	if updatedAt1 != nil {
+		proof1.UpdatedAt = time.Unix(int64(*updatedAt1), 0)
+	}
+
+	if updatedAt2 != nil {
+		proof2.UpdatedAt = time.Unix(int64(*updatedAt2), 0)
+	}
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil, state.ErrNotFound
@@ -168,9 +220,37 @@ func (d *DBStorage) AddGeneratedProof(ctx context.Context, proof *state.Proof, d
 	`
 	e := d.getExecQuerier(dbTx)
 	now := time.Now().UTC().Round(time.Microsecond)
+
+	var (
+		generatingSince *uint64
+		createdAt       *uint64
+		updatedAt       *uint64
+	)
+
+	if proof.GeneratingSince != nil {
+		generatingSince = new(uint64)
+		*generatingSince = uint64(proof.GeneratingSince.Unix())
+	}
+
+	if !proof.CreatedAt.IsZero() {
+		createdAt = new(uint64)
+		*createdAt = uint64(proof.CreatedAt.Unix())
+	} else {
+		createdAt = new(uint64)
+		*createdAt = uint64(now.Unix())
+	}
+
+	if !proof.UpdatedAt.IsZero() {
+		updatedAt = new(uint64)
+		*updatedAt = uint64(proof.UpdatedAt.Unix())
+	} else {
+		updatedAt = new(uint64)
+		*updatedAt = uint64(now.Unix())
+	}
+
 	_, err := e.Exec(
 		addGeneratedProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID,
-		proof.InputProver, proof.Prover, proof.ProverID, proof.GeneratingSince, now, now,
+		proof.InputProver, proof.Prover, proof.ProverID, generatingSince, createdAt, updatedAt,
 	)
 	return err
 }
@@ -191,9 +271,27 @@ func (d *DBStorage) UpdateGeneratedProof(ctx context.Context, proof *state.Proof
 	`
 	e := d.getExecQuerier(dbTx)
 	now := time.Now().UTC().Round(time.Microsecond)
+
+	var (
+		generatingSince *uint64
+		updatedAt       *uint64
+	)
+
+	if proof.GeneratingSince != nil {
+		generatingSince = new(uint64)
+		*generatingSince = uint64(proof.GeneratingSince.Unix())
+	}
+
+	if !proof.UpdatedAt.IsZero() {
+		updatedAt = new(uint64)
+		*updatedAt = uint64(proof.UpdatedAt.Unix())
+	} else {
+		updatedAt = new(uint64)
+		*updatedAt = uint64(now.Unix())
+	}
 	_, err := e.Exec(
 		addGeneratedProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID,
-		proof.InputProver, proof.Prover, proof.ProverID, proof.GeneratingSince, now,
+		proof.InputProver, proof.Prover, proof.ProverID, generatingSince, updatedAt,
 	)
 	return err
 }
