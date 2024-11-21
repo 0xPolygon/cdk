@@ -1716,8 +1716,22 @@ func TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemoteErrorStorage
 	require.Error(t, err)
 }
 
-// CASE 3: AggSender and AggLayer not same certificateID
+// CASE 3: AggSender and AggLayer not same certificateID. AggLayer has a new certificate
 func TestCheckLastCertificateFromAgglayer_Case3Mismatch(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(certInfoToCertHeader(&testData.testCerts[1], networkIDTest), nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[0], nil)
+	testData.storageMock.EXPECT().SaveLastSentCertificate(mock.Anything, mock.Anything).Return(nil).Once()
+
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.NoError(t, err)
+}
+
+// CASE 4: AggSender and AggLayer not same certificateID
+func TestCheckLastCertificateFromAgglayer_Case4Mismatch(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
@@ -1729,8 +1743,8 @@ func TestCheckLastCertificateFromAgglayer_Case3Mismatch(t *testing.T) {
 	require.Error(t, err)
 }
 
-// CASE 4: AggSender and AggLayer same certificateID and same status
-func TestCheckLastCertificateFromAgglayer_Case4SameStatus(t *testing.T) {
+// CASE 5: AggSender and AggLayer same certificateID and same status
+func TestCheckLastCertificateFromAgglayer_Case5SameStatus(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
@@ -1742,8 +1756,8 @@ func TestCheckLastCertificateFromAgglayer_Case4SameStatus(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// CASE 4: AggSender and AggLayer same certificateID and differ on status
-func TestCheckLastCertificateFromAgglayer_Case4UpdateStatus(t *testing.T) {
+// CASE 5: AggSender and AggLayer same certificateID and differ on status
+func TestCheckLastCertificateFromAgglayer_Case5UpdateStatus(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	aggLayerCert := certInfoToCertHeader(&testData.testCerts[0], networkIDTest)

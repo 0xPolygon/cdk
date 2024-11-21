@@ -613,10 +613,10 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 		}
 		return nil
 	}
-	// CASE 4: aggsender stopped between sending to agglayer and storing on DB
+	// CASE 3: aggsender stopped between sending to agglayer and storing on DB
 	if aggLayerLastCert.Height == localLastCert.Height+1 {
-		localLastCert := NewCertificateInfoFromAgglayerCertHeader(aggLayerLastCert)
-		a.log.Info("recovery: AggLayer have next cert (height:%d), so is a recovery case: storing cert: %s",
+		localLastCert = NewCertificateInfoFromAgglayerCertHeader(aggLayerLastCert)
+		a.log.Infof("recovery: AggLayer have next cert (height:%d), so is a recovery case: storing cert: %s",
 			aggLayerLastCert.Height, localLastCert.String())
 
 		err := a.storage.SaveLastSentCertificate(ctx, *localLastCert)
@@ -625,7 +625,7 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 			return fmt.Errorf("recovery: error updating certificate status: %w", err)
 		}
 	}
-	// CASE 3: AggSender and AggLayer are not at same page
+	// CASE 4: AggSender and AggLayer are not at same page
 	//    note: we don't need to check indivual fields of the certificate
 	//          because certificationID is a hash of all the fields
 	if localLastCert.CertificateID != aggLayerLastCert.CertificateID {
@@ -633,7 +633,7 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 			localLastCert.String(), aggLayerLastCert.String())
 		return fmt.Errorf("recovery: mismatch between local and agglayer certificates")
 	}
-	// CASE 4: AggSender and AggLayer are at same page
+	// CASE 5: AggSender and AggLayer are at same page
 	//    just update status
 	err = a.updateCertificateStatus(ctx, localLastCert, aggLayerLastCert)
 	if err != nil {
