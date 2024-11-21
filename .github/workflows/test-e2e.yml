@@ -69,9 +69,9 @@ jobs:
     - name: checkout kurtosis-cdk
       uses: actions/checkout@v4
       with:
-        repository: 0xPolygon/kurtosis-cdk
-        path: "kurtosis-cdk"
-        ref: "v0.2.21"
+        repository: leovct/kurtosis-cdk
+        path: kurtosis-cdk
+        ref: feat/pre-deployed-erc20-gas-token
 
     - name: Setup Bats and bats libs
       uses: bats-core/bats-action@2.0.0
