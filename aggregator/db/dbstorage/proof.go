@@ -323,7 +323,10 @@ func (d *DBStorage) CleanupLockedProofs(ctx context.Context, duration string, db
 	if err != nil {
 		return 0, err
 	}
-	sql := fmt.Sprintf("DELETE FROM proof WHERE generating_since < (UNIXEPOCH() - %d)", seconds)
+
+	difference := time.Now().Unix() - seconds
+
+	sql := fmt.Sprintf("DELETE FROM proof WHERE generating_since < %d", difference)
 	e := d.getExecQuerier(dbTx)
 	ct, err := e.Exec(sql)
 	if err != nil {
