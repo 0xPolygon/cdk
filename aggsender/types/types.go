@@ -45,6 +45,7 @@ type EthClient interface {
 
 // Logger is an interface that defines the methods to log messages
 type Logger interface {
+	Fatalf(format string, args ...interface{})
 	Info(args ...interface{})
 	Infof(format string, args ...interface{})
 	Error(args ...interface{})

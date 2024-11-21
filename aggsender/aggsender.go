@@ -21,7 +21,10 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-const signatureSize = 65
+const (
+	signatureSize       = 65
+	indefinitelyRetries = 0
+)
 
 var (
 	errNoBridgesAndClaims   = errors.New("no bridges and claims to build certificate")
@@ -227,15 +230,36 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		UpdatedAt:         createdTime,
 		SignedCertificate: string(raw),
 	}
-
-	if err := a.storage.SaveLastSentCertificate(ctx, certInfo); err != nil {
-		return nil, fmt.Errorf("error saving last sent certificate %s in db: %w", certInfo.String(), err)
+	// Don't save certificate is not an option, we need to retry indefinitely
+	err = a.saveCertificateToStorage(ctx, certInfo, indefinitelyRetries)
+	if err != nil {
+		a.log.Fatalf("error saving certificate to storage: %w", err)
 	}
 
 	a.log.Infof("certificate: %s sent successfully for range of l2 blocks (from block: %d, to block: %d) cert:%s",
 		certificateHash, fromBlock, toBlock, signedCertificate.String())
 
 	return signedCertificate, nil
+}
+
+// saveCertificateToStorage saves the certificate to the storage
+// it retries if it fails. if param retries == 0 it retries indefinitely
+func (a *AggSender) saveCertificateToStorage(ctx context.Context, cert types.CertificateInfo, maxRetries int) error {
+	retries := 1
+	err := fmt.Errorf("initial_error")
+	for err != nil {
+		if err = a.storage.SaveLastSentCertificate(ctx, cert); err != nil {
+			// If this happens we can't work as normal, because local DB is outdated, we have to retry
+			a.log.Errorf("error saving last sent certificate %s in db: %w", cert.String(), err)
+			if retries == maxRetries {
+				return fmt.Errorf("error saving last sent certificate %s in db: %w", cert.String(), err)
+			} else {
+				retries++
+				time.Sleep(retryInitialStatus)
+			}
+		}
+	}
+	return nil
 }
 
 // saveCertificate saves the certificate to a tmp file
@@ -637,7 +661,7 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 	//    just update status
 	err = a.updateCertificateStatus(ctx, localLastCert, aggLayerLastCert)
 	if err != nil {
-		log.Errorf("recovery: error updating status certificate: %s status: %w", aggLayerLastCert.String(), err)
+		a.log.Errorf("recovery: error updating status certificate: %s status: %w", aggLayerLastCert.String(), err)
 		return fmt.Errorf("recovery: error updating certificate status: %w", err)
 	}
 
