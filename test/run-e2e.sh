@@ -38,4 +38,4 @@ if [ $DATA_AVAILABILITY_MODE == "pessimistic" ]; then
     fi
 fi
 kurtosis run --enclave cdk --args-file "$kurtosis_config_file" --image-download always $KURTOSIS_FOLDER
-rm $local_config_file
+[ !-z $local_config_file ] && rm $local_config_file
