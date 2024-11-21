@@ -2,13 +2,13 @@ package dbstorage
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/state"
-	"github.com/jackc/pgx/v4"
 )
 
 // CheckProofExistsForBatch checks if the batch is already included in any proof
@@ -19,7 +19,7 @@ func (d *DBStorage) CheckProofExistsForBatch(ctx context.Context, batchNumber ui
 	e := d.getExecQuerier(dbTx)
 	var exists bool
 	err := e.QueryRow(checkProofExistsForBatchSQL, batchNumber).Scan(&exists)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return exists, err
 	}
 	return exists, nil
@@ -36,7 +36,7 @@ func (d *DBStorage) CheckProofContainsCompleteSequences(
 	e := d.getExecQuerier(dbTx)
 	var exists bool
 	err := e.QueryRow(getProofContainsCompleteSequencesSQL, proof.BatchNumber, proof.BatchNumberFinal).Scan(&exists)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return exists, err
 	}
 	return exists, nil
@@ -93,7 +93,7 @@ func (d *DBStorage) GetProofReadyToVerify(
 		proof.UpdatedAt = time.Unix(int64(*updatedAt), 0)
 	}
 
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, state.ErrNotFound
 	} else if err != nil {
 		return nil, err
@@ -199,7 +199,7 @@ func (d *DBStorage) GetProofsToAggregate(ctx context.Context, dbTx db.Txer) (*st
 		proof2.UpdatedAt = time.Unix(int64(*updatedAt2), 0)
 	}
 
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, state.ErrNotFound
 	} else if err != nil {
 		return nil, nil, err
