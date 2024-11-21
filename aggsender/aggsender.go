@@ -23,7 +23,7 @@ import (
 
 const (
 	signatureSize       = 65
-	indefinitelyRetries = 0
+	maxRetriesStoreCert = 3
 )
 
 var (
@@ -231,11 +231,10 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		SignedCertificate: string(raw),
 	}
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
-	err = a.saveCertificateToStorage(ctx, certInfo, 1)
+	err = a.saveCertificateToStorage(ctx, certInfo, maxRetriesStoreCert)
 	if err != nil {
 		a.log.Errorf("error saving certificate to storage: %w", err)
 		return nil, fmt.Errorf("error saving last sent certificate %s in db: %w", certInfo.String(), err)
-
 	}
 
 	a.log.Infof("certificate: %s sent successfully for range of l2 blocks (from block: %d, to block: %d) cert:%s",
@@ -634,25 +633,24 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 	if localLastCert == nil && aggLayerLastCert != nil {
 		a.log.Info("recovery: No certificates in local storage but agglayer have one: recovery aggSender cert: %s",
 			aggLayerLastCert.String())
-		if err := a.updateLocalStorageWithAggLayerCert(ctx, aggLayerLastCert); err != nil {
+		if _, err := a.updateLocalStorageWithAggLayerCert(ctx, aggLayerLastCert); err != nil {
 			return fmt.Errorf("recovery: error updating local storage with agglayer certificate: %w", err)
 		}
 		return nil
 	}
 	// CASE 3: aggsender stopped between sending to agglayer and storing on DB
 	if aggLayerLastCert.Height == localLastCert.Height+1 {
-		localLastCert = NewCertificateInfoFromAgglayerCertHeader(aggLayerLastCert)
 		a.log.Infof("recovery: AggLayer have next cert (height:%d), so is a recovery case: storing cert: %s",
 			aggLayerLastCert.Height, localLastCert.String())
-		// we need to store the certificate in the local storage. We allow just 1 retry
-		err := a.saveCertificateToStorage(ctx, *localLastCert, 1)
+		// we need to store the certificate in the local storage.
+		localLastCert, err = a.updateLocalStorageWithAggLayerCert(ctx, aggLayerLastCert)
 		if err != nil {
 			log.Errorf("recovery: error updating status certificate: %s status: %w", aggLayerLastCert.String(), err)
 			return fmt.Errorf("recovery: error updating certificate status: %w", err)
 		}
 	}
-	// CASE 4: AggSender and AggLayer are not at same page
-	//    note: we don't need to check indivual fields of the certificate
+	// CASE 4: AggSender and AggLayer are not on the same page
+	//    note: we don't need to check individual fields of the certificate
 	//          because certificationID is a hash of all the fields
 	if localLastCert.CertificateID != aggLayerLastCert.CertificateID {
 		a.log.Errorf("recovery: Local certificate:\n %s \n is different from agglayer certificate:\n %s",
@@ -673,10 +671,10 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 
 // updateLocalStorageWithAggLayerCert updates the local storage with the certificate from the AggLayer
 func (a *AggSender) updateLocalStorageWithAggLayerCert(ctx context.Context,
-	aggLayerCert *agglayer.CertificateHeader) error {
+	aggLayerCert *agglayer.CertificateHeader) (*types.CertificateInfo, error) {
 	certInfo := NewCertificateInfoFromAgglayerCertHeader(aggLayerCert)
 	log.Infof("setting initial certificate from AggLayer: %s", certInfo.String())
-	return a.storage.SaveLastSentCertificate(ctx, *certInfo)
+	return certInfo, a.storage.SaveLastSentCertificate(ctx, *certInfo)
 }
 
 // extractSignatureData extracts the R, S, and V from a 65-byte signature

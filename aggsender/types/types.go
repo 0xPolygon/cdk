@@ -15,8 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-var ZeroHash = common.Hash{}
-
 // L1InfoTreeSyncer is an interface defining functions that an L1InfoTreeSyncer should implement
 type L1InfoTreeSyncer interface {
 	GetInfoByGlobalExitRoot(globalExitRoot common.Hash) (*l1infotreesync.L1InfoTreeLeaf, error)
@@ -68,10 +66,6 @@ type CertificateInfo struct {
 	SignedCertificate string                     `meddler:"signed_certificate"`
 }
 
-func (c *CertificateInfo) IsNil() bool {
-	return c == nil || c.CertificateID == ZeroHash
-}
-
 func (c *CertificateInfo) String() string {
 	if c == nil {
 		return "nil"
@@ -96,6 +90,7 @@ func (c *CertificateInfo) String() string {
 	)
 }
 
+// ID returns a string with the ident of this cert (height/certID)
 func (c *CertificateInfo) ID() string {
 	if c == nil {
 		return "nil"
@@ -103,6 +98,7 @@ func (c *CertificateInfo) ID() string {
 	return fmt.Sprintf("%d/%s", c.Height, c.CertificateID.String())
 }
 
+// IsClosed returns true if the certificate is closed (settled or inError)
 func (c *CertificateInfo) IsClosed() bool {
 	if c == nil {
 		return false
@@ -110,6 +106,7 @@ func (c *CertificateInfo) IsClosed() bool {
 	return c.Status.IsClosed()
 }
 
+// ElapsedTimeSinceCreation returns the time elapsed since the certificate was created
 func (c *CertificateInfo) ElapsedTimeSinceCreation() time.Duration {
 	if c == nil {
 		return 0
