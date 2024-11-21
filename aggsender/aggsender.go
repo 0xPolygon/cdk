@@ -230,10 +230,12 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		UpdatedAt:         createdTime,
 		SignedCertificate: string(raw),
 	}
-	// Don't save certificate is not an option, we need to retry indefinitely
-	err = a.saveCertificateToStorage(ctx, certInfo, indefinitelyRetries)
+	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
+	err = a.saveCertificateToStorage(ctx, certInfo, 1)
 	if err != nil {
-		a.log.Fatalf("error saving certificate to storage: %w", err)
+		a.log.Errorf("error saving certificate to storage: %w", err)
+		return nil, fmt.Errorf("error saving last sent certificate %s in db: %w", certInfo.String(), err)
+
 	}
 
 	a.log.Infof("certificate: %s sent successfully for range of l2 blocks (from block: %d, to block: %d) cert:%s",
@@ -642,8 +644,8 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 		localLastCert = NewCertificateInfoFromAgglayerCertHeader(aggLayerLastCert)
 		a.log.Infof("recovery: AggLayer have next cert (height:%d), so is a recovery case: storing cert: %s",
 			aggLayerLastCert.Height, localLastCert.String())
-
-		err := a.storage.SaveLastSentCertificate(ctx, *localLastCert)
+		// we need to store the certificate in the local storage. We allow just 1 retry
+		err := a.saveCertificateToStorage(ctx, *localLastCert, 1)
 		if err != nil {
 			log.Errorf("recovery: error updating status certificate: %s status: %w", aggLayerLastCert.String(), err)
 			return fmt.Errorf("recovery: error updating certificate status: %w", err)
