@@ -46,7 +46,7 @@ func Test_Storage(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, certificate, *certificateFromDB)
-		require.NoError(t, storage.Clean())
+		require.NoError(t, storage.clean())
 	})
 
 	t.Run("DeleteCertificate", func(t *testing.T) {
@@ -67,7 +67,7 @@ func Test_Storage(t *testing.T) {
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.ErrorIs(t, err, db.ErrNotFound)
 		require.Nil(t, certificateFromDB)
-		require.NoError(t, storage.Clean())
+		require.NoError(t, storage.clean())
 	})
 
 	t.Run("GetLastSentCertificate", func(t *testing.T) {
@@ -93,7 +93,7 @@ func Test_Storage(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, certificateFromDB)
 		require.Equal(t, certificate, *certificateFromDB)
-		require.NoError(t, storage.Clean())
+		require.NoError(t, storage.clean())
 	})
 
 	t.Run("GetCertificateByHeight", func(t *testing.T) {
@@ -124,7 +124,7 @@ func Test_Storage(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, certificateFromDB)
 		require.Equal(t, certificate, *certificateFromDB)
-		require.NoError(t, storage.Clean())
+		require.NoError(t, storage.clean())
 	})
 
 	t.Run("GetCertificatesByStatus", func(t *testing.T) {
@@ -194,7 +194,7 @@ func Test_Storage(t *testing.T) {
 		require.Len(t, certificatesFromDB, 2)
 		require.ElementsMatch(t, []*types.CertificateInfo{certificates[1], certificates[2]}, certificatesFromDB)
 
-		require.NoError(t, storage.Clean())
+		require.NoError(t, storage.clean())
 	})
 
 	t.Run("UpdateCertificateStatus", func(t *testing.T) {
@@ -220,7 +220,7 @@ func Test_Storage(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, certificate.Status, certificateFromDB.Status)
 
-		require.NoError(t, storage.Clean())
+		require.NoError(t, storage.clean())
 	})
 }
 
@@ -252,7 +252,7 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
 		require.Equal(t, certificate, *certificateFromDB)
-		require.NoError(t, storage.Clean())
+		require.NoError(t, storage.clean())
 	})
 
 	t.Run("UpdateExistingCertificate", func(t *testing.T) {
@@ -282,7 +282,7 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 		certificateFromDB, err := storage.GetCertificateByHeight(updatedCertificate.Height)
 		require.NoError(t, err)
 		require.Equal(t, updatedCertificate, *certificateFromDB)
-		require.NoError(t, storage.Clean())
+		require.NoError(t, storage.clean())
 	})
 
 	t.Run("SaveCertificateWithRollback", func(t *testing.T) {
@@ -311,7 +311,7 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.ErrorIs(t, err, db.ErrNotFound)
 		require.Nil(t, certificateFromDB)
-		require.NoError(t, storage.Clean())
+		require.NoError(t, storage.clean())
 	})
 
 	t.Run("SaveCertificate with raw data", func(t *testing.T) {
@@ -365,6 +365,6 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 		require.Equal(t, certificate, *certificateFromDB)
 		require.Equal(t, raw, []byte(certificateFromDB.SignedCertificate))
 
-		require.NoError(t, storage.Clean())
+		require.NoError(t, storage.clean())
 	})
 }
