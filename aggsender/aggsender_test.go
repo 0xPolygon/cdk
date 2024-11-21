@@ -956,9 +956,8 @@ func TestSendCertificate(t *testing.T) {
 		var (
 			aggsender = &AggSender{
 				log:          log.WithFields("aggsender", 1),
-				cfg:          Config{},
+				cfg:          Config{MaxRetriesStoreCertificate: 3},
 				sequencerKey: cfg.sequencerKey,
-				retryDelay:   0,
 			}
 			mockStorage          *mocks.AggSenderStorage
 			mockL2Syncer         *mocks.L2BridgeSyncer

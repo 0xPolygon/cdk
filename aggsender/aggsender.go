@@ -21,18 +21,13 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-const (
-	signatureSize              = 65
-	defaultMaxRetriesStoreCert = 3
-)
+const signatureSize = 65
 
 var (
 	errNoBridgesAndClaims   = errors.New("no bridges and claims to build certificate")
 	errInvalidSignatureSize = errors.New("invalid signature size")
 
 	zeroLER = common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
-
-	defaultRetryDelay = 60 * time.Second
 )
 
 // AggSender is a component that will send certificates to the aggLayer
@@ -48,9 +43,7 @@ type AggSender struct {
 
 	cfg Config
 
-	sequencerKey        *ecdsa.PrivateKey
-	retryDelay          time.Duration
-	maxRetriesStoreCert int
+	sequencerKey *ecdsa.PrivateKey
 }
 
 // New returns a new AggSender
@@ -75,16 +68,14 @@ func New(
 	logger.Infof("Aggsender Config: %s.", cfg.String())
 
 	return &AggSender{
-		cfg:                 cfg,
-		log:                 logger,
-		storage:             storage,
-		l2Syncer:            l2Syncer,
-		aggLayerClient:      aggLayerClient,
-		l1infoTreeSyncer:    l1InfoTreeSyncer,
-		sequencerKey:        sequencerPrivateKey,
-		epochNotifier:       epochNotifier,
-		retryDelay:          defaultRetryDelay,
-		maxRetriesStoreCert: defaultMaxRetriesStoreCert,
+		cfg:              cfg,
+		log:              logger,
+		storage:          storage,
+		l2Syncer:         l2Syncer,
+		aggLayerClient:   aggLayerClient,
+		l1infoTreeSyncer: l1InfoTreeSyncer,
+		sequencerKey:     sequencerPrivateKey,
+		epochNotifier:    epochNotifier,
 	}, nil
 }
 
@@ -96,12 +87,12 @@ func (a *AggSender) Start(ctx context.Context) {
 
 // checkInitialStatus check local status vs agglayer status
 func (a *AggSender) checkInitialStatus(ctx context.Context) {
-	ticker := time.NewTicker(a.retryDelay)
+	ticker := time.NewTicker(a.cfg.DelayBeetweenRetries.Duration)
 	defer ticker.Stop()
 
 	for {
 		if err := a.checkLastCertificateFromAgglayer(ctx); err != nil {
-			log.Errorf("error checking initial status: %w, retrying in %s", err, a.retryDelay)
+			log.Errorf("error checking initial status: %w, retrying in %s", err, a.cfg.DelayBeetweenRetries.String())
 		} else {
 			log.Info("Initial status checked successfully")
 			return
@@ -235,7 +226,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		SignedCertificate: string(raw),
 	}
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
-	err = a.saveCertificateToStorage(ctx, certInfo, a.maxRetriesStoreCert)
+	err = a.saveCertificateToStorage(ctx, certInfo, a.cfg.MaxRetriesStoreCertificate)
 	if err != nil {
 		a.log.Errorf("error saving certificate to storage: %w", err)
 		return nil, fmt.Errorf("error saving last sent certificate %s in db: %w", certInfo.String(), err)
@@ -260,7 +251,7 @@ func (a *AggSender) saveCertificateToStorage(ctx context.Context, cert types.Cer
 				return fmt.Errorf("error saving last sent certificate %s in db: %w", cert.String(), err)
 			} else {
 				retries++
-				time.Sleep(a.retryDelay)
+				time.Sleep(a.cfg.DelayBeetweenRetries.Duration)
 			}
 		}
 	}

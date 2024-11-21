@@ -344,4 +344,6 @@ CheckSettledInterval = "2s"
 BlockFinality = "LatestBlock"
 EpochNotificationPercentage = 50
 SaveCertificatesToFilesPath = ""
+MaxRetriesStoreCertificate = 3
+DelayBeetweenRetries = "60s"
 `

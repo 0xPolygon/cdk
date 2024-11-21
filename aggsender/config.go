@@ -29,6 +29,13 @@ type Config struct {
 	EpochNotificationPercentage uint `mapstructure:"EpochNotificationPercentage"`
 	// SaveCertificatesToFilesPath if != "" tells  the AggSender to save the certificates to a file in this path
 	SaveCertificatesToFilesPath string `mapstructure:"SaveCertificatesToFilesPath"`
+
+	// MaxRetriesStoreCertificate is the maximum number of retries to store a certificate
+	// 0 is infinite
+	MaxRetriesStoreCertificate int `mapstructure:"MaxRetriesStoreCertificate"`
+	// DelayBeetweenRetries is the delay between retries:
+	//  is used on store Certificate and also in initial check
+	DelayBeetweenRetries types.Duration `mapstructure:"DelayBeetweenRetries"`
 }
 
 // String returns a string representation of the Config
