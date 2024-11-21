@@ -14,3 +14,4 @@ args:
   # This value is set in run-e2e.sh
   #agglayer_prover_sp1_key: {{ .agglayer_prover_sp1_key }}
   enable_normalcy: true
+  
