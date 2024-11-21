@@ -58,7 +58,6 @@ AggLayerURL = ""
 SyncModeOnlyEnabled = false
 UseFullWitness = false
 SequencerPrivateKey = {}
-DBPath = ""
 	[Aggregator.Log]
 		Environment = "development" # "production" or "development"
 		Level = "info"
