@@ -55,8 +55,6 @@ Outputs = ["stderr"]
         SettlementBackend = "agglayer"
        
 [AggSender]
-CertificateSendInterval = "1m"
-CheckSettledInterval = "5s"
 SaveCertificatesToFilesPath = "{{.zkevm_path_rw_data}}/"
 
 

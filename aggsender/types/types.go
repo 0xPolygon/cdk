@@ -106,10 +106,34 @@ func (c *CertificateInfo) IsClosed() bool {
 	return c.Status.IsClosed()
 }
 
+// IsEmpty returns true if the certificate is nil or has an empty certificateID (has not been built)
+func (c *CertificateInfo) IsEmpty() bool {
+	return c == nil || c.CertificateID == common.Hash{}
+}
+
 // ElapsedTimeSinceCreation returns the time elapsed since the certificate was created
 func (c *CertificateInfo) ElapsedTimeSinceCreation() time.Duration {
 	if c == nil {
 		return 0
 	}
 	return time.Now().UTC().Sub(time.UnixMilli(c.CreatedAt))
+}
+
+// Copy returns a deep copy of the certificate
+func (c *CertificateInfo) Copy() *CertificateInfo {
+	if c == nil {
+		return &CertificateInfo{}
+	}
+
+	return &CertificateInfo{
+		Height:            c.Height,
+		CertificateID:     c.CertificateID,
+		NewLocalExitRoot:  c.NewLocalExitRoot,
+		FromBlock:         c.FromBlock,
+		ToBlock:           c.ToBlock,
+		Status:            c.Status,
+		CreatedAt:         c.CreatedAt,
+		UpdatedAt:         c.UpdatedAt,
+		SignedCertificate: c.SignedCertificate,
+	}
 }
