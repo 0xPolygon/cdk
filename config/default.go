@@ -220,7 +220,7 @@ SyncBlockChunkSize=100
 BlockFinality="LatestBlock"
 URLRPCL1="{{L1URL}}"
 WaitForNewBlocksPeriod="100ms"
-InitialBlock=0
+InitialBlock={{genesisBlockNumber}}
 
 [AggOracle]
 TargetChainType="EVM"
