@@ -257,7 +257,7 @@ func (d *DBStorage) AddGeneratedProof(ctx context.Context, proof *state.Proof, d
 
 // UpdateGeneratedProof updates a generated proof in the storage
 func (d *DBStorage) UpdateGeneratedProof(ctx context.Context, proof *state.Proof, dbTx db.Txer) error {
-	const addGeneratedProofSQL = `
+	const updateGeneratedProofSQL = `
 	UPDATE proof 
 	SET proof = $3, 
 		proof_id = $4, 
@@ -290,7 +290,7 @@ func (d *DBStorage) UpdateGeneratedProof(ctx context.Context, proof *state.Proof
 		*updatedAt = uint64(now.Unix())
 	}
 	_, err := e.Exec(
-		addGeneratedProofSQL, proof.Proof, proof.ProofID, proof.InputProver,
+		updateGeneratedProofSQL, proof.Proof, proof.ProofID, proof.InputProver,
 		proof.Prover, proof.ProverID, generatingSince, updatedAt, proof.BatchNumber, proof.BatchNumberFinal,
 	)
 	return err
