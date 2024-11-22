@@ -2,10 +2,12 @@ package aggregator
 
 import (
 	"context"
+	"database/sql"
 	"math/big"
 
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/aggregator/prover"
+	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/rpc/types"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
@@ -13,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
-	"github.com/jackc/pgx/v4"
 )
 
 // Consumer interfaces required by the package.
@@ -53,19 +54,19 @@ type aggregatorTxProfitabilityChecker interface {
 }
 
 // StateInterface gathers the methods to interact with the state.
-type StateInterface interface {
-	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
-	CheckProofContainsCompleteSequences(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) (bool, error)
-	GetProofReadyToVerify(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Proof, error)
-	GetProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*state.Proof, *state.Proof, error)
-	AddGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error
-	UpdateGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error
-	DeleteGeneratedProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error
-	DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error
-	CleanupGeneratedProofs(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
-	CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error)
-	CheckProofExistsForBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (bool, error)
-	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
+type StorageInterface interface {
+	BeginTx(ctx context.Context, options *sql.TxOptions) (db.Txer, error)
+	CheckProofContainsCompleteSequences(ctx context.Context, proof *state.Proof, dbTx db.Txer) (bool, error)
+	GetProofReadyToVerify(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx db.Txer) (*state.Proof, error)
+	GetProofsToAggregate(ctx context.Context, dbTx db.Txer) (*state.Proof, *state.Proof, error)
+	AddGeneratedProof(ctx context.Context, proof *state.Proof, dbTx db.Txer) error
+	UpdateGeneratedProof(ctx context.Context, proof *state.Proof, dbTx db.Txer) error
+	DeleteGeneratedProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx db.Txer) error
+	DeleteUngeneratedProofs(ctx context.Context, dbTx db.Txer) error
+	CleanupGeneratedProofs(ctx context.Context, batchNumber uint64, dbTx db.Txer) error
+	CleanupLockedProofs(ctx context.Context, duration string, dbTx db.Txer) (int64, error)
+	CheckProofExistsForBatch(ctx context.Context, batchNumber uint64, dbTx db.Txer) (bool, error)
+	AddSequence(ctx context.Context, sequence state.Sequence, dbTx db.Txer) error
 }
 
 // EthTxManagerClient represents the eth tx manager interface

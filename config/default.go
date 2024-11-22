@@ -137,17 +137,10 @@ SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
 AggLayerURL = "{{AggLayerURL}}"
 SyncModeOnlyEnabled = false
+DBPath = "{{PathRWData}}/aggregator_db.sqlite"
 	[Aggregator.SequencerPrivateKey]
 		Path = "{{SequencerPrivateKeyPath}}"
 		Password = "{{SequencerPrivateKeyPassword}}"
-	[Aggregator.DB]
-		Name = "aggregator_db"
-		User = "aggregator_user"
-		Password = "aggregator_password"
-		Host = "cdk-aggregator-db"
-		Port = "5432"
-		EnableLog = false	
-		MaxConns = 200
 	[Aggregator.Log]
 		Environment ="{{Log.Environment}}" # "production" or "development"
 		Level = "{{Log.Level}}"

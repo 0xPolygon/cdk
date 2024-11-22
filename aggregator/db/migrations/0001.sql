@@ -1,32 +1,24 @@
 -- +migrate Down
-DROP SCHEMA IF EXISTS aggregator CASCADE;
+DROP TABLE IF EXISTS proof;
+DROP TABLE IF EXISTS sequence;
 
 -- +migrate Up
-CREATE SCHEMA aggregator;
-
-CREATE TABLE IF NOT EXISTS aggregator.batch (
+CREATE TABLE IF NOT EXISTS proof (
 	batch_num BIGINT NOT NULL,
-	batch jsonb NOT NULL,
-	datastream varchar NOT NULL,
-	PRIMARY KEY (batch_num)
-);
-
-CREATE TABLE IF NOT EXISTS aggregator.proof (
-	batch_num BIGINT NOT NULL REFERENCES aggregator.batch (batch_num) ON DELETE CASCADE,
 	batch_num_final BIGINT NOT NULL,
-	proof varchar NULL,
-	proof_id varchar NULL,
-	input_prover varchar NULL,
-	prover varchar NULL,
-	prover_id varchar NULL,
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-	updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-	generating_since timestamptz NULL,
+	proof TEXT NULL,
+	proof_id TEXT NULL,
+	input_prover TEXT NULL,
+	prover TEXT NULL,
+	prover_id TEXT NULL,
+	created_at BIGINT NOT NULL,
+	updated_at BIGINT NOT NULL,
+	generating_since BIGINT DEFAULT NULL,
     PRIMARY KEY (batch_num, batch_num_final)
 );
 
-CREATE TABLE  IF NOT EXISTS aggregator.sequence (
-    from_batch_num BIGINT NOT NULL REFERENCES aggregator.batch (batch_num) ON DELETE CASCADE,
+CREATE TABLE  IF NOT EXISTS sequence (
+    from_batch_num BIGINT NOT NULL,
     to_batch_num   BIGINT NOT NULL,
 	PRIMARY KEY (from_batch_num)
 );
