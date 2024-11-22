@@ -25,14 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	networkIDTest = uint32(1234)
-)
-
-var (
-	errTest = errors.New("unitest  error")
-)
-
 func TestConfigString(t *testing.T) {
 	config := Config{
 		AggLayerURL:                 "http://agglayer.url",
