@@ -81,6 +81,7 @@ func New(
 
 // Start starts the AggSender
 func (a *AggSender) Start(ctx context.Context) {
+	a.log.Info("AggSender started")
 	a.checkInitialStatus(ctx)
 	a.sendCertificates(ctx)
 }
@@ -280,7 +281,7 @@ func (a *AggSender) saveCertificateToFile(signedCertificate *agglayer.SignedCert
 func (a *AggSender) getNextHeightAndPreviousLER(
 	lastSentCertificateInfo *types.CertificateInfo) (uint64, common.Hash) {
 	height := lastSentCertificateInfo.Height + 1
-	if lastSentCertificateInfo.Status == agglayer.InError {
+	if lastSentCertificateInfo.Status.IsInError() {
 		// previous certificate was in error, so we need to resend it
 		a.log.Debugf("Last certificate %s failed so reusing height %d",
 			lastSentCertificateInfo.CertificateID, lastSentCertificateInfo.Height)
@@ -288,7 +289,8 @@ func (a *AggSender) getNextHeightAndPreviousLER(
 	}
 
 	previousLER := lastSentCertificateInfo.NewLocalExitRoot
-	if lastSentCertificateInfo.NewLocalExitRoot == (common.Hash{}) {
+	if lastSentCertificateInfo.NewLocalExitRoot == (common.Hash{}) ||
+		lastSentCertificateInfo.Height == 0 && lastSentCertificateInfo.Status.IsInError() {
 		// meaning this is the first certificate
 		height = 0
 		previousLER = zeroLER
@@ -577,8 +579,9 @@ func (a *AggSender) updateCertificateStatus(ctx context.Context,
 	if localCert.Status == agglayerCert.Status {
 		return nil
 	}
-	a.log.Infof("certificate %s changed status from [%s] to [%s] elapsed time: %s",
-		localCert.ID(), localCert.Status, agglayerCert.Status, localCert.ElapsedTimeSinceCreation())
+	a.log.Infof("certificate %s changed status from [%s] to [%s] elapsed time: %s full_cert: %s",
+		localCert.ID(), localCert.Status, agglayerCert.Status, localCert.ElapsedTimeSinceCreation(),
+		localCert.String())
 
 	// That is a strange situation
 	if agglayerCert.Status.IsOpen() == localCert.Status.IsClosed() {
@@ -614,11 +617,13 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 	if err != nil {
 		return fmt.Errorf("recovery: error getting latest known certificate header from agglayer: %w", err)
 	}
-
+	a.log.Infof("recovery: last certificate from AggLayer: %s", aggLayerLastCert.String())
 	localLastCert, err := a.storage.GetLastSentCertificate()
 	if err != nil {
 		return fmt.Errorf("recovery: error getting last sent certificate from local storage: %w", err)
 	}
+	a.log.Infof("recovery: last certificate in storage: %s", localLastCert.String())
+
 	// CASE 1: No certificates in local storage and agglayer
 	if localLastCert == nil && aggLayerLastCert == nil {
 		a.log.Info("recovery: No certificates in local storage and agglayer: initial state")

@@ -45,6 +45,11 @@ func (c CertificateStatus) IsSettled() bool {
 	return c == Settled
 }
 
+// IsInError returns true if the certificate is in error
+func (c CertificateStatus) IsInError() bool {
+	return c == InError
+}
+
 // IsOpen returns true if the certificate is open (pending, candidate or proven)
 func (c CertificateStatus) IsOpen() bool {
 	return slices.Contains(NonSettledStatuses, c)
