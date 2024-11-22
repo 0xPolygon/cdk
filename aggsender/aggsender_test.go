@@ -900,7 +900,7 @@ func TestCheckPendingCertificateStatus(t *testing.T) {
 				lastSentCertificate: tt.lastSentCertificate,
 			}
 
-			result := aggSender.checkPendingCertificateStatus(context.Background())
+			result := aggSender.checkPendingCertificateStatus()
 			require.Equal(t, tt.expectedResult, result)
 
 			mockAggLayerClient.AssertExpectations(t)
