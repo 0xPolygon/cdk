@@ -1,7 +1,7 @@
 package config
 
-// This values don't have a default value because they depend on the
-// environment / deployment
+// These values don't have default values because they depend on the environment
+// or deployment settings
 const DefaultMandatoryVars = `
 # ------------------------------------------------------------------------------
 # Layer 1 (Ethereum) RPC provider URL
@@ -15,7 +15,7 @@ L1URL = "http://localhost:8545"
 L2URL = "http://localhost:8123"
 
 # ------------------------------------------------------------------------------
-# AggLayer URL
+# AggLayerURL is the Agglayer URL
 # ------------------------------------------------------------------------------
 AggLayerURL = "https://agglayer-dev.polygon.technology"
 
@@ -30,7 +30,7 @@ ForkId = 12
 ContractVersions = "banana"
 
 # ------------------------------------------------------------------------------
-# Set if it's a Validium or a Rollup chain
+# IsValidiumMode should be set to true, if we are dealing with the validium chain
 # ------------------------------------------------------------------------------
 IsValidiumMode = false
 
@@ -60,7 +60,7 @@ WitnessURL = "http://localhost:8123"
 AggregatorPrivateKeyPath = "/app/keystore/aggregator.keystore"
 
 # ------------------------------------------------------------------------------
-# AggregatorPrivateKeyPassword is the password to the aggregator private key
+# AggregatorPrivateKeyPassword is the password that unlocks the aggregator private key
 # ------------------------------------------------------------------------------
 AggregatorPrivateKeyPassword = "testonly"
 
@@ -75,7 +75,7 @@ SenderProofToL1Addr = "0x0000000000000000000000000000000000000000"
 polygonBridgeAddr = "0x0000000000000000000000000000000000000000"
 
 # ------------------------------------------------------------------------------
-# This values can be overridden directly from genesis.json
+# These values can be overridden directly from genesis.json
 # rollupCreationBlockNumber is the block number where the rollup contract was created
 # ------------------------------------------------------------------------------
 rollupCreationBlockNumber = 0
@@ -420,7 +420,7 @@ ForkUpgradeNewForkId = 0
       URL = "{{L1URL}}"
       
       # ----------------------------------------------------------------------------
-      # allow that L1 gas price calculation use multiple sources
+      # # MultiGasProvider allows that L1 gas price calculation use multiple sources
       # ----------------------------------------------------------------------------
       MultiGasProvider = false
       
@@ -430,12 +430,12 @@ ForkUpgradeNewForkId = 0
       L1ChainID = {{NetworkConfig.L1.L1ChainID}}
 [Aggregator]
   # ------------------------------------------------------------------------------
-  # GRPC server host
+  # Host denotes GRPC server IP address
   # ------------------------------------------------------------------------------
   Host = "0.0.0.0"
   
   # ------------------------------------------------------------------------------
-  # GRPC server port
+  # Port denotes the GRPC server port
   # ------------------------------------------------------------------------------
   Port = 50081
   
@@ -564,42 +564,6 @@ ForkUpgradeNewForkId = 0
   [Aggregator.SequencerPrivateKey]
     Path = "{{SequencerPrivateKeyPath}}"
     Password = "{{SequencerPrivateKeyPassword}}"
-    
-  [Aggregator.DB]
-    # ----------------------------------------------------------------------------
-    # Name of the database
-    # ----------------------------------------------------------------------------
-    Name = "aggregator_db"
-    
-    # ----------------------------------------------------------------------------
-    # User of the database
-    # ----------------------------------------------------------------------------
-    User = "aggregator_user"
-    
-    # ----------------------------------------------------------------------------
-    # Password of the database
-    # ----------------------------------------------------------------------------
-    Password = "aggregator_password"
-    
-    # ----------------------------------------------------------------------------
-    # Host of the database
-    # ----------------------------------------------------------------------------
-    Host = "cdk-aggregator-db"
-    
-    # ----------------------------------------------------------------------------
-    # Port of the database
-    # ----------------------------------------------------------------------------
-    Port = "5432"
-    
-    # ----------------------------------------------------------------------------
-    # EnableLog flag to enable logging
-    # ----------------------------------------------------------------------------
-    EnableLog = false
-    
-    # ----------------------------------------------------------------------------
-    # MaxConns is the maximum number of connections
-    # ----------------------------------------------------------------------------
-    MaxConns = 200
     
   [Aggregator.Log]
     # ----------------------------------------------------------------------------
@@ -1413,7 +1377,7 @@ ForkUpgradeNewForkId = 0
   StoragePath = "{{PathRWData}}/aggsender.sqlite"
   
   # ----------------------------------------------------------------------------
-  # AggLayerURL is the URL of the AggLayer
+  # AggLayerURL url of the AggLayer service
   # ----------------------------------------------------------------------------
   AggLayerURL = "{{AggLayerURL}}"
   
