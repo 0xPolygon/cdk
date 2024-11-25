@@ -368,3 +368,53 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 		require.NoError(t, storage.clean())
 	})
 }
+
+func Test_GetLastSettleCertificate_EmptyDB(t *testing.T) {
+	dbPath := path.Join(t.TempDir(), "aggsenderGetLastSettleCertificate.sqlite")
+	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), dbPath)
+	require.NoError(t, err)
+	require.NotNil(t, storage)
+	cert, err := storage.GetLastSettleCertificate()
+	require.NoError(t, err, "emptyDB no error, and returns a nil certificate")
+	require.Nil(t, cert, "emptyDB no error, and returns a nil certificate")
+}
+
+func Test_GetLastSettleCertificate_NonEmptyDB(t *testing.T) {
+	ctx := context.TODO()
+	dbPath := path.Join(t.TempDir(), "aggsenderGetLastSettleCertificate.sqlite")
+	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), dbPath)
+	require.NoError(t, err)
+	require.NotNil(t, storage)
+	cert0 := types.CertificateInfo{
+		Height:        0,
+		CertificateID: common.HexToHash("0x1"),
+		Status:        agglayer.InError,
+	}
+	err = storage.SaveLastSentCertificate(ctx, cert0)
+	require.NoError(t, err)
+
+	cert, err := storage.GetLastSettleCertificate()
+	require.NoError(t, err, "nonEmptyDB no error")
+	require.Nil(t, cert, "nonEmptyDB returns a nil certificate, because there is no settled certificate")
+
+	cert1 := types.CertificateInfo{
+		Height:        1,
+		CertificateID: common.HexToHash("0x2"),
+		Status:        agglayer.Settled,
+	}
+	err = storage.SaveLastSentCertificate(ctx, cert1)
+	require.NoError(t, err)
+
+	cert2 := types.CertificateInfo{
+		Height:        2,
+		CertificateID: common.HexToHash("0x3"),
+		Status:        agglayer.Pending,
+	}
+	err = storage.SaveLastSentCertificate(ctx, cert2)
+	require.NoError(t, err)
+
+	cert, err = storage.GetLastSettleCertificate()
+	require.NoError(t, err, "nonEmptyDB no error")
+	require.NotNil(t, cert, "nonEmptyDB returns a non-nil certificate")
+	require.Equal(t, cert1, *cert, "nonEmptyDB cert2 is not settle, the last settle is cer1")
+}

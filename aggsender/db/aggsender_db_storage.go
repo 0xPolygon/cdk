@@ -32,6 +32,8 @@ type AggSenderStorage interface {
 	GetCertificatesByStatus(status []agglayer.CertificateStatus) ([]*types.CertificateInfo, error)
 	// UpdateCertificate updates certificate in db
 	UpdateCertificate(ctx context.Context, certificate types.CertificateInfo) error
+	// GetLastSettleCertificate returns the last settled certificate
+	GetLastSettleCertificate() (*types.CertificateInfo, error)
 }
 
 var _ AggSenderStorage = (*AggSenderSQLStorage)(nil)
@@ -109,6 +111,16 @@ func (a *AggSenderSQLStorage) GetLastSentCertificate() (*types.CertificateInfo, 
 	var certificateInfo types.CertificateInfo
 	if err := meddler.QueryRow(a.db, &certificateInfo,
 		"SELECT * FROM certificate_info ORDER BY height DESC LIMIT 1;"); err != nil {
+		return nil, getSelectQueryError(0, err)
+	}
+
+	return &certificateInfo, nil
+}
+
+func (a *AggSenderSQLStorage) GetLastSettleCertificate() (*types.CertificateInfo, error) {
+	var certificateInfo types.CertificateInfo
+	if err := meddler.QueryRow(a.db, &certificateInfo,
+		"SELECT * FROM certificate_info WHERE status = $1 ORDER BY height DESC LIMIT 1;", agglayer.Settled); err != nil {
 		return nil, getSelectQueryError(0, err)
 	}
 
