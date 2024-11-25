@@ -1039,7 +1039,7 @@ ForkUpgradeNewForkId = 0
   # ----------------------------------------------------------------------------
   # DBPath is the path of the database
   # ----------------------------------------------------------------------------
-  DBPath = "/{{PathRWData}}/claimsopnsor.sqlite"
+  DBPath = "{{PathRWData}}/claimsopnsor.sqlite"
   
   # ----------------------------------------------------------------------------
   # Enabled indicates if the sponsor should be run or not
@@ -1137,7 +1137,7 @@ ForkUpgradeNewForkId = 0
     # ----------------------------------------------------------------------------
     # StoragePath is the path of the storage
     # ----------------------------------------------------------------------------
-    StoragePath = "/{{PathRWData}}/ethtxmanager-claimsponsor.sqlite"
+    StoragePath = "{{PathRWData}}/ethtxmanager-claimsponsor.sqlite"
     
     # ----------------------------------------------------------------------------
     # ReadPendingL1Txs is a flag to enable the reading of pending L1 txs
@@ -1406,4 +1406,16 @@ ForkUpgradeNewForkId = 0
   # SaveCertificatesToFilesPath if != "" tells the AggSender to save the certificates to a file in this path
   # ----------------------------------------------------------------------------
   SaveCertificatesToFilesPath = ""
+
+  # ----------------------------------------------------------------------------
+  # MaxRetriesStoreCertificate is the maximum number of retries to store a certificate
+	# 0 is infinite
+  # ----------------------------------------------------------------------------
+  MaxRetriesStoreCertificate = 3
+
+  # ----------------------------------------------------------------------------
+  # DelayBeetweenRetries is the delay between retries:
+	# is used on store Certificate and also in initial check
+  # ----------------------------------------------------------------------------
+  DelayBeetweenRetries = "60s"
 `

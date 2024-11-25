@@ -23,6 +23,3 @@ type EpochNotifier interface {
 	Start(ctx context.Context)
 	String() string
 }
-
-type BridgeL2Syncer interface {
-}

@@ -18,6 +18,7 @@ jobs:
           - "fork11-rollup"
           - "fork12-validium"
           - "fork12-rollup"
+          - "fork12-pessimistic"
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -70,7 +71,7 @@ jobs:
       with:
         repository: 0xPolygon/kurtosis-cdk
         path: "kurtosis-cdk"
-        ref: "v0.2.19"
+        ref: "v0.2.21"
 
     - name: Setup Bats and bats libs
       uses: bats-core/bats-action@2.0.0
@@ -81,6 +82,7 @@ jobs:
       env:
         KURTOSIS_FOLDER: ${{ github.workspace }}/kurtosis-cdk
         BATS_LIB_PATH: /usr/lib/
+        agglayer_prover_sp1_key: ${{ secrets.SP1_PRIVATE_KEY }}
     
     - name: Dump enclave logs
       if: failure()
