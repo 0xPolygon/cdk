@@ -584,7 +584,10 @@ func (c *CertificateHeader) ID() string {
 	return fmt.Sprintf("%d/%s", c.Height, c.CertificateID.String())
 }
 
-func (c CertificateHeader) String() string {
+func (c *CertificateHeader) String() string {
+	if c == nil {
+		return "nil"
+	}
 	errors := ""
 	if c.Error != nil {
 		errors = c.Error.String()
