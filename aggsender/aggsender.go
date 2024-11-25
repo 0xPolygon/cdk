@@ -202,9 +202,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.saveCertificateToFile(signedCertificate)
 	a.log.Infof("certificate ready to be send to AggLayer: %s", signedCertificate.String())
-	// a.log.Fatalf("certificate ready to be send to AggLayer: %s", signedCertificate.String())
-	certificateHash := common.Hash{}
-	//	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
+	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
 	if err != nil {
 		return nil, fmt.Errorf("error sending certificate: %w", err)
 	}

@@ -147,6 +147,14 @@ func (e *EpochNotifierPerBlock) step(status internalStatus,
 	status.lastBlockSeen = currentBlock
 
 	needNotify, closingEpoch := e.isNotificationRequired(currentBlock, status.waitingForEpoch)
+	percentEpoch := e.percentEpoch(currentBlock)
+	logFunc := e.logger.Debugf
+	if needNotify {
+		logFunc = e.logger.Infof
+	}
+	logFunc("New block seen [finality:%s]: %d. blockRate:%s Epoch:%d Percent:%f%% Threshold:%d notify:%v",
+		newBlock.BlockFinalityType, newBlock.BlockNumber, newBlock.BlockRate, closingEpoch,
+		percentEpoch*maxPercent, e.Config.EpochNotificationPercentage, needNotify)
 	if needNotify {
 		// Notify the epoch has started
 		info := e.infoEpoch(currentBlock, closingEpoch)
@@ -179,7 +187,6 @@ func (e *EpochNotifierPerBlock) isNotificationRequired(currentBlock, lastEpochNo
 		thresholdPercent = maxTresholdPercent
 	}
 	if percentEpoch < thresholdPercent {
-		e.logger.Debugf("Block %d is at %f%% of the epoch no notify", currentBlock, percentEpoch*maxPercent)
 		return false, e.epochNumber(currentBlock)
 	}
 	nextEpoch := e.epochNumber(currentBlock) + 1
