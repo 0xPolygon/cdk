@@ -454,19 +454,7 @@ ForkUpgradeNewForkId = 0
   # ProofStatePollingInterval is the interval time to polling the prover about the generation state of a proof
   # ------------------------------------------------------------------------------
   ProofStatePollingInterval = "5s"
-  
-  # ------------------------------------------------------------------------------
-  # TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
-  # possible values: base/acceptall
-  # ------------------------------------------------------------------------------
-  TxProfitabilityCheckerType = "acceptall"
-  
-  # ------------------------------------------------------------------------------
-  # TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch
-  # this parameter is used for the base tx profitability checker
-  # ------------------------------------------------------------------------------
-  TxProfitabilityMinReward = "1.1"
-  
+
   # ------------------------------------------------------------------------------
   # IntervalAfterWhichBatchConsolidateAnyway is the interval duration for the main sequencer to check
   # if there are no transactions. If there are no transactions in this interval, the sequencer will
@@ -548,7 +536,7 @@ ForkUpgradeNewForkId = 0
   AggLayerTxTimeout = "5m"
   
   # ------------------------------------------------------------------------------
-  # AggLayerURL url of the agglayer service
+  # AggLayerURL is the url of the agglayer service
   # ------------------------------------------------------------------------------
   AggLayerURL = "{{AggLayerURL}}"
   

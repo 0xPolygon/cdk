@@ -45,10 +45,6 @@ pub struct Aggregator {
     pub verify_proof_interval: String,
     #[serde(rename = "ProofStatePollingInterval", default)]
     pub proof_state_polling_interval: String,
-    #[serde(rename = "TxProfitabilityCheckerType", default)]
-    pub tx_profitability_checker_type: String,
-    #[serde(rename = "TxProfitabilityMinReward", default)]
-    pub tx_profitability_min_reward: String,
     #[serde(rename = "IntervalAfterWhichBatchConsolidateAnyway", default)]
     pub interval_after_which_batch_consolidate_anyway: String,
     #[serde(rename = "ForkId", default)]
