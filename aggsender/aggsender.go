@@ -650,15 +650,15 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 		}
 	}
 	// CASE 4: AggSender and AggLayer are not on the same page
-	//    note: we don't need to check individual fields of the certificate
-	//          because certificationID is a hash of all the fields
+	// note: we don't need to check individual fields of the certificate
+	// because CertificateID is a hash of all the fields
 	if localLastCert.CertificateID != aggLayerLastCert.CertificateID {
 		a.log.Errorf("recovery: Local certificate:\n %s \n is different from agglayer certificate:\n %s",
 			localLastCert.String(), aggLayerLastCert.String())
 		return fmt.Errorf("recovery: mismatch between local and agglayer certificates")
 	}
 	// CASE 5: AggSender and AggLayer are at same page
-	//    just update status
+	// just update status
 	err = a.updateCertificateStatus(ctx, localLastCert, aggLayerLastCert)
 	if err != nil {
 		a.log.Errorf("recovery: error updating status certificate: %s status: %w", aggLayerLastCert.String(), err)
