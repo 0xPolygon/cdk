@@ -202,7 +202,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.saveCertificateToFile(signedCertificate)
 	a.log.Infof("certificate ready to be send to AggLayer: %s", signedCertificate.String())
-
+	a.log.Fatalf("certificate ready to be send to AggLayer: %s", signedCertificate.String())
 	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
 	if err != nil {
 		return nil, fmt.Errorf("error sending certificate: %w", err)
@@ -584,7 +584,7 @@ func (a *AggSender) updateCertificateStatus(ctx context.Context,
 		localCert.String())
 
 	// That is a strange situation
-	if agglayerCert.Status.IsOpen() == localCert.Status.IsClosed() {
+	if agglayerCert.Status.IsOpen() && localCert.Status.IsClosed() {
 		a.log.Warnf("certificate %s is reopen! from [%s] to [%s]",
 			localCert.ID(), localCert.Status, agglayerCert.Status)
 	}
