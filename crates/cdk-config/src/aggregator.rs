@@ -96,8 +96,6 @@ impl Default for Aggregator {
             retry_time: "10s".to_string(),
             verify_proof_interval: "1m".to_string(),
             proof_state_polling_interval: "10s".to_string(),
-            tx_profitability_checker_type: "default".to_string(),
-            tx_profitability_min_reward: "0.1".to_string(),
             interval_after_which_batch_consolidate_anyway: "5m".to_string(),
             fork_id: 0,
             cleanup_locked_proofs_interval: "1h".to_string(),
