@@ -637,6 +637,11 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 		}
 		return nil
 	}
+	// CASE 2.1: certificate in storage but not in agglayer
+	// this is a non-sense, so thrown an error
+	if localLastCert != nil && aggLayerLastCert == nil {
+		return fmt.Errorf("recovery: certificate in storage but not in agglayer. Inconsistency")
+	}
 	// CASE 3: aggsender stopped between sending to agglayer and storing on DB
 	if aggLayerLastCert.Height == localLastCert.Height+1 {
 		a.log.Infof("recovery: AggLayer have next cert (height:%d), so is a recovery case: storing cert: %s",
