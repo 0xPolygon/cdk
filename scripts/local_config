@@ -194,9 +194,6 @@ function export_values_of_cdk_node_config(){
     if [ $? -ne 0 ]; then
          export_key_from_toml_file      zkevm_l2_agglayer_address                   $_CDK_CONFIG_FILE "." SenderProofToL1Addr
     fi
-    export_key_from_toml_file_or_fatal      aggregator_db_name                      $_CDK_CONFIG_FILE Aggregator.DB Name
-    export_key_from_toml_file_or_fatal      aggregator_db_user                      $_CDK_CONFIG_FILE Aggregator.DB User
-    export_key_from_toml_file_or_fatal      aggregator_db_password                  $_CDK_CONFIG_FILE Aggregator.DB           Password
     export_obj_key_from_toml_file  zkevm_l2_aggregator_keystore_password            $_CDK_CONFIG_FILE Aggregator.EthTxManager PrivateKeys Password
     if [ $? -ne 0 ]; then
         export_key_from_toml_file  zkevm_l2_aggregator_keystore_password            $_CDK_CONFIG_FILE "." AggregatorPrivateKeyPassword

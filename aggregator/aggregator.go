@@ -17,6 +17,7 @@ import (
 
 	cdkTypes "github.com/0xPolygon/cdk-rpc/types"
 	"github.com/0xPolygon/cdk/agglayer"
+	"github.com/0xPolygon/cdk/aggregator/db/dbstorage"
 	ethmanTypes "github.com/0xPolygon/cdk/aggregator/ethmantypes"
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	cdkcommon "github.com/0xPolygon/cdk/common"
@@ -59,7 +60,7 @@ type Aggregator struct {
 	cfg    Config
 	logger *log.Logger
 
-	state               StateInterface
+	storage             StorageInterface
 	etherman            Etherman
 	ethTxManager        EthTxManagerClient
 	l1Syncr             synchronizer.Synchronizer
@@ -67,10 +68,9 @@ type Aggregator struct {
 	accInputHashes      map[uint64]common.Hash
 	accInputHashesMutex *sync.Mutex
 
-	profitabilityChecker    aggregatorTxProfitabilityChecker
 	timeSendFinalProof      time.Time
 	timeCleanupLockedProofs types.Duration
-	stateDBMutex            *sync.Mutex
+	storageMutex            *sync.Mutex
 	timeSendFinalProofMutex *sync.RWMutex
 
 	finalProof     chan finalProofMsg
@@ -93,21 +93,7 @@ func New(
 	ctx context.Context,
 	cfg Config,
 	logger *log.Logger,
-	stateInterface StateInterface,
 	etherman Etherman) (*Aggregator, error) {
-	var profitabilityChecker aggregatorTxProfitabilityChecker
-
-	switch cfg.TxProfitabilityCheckerType {
-	case ProfitabilityBase:
-		profitabilityChecker = NewTxProfitabilityCheckerBase(
-			stateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration, cfg.TxProfitabilityMinReward.Int,
-		)
-	case ProfitabilityAcceptAll:
-		profitabilityChecker = NewTxProfitabilityCheckerAcceptAll(
-			stateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration,
-		)
-	}
-
 	// Create ethtxmanager client
 	cfg.EthTxManager.Log = ethtxlog.Config{
 		Environment: ethtxlog.LogEnvironment(cfg.Log.Environment),
@@ -150,18 +136,22 @@ func New(
 		}
 	}
 
+	storage, err := dbstorage.NewDBStorage(cfg.DBPath)
+	if err != nil {
+		return nil, err
+	}
+
 	a := &Aggregator{
 		ctx:                     ctx,
 		cfg:                     cfg,
 		logger:                  logger,
-		state:                   stateInterface,
+		storage:                 storage,
 		etherman:                etherman,
 		ethTxManager:            ethTxManager,
 		l1Syncr:                 l1Syncr,
 		accInputHashes:          make(map[uint64]common.Hash),
 		accInputHashesMutex:     &sync.Mutex{},
-		profitabilityChecker:    profitabilityChecker,
-		stateDBMutex:            &sync.Mutex{},
+		storageMutex:            &sync.Mutex{},
 		timeSendFinalProofMutex: &sync.RWMutex{},
 		timeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
 		finalProof:              make(chan finalProofMsg),
@@ -213,7 +203,7 @@ func (a *Aggregator) handleReorg(reorgData synchronizer.ReorgExecutionResult) {
 		a.logger.Errorf("Error getting last virtual batch number: %v", err)
 	} else {
 		// Delete wip proofs
-		err = a.state.DeleteUngeneratedProofs(a.ctx, nil)
+		err = a.storage.DeleteUngeneratedProofs(a.ctx, nil)
 		if err != nil {
 			a.logger.Errorf("Error deleting ungenerated proofs: %v", err)
 		} else {
@@ -221,7 +211,7 @@ func (a *Aggregator) handleReorg(reorgData synchronizer.ReorgExecutionResult) {
 		}
 
 		// Delete any proof for the batches that have been rolled back
-		err = a.state.DeleteGeneratedProofs(a.ctx, lastVBatchNumber+1, maxDBBigIntValue, nil)
+		err = a.storage.DeleteGeneratedProofs(a.ctx, lastVBatchNumber+1, maxDBBigIntValue, nil)
 		if err != nil {
 			a.logger.Errorf("Error deleting generated proofs: %v", err)
 		} else {
@@ -275,7 +265,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 
 	// Delete wip proofs
 	if err == nil {
-		err = a.state.DeleteUngeneratedProofs(a.ctx, nil)
+		err = a.storage.DeleteUngeneratedProofs(a.ctx, nil)
 		if err != nil {
 			a.logger.Errorf("Error deleting ungenerated proofs: %v", err)
 		} else {
@@ -285,7 +275,7 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 
 	// Delete any proof for the batches that have been rolled back
 	if err == nil {
-		err = a.state.DeleteGeneratedProofs(a.ctx, rollbackData.LastBatchNumber+1, maxDBBigIntValue, nil)
+		err = a.storage.DeleteGeneratedProofs(a.ctx, rollbackData.LastBatchNumber+1, maxDBBigIntValue, nil)
 		if err != nil {
 			a.logger.Errorf("Error deleting generated proofs: %v", err)
 		} else {
@@ -336,7 +326,7 @@ func (a *Aggregator) Start() error {
 		grpchealth.RegisterHealthServer(a.srv, healthService)
 
 		// Delete ungenerated recursive proofs
-		err = a.state.DeleteUngeneratedProofs(a.ctx, nil)
+		err = a.storage.DeleteUngeneratedProofs(a.ctx, nil)
 		if err != nil {
 			return fmt.Errorf("failed to initialize proofs cache %w", err)
 		}
@@ -608,7 +598,7 @@ func (a *Aggregator) handleFailureToAddVerifyBatchToBeMonitored(ctx context.Cont
 		"batches", fmt.Sprintf("%d-%d", proof.BatchNumber, proof.BatchNumberFinal),
 	)
 	proof.GeneratingSince = nil
-	err := a.state.UpdateGeneratedProof(ctx, proof, nil)
+	err := a.storage.UpdateGeneratedProof(ctx, proof, nil)
 	if err != nil {
 		tmpLogger.Errorf("Failed updating proof state (false): %v", err)
 	}
@@ -703,7 +693,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover ProverInterf
 			if err != nil {
 				// Set the generating state to false for the proof ("unlock" it)
 				proof.GeneratingSince = nil
-				err2 := a.state.UpdateGeneratedProof(a.ctx, proof, nil)
+				err2 := a.storage.UpdateGeneratedProof(a.ctx, proof, nil)
 				if err2 != nil {
 					tmpLogger.Errorf("Failed to unlock proof: %v", err2)
 				}
@@ -766,7 +756,7 @@ func (a *Aggregator) validateEligibleFinalProof(
 			// We have a proof that contains batches below that the last batch verified, we need to delete this proof
 			a.logger.Warnf("Proof %d-%d lower than next batch to verify %d. Deleting it",
 				proof.BatchNumber, proof.BatchNumberFinal, batchNumberToVerify)
-			err := a.state.DeleteGeneratedProofs(ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
+			err := a.storage.DeleteGeneratedProofs(ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
 			if err != nil {
 				return false, fmt.Errorf("failed to delete discarded proof, err: %w", err)
 			}
@@ -779,7 +769,7 @@ func (a *Aggregator) validateEligibleFinalProof(
 		}
 	}
 
-	bComplete, err := a.state.CheckProofContainsCompleteSequences(ctx, proof, nil)
+	bComplete, err := a.storage.CheckProofContainsCompleteSequences(ctx, proof, nil)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if proof contains complete sequences, %w", err)
 	}
@@ -795,11 +785,11 @@ func (a *Aggregator) validateEligibleFinalProof(
 func (a *Aggregator) getAndLockProofReadyToVerify(
 	ctx context.Context, lastVerifiedBatchNum uint64,
 ) (*state.Proof, error) {
-	a.stateDBMutex.Lock()
-	defer a.stateDBMutex.Unlock()
+	a.storageMutex.Lock()
+	defer a.storageMutex.Unlock()
 
 	// Get proof ready to be verified
-	proofToVerify, err := a.state.GetProofReadyToVerify(ctx, lastVerifiedBatchNum, nil)
+	proofToVerify, err := a.storage.GetProofReadyToVerify(ctx, lastVerifiedBatchNum, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -807,7 +797,7 @@ func (a *Aggregator) getAndLockProofReadyToVerify(
 	now := time.Now().Round(time.Microsecond)
 	proofToVerify.GeneratingSince = &now
 
-	err = a.state.UpdateGeneratedProof(ctx, proofToVerify, nil)
+	err = a.storage.UpdateGeneratedProof(ctx, proofToVerify, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -817,21 +807,21 @@ func (a *Aggregator) getAndLockProofReadyToVerify(
 
 func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.Proof, proof2 *state.Proof) error {
 	// Release proofs from generating state in a single transaction
-	dbTx, err := a.state.BeginStateTransaction(ctx)
+	dbTx, err := a.storage.BeginTx(ctx, nil)
 	if err != nil {
 		a.logger.Warnf("Failed to begin transaction to release proof aggregation state, err: %v", err)
 		return err
 	}
 
 	proof1.GeneratingSince = nil
-	err = a.state.UpdateGeneratedProof(ctx, proof1, dbTx)
+	err = a.storage.UpdateGeneratedProof(ctx, proof1, dbTx)
 	if err == nil {
 		proof2.GeneratingSince = nil
-		err = a.state.UpdateGeneratedProof(ctx, proof2, dbTx)
+		err = a.storage.UpdateGeneratedProof(ctx, proof2, dbTx)
 	}
 
 	if err != nil {
-		if err := dbTx.Rollback(ctx); err != nil {
+		if err := dbTx.Rollback(); err != nil {
 			err := fmt.Errorf("failed to rollback proof aggregation state: %w", err)
 			a.logger.Error(FirstToUpper(err.Error()))
 			return err
@@ -840,7 +830,7 @@ func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.
 		return fmt.Errorf("failed to release proof aggregation state: %w", err)
 	}
 
-	err = dbTx.Commit(ctx)
+	err = dbTx.Commit()
 	if err != nil {
 		return fmt.Errorf("failed to release proof aggregation state %w", err)
 	}
@@ -856,16 +846,16 @@ func (a *Aggregator) getAndLockProofsToAggregate(
 		"proverAddr", prover.Addr(),
 	)
 
-	a.stateDBMutex.Lock()
-	defer a.stateDBMutex.Unlock()
+	a.storageMutex.Lock()
+	defer a.storageMutex.Unlock()
 
-	proof1, proof2, err := a.state.GetProofsToAggregate(ctx, nil)
+	proof1, proof2, err := a.storage.GetProofsToAggregate(ctx, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Set proofs in generating state in a single transaction
-	dbTx, err := a.state.BeginStateTransaction(ctx)
+	dbTx, err := a.storage.BeginTx(ctx, nil)
 	if err != nil {
 		tmpLogger.Errorf("Failed to begin transaction to set proof aggregation state, err: %v", err)
 		return nil, nil, err
@@ -873,14 +863,14 @@ func (a *Aggregator) getAndLockProofsToAggregate(
 
 	now := time.Now().Round(time.Microsecond)
 	proof1.GeneratingSince = &now
-	err = a.state.UpdateGeneratedProof(ctx, proof1, dbTx)
+	err = a.storage.UpdateGeneratedProof(ctx, proof1, dbTx)
 	if err == nil {
 		proof2.GeneratingSince = &now
-		err = a.state.UpdateGeneratedProof(ctx, proof2, dbTx)
+		err = a.storage.UpdateGeneratedProof(ctx, proof2, dbTx)
 	}
 
 	if err != nil {
-		if err := dbTx.Rollback(ctx); err != nil {
+		if err := dbTx.Rollback(); err != nil {
 			err := fmt.Errorf("failed to rollback proof aggregation state %w", err)
 			tmpLogger.Error(FirstToUpper(err.Error()))
 			return nil, nil, err
@@ -889,7 +879,7 @@ func (a *Aggregator) getAndLockProofsToAggregate(
 		return nil, nil, fmt.Errorf("failed to set proof aggregation state %w", err)
 	}
 
-	err = dbTx.Commit(ctx)
+	err = dbTx.Commit()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to set proof aggregation state %w", err)
 	}
@@ -983,16 +973,16 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover ProverInterf
 
 	// update the state by removing the 2 aggregated proofs and storing the
 	// newly generated recursive proof
-	dbTx, err := a.state.BeginStateTransaction(ctx)
+	dbTx, err := a.storage.BeginTx(ctx, nil)
 	if err != nil {
 		err = fmt.Errorf("failed to begin transaction to update proof aggregation state, %w", err)
 		tmpLogger.Error(FirstToUpper(err.Error()))
 		return false, err
 	}
 
-	err = a.state.DeleteGeneratedProofs(ctx, proof1.BatchNumber, proof2.BatchNumberFinal, dbTx)
+	err = a.storage.DeleteGeneratedProofs(ctx, proof1.BatchNumber, proof2.BatchNumberFinal, dbTx)
 	if err != nil {
-		if err := dbTx.Rollback(ctx); err != nil {
+		if err := dbTx.Rollback(); err != nil {
 			err := fmt.Errorf("failed to rollback proof aggregation state, %w", err)
 			tmpLogger.Error(FirstToUpper(err.Error()))
 			return false, err
@@ -1005,9 +995,9 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover ProverInterf
 	now := time.Now().Round(time.Microsecond)
 	proof.GeneratingSince = &now
 
-	err = a.state.AddGeneratedProof(ctx, proof, dbTx)
+	err = a.storage.AddGeneratedProof(ctx, proof, dbTx)
 	if err != nil {
-		if err := dbTx.Rollback(ctx); err != nil {
+		if err := dbTx.Rollback(); err != nil {
 			err := fmt.Errorf("failed to rollback proof aggregation state, %w", err)
 			tmpLogger.Error(FirstToUpper(err.Error()))
 			return false, err
@@ -1017,7 +1007,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover ProverInterf
 		return false, err
 	}
 
-	err = dbTx.Commit(ctx)
+	err = dbTx.Commit()
 	if err != nil {
 		err = fmt.Errorf("failed to store the recursive proof, %w", err)
 		tmpLogger.Error(FirstToUpper(err.Error()))
@@ -1041,7 +1031,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover ProverInterf
 		proof.GeneratingSince = nil
 
 		// final proof has not been generated, update the recursive proof
-		err := a.state.UpdateGeneratedProof(a.ctx, proof, nil)
+		err := a.storage.UpdateGeneratedProof(a.ctx, proof, nil)
 		if err != nil {
 			err = fmt.Errorf("failed to store batch proof result, %w", err)
 			tmpLogger.Error(FirstToUpper(err.Error()))
@@ -1073,8 +1063,8 @@ func (a *Aggregator) getAndLockBatchToProve(
 		"proverAddr", prover.Addr(),
 	)
 
-	a.stateDBMutex.Lock()
-	defer a.stateDBMutex.Unlock()
+	a.storageMutex.Lock()
+	defer a.storageMutex.Unlock()
 
 	// Get last virtual batch number from L1
 	lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
@@ -1088,7 +1078,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	// Look for the batch number to verify
 	for proofExists {
 		batchNumberToVerify++
-		proofExists, err = a.state.CheckProofExistsForBatch(ctx, batchNumberToVerify, nil)
+		proofExists, err = a.storage.CheckProofExistsForBatch(ctx, batchNumberToVerify, nil)
 		if err != nil {
 			tmpLogger.Infof("Error checking proof exists for batch %d", batchNumberToVerify)
 
@@ -1101,7 +1091,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 				tmpLogger.Warnf("AccInputHash for batch %d is not in memory, "+
 					"deleting proofs to regenerate acc input hash chain in memory", batchNumberToVerify)
 
-				err := a.state.CleanupGeneratedProofs(ctx, math.MaxInt, nil)
+				err := a.storage.CleanupGeneratedProofs(ctx, math.MaxInt, nil)
 				if err != nil {
 					tmpLogger.Infof("Error cleaning up generated proofs for batch %d", batchNumberToVerify)
 					return nil, nil, nil, err
@@ -1201,7 +1191,6 @@ func (a *Aggregator) getAndLockBatchToProve(
 	a.logger.Debugf("Calculated acc input hash for batch %d: %v", batchNumberToVerify, accInputHash)
 	a.logger.Debugf("OldAccInputHash: %v", oldAccInputHash)
 	a.logger.Debugf("L1InfoRoot: %v", virtualBatch.L1InfoRoot)
-	// a.logger.Debugf("LastL2BLockTimestamp: %v", rpcBatch.LastL2BLockTimestamp())
 	a.logger.Debugf("TimestampLimit: %v", uint64(sequence.Timestamp.Unix()))
 	a.logger.Debugf("LastCoinbase: %v", rpcBatch.LastCoinbase())
 	a.logger.Debugf("ForcedBlockHashL1: %v", rpcBatch.ForcedBlockHashL1())
@@ -1242,7 +1231,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	a.logger.Debugf("Time to get witness for batch %d: %v", batchNumberToVerify, end.Sub(start))
 
 	// Store the sequence in aggregator DB
-	err = a.state.AddSequence(ctx, stateSequence, nil)
+	err = a.storage.AddSequence(ctx, stateSequence, nil)
 	if err != nil {
 		tmpLogger.Infof("Error storing sequence for batch %d", batchNumberToVerify)
 
@@ -1250,24 +1239,8 @@ func (a *Aggregator) getAndLockBatchToProve(
 	}
 
 	// All the data required to generate a proof is ready
-	tmpLogger.Infof("Found virtual batch %d pending to generate proof", virtualBatch.BatchNumber)
+	tmpLogger.Infof("All information to generate proof for batch %d is ready", virtualBatch.BatchNumber)
 	tmpLogger = tmpLogger.WithFields("batch", virtualBatch.BatchNumber)
-
-	tmpLogger.Info("Checking profitability to aggregate batch")
-
-	// pass pol collateral as zero here, bcs in smart contract fee for aggregator is not defined yet
-	isProfitable, err := a.profitabilityChecker.IsProfitable(ctx, big.NewInt(0))
-	if err != nil {
-		tmpLogger.Errorf("Failed to check aggregator profitability, err: %v", err)
-
-		return nil, nil, nil, err
-	}
-
-	if !isProfitable {
-		tmpLogger.Infof("Batch is not profitable, pol collateral %d", big.NewInt(0))
-
-		return nil, nil, nil, err
-	}
 
 	now := time.Now().Round(time.Microsecond)
 	proof := &state.Proof{
@@ -1279,9 +1252,9 @@ func (a *Aggregator) getAndLockBatchToProve(
 	}
 
 	// Avoid other prover to process the same batch
-	err = a.state.AddGeneratedProof(ctx, proof, nil)
+	err = a.storage.AddGeneratedProof(ctx, proof, nil)
 	if err != nil {
-		tmpLogger.Errorf("Failed to add batch proof, err: %v", err)
+		tmpLogger.Errorf("Failed to add batch proof to DB for batch %d, err: %v", virtualBatch.BatchNumber, err)
 
 		return nil, nil, nil, err
 	}
@@ -1317,7 +1290,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 	defer func() {
 		if err != nil {
 			tmpLogger.Debug("Deleting proof in progress")
-			err2 := a.state.DeleteGeneratedProofs(a.ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
+			err2 := a.storage.DeleteGeneratedProofs(a.ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
 			if err2 != nil {
 				tmpLogger.Errorf("Failed to delete proof in progress, err: %v", err2)
 			}
@@ -1377,7 +1350,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 		proof.GeneratingSince = nil
 
 		// final proof has not been generated, update the batch proof
-		err := a.state.UpdateGeneratedProof(a.ctx, proof, nil)
+		err := a.storage.UpdateGeneratedProof(a.ctx, proof, nil)
 		if err != nil {
 			err = fmt.Errorf("failed to store batch proof result, %w", err)
 			tmpLogger.Error(FirstToUpper(err.Error()))
@@ -1583,7 +1556,6 @@ func printInputProver(logger *log.Logger, inputProver *prover.StatelessInputProv
 
 	logger.Debugf("Witness length: %v", len(inputProver.PublicInputs.Witness))
 	logger.Debugf("BatchL2Data length: %v", len(inputProver.PublicInputs.BatchL2Data))
-	// logger.Debugf("Full DataStream: %v", common.Bytes2Hex(inputProver.PublicInputs.DataStream))
 	logger.Debugf("OldAccInputHash: %v", common.BytesToHash(inputProver.PublicInputs.OldAccInputHash))
 	logger.Debugf("L1InfoRoot: %v", common.BytesToHash(inputProver.PublicInputs.L1InfoRoot))
 	logger.Debugf("TimestampLimit: %v", inputProver.PublicInputs.TimestampLimit)
@@ -1652,7 +1624,7 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxtypes.MonitoredTxResult
 		}
 	}
 
-	err = a.state.DeleteGeneratedProofs(a.ctx, firstBatch, lastBatch, nil)
+	err = a.storage.DeleteGeneratedProofs(a.ctx, firstBatch, lastBatch, nil)
 	if err != nil {
 		mTxResultLogger.Errorf("failed to delete generated proofs from %d to %d: %v", firstBatch, lastBatch, err)
 	}
@@ -1670,7 +1642,7 @@ func (a *Aggregator) cleanupLockedProofs() {
 		case <-a.ctx.Done():
 			return
 		case <-time.After(a.timeCleanupLockedProofs.Duration):
-			n, err := a.state.CleanupLockedProofs(a.ctx, a.cfg.GeneratingProofCleanupThreshold, nil)
+			n, err := a.storage.CleanupLockedProofs(a.ctx, a.cfg.GeneratingProofCleanupThreshold, nil)
 			if err != nil {
 				a.logger.Errorf("Failed to cleanup locked proofs: %v", err)
 			}

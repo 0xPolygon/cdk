@@ -58,14 +58,6 @@ AggLayerURL = ""
 SyncModeOnlyEnabled = false
 UseFullWitness = false
 SequencerPrivateKey = {}
-	[Aggregator.DB]
-		Name = "aggregator_db"
-		User = "aggregator_user"
-		Password = "aggregator_password"
-		Host = "cdk-aggregator-db"
-		Port = "5432"
-		EnableLog = false	
-		MaxConns = 200
 	[Aggregator.Log]
 		Environment = "development" # "production" or "development"
 		Level = "info"
