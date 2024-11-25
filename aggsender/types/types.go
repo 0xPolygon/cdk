@@ -55,9 +55,10 @@ type Logger interface {
 }
 
 type CertificateInfo struct {
-	Height                uint64                     `meddler:"height"`
-	CertificateID         common.Hash                `meddler:"certificate_id,hash"`
-	PreviousLocalExitRoot common.Hash                `meddler:"previous_local_exit_root,hash"`
+	Height        uint64      `meddler:"height"`
+	CertificateID common.Hash `meddler:"certificate_id,hash"`
+	// PreviousLocalExitRoot if it's nil means no reported
+	PreviousLocalExitRoot *common.Hash               `meddler:"previous_local_exit_root,hash"`
 	NewLocalExitRoot      common.Hash                `meddler:"new_local_exit_root,hash"`
 	FromBlock             uint64                     `meddler:"from_block"`
 	ToBlock               uint64                     `meddler:"to_block"`

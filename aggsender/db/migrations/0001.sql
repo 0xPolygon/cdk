@@ -6,7 +6,7 @@ CREATE TABLE certificate_info (
     height                      INTEGER NOT NULL,
     certificate_id              VARCHAR NOT NULL PRIMARY KEY,
     status                      INTEGER NOT NULL,
-    previous_local_exit_root    VARCHAR NOT NULL,
+    previous_local_exit_root    VARCHAR ,
     new_local_exit_root         VARCHAR NOT NULL,
     from_block                  INTEGER NOT NULL,
     to_block                    INTEGER NOT NULL,

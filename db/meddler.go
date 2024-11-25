@@ -163,6 +163,17 @@ func (b HashMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 	}
 	field, ok := fieldPtr.(*common.Hash)
 	if !ok {
+		//var hashPtr **common.Hash
+		hashPtr, ok := fieldPtr.(**common.Hash)
+		if ok {
+			if ptr == nil || len(*ptr) == 0 {
+				*hashPtr = nil
+			} else {
+				tmp := common.HexToHash(*ptr)
+				*hashPtr = &tmp
+			}
+			return nil
+		}
 		return errors.New("fieldPtr is not common.Hash")
 	}
 	*field = common.HexToHash(*ptr)
@@ -173,7 +184,14 @@ func (b HashMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 func (b HashMeddler) PreWrite(fieldPtr interface{}) (saveValue interface{}, err error) {
 	field, ok := fieldPtr.(common.Hash)
 	if !ok {
-		return nil, errors.New("fieldPtr is not common.Hash")
+		hashPtr, ok := fieldPtr.(*common.Hash)
+		if !ok {
+			return nil, errors.New("fieldPtr is not common.Hash")
+		}
+		if hashPtr == nil {
+			return []byte{}, nil
+		}
+		return hashPtr.Hex(), nil
 	}
 	return field.Hex(), nil
 }

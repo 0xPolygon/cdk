@@ -213,15 +213,17 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	}
 
 	createdTime := time.Now().UTC().UnixMilli()
+	prevLER := common.BytesToHash(certificate.PrevLocalExitRoot[:])
 	certInfo := types.CertificateInfo{
-		Height:            certificate.Height,
-		CertificateID:     certificateHash,
-		NewLocalExitRoot:  certificate.NewLocalExitRoot,
-		FromBlock:         fromBlock,
-		ToBlock:           toBlock,
-		CreatedAt:         createdTime,
-		UpdatedAt:         createdTime,
-		SignedCertificate: string(raw),
+		Height:                certificate.Height,
+		CertificateID:         certificateHash,
+		NewLocalExitRoot:      certificate.NewLocalExitRoot,
+		PreviousLocalExitRoot: &prevLER,
+		FromBlock:             fromBlock,
+		ToBlock:               toBlock,
+		CreatedAt:             createdTime,
+		UpdatedAt:             createdTime,
+		SignedCertificate:     string(raw),
 	}
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
 	err = a.saveCertificateToStorage(ctx, certInfo, a.cfg.MaxRetriesStoreCertificate)
@@ -289,20 +291,29 @@ func (a *AggSender) getNextHeightAndPreviousLER(
 	}
 
 	if lastSentCertificateInfo.Status.IsInError() {
-		// Reuse last cert values
-		// The idea is that cert store the field PrevLocalExitRoot,but AggLayer is not
-		// reporting this field on `CertificateHeader` struct. For this reason
-		// we do a workarround that is  get last settle certificate from DB.
-		// That implies that, in some cases, we are not able to sync a aggsender
-		// that lost the DB.
-		lastSettleCert, err := a.storage.GetLastSettleCertificate()
-		if err != nil {
-			return 0, zeroLER, fmt.Errorf("error getting last settle certificate: %w", err)
+		// We can reuse last one of lastCert?
+		if lastSentCertificateInfo.PreviousLocalExitRoot != nil {
+			return lastSentCertificateInfo.Height, *lastSentCertificateInfo.PreviousLocalExitRoot, nil
 		}
-		if lastSettleCert == nil {
+		// Is the first one, so we can set the zeroLER
+		if lastSentCertificateInfo.Height == 0 {
 			return 0, zeroLER, nil
 		}
-		return lastSettleCert.Height + 1, lastSettleCert.NewLocalExitRoot, nil
+		// We get previous certificate that must be settled
+		a.log.Debugf("last certificate %s is in error, getting previous settled certificate height:%d", lastSentCertificateInfo.Height-1)
+		lastSettleCert, err := a.storage.GetCertificateByHeight(lastSentCertificateInfo.Height - 1)
+		if err != nil {
+			return 0, common.Hash{}, fmt.Errorf("error getting last settled certificate: %w", err)
+		}
+		if lastSettleCert == nil {
+			return 0, common.Hash{}, fmt.Errorf("none settled certificate: %w", err)
+		}
+		if !lastSettleCert.Status.IsSettled() {
+			return 0, common.Hash{}, fmt.Errorf("last settled certificate %s is not settled (status: %s)",
+				lastSettleCert.ID(), lastSettleCert.Status.String())
+		}
+
+		return lastSentCertificateInfo.Height, lastSettleCert.NewLocalExitRoot, nil
 	}
 	return 0, zeroLER, fmt.Errorf("last certificate %s has an unknown status: %s",
 		lastSentCertificateInfo.ID(), lastSentCertificateInfo.Status.String())

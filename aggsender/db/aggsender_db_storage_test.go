@@ -78,15 +78,14 @@ func Test_Storage(t *testing.T) {
 
 		// try getting a certificate that exists
 		certificate := types.CertificateInfo{
-			Height:                3,
-			CertificateID:         common.HexToHash("0x5"),
-			PreviousLocalExitRoot: common.HexToHash("0x7"),
-			NewLocalExitRoot:      common.HexToHash("0x6"),
-			FromBlock:             5,
-			ToBlock:               6,
-			Status:                agglayer.Pending,
-			CreatedAt:             updateTime,
-			UpdatedAt:             updateTime,
+			Height:           3,
+			CertificateID:    common.HexToHash("0x5"),
+			NewLocalExitRoot: common.HexToHash("0x6"),
+			FromBlock:        5,
+			ToBlock:          6,
+			Status:           agglayer.Pending,
+			CreatedAt:        updateTime,
+			UpdatedAt:        updateTime,
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
@@ -110,15 +109,14 @@ func Test_Storage(t *testing.T) {
 
 		// try getting a certificate that exists
 		certificate := types.CertificateInfo{
-			Height:                11,
-			CertificateID:         common.HexToHash("0x17"),
-			PreviousLocalExitRoot: common.HexToHash("0x19"),
-			NewLocalExitRoot:      common.HexToHash("0x18"),
-			FromBlock:             17,
-			ToBlock:               18,
-			Status:                agglayer.Pending,
-			CreatedAt:             updateTime,
-			UpdatedAt:             updateTime,
+			Height:           11,
+			CertificateID:    common.HexToHash("0x17"),
+			NewLocalExitRoot: common.HexToHash("0x18"),
+			FromBlock:        17,
+			ToBlock:          18,
+			Status:           agglayer.Pending,
+			CreatedAt:        updateTime,
+			UpdatedAt:        updateTime,
 		}
 		require.NoError(t, storage.SaveLastSentCertificate(ctx, certificate))
 
@@ -133,15 +131,14 @@ func Test_Storage(t *testing.T) {
 		// Insert some certificates with different statuses
 		certificates := []*types.CertificateInfo{
 			{
-				Height:                7,
-				CertificateID:         common.HexToHash("0x7"),
-				PreviousLocalExitRoot: common.HexToHash("0x9"),
-				NewLocalExitRoot:      common.HexToHash("0x8"),
-				FromBlock:             7,
-				ToBlock:               8,
-				Status:                agglayer.Settled,
-				CreatedAt:             updateTime,
-				UpdatedAt:             updateTime,
+				Height:           7,
+				CertificateID:    common.HexToHash("0x7"),
+				NewLocalExitRoot: common.HexToHash("0x8"),
+				FromBlock:        7,
+				ToBlock:          8,
+				Status:           agglayer.Settled,
+				CreatedAt:        updateTime,
+				UpdatedAt:        updateTime,
 			},
 			{
 				Height:           9,
@@ -420,4 +417,41 @@ func Test_GetLastSettleCertificate_NonEmptyDB(t *testing.T) {
 	require.NoError(t, err, "nonEmptyDB no error")
 	require.NotNil(t, cert, "nonEmptyDB returns a non-nil certificate")
 	require.Equal(t, cert1, *cert, "nonEmptyDB cert2 is not settle, the last settle is cer1")
+}
+func Test_StoragePreviousLER(t *testing.T) {
+	ctx := context.TODO()
+	dbPath := path.Join(t.TempDir(), "aggsenderGetLastSettleCertificate.sqlite")
+	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), dbPath)
+	require.NoError(t, err)
+	require.NotNil(t, storage)
+
+	certNoLER := types.CertificateInfo{
+		Height:           0,
+		CertificateID:    common.HexToHash("0x1"),
+		Status:           agglayer.InError,
+		NewLocalExitRoot: common.HexToHash("0x2"),
+	}
+	err = storage.SaveLastSentCertificate(ctx, certNoLER)
+	require.NoError(t, err)
+
+	readCertNoLER, err := storage.GetCertificateByHeight(0)
+	require.NoError(t, err)
+	require.NotNil(t, readCertNoLER)
+	require.Equal(t, certNoLER, *readCertNoLER)
+
+	certLER := types.CertificateInfo{
+		Height:                1,
+		CertificateID:         common.HexToHash("0x2"),
+		Status:                agglayer.InError,
+		NewLocalExitRoot:      common.HexToHash("0x2"),
+		PreviousLocalExitRoot: &common.Hash{},
+	}
+	err = storage.SaveLastSentCertificate(ctx, certLER)
+	require.NoError(t, err)
+
+	readCertWithLER, err := storage.GetCertificateByHeight(1)
+	require.NoError(t, err)
+	require.NotNil(t, readCertWithLER)
+	require.Equal(t, certLER, *readCertWithLER)
+
 }
