@@ -280,8 +280,7 @@ func TestAggSenderStart(t *testing.T) {
 	ch := make(chan aggsendertypes.EpochEvent)
 	epochNotifierMock.EXPECT().Subscribe("aggsender").Return(ch)
 	bridgeL2SyncerMock.EXPECT().OriginNetwork().Return(uint32(1))
-	bridgeL2SyncerMock.EXPECT().GetLastProcessedBlock(mock.Anything).Return(uint64(0), nil)
-	aggLayerMock.EXPECT().GetLatestKnownCertificateHeader(mock.Anything).Return(nil, nil)
+	aggLayerMock.EXPECT().GetLatestKnownCertificateHeader(mock.Anything).Return(&agglayer.CertificateHeader{NetworkID: 1, Height: 1}, nil)
 
 	go aggSender.Start(ctx)
 	ch <- aggsendertypes.EpochEvent{

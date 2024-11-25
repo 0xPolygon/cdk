@@ -592,12 +592,12 @@ func (a *AggSender) getLastCertificateFromAgglayer() error {
 	a.log.Infof("recovery: last certificate in storage: %s", localLastCert.String())
 
 	// CASE 1: No certificates in local storage and agglayer
-	if localLastCert == nil && aggLayerLastCert == nil {
+	if localLastCert.IsEmpty() && aggLayerLastCert == nil {
 		a.log.Info("recovery: No certificates in local storage and agglayer: initial state")
 		return nil
 	}
 	// CASE 2: No certificates in local storage but agglayer has one
-	if localLastCert == nil && aggLayerLastCert != nil {
+	if localLastCert.IsEmpty() && aggLayerLastCert != nil {
 		a.log.Info("recovery: No certificates in local storage but agglayer have one: recovery aggSender cert: %s",
 			aggLayerLastCert.String())
 		localLastCert = NewCertificateInfoFromAgglayerCertHeader(aggLayerLastCert)
