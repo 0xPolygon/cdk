@@ -93,9 +93,9 @@ func (a *AggSender) checkInitialStatus(ctx context.Context) {
 
 	for {
 		if err := a.checkLastCertificateFromAgglayer(ctx); err != nil {
-			log.Errorf("error checking initial status: %w, retrying in %s", err, a.cfg.DelayBeetweenRetries.String())
+			a.log.Errorf("error checking initial status: %w, retrying in %s", err, a.cfg.DelayBeetweenRetries.String())
 		} else {
-			log.Info("Initial status checked successfully")
+			a.log.Info("Initial status checked successfully")
 			return
 		}
 		select {
@@ -116,7 +116,7 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 			thereArePendingCerts := a.checkPendingCertificatesStatus(ctx)
 			if !thereArePendingCerts {
 				if _, err := a.sendCertificate(ctx); err != nil {
-					log.Error(err)
+					a.log.Error(err)
 				}
 			} else {
 				log.Infof("Skipping epoch %s because there are pending certificates",
@@ -673,7 +673,7 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 func (a *AggSender) updateLocalStorageWithAggLayerCert(ctx context.Context,
 	aggLayerCert *agglayer.CertificateHeader) (*types.CertificateInfo, error) {
 	certInfo := NewCertificateInfoFromAgglayerCertHeader(aggLayerCert)
-	log.Infof("setting initial certificate from AggLayer: %s", certInfo.String())
+	a.log.Infof("setting initial certificate from AggLayer: %s", certInfo.String())
 	return certInfo, a.storage.SaveLastSentCertificate(ctx, *certInfo)
 }
 
