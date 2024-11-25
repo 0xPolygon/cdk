@@ -654,7 +654,9 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 
 				ppError = p
 			default:
-				return fmt.Errorf("invalid error type: %s", key)
+				valueStr, _ := json.Marshal(value)
+
+				ppError = &GenericError{Key: key, Values: string(valueStr)}
 			}
 		}
 

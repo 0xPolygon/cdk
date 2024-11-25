@@ -38,6 +38,15 @@ type PPError interface {
 	String() string
 }
 
+type GenericError struct {
+	Key    string
+	Values string
+}
+
+func (p *GenericError) String() string {
+	return fmt.Sprintf("Generic error: %s: %s", p.Key, p.Values)
+}
+
 // ProofGenerationError is a struct that represents an error that occurs when generating a proof.
 type ProofGenerationError struct {
 	GenerationType string
