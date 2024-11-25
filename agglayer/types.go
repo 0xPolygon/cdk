@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 	"strings"
 
 	"github.com/0xPolygon/cdk/bridgesync"
@@ -24,9 +25,34 @@ const (
 	Settled
 )
 
+var (
+	NonSettledStatuses = []CertificateStatus{Pending, Candidate, Proven}
+	ClosedStatuses     = []CertificateStatus{Settled, InError}
+)
+
 // String representation of the enum
 func (c CertificateStatus) String() string {
 	return [...]string{"Pending", "Proven", "Candidate", "InError", "Settled"}[c]
+}
+
+// IsClosed returns true if the certificate is closed (settled or inError)
+func (c CertificateStatus) IsClosed() bool {
+	return !c.IsOpen()
+}
+
+// IsSettled returns true if the certificate is settled
+func (c CertificateStatus) IsSettled() bool {
+	return c == Settled
+}
+
+// IsInError returns true if the certificate is in error
+func (c CertificateStatus) IsInError() bool {
+	return c == InError
+}
+
+// IsOpen returns true if the certificate is open (pending, candidate or proven)
+func (c CertificateStatus) IsOpen() bool {
+	return slices.Contains(NonSettledStatuses, c)
 }
 
 // UnmarshalJSON is the implementation of the json.Unmarshaler interface
@@ -550,7 +576,18 @@ type CertificateHeader struct {
 	Error            PPError           `json:"-"`
 }
 
-func (c CertificateHeader) String() string {
+// ID returns a string with the ident of this cert (height/certID)
+func (c *CertificateHeader) ID() string {
+	if c == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%d/%s", c.Height, c.CertificateID.String())
+}
+
+func (c *CertificateHeader) String() string {
+	if c == nil {
+		return "nil"
+	}
 	errors := ""
 	if c.Error != nil {
 		errors = c.Error.String()

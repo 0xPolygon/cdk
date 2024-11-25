@@ -1,5 +1,5 @@
 args:
-  agglayer_image: ghcr.io/agglayer/agglayer:0.2.0-rc.11
+  agglayer_image: ghcr.io/agglayer/agglayer:0.2.0-rc.12
   cdk_erigon_node_image: hermeznetwork/cdk-erigon:v2.60.0-beta8
   cdk_node_image: cdk
   zkevm_bridge_proxy_image: haproxy:3.0-bookworm
@@ -11,4 +11,5 @@ args:
   sequencer_type: erigon
   erigon_strict_mode: false
   zkevm_use_gas_token_contract: true
+  agglayer_prover_sp1_key: {{.agglayer_prover_sp1_key}}
   enable_normalcy: true
