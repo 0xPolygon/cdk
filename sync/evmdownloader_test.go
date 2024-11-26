@@ -399,7 +399,6 @@ func TestFilterQueryToString(t *testing.T) {
 		Topics:    [][]common.Hash{{common.HexToHash("0x1234"), common.HexToHash("0x5678")}},
 	}
 	assert.Equal(t, "FromBlock: 1000, ToBlock: 1100, Addresses: [0x000000000000000000000000000000000000f000 0x000000000000000000000000000000000000ABcD], Topics: [[0x0000000000000000000000000000000000000000000000000000000000001234 0x0000000000000000000000000000000000000000000000000000000000005678]]", filterQueryToString(query))
-
 }
 
 func buildAppender() LogAppenderMap {
