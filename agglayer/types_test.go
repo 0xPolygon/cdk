@@ -15,6 +15,11 @@ const (
 	expectedSignedCertificateyMetadataJSON     = `{"network_id":1,"height":1,"prev_local_exit_root":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"new_local_exit_root":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"bridge_exits":[{"leaf_type":"Transfer","token_info":null,"dest_network":0,"dest_address":"0x0000000000000000000000000000000000000000","amount":"1","metadata":[1,2,3]}],"imported_bridge_exits":[{"bridge_exit":{"leaf_type":"Transfer","token_info":null,"dest_network":0,"dest_address":"0x0000000000000000000000000000000000000000","amount":"1","metadata":[]},"claim_data":null,"global_index":{"mainnet_flag":false,"rollup_index":1,"leaf_index":1}}],"metadata":"0x0000000000000000000000000000000000000000000000000000000000000000","signature":{"r":"0x0000000000000000000000000000000000000000000000000000000000000000","s":"0x0000000000000000000000000000000000000000000000000000000000000000","odd_y_parity":false}}`
 )
 
+func TestMGenericPPError(t *testing.T) {
+	err := GenericPPError{"test", "value"}
+	require.Equal(t, "Generic error: test: value", err.String())
+}
+
 func TestMarshalJSON(t *testing.T) {
 	cert := SignedCertificate{
 		Certificate: &Certificate{
@@ -250,4 +255,15 @@ func TestGlobalIndex_UnmarshalFromMap(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUnmarshalCertificateHeaderUnknownError(t *testing.T) {
+	str := "{\"network_id\":14,\"height\":0,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0x3af88c9ca106822bd141fdc680dcb888f4e9d4997fad1645ba3d5d747059eb32\",\"new_local_exit_root\":\"0x625e889ced3c31277c6653229096374d396a2fd3564a8894aaad2ff935d2fc8c\",\"metadata\":\"0x0000000000000000000000000000000000000000000000000000000000002f3d\",\"status\":{\"InError\":{\"error\":{\"ProofVerificationFailed\":{\"Plonk\":\"the verifying key does not match the inner plonk bn254 proof's committed verifying key\"}}}}}"
+	data := []byte(str)
+	var result *CertificateHeader
+	err := json.Unmarshal(data, &result)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	ppError := result.Error.String()
+	require.Equal(t, `Generic error: ProofVerificationFailed: {"Plonk":"the verifying key does not match the inner plonk bn254 proof's committed verifying key"}`, ppError)
 }
