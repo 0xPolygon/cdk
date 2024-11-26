@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -229,6 +230,11 @@ func (d *EVMDownloaderImplementation) GetEventsByBlockRange(ctx context.Context,
 	}
 }
 
+func filterQueryToString(query ethereum.FilterQuery) string {
+	return fmt.Sprintf("FromBlock: %s, ToBlock: %s, Addresses: %s, Topics: %s",
+		query.FromBlock.String(), query.ToBlock.String(), query.Addresses, query.Topics)
+}
+
 func (d *EVMDownloaderImplementation) GetLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log {
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
@@ -249,7 +255,10 @@ func (d *EVMDownloaderImplementation) GetLogs(ctx context.Context, fromBlock, to
 			}
 
 			attempts++
-			d.log.Error("error calling FilterLogs to eth client: ", err)
+			d.log.Errorf("error calling FilterLogs to eth client: filter: %s err:%w ",
+				filterQueryToString(query),
+				err,
+			)
 			d.rh.Handle("getLogs", attempts)
 			continue
 		}
