@@ -1621,10 +1621,12 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 func TestMetadataConversions(t *testing.T) {
 	fromBlock := uint64(123567890)
 	toBlock := uint64(123567890)
-	createdAt := int64(123567890)
+	createdAt := int64(0)
 	c := createCertificateMetadata(fromBlock, toBlock, createdAt)
-	extractBlock := extractFromCertificateMetadataToBlock(c)
-	require.Equal(t, toBlock, extractBlock)
+	extractBlock := extractCertificateMetadata(c)
+	require.Equal(t, fromBlock, extractBlock.FromBlock)
+	require.Equal(t, toBlock, extractBlock.ToBlock)
+	require.Equal(t, createdAt, extractBlock.CreatedAt)
 }
 
 func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
@@ -1633,22 +1635,25 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 	tests := []struct {
 		name     string
 		metadata common.Hash
-		expected uint64
+		expected aggsendertypes.CertificateMetadata
 	}{
 		{
 			name:     "Valid metadata",
 			metadata: common.BigToHash(big.NewInt(123567890)),
-			expected: 123567890,
+			expected: aggsendertypes.CertificateMetadata{
+				FromBlock: 0,
+				ToBlock:   123567890,
+				CreatedAt: 123567890,
+			},
 		},
 		{
 			name:     "Zero metadata",
 			metadata: common.BigToHash(big.NewInt(0)),
-			expected: 0,
-		},
-		{
-			name:     "Max uint64 metadata",
-			metadata: common.BigToHash(new(big.Int).SetUint64(^uint64(0))),
-			expected: ^uint64(0),
+			expected: aggsendertypes.CertificateMetadata{
+				FromBlock: 0,
+				ToBlock:   0,
+				CreatedAt: 0,
+			},
 		},
 	}
 
@@ -1658,7 +1663,7 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := extractFromCertificateMetadataToBlock(tt.metadata)
+			result := extractCertificateMetadata(tt.metadata)
 			require.Equal(t, tt.expected, result)
 		})
 	}

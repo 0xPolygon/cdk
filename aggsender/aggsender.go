@@ -1,10 +1,9 @@
 package aggsender
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"crypto/ecdsa"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -696,50 +695,48 @@ func extractSignatureData(signature []byte) (r, s common.Hash, isOddParity bool,
 
 // createCertificateMetadata creates a certificate metadata from given input
 func createCertificateMetadata(fromBlock, toBlock uint64, createdAt int64) common.Hash {
-	meta := &types.CertificateMetadata{
-		FromBlock: fromBlock,
-		ToBlock:   toBlock,
-		CreatedAt: createdAt,
-	}
+	b := make([]byte, common.HashLength) // 32-byte hash
 
-	// marshal the metadata to json and gzip it
-	metaJSON, err := json.Marshal(meta)
-	if err != nil {
-		panic(err)
-	}
+	// Encode fromBlock into first 8 bytes
+	binary.BigEndian.PutUint64(b[0:8], fromBlock)
 
-	buf := bytes.NewBuffer(make([]byte, 0, 32))
-	zw := gzip.NewWriter(buf)
+	// Encode toBlock into next 8 bytes
+	binary.BigEndian.PutUint64(b[8:16], toBlock)
 
-	if _, err := zw.Write(metaJSON); err != nil {
-		log.Fatal(err)
-	}
+	// Encode createdAt into next 8 bytes
+	binary.BigEndian.PutUint64(b[16:24], uint64(createdAt))
 
-	if err := zw.Close(); err != nil {
-		log.Fatal(err)
-	}
+	// Last 8 bytes remain as zero padding
 
-	return common.BytesToHash(buf.Bytes())
+	return common.BytesToHash(b)
 }
 
-func extractFromCertificateMetadataToBlock(metadata common.Hash) uint64 {
-	return metadata.Big().Uint64()
+// extractCertificateMetadata extracts the metadata values from hash
+func extractCertificateMetadata(metadata common.Hash) types.CertificateMetadata {
+	b := metadata.Bytes()
+
+	return types.CertificateMetadata{
+		FromBlock: binary.BigEndian.Uint64(b[0:8]),
+		ToBlock:   binary.BigEndian.Uint64(b[8:16]),
+		CreatedAt: int64(binary.BigEndian.Uint64(b[16:24])),
+	}
 }
 
 func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *types.CertificateInfo {
 	if c == nil {
 		return nil
 	}
-	now := time.Now().UTC().UnixMilli()
+	meta := extractCertificateMetadata(c.Metadata)
+
 	return &types.CertificateInfo{
 		Height:            c.Height,
 		CertificateID:     c.CertificateID,
 		NewLocalExitRoot:  c.NewLocalExitRoot,
-		FromBlock:         0,
-		ToBlock:           extractFromCertificateMetadataToBlock(c.Metadata),
+		FromBlock:         meta.FromBlock,
+		ToBlock:           meta.ToBlock,
 		Status:            c.Status,
-		CreatedAt:         now,
-		UpdatedAt:         now,
+		CreatedAt:         meta.CreatedAt,
+		UpdatedAt:         meta.CreatedAt,
 		SignedCertificate: "na/agglayer header",
 	}
 }
