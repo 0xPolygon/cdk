@@ -1584,6 +1584,7 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 		Height:           1,
 		FromBlock:        0,
 		ToBlock:          10,
+		Status:           agglayer.Settled,
 	}, nil).Once()
 	mockStorage.On("SaveLastSentCertificate", mock.Anything, mock.Anything).Return(nil).Once()
 	mockL2Syncer.On("GetLastProcessedBlock", mock.Anything).Return(uint64(50), nil)
