@@ -733,7 +733,7 @@ func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *ty
 		return nil
 	}
 	now := time.Now().UTC().UnixMilli()
-	return &types.CertificateInfo{
+	res := &types.CertificateInfo{
 		Height:            c.Height,
 		CertificateID:     c.CertificateID,
 		NewLocalExitRoot:  c.NewLocalExitRoot,
@@ -744,4 +744,8 @@ func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *ty
 		UpdatedAt:         now,
 		SignedCertificate: "na/agglayer header",
 	}
+	if c.PreviousLocalExitRoot != nil {
+		res.PreviousLocalExitRoot = c.PreviousLocalExitRoot
+	}
+	return res
 }
