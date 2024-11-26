@@ -285,7 +285,7 @@ func TestAggSenderStart(t *testing.T) {
 		ctx,
 		log.WithFields("test", "unittest"),
 		Config{
-			StoragePath:          "file::memory:?cache=shared",
+			StoragePath:          "file:TestAggSenderStart:memory:?cache=shared",
 			DelayBeetweenRetries: types.Duration{Duration: 1 * time.Microsecond},
 		},
 		aggLayerMock,
