@@ -45,7 +45,7 @@ func TestExploratoryGetEpochConfiguration(t *testing.T) {
 
 func TestExploratoryGetLatestKnownCertificateHeader(t *testing.T) {
 	t.Skip("This test is exploratory and should be skipped")
-	aggLayerClient := NewAggLayerClient("http://localhost:32781")
+	aggLayerClient := NewAggLayerClient("http://localhost:32843")
 	cert, err := aggLayerClient.GetLatestKnownCertificateHeader(1)
 	require.NoError(t, err)
 	fmt.Print(cert)
@@ -116,7 +116,9 @@ func TestGetLatestKnownCertificateHeaderOkResponse(t *testing.T) {
 	cert, err := sut.GetLatestKnownCertificateHeader(1)
 	require.NotNil(t, cert)
 	require.NoError(t, err)
+	require.Nil(t, cert.PreviousLocalExitRoot)
 }
+
 func TestGetLatestKnownCertificateHeaderErrorResponse(t *testing.T) {
 	sut := NewAggLayerClient(testURL)
 	jSONRPCCall = func(url, method string, params ...interface{}) (rpc.Response, error) {
@@ -142,4 +144,20 @@ func TestGetLatestKnownCertificateHeaderResponseBadJson(t *testing.T) {
 
 	require.Nil(t, cert)
 	require.Error(t, err)
+}
+
+func TestGetLatestKnownCertificateHeaderWithPrevLERResponse(t *testing.T) {
+	sut := NewAggLayerClient(testURL)
+	response := rpc.Response{
+		Result: []byte(`{"network_id":1,"height":0,"epoch_number":223,"certificate_index":0,"certificate_id":"0xf9179d2fbe535814b5a14496e2eed474f49c6131227a9dfc5d2d8caf9e212054","prev_local_exit_root":"0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757","new_local_exit_root":"0x7ae06f4a5d0b6da7dd4973fb6ef40d82c9f2680899b3baaf9e564413b59cc160","metadata":"0x00000000000000000000000000000000000000000000000000000000000001a7","status":"Settled"}`),
+	}
+	jSONRPCCall = func(url, method string, params ...interface{}) (rpc.Response, error) {
+		return response, nil
+	}
+	cert, err := sut.GetLatestKnownCertificateHeader(1)
+
+	require.NoError(t, err)
+	require.NotNil(t, cert)
+
+	require.Equal(t, "0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757", cert.PreviousLocalExitRoot.String())
 }

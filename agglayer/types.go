@@ -574,15 +574,16 @@ func (p *GenericPPError) String() string {
 
 // CertificateHeader is the structure returned by the interop_getCertificateHeader RPC call
 type CertificateHeader struct {
-	NetworkID        uint32            `json:"network_id"`
-	Height           uint64            `json:"height"`
-	EpochNumber      *uint64           `json:"epoch_number"`
-	CertificateIndex *uint64           `json:"certificate_index"`
-	CertificateID    common.Hash       `json:"certificate_id"`
-	NewLocalExitRoot common.Hash       `json:"new_local_exit_root"`
-	Status           CertificateStatus `json:"status"`
-	Metadata         common.Hash       `json:"metadata"`
-	Error            PPError           `json:"-"`
+	NetworkID             uint32            `json:"network_id"`
+	Height                uint64            `json:"height"`
+	EpochNumber           *uint64           `json:"epoch_number"`
+	CertificateIndex      *uint64           `json:"certificate_index"`
+	CertificateID         common.Hash       `json:"certificate_id"`
+	PreviousLocalExitRoot *common.Hash      `json:"prev_local_exit_root,omitempty"`
+	NewLocalExitRoot      common.Hash       `json:"new_local_exit_root"`
+	Status                CertificateStatus `json:"status"`
+	Metadata              common.Hash       `json:"metadata"`
+	Error                 PPError           `json:"-"`
 }
 
 // ID returns a string with the ident of this cert (height/certID)
