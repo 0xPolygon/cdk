@@ -31,6 +31,14 @@ type ConfigEpochNotifierPerBlock struct {
 	EpochNotificationPercentage uint
 }
 
+func (c *ConfigEpochNotifierPerBlock) String() string {
+	if c == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("{startEpochBlock=%d, sizeEpoch=%d, threshold=%d%%}",
+		c.StartingEpochBlock, c.NumBlockPerEpoch, c.EpochNotificationPercentage)
+}
+
 func NewConfigEpochNotifierPerBlock(aggLayer agglayer.AggLayerClientGetEpochConfiguration,
 	epochNotificationPercentage uint) (*ConfigEpochNotifierPerBlock, error) {
 	if aggLayer == nil {
@@ -89,9 +97,7 @@ func NewEpochNotifierPerBlock(blockNotifier types.BlockNotifier,
 }
 
 func (e *EpochNotifierPerBlock) String() string {
-	return fmt.Sprintf("EpochNotifierPerBlock: startingEpochBlock=%d, numBlockPerEpoch=%d,"+
-		" EpochNotificationPercentage=%d",
-		e.Config.StartingEpochBlock, e.Config.NumBlockPerEpoch, e.Config.EpochNotificationPercentage)
+	return fmt.Sprintf("EpochNotifierPerBlock: config: %s", e.Config.String())
 }
 
 // StartAsync starts the notifier in a goroutine
@@ -152,9 +158,9 @@ func (e *EpochNotifierPerBlock) step(status internalStatus,
 	if needNotify {
 		logFunc = e.logger.Infof
 	}
-	logFunc("New block seen [finality:%s]: %d. blockRate:%s Epoch:%d Percent:%f%% Threshold:%d notify:%v",
+	logFunc("New block seen [finality:%s]: %d. blockRate:%s Epoch:%d Percent:%f%% notify:%v config:%s",
 		newBlock.BlockFinalityType, newBlock.BlockNumber, newBlock.BlockRate, closingEpoch,
-		percentEpoch*maxPercent, e.Config.EpochNotificationPercentage, needNotify)
+		percentEpoch*maxPercent, needNotify, e.Config.String())
 	if needNotify {
 		// Notify the epoch has started
 		info := e.infoEpoch(currentBlock, closingEpoch)
