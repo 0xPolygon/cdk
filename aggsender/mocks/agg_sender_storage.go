@@ -246,63 +246,6 @@ func (_c *AggSenderStorage_GetLastSentCertificate_Call) RunAndReturn(run func() 
 	return _c
 }
 
-// GetLastSettleCertificate provides a mock function with given fields:
-func (_m *AggSenderStorage) GetLastSettleCertificate() (*types.CertificateInfo, error) {
-	ret := _m.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetLastSettleCertificate")
-	}
-
-	var r0 *types.CertificateInfo
-	var r1 error
-	if rf, ok := ret.Get(0).(func() (*types.CertificateInfo, error)); ok {
-		return rf()
-	}
-	if rf, ok := ret.Get(0).(func() *types.CertificateInfo); ok {
-		r0 = rf()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.CertificateInfo)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// AggSenderStorage_GetLastSettleCertificate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLastSettleCertificate'
-type AggSenderStorage_GetLastSettleCertificate_Call struct {
-	*mock.Call
-}
-
-// GetLastSettleCertificate is a helper method to define mock.On call
-func (_e *AggSenderStorage_Expecter) GetLastSettleCertificate() *AggSenderStorage_GetLastSettleCertificate_Call {
-	return &AggSenderStorage_GetLastSettleCertificate_Call{Call: _e.mock.On("GetLastSettleCertificate")}
-}
-
-func (_c *AggSenderStorage_GetLastSettleCertificate_Call) Run(run func()) *AggSenderStorage_GetLastSettleCertificate_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *AggSenderStorage_GetLastSettleCertificate_Call) Return(_a0 *types.CertificateInfo, _a1 error) *AggSenderStorage_GetLastSettleCertificate_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *AggSenderStorage_GetLastSettleCertificate_Call) RunAndReturn(run func() (*types.CertificateInfo, error)) *AggSenderStorage_GetLastSettleCertificate_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // SaveLastSentCertificate provides a mock function with given fields: ctx, certificate
 func (_m *AggSenderStorage) SaveLastSentCertificate(ctx context.Context, certificate types.CertificateInfo) error {
 	ret := _m.Called(ctx, certificate)

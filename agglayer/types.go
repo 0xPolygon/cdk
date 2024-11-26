@@ -23,6 +23,8 @@ const (
 	Candidate
 	InError
 	Settled
+
+	nilStr = "nil"
 )
 
 var (
@@ -589,22 +591,26 @@ type CertificateHeader struct {
 // ID returns a string with the ident of this cert (height/certID)
 func (c *CertificateHeader) ID() string {
 	if c == nil {
-		return "nil"
+		return nilStr
 	}
 	return fmt.Sprintf("%d/%s", c.Height, c.CertificateID.String())
 }
 
 func (c *CertificateHeader) String() string {
 	if c == nil {
-		return "nil"
+		return nilStr
 	}
 	errors := ""
 	if c.Error != nil {
 		errors = c.Error.String()
 	}
-
-	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s. Status: %s. Errors: [%s]",
-		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String(), c.Status.String(), errors)
+	previousLocalExitRoot := "nil"
+	if c.PreviousLocalExitRoot != nil {
+		previousLocalExitRoot = c.PreviousLocalExitRoot.String()
+	}
+	return fmt.Sprintf("Height: %d, CertificateID: %s, previousLocalExitRoot:%s, NewLocalExitRoot: %s. Status: %s."+
+		" Errors: [%s]",
+		c.Height, c.CertificateID.String(), previousLocalExitRoot, c.NewLocalExitRoot.String(), c.Status.String(), errors)
 }
 
 func (c *CertificateHeader) UnmarshalJSON(data []byte) error {

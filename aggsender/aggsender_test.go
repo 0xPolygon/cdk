@@ -33,6 +33,8 @@ const (
 
 var (
 	errTest = errors.New("unitest  error")
+	ler1    = common.HexToHash("0x123")
+	ler2    = common.HexToHash("0x12345")
 )
 
 func TestConfigString(t *testing.T) {
@@ -627,6 +629,7 @@ func TestBuildCertificate(t *testing.T) {
 			lastSentCertificateInfo: aggsendertypes.CertificateInfo{
 				NewLocalExitRoot: common.HexToHash("0x123"),
 				Height:           1,
+				Status:           agglayer.Settled,
 			},
 			toBlock: 10,
 			expectedCert: &agglayer.Certificate{
@@ -957,7 +960,7 @@ func TestSendCertificate(t *testing.T) {
 		var (
 			aggsender = &AggSender{
 				log:          log.WithFields("aggsender", 1),
-				cfg:          Config{MaxRetriesStoreCertificate: 3},
+				cfg:          Config{MaxRetriesStoreCertificate: 1},
 				sequencerKey: cfg.sequencerKey,
 			}
 			mockStorage          *mocks.AggSenderStorage
@@ -1223,11 +1226,13 @@ func TestSendCertificate(t *testing.T) {
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(99), nil},
 			getLastSentCertificate: []interface{}{&aggsendertypes.CertificateInfo{
-				Height:           90,
-				CertificateID:    common.HexToHash("0x1121111"),
-				NewLocalExitRoot: common.HexToHash("0x111122211"),
-				FromBlock:        80,
-				ToBlock:          81,
+				Height:                90,
+				CertificateID:         common.HexToHash("0x1121111"),
+				NewLocalExitRoot:      common.HexToHash("0x111122211"),
+				PreviousLocalExitRoot: &ler1,
+				FromBlock:             80,
+				ToBlock:               81,
+				Status:                agglayer.Settled,
 			}, nil},
 			getBridges: []interface{}{[]bridgesync.Bridge{
 				{
@@ -1255,6 +1260,7 @@ func TestSendCertificate(t *testing.T) {
 				NewLocalExitRoot: common.HexToHash("0x1211122211"),
 				FromBlock:        90,
 				ToBlock:          91,
+				Status:           agglayer.Settled,
 			}, nil},
 			getBridges: []interface{}{[]bridgesync.Bridge{
 				{
@@ -1283,6 +1289,7 @@ func TestSendCertificate(t *testing.T) {
 				NewLocalExitRoot: common.HexToHash("0x1221122211"),
 				FromBlock:        100,
 				ToBlock:          101,
+				Status:           agglayer.Settled,
 			}, nil},
 			getBridges: []interface{}{[]bridgesync.Bridge{
 				{
@@ -1536,7 +1543,7 @@ func TestGetNextHeightAndPreviousLER(t *testing.T) {
 			storageMock := mocks.NewAggSenderStorage(t)
 			aggSender := &AggSender{log: log.WithFields("aggsender-test", "getNextHeightAndPreviousLER"), storage: storageMock}
 			if tt.lastSettleCertificateInfo != nil {
-				storageMock.EXPECT().GetLastSettleCertificate().Return(tt.lastSettleCertificateInfo, nil).Once()
+				storageMock.EXPECT().GetCertificateByHeight(mock.Anything).Return(tt.lastSettleCertificateInfo, nil).Once()
 			}
 			height, previousLER, err := aggSender.getNextHeightAndPreviousLER(tt.lastSentCertificateInfo)
 			require.NoError(t, err)

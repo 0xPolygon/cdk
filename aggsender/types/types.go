@@ -70,7 +70,12 @@ type CertificateInfo struct {
 
 func (c *CertificateInfo) String() string {
 	if c == nil {
+		//nolint:all
 		return "nil"
+	}
+	previousLocalExitRoot := "nil"
+	if c.PreviousLocalExitRoot != nil {
+		previousLocalExitRoot = c.PreviousLocalExitRoot.String()
 	}
 	return fmt.Sprintf(
 		"Height: %d "+
@@ -84,7 +89,7 @@ func (c *CertificateInfo) String() string {
 			"UpdatedAt: %s",
 		c.Height,
 		c.CertificateID.String(),
-		c.PreviousLocalExitRoot.String(),
+		previousLocalExitRoot,
 		c.NewLocalExitRoot.String(),
 		c.Status.String(),
 		c.FromBlock,
