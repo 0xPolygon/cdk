@@ -1717,6 +1717,19 @@ func TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemoteErrorStorage
 	require.Error(t, err)
 }
 
+// CASE 2.1: certificate in storage but not in agglayer
+// sub case of previous one that fails to update local storage
+func TestCheckLastCertificateFromAgglayer_Case2_1NoCertRemoteButCertLocal(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(nil, nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[0], nil)
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.Error(t, err)
+}
+
 // CASE 3: AggSender and AggLayer not same certificateID. AggLayer has a new certificate
 func TestCheckLastCertificateFromAgglayer_Case3Mismatch(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)

@@ -55,7 +55,7 @@ setup() {
     echo "=== Running LxLy deposit on L1 to network: $l2_rpc_network_id native_token: $native_token_addr" >&3
     
     destination_net=$l2_rpc_network_id
-    run bridgeAsset "$native_token_addr" "$l1_rpc_url"
+    run bridge_asset "$native_token_addr" "$l1_rpc_url"
     assert_success
 
     echo "=== Running LxLy claim on L2" >&3
@@ -70,7 +70,7 @@ setup() {
     echo "=== bridgeAsset L2 WETH: $weth_token_addr to L1 ETH" >&3
     destination_addr=$sender_addr
     destination_net=0
-    run bridgeAsset "$weth_token_addr" "$l2_rpc_url"
+    run bridge_asset "$weth_token_addr" "$l2_rpc_url"
     assert_success
 }
 

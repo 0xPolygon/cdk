@@ -14,6 +14,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestConfigEpochNotifierPerBlockString(t *testing.T) {
+	cfg := ConfigEpochNotifierPerBlock{
+		StartingEpochBlock:          123,
+		NumBlockPerEpoch:            456,
+		EpochNotificationPercentage: 789,
+	}
+	require.Equal(t, "{startEpochBlock=123, sizeEpoch=456, threshold=789%}", cfg.String())
+	var cfg2 *ConfigEpochNotifierPerBlock
+	require.Equal(t, "nil", cfg2.String())
+}
+
 func TestStartingBlockEpoch(t *testing.T) {
 	testData := newNotifierPerBlockTestData(t, &ConfigEpochNotifierPerBlock{
 		StartingEpochBlock:          9,
