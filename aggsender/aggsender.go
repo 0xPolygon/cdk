@@ -300,7 +300,8 @@ func (a *AggSender) getNextHeightAndPreviousLER(
 			return 0, zeroLER, nil
 		}
 		// We get previous certificate that must be settled
-		a.log.Debugf("last certificate %s is in error, getting previous settled certificate height:%d", lastSentCertificateInfo.Height-1)
+		a.log.Debugf("last certificate %s is in error, getting previous settled certificate height:%d",
+			lastSentCertificateInfo.Height-1)
 		lastSettleCert, err := a.storage.GetCertificateByHeight(lastSentCertificateInfo.Height - 1)
 		if err != nil {
 			return 0, common.Hash{}, fmt.Errorf("error getting last settled certificate: %w", err)

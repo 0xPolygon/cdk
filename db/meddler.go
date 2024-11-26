@@ -163,7 +163,6 @@ func (b HashMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
 	}
 	field, ok := fieldPtr.(*common.Hash)
 	if !ok {
-		//var hashPtr **common.Hash
 		hashPtr, ok := fieldPtr.(**common.Hash)
 		if ok {
 			if ptr == nil || len(*ptr) == 0 {

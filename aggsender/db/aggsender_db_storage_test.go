@@ -453,5 +453,4 @@ func Test_StoragePreviousLER(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, readCertWithLER)
 	require.Equal(t, certLER, *readCertWithLER)
-
 }
