@@ -113,3 +113,9 @@ func (c *CertificateInfo) ElapsedTimeSinceCreation() time.Duration {
 	}
 	return time.Now().UTC().Sub(time.UnixMilli(c.CreatedAt))
 }
+
+type CertificateMetadata struct {
+	FromBlock uint64 `json:"fromBlock"`
+	ToBlock   uint64 `json:"toBlock"`
+	CreatedAt int64  `json:"createdAt"`
+}

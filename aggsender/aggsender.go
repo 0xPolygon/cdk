@@ -1,12 +1,13 @@
 package aggsender
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"time"
 
@@ -190,7 +191,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
 
-	certificate, err := a.buildCertificate(ctx, bridges, claims, *lastSentCertificateInfo, toBlock)
+	createdTime := time.Now().UTC().UnixMilli()
+	certificate, err := a.buildCertificate(ctx, bridges, claims, *lastSentCertificateInfo, fromBlock, toBlock, createdTime)
 	if err != nil {
 		return nil, fmt.Errorf("error building certificate: %w", err)
 	}
@@ -215,7 +217,6 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		return nil, fmt.Errorf("error marshalling signed certificate: %w", err)
 	}
 
-	createdTime := time.Now().UTC().UnixMilli()
 	certInfo := types.CertificateInfo{
 		Height:            certificate.Height,
 		CertificateID:     certificateHash,
@@ -304,7 +305,9 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	bridges []bridgesync.Bridge,
 	claims []bridgesync.Claim,
 	lastSentCertificateInfo types.CertificateInfo,
-	toBlock uint64) (*agglayer.Certificate, error) {
+	fromBlock, toBlock uint64,
+	createdAt int64,
+) (*agglayer.Certificate, error) {
 	if len(bridges) == 0 && len(claims) == 0 {
 		return nil, errNoBridgesAndClaims
 	}
@@ -335,7 +338,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		BridgeExits:         bridgeExits,
 		ImportedBridgeExits: importedBridgeExits,
 		Height:              height,
-		Metadata:            createCertificateMetadata(toBlock),
+		Metadata:            createCertificateMetadata(fromBlock, toBlock, createdAt),
 	}, nil
 }
 
@@ -692,8 +695,31 @@ func extractSignatureData(signature []byte) (r, s common.Hash, isOddParity bool,
 }
 
 // createCertificateMetadata creates a certificate metadata from given input
-func createCertificateMetadata(toBlock uint64) common.Hash {
-	return common.BigToHash(new(big.Int).SetUint64(toBlock))
+func createCertificateMetadata(fromBlock, toBlock uint64, createdAt int64) common.Hash {
+	meta := &types.CertificateMetadata{
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
+		CreatedAt: createdAt,
+	}
+
+	// marshal the metadata to json and gzip it
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		panic(err)
+	}
+
+	buf := bytes.NewBuffer(make([]byte, 0, 32))
+	zw := gzip.NewWriter(buf)
+
+	if _, err := zw.Write(metaJSON); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := zw.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	return common.BytesToHash(buf.Bytes())
 }
 
 func extractFromCertificateMetadataToBlock(metadata common.Hash) uint64 {

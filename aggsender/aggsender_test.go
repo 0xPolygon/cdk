@@ -588,6 +588,7 @@ func TestBuildCertificate(t *testing.T) {
 		bridges                 []bridgesync.Bridge
 		claims                  []bridgesync.Claim
 		lastSentCertificateInfo aggsendertypes.CertificateInfo
+		fromBlock               uint64
 		toBlock                 uint64
 		mockFn                  func()
 		expectedCert            *agglayer.Certificate
@@ -628,12 +629,13 @@ func TestBuildCertificate(t *testing.T) {
 				NewLocalExitRoot: common.HexToHash("0x123"),
 				Height:           1,
 			},
-			toBlock: 10,
+			fromBlock: 0,
+			toBlock:   10,
 			expectedCert: &agglayer.Certificate{
 				NetworkID:         1,
 				PrevLocalExitRoot: common.HexToHash("0x123"),
 				NewLocalExitRoot:  common.HexToHash("0x789"),
-				Metadata:          createCertificateMetadata(10),
+				Metadata:          createCertificateMetadata(0, 10, time.Now().UTC().UnixMilli()),
 				BridgeExits: []*agglayer.BridgeExit{
 					{
 						LeafType: agglayer.LeafTypeAsset,
@@ -784,7 +786,15 @@ func TestBuildCertificate(t *testing.T) {
 				l1infoTreeSyncer: mockL1InfoTreeSyncer,
 				log:              log.WithFields("test", "unittest"),
 			}
-			cert, err := aggSender.buildCertificate(context.Background(), tt.bridges, tt.claims, tt.lastSentCertificateInfo, tt.toBlock)
+			cert, err := aggSender.buildCertificate(
+				context.Background(),
+				tt.bridges,
+				tt.claims,
+				tt.lastSentCertificateInfo,
+				tt.fromBlock,
+				tt.toBlock,
+				0,
+			)
 
 			if tt.expectedError {
 				require.Error(t, err)
@@ -1609,8 +1619,10 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 }
 
 func TestMetadataConversions(t *testing.T) {
+	fromBlock := uint64(123567890)
 	toBlock := uint64(123567890)
-	c := createCertificateMetadata(toBlock)
+	createdAt := int64(123567890)
+	c := createCertificateMetadata(fromBlock, toBlock, createdAt)
 	extractBlock := extractFromCertificateMetadataToBlock(c)
 	require.Equal(t, toBlock, extractBlock)
 }
@@ -1816,7 +1828,7 @@ func certInfoToCertHeader(certInfo *aggsendertypes.CertificateInfo, networkID ui
 		CertificateID:    certInfo.CertificateID,
 		NewLocalExitRoot: certInfo.NewLocalExitRoot,
 		Status:           agglayer.Pending,
-		Metadata:         createCertificateMetadata(certInfo.ToBlock),
+		Metadata:         createCertificateMetadata(certInfo.FromBlock, certInfo.ToBlock, certInfo.CreatedAt),
 	}
 }
 
