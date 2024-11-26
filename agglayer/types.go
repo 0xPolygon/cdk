@@ -563,6 +563,15 @@ func (c *ImportedBridgeExit) Hash() common.Hash {
 	)
 }
 
+type GenericPPError struct {
+	Key    string
+	Values string
+}
+
+func (p *GenericPPError) String() string {
+	return fmt.Sprintf("Generic error: %s: %s", p.Key, p.Values)
+}
+
 // CertificateHeader is the structure returned by the interop_getCertificateHeader RPC call
 type CertificateHeader struct {
 	NetworkID        uint32            `json:"network_id"`
@@ -656,7 +665,7 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 			default:
 				valueStr, _ := json.Marshal(value)
 
-				ppError = &GenericError{Key: key, Values: string(valueStr)}
+				ppError = &GenericPPError{Key: key, Values: string(valueStr)}
 			}
 		}
 
