@@ -663,9 +663,12 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 
 				ppError = p
 			default:
-				valueStr, _ := json.Marshal(value)
-
-				ppError = &GenericPPError{Key: key, Value: string(valueStr)}
+				valueStr, err := json.Marshal(value)
+				if err != nil {
+					ppError = &GenericPPError{Key: key, Value: "error marshalling value"}
+				} else {
+					ppError = &GenericPPError{Key: key, Value: string(valueStr)}
+				}
 			}
 		}
 
