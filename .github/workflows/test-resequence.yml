@@ -40,15 +40,6 @@ jobs:
       - name: Install Kurtosis CDK tools
         uses: ./kurtosis-cdk/.github/actions/setup-kurtosis-cdk
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-
-      - name: Install yq
-        run: |
-          sudo curl -L https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_amd64 -o /usr/local/bin/yq
-          sudo chmod +x /usr/local/bin/yq
-          /usr/local/bin/yq --version
-
       - name: Install polycli
         run: |
           POLYCLI_VERSION="${{ vars.POLYCLI_VERSION }}"
