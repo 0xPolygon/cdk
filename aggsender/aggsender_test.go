@@ -1621,12 +1621,12 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 func TestMetadataConversions(t *testing.T) {
 	fromBlock := uint64(123567890)
 	toBlock := uint64(123567890)
-	createdAt := int64(0)
+	createdAt := uint64(0)
 	c := createCertificateMetadata(fromBlock, toBlock, createdAt)
 	extractBlock := extractCertificateMetadata(c)
 	require.Equal(t, fromBlock, extractBlock.FromBlock)
 	require.Equal(t, toBlock, extractBlock.ToBlock)
-	require.Equal(t, createdAt, extractBlock.CreatedAt)
+	require.Equal(t, createdAt, uint64(extractBlock.CreatedAt))
 }
 
 func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
@@ -1833,7 +1833,7 @@ func certInfoToCertHeader(certInfo *aggsendertypes.CertificateInfo, networkID ui
 		CertificateID:    certInfo.CertificateID,
 		NewLocalExitRoot: certInfo.NewLocalExitRoot,
 		Status:           agglayer.Pending,
-		Metadata:         createCertificateMetadata(certInfo.FromBlock, certInfo.ToBlock, certInfo.CreatedAt),
+		Metadata:         createCertificateMetadata(certInfo.FromBlock, certInfo.ToBlock, uint64(certInfo.CreatedAt)),
 	}
 }
 

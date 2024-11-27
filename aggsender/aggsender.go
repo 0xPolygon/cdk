@@ -190,7 +190,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
 
-	createdTime := time.Now().UTC().UnixMilli()
+	createdTime := uint64(time.Now().UTC().UnixMilli())
 	certificate, err := a.buildCertificate(ctx, bridges, claims, *lastSentCertificateInfo, fromBlock, toBlock, createdTime)
 	if err != nil {
 		return nil, fmt.Errorf("error building certificate: %w", err)
@@ -222,8 +222,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		NewLocalExitRoot:  certificate.NewLocalExitRoot,
 		FromBlock:         fromBlock,
 		ToBlock:           toBlock,
-		CreatedAt:         createdTime,
-		UpdatedAt:         createdTime,
+		CreatedAt:         int64(createdTime),
+		UpdatedAt:         int64(createdTime),
 		SignedCertificate: string(raw),
 	}
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
@@ -305,7 +305,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	claims []bridgesync.Claim,
 	lastSentCertificateInfo types.CertificateInfo,
 	fromBlock, toBlock uint64,
-	createdAt int64,
+	createdAt uint64,
 ) (*agglayer.Certificate, error) {
 	if len(bridges) == 0 && len(claims) == 0 {
 		return nil, errNoBridgesAndClaims
@@ -694,7 +694,7 @@ func extractSignatureData(signature []byte) (r, s common.Hash, isOddParity bool,
 }
 
 // createCertificateMetadata creates a certificate metadata from given input
-func createCertificateMetadata(fromBlock, toBlock uint64, createdAt int64) common.Hash {
+func createCertificateMetadata(fromBlock, toBlock, createdAt uint64) common.Hash {
 	b := make([]byte, common.HashLength) // 32-byte hash
 
 	// Encode fromBlock into first 8 bytes
