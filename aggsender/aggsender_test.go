@@ -285,7 +285,7 @@ func TestAggSenderStart(t *testing.T) {
 		ctx,
 		log.WithFields("test", "unittest"),
 		Config{
-			StoragePath:          "file:TestAggSenderStart:memory:?cache=shared",
+			StoragePath:          "file:TestAggSenderStart?mode=memory&cache=shared",
 			DelayBeetweenRetries: types.Duration{Duration: 1 * time.Microsecond},
 		},
 		aggLayerMock,
@@ -1592,7 +1592,7 @@ func TestGetNextHeightAndPreviousLER(t *testing.T) {
 			expectedError:                  true,
 		},
 		{
-			name: "Previous certificate in error, no prevLER. prev cert not avilable on storage",
+			name: "Previous certificate in error, no prevLER. prev cert not available on storage",
 			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
 				Height:           10,
 				NewLocalExitRoot: common.HexToHash("0x123"),
@@ -1604,7 +1604,7 @@ func TestGetNextHeightAndPreviousLER(t *testing.T) {
 			expectedError:                  true,
 		},
 		{
-			name: "Previous certificate in error, no prevLER. prev cert not avilable on storage",
+			name: "Previous certificate in error, no prevLER. prev cert not available on storage",
 			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
 				Height:           10,
 				NewLocalExitRoot: common.HexToHash("0x123"),
