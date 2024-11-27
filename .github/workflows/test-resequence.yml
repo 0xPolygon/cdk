@@ -23,7 +23,7 @@ jobs:
         with:
           path: cdk
 
-      - name: Checkout kurtosis-cdk
+      - name: Checkout cdk-erigon
         uses: actions/checkout@v4
         with:
           repository: 0xPolygonHermez/cdk-erigon
