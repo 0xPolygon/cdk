@@ -152,16 +152,14 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	if err != nil {
 		return nil, err
 	}
-	if lastSentCertificateInfo == nil {
-		// There are no certificates, so we set that to a empty one
-		lastSentCertificateInfo = &types.CertificateInfo{}
-	}
-
-	previousToBlock := lastSentCertificateInfo.ToBlock
-	if lastSentCertificateInfo.Status == agglayer.InError {
-		// if the last certificate was in error, we need to resend it
-		// from the block before the error
-		previousToBlock = lastSentCertificateInfo.FromBlock - 1
+	previousToBlock := uint64(0)
+	if lastSentCertificateInfo != nil {
+		previousToBlock = lastSentCertificateInfo.ToBlock
+		if lastSentCertificateInfo.Status == agglayer.InError {
+			// if the last certificate was in error, we need to resend it
+			// from the block before the error
+			previousToBlock = lastSentCertificateInfo.FromBlock - 1
+		}
 	}
 
 	if previousToBlock >= lasL2BlockSynced {
@@ -190,7 +188,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
 
-	certificate, err := a.buildCertificate(ctx, bridges, claims, *lastSentCertificateInfo, toBlock)
+	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo, toBlock)
 	if err != nil {
 		return nil, fmt.Errorf("error building certificate: %w", err)
 	}
@@ -215,15 +213,17 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	}
 
 	createdTime := time.Now().UTC().UnixMilli()
+	prevLER := common.BytesToHash(certificate.PrevLocalExitRoot[:])
 	certInfo := types.CertificateInfo{
-		Height:            certificate.Height,
-		CertificateID:     certificateHash,
-		NewLocalExitRoot:  certificate.NewLocalExitRoot,
-		FromBlock:         fromBlock,
-		ToBlock:           toBlock,
-		CreatedAt:         createdTime,
-		UpdatedAt:         createdTime,
-		SignedCertificate: string(raw),
+		Height:                certificate.Height,
+		CertificateID:         certificateHash,
+		NewLocalExitRoot:      certificate.NewLocalExitRoot,
+		PreviousLocalExitRoot: &prevLER,
+		FromBlock:             fromBlock,
+		ToBlock:               toBlock,
+		CreatedAt:             createdTime,
+		UpdatedAt:             createdTime,
+		SignedCertificate:     string(raw),
 	}
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
 	err = a.saveCertificateToStorage(ctx, certInfo, a.cfg.MaxRetriesStoreCertificate)
@@ -278,31 +278,53 @@ func (a *AggSender) saveCertificateToFile(signedCertificate *agglayer.SignedCert
 
 // getNextHeightAndPreviousLER returns the height and previous LER for the new certificate
 func (a *AggSender) getNextHeightAndPreviousLER(
-	lastSentCertificateInfo *types.CertificateInfo) (uint64, common.Hash) {
-	height := lastSentCertificateInfo.Height + 1
+	lastSentCertificateInfo *types.CertificateInfo) (uint64, common.Hash, error) {
+	if lastSentCertificateInfo == nil {
+		return 0, zeroLER, nil
+	}
+	if !lastSentCertificateInfo.Status.IsClosed() {
+		return 0, zeroLER, fmt.Errorf("last certificate %s is not closed (status: %s)",
+			lastSentCertificateInfo.ID(), lastSentCertificateInfo.Status.String())
+	}
+	if lastSentCertificateInfo.Status.IsSettled() {
+		return lastSentCertificateInfo.Height + 1, lastSentCertificateInfo.NewLocalExitRoot, nil
+	}
+
 	if lastSentCertificateInfo.Status.IsInError() {
-		// previous certificate was in error, so we need to resend it
-		a.log.Debugf("Last certificate %s failed so reusing height %d",
-			lastSentCertificateInfo.CertificateID, lastSentCertificateInfo.Height)
-		height = lastSentCertificateInfo.Height
-	}
+		// We can reuse last one of lastCert?
+		if lastSentCertificateInfo.PreviousLocalExitRoot != nil {
+			return lastSentCertificateInfo.Height, *lastSentCertificateInfo.PreviousLocalExitRoot, nil
+		}
+		// Is the first one, so we can set the zeroLER
+		if lastSentCertificateInfo.Height == 0 {
+			return 0, zeroLER, nil
+		}
+		// We get previous certificate that must be settled
+		a.log.Debugf("last certificate %s is in error, getting previous settled certificate height:%d",
+			lastSentCertificateInfo.Height-1)
+		lastSettleCert, err := a.storage.GetCertificateByHeight(lastSentCertificateInfo.Height - 1)
+		if err != nil {
+			return 0, common.Hash{}, fmt.Errorf("error getting last settled certificate: %w", err)
+		}
+		if lastSettleCert == nil {
+			return 0, common.Hash{}, fmt.Errorf("none settled certificate: %w", err)
+		}
+		if !lastSettleCert.Status.IsSettled() {
+			return 0, common.Hash{}, fmt.Errorf("last settled certificate %s is not settled (status: %s)",
+				lastSettleCert.ID(), lastSettleCert.Status.String())
+		}
 
-	previousLER := lastSentCertificateInfo.NewLocalExitRoot
-	if lastSentCertificateInfo.NewLocalExitRoot == (common.Hash{}) ||
-		lastSentCertificateInfo.Height == 0 && lastSentCertificateInfo.Status.IsInError() {
-		// meaning this is the first certificate
-		height = 0
-		previousLER = zeroLER
+		return lastSentCertificateInfo.Height, lastSettleCert.NewLocalExitRoot, nil
 	}
-
-	return height, previousLER
+	return 0, zeroLER, fmt.Errorf("last certificate %s has an unknown status: %s",
+		lastSentCertificateInfo.ID(), lastSentCertificateInfo.Status.String())
 }
 
 // buildCertificate builds a certificate from the bridge events
 func (a *AggSender) buildCertificate(ctx context.Context,
 	bridges []bridgesync.Bridge,
 	claims []bridgesync.Claim,
-	lastSentCertificateInfo types.CertificateInfo,
+	lastSentCertificateInfo *types.CertificateInfo,
 	toBlock uint64) (*agglayer.Certificate, error) {
 	if len(bridges) == 0 && len(claims) == 0 {
 		return nil, errNoBridgesAndClaims
@@ -325,7 +347,10 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting exit root by index: %d. Error: %w", depositCount, err)
 	}
 
-	height, previousLER := a.getNextHeightAndPreviousLER(&lastSentCertificateInfo)
+	height, previousLER, err := a.getNextHeightAndPreviousLER(lastSentCertificateInfo)
+	if err != nil {
+		return nil, fmt.Errorf("error getting next height and previous LER: %w", err)
+	}
 
 	return &agglayer.Certificate{
 		NetworkID:           a.l2Syncer.OriginNetwork(),
@@ -709,7 +734,7 @@ func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *ty
 		return nil
 	}
 	now := time.Now().UTC().UnixMilli()
-	return &types.CertificateInfo{
+	res := &types.CertificateInfo{
 		Height:            c.Height,
 		CertificateID:     c.CertificateID,
 		NewLocalExitRoot:  c.NewLocalExitRoot,
@@ -720,4 +745,8 @@ func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *ty
 		UpdatedAt:         now,
 		SignedCertificate: "na/agglayer header",
 	}
+	if c.PreviousLocalExitRoot != nil {
+		res.PreviousLocalExitRoot = c.PreviousLocalExitRoot
+	}
+	return res
 }

@@ -368,3 +368,40 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 		require.NoError(t, storage.clean())
 	})
 }
+
+func Test_StoragePreviousLER(t *testing.T) {
+	ctx := context.TODO()
+	dbPath := path.Join(t.TempDir(), "Test_StoragePreviousLER.sqlite")
+	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), dbPath)
+	require.NoError(t, err)
+	require.NotNil(t, storage)
+
+	certNoLER := types.CertificateInfo{
+		Height:           0,
+		CertificateID:    common.HexToHash("0x1"),
+		Status:           agglayer.InError,
+		NewLocalExitRoot: common.HexToHash("0x2"),
+	}
+	err = storage.SaveLastSentCertificate(ctx, certNoLER)
+	require.NoError(t, err)
+
+	readCertNoLER, err := storage.GetCertificateByHeight(0)
+	require.NoError(t, err)
+	require.NotNil(t, readCertNoLER)
+	require.Equal(t, certNoLER, *readCertNoLER)
+
+	certLER := types.CertificateInfo{
+		Height:                1,
+		CertificateID:         common.HexToHash("0x2"),
+		Status:                agglayer.InError,
+		NewLocalExitRoot:      common.HexToHash("0x2"),
+		PreviousLocalExitRoot: &common.Hash{},
+	}
+	err = storage.SaveLastSentCertificate(ctx, certLER)
+	require.NoError(t, err)
+
+	readCertWithLER, err := storage.GetCertificateByHeight(1)
+	require.NoError(t, err)
+	require.NotNil(t, readCertWithLER)
+	require.Equal(t, certLER, *readCertWithLER)
+}
