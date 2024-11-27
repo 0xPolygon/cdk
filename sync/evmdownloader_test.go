@@ -396,6 +396,44 @@ func TestGetBlockHeader(t *testing.T) {
 	assert.False(t, isCanceled)
 }
 
+func TestFilterQueryToString(t *testing.T) {
+	addr1 := common.HexToAddress("0xf000")
+	addr2 := common.HexToAddress("0xabcd")
+	query := ethereum.FilterQuery{
+		FromBlock: new(big.Int).SetUint64(1000),
+		Addresses: []common.Address{addr1, addr2},
+		ToBlock:   new(big.Int).SetUint64(1100),
+	}
+
+	assert.Equal(t, "FromBlock: 1000, ToBlock: 1100, Addresses: [0x000000000000000000000000000000000000f000 0x000000000000000000000000000000000000ABcD], Topics: []", filterQueryToString(query))
+
+	query = ethereum.FilterQuery{
+		FromBlock: new(big.Int).SetUint64(1000),
+		Addresses: []common.Address{addr1, addr2},
+		ToBlock:   new(big.Int).SetUint64(1100),
+		Topics:    [][]common.Hash{{common.HexToHash("0x1234"), common.HexToHash("0x5678")}},
+	}
+	assert.Equal(t, "FromBlock: 1000, ToBlock: 1100, Addresses: [0x000000000000000000000000000000000000f000 0x000000000000000000000000000000000000ABcD], Topics: [[0x0000000000000000000000000000000000000000000000000000000000001234 0x0000000000000000000000000000000000000000000000000000000000005678]]", filterQueryToString(query))
+}
+
+func TestGetLogs(t *testing.T) {
+	mockEthClient := NewL2Mock(t)
+	sut := EVMDownloaderImplementation{
+		ethClient:        mockEthClient,
+		adressessToQuery: []common.Address{contractAddr},
+		log:              log.WithFields("test", "EVMDownloaderImplementation"),
+		rh: &RetryHandler{
+			RetryAfterErrorPeriod:      time.Millisecond,
+			MaxRetryAttemptsAfterError: 5,
+		},
+	}
+	ctx := context.TODO()
+	mockEthClient.EXPECT().FilterLogs(ctx, mock.Anything).Return(nil, errors.New("foo")).Once()
+	mockEthClient.EXPECT().FilterLogs(ctx, mock.Anything).Return(nil, nil).Once()
+	logs := sut.GetLogs(ctx, 0, 1)
+	require.Equal(t, []types.Log{}, logs)
+}
+
 func buildAppender() LogAppenderMap {
 	appender := make(LogAppenderMap)
 	appender[eventSignature] = func(b *EVMBlock, l types.Log) error {

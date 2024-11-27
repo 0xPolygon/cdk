@@ -43,6 +43,7 @@ type EthClient interface {
 
 // Logger is an interface that defines the methods to log messages
 type Logger interface {
+	Fatalf(format string, args ...interface{})
 	Info(args ...interface{})
 	Infof(format string, args ...interface{})
 	Error(args ...interface{})
@@ -54,34 +55,70 @@ type Logger interface {
 }
 
 type CertificateInfo struct {
-	Height            uint64                     `meddler:"height"`
-	CertificateID     common.Hash                `meddler:"certificate_id,hash"`
-	NewLocalExitRoot  common.Hash                `meddler:"new_local_exit_root,hash"`
-	FromBlock         uint64                     `meddler:"from_block"`
-	ToBlock           uint64                     `meddler:"to_block"`
-	Status            agglayer.CertificateStatus `meddler:"status"`
-	CreatedAt         int64                      `meddler:"created_at"`
-	UpdatedAt         int64                      `meddler:"updated_at"`
-	SignedCertificate string                     `meddler:"signed_certificate"`
+	Height        uint64      `meddler:"height"`
+	CertificateID common.Hash `meddler:"certificate_id,hash"`
+	// PreviousLocalExitRoot if it's nil means no reported
+	PreviousLocalExitRoot *common.Hash               `meddler:"previous_local_exit_root,hash"`
+	NewLocalExitRoot      common.Hash                `meddler:"new_local_exit_root,hash"`
+	FromBlock             uint64                     `meddler:"from_block"`
+	ToBlock               uint64                     `meddler:"to_block"`
+	Status                agglayer.CertificateStatus `meddler:"status"`
+	CreatedAt             int64                      `meddler:"created_at"`
+	UpdatedAt             int64                      `meddler:"updated_at"`
+	SignedCertificate     string                     `meddler:"signed_certificate"`
 }
 
-func (c CertificateInfo) String() string {
+func (c *CertificateInfo) String() string {
+	if c == nil {
+		//nolint:all
+		return "nil"
+	}
+	previousLocalExitRoot := "nil"
+	if c.PreviousLocalExitRoot != nil {
+		previousLocalExitRoot = c.PreviousLocalExitRoot.String()
+	}
 	return fmt.Sprintf(
-		"Height: %d\n"+
-			"CertificateID: %s\n"+
-			"FromBlock: %d\n"+
-			"ToBlock: %d\n"+
-			"NewLocalExitRoot: %s\n"+
-			"Status: %s\n"+
-			"CreatedAt: %s\n"+
-			"UpdatedAt: %s\n",
+		"Height: %d "+
+			"CertificateID: %s "+
+			"PreviousLocalExitRoot: %s "+
+			"NewLocalExitRoot: %s "+
+			"Status: %s "+
+			"FromBlock: %d "+
+			"ToBlock: %d "+
+			"CreatedAt: %s "+
+			"UpdatedAt: %s",
 		c.Height,
 		c.CertificateID.String(),
-		c.FromBlock,
-		c.ToBlock,
+		previousLocalExitRoot,
 		c.NewLocalExitRoot.String(),
 		c.Status.String(),
+		c.FromBlock,
+		c.ToBlock,
 		time.UnixMilli(c.CreatedAt),
 		time.UnixMilli(c.UpdatedAt),
 	)
+}
+
+// ID returns a string with the ident of this cert (height/certID)
+func (c *CertificateInfo) ID() string {
+	if c == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%d/%s", c.Height, c.CertificateID.String())
+}
+
+// IsClosed returns true if the certificate is closed (settled or inError)
+func (c *CertificateInfo) IsClosed() bool {
+	if c == nil {
+		return false
+	}
+	return c.Status.IsClosed()
+}
+
+// ElapsedTimeSinceCreation returns the time elapsed since the certificate was created
+func (c *CertificateInfo) ElapsedTimeSinceCreation() time.Duration {
+	if c == nil {
+		return 0
+	}
+	return time.Now().UTC().Sub(time.UnixMilli(c.CreatedAt))
 }

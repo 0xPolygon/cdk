@@ -9,10 +9,12 @@ import (
 	"math/big"
 	"os"
 	"path"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
+	"github.com/0xPolygon/cdk/aggsender/db"
 	"github.com/0xPolygon/cdk/aggsender/mocks"
 	aggsendertypes "github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/bridgesync"
@@ -26,21 +28,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestExploratoryGetCertificateHeader(t *testing.T) {
-	t.Skip("This test is exploratory and should be skipped")
-	aggLayerClient := agglayer.NewAggLayerClient("http://localhost:32796")
-	certificateID := common.HexToHash("0xf153e75e24591432ac5deafaeaafba3fec0fd851261c86051b9c0d540b38c369")
-	certificateHeader, err := aggLayerClient.GetCertificateHeader(certificateID)
-	require.NoError(t, err)
-	fmt.Print(certificateHeader)
-}
-func TestExploratoryGetEpochConfiguration(t *testing.T) {
-	t.Skip("This test is exploratory and should be skipped")
-	aggLayerClient := agglayer.NewAggLayerClient("http://localhost:32796")
-	clockConfig, err := aggLayerClient.GetEpochConfiguration()
-	require.NoError(t, err)
-	fmt.Print(clockConfig)
-}
+const (
+	networkIDTest = uint32(1234)
+)
+
+var (
+	errTest = errors.New("unitest  error")
+	ler1    = common.HexToHash("0x123")
+	ler2    = common.HexToHash("0x12345")
+)
 
 func TestConfigString(t *testing.T) {
 	config := Config{
@@ -60,7 +56,6 @@ func TestConfigString(t *testing.T) {
 		"BlockGetInterval: 10s\n" +
 		"CheckSettledInterval: 20s\n" +
 		"AggsenderPrivateKeyPath: /path/to/key\n" +
-		"AggsenderPrivateKeyPassword: password\n" +
 		"URLRPCL2: http://l2.rpc.url\n" +
 		"BlockFinality: latestBlock\n" +
 		"EpochNotificationPercentage: 50\n" +
@@ -282,7 +277,7 @@ func TestGetBridgeExits(t *testing.T) {
 }
 
 func TestAggSenderStart(t *testing.T) {
-	AggLayerMock := agglayer.NewAgglayerClientMock(t)
+	aggLayerMock := agglayer.NewAgglayerClientMock(t)
 	epochNotifierMock := mocks.NewEpochNotifier(t)
 	bridgeL2SyncerMock := mocks.NewL2BridgeSyncer(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -291,9 +286,10 @@ func TestAggSenderStart(t *testing.T) {
 		ctx,
 		log.WithFields("test", "unittest"),
 		Config{
-			StoragePath: path.Join(t.TempDir(), "aggsenderTestAggSenderStart.sqlite"),
+			StoragePath:          path.Join(t.TempDir(), "aggsenderTestAggSenderStart.sqlite"),
+			DelayBeetweenRetries: types.Duration{Duration: 1 * time.Microsecond},
 		},
-		AggLayerMock,
+		aggLayerMock,
 		nil,
 		bridgeL2SyncerMock,
 		epochNotifierMock)
@@ -301,7 +297,9 @@ func TestAggSenderStart(t *testing.T) {
 	require.NotNil(t, aggSender)
 	ch := make(chan aggsendertypes.EpochEvent)
 	epochNotifierMock.EXPECT().Subscribe("aggsender").Return(ch)
+	bridgeL2SyncerMock.EXPECT().OriginNetwork().Return(uint32(1))
 	bridgeL2SyncerMock.EXPECT().GetLastProcessedBlock(mock.Anything).Return(uint64(0), nil)
+	aggLayerMock.EXPECT().GetLatestKnownCertificateHeader(mock.Anything).Return(nil, nil)
 
 	go aggSender.Start(ctx)
 	ch <- aggsendertypes.EpochEvent{
@@ -632,6 +630,7 @@ func TestBuildCertificate(t *testing.T) {
 			lastSentCertificateInfo: aggsendertypes.CertificateInfo{
 				NewLocalExitRoot: common.HexToHash("0x123"),
 				Height:           1,
+				Status:           agglayer.Settled,
 			},
 			toBlock: 10,
 			expectedCert: &agglayer.Certificate{
@@ -789,7 +788,7 @@ func TestBuildCertificate(t *testing.T) {
 				l1infoTreeSyncer: mockL1InfoTreeSyncer,
 				log:              log.WithFields("test", "unittest"),
 			}
-			cert, err := aggSender.buildCertificate(context.Background(), tt.bridges, tt.claims, tt.lastSentCertificateInfo, tt.toBlock)
+			cert, err := aggSender.buildCertificate(context.Background(), tt.bridges, tt.claims, &tt.lastSentCertificateInfo, tt.toBlock)
 
 			if tt.expectedError {
 				require.Error(t, err)
@@ -903,15 +902,15 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 			mockAggLayerClient := agglayer.NewAgglayerClientMock(t)
 			mockLogger := log.WithFields("test", "unittest")
 
-			mockStorage.On("GetCertificatesByStatus", nonSettledStatuses).Return(
+			mockStorage.On("GetCertificatesByStatus", agglayer.NonSettledStatuses).Return(
 				tt.pendingCertificates, tt.getFromDBError)
 			for certID, header := range tt.certificateHeaders {
 				mockAggLayerClient.On("GetCertificateHeader", certID).Return(header, tt.clientError)
 			}
 			if tt.updateDBError != nil {
-				mockStorage.On("UpdateCertificateStatus", mock.Anything, mock.Anything).Return(tt.updateDBError)
+				mockStorage.On("UpdateCertificate", mock.Anything, mock.Anything).Return(tt.updateDBError)
 			} else if tt.clientError == nil && tt.getFromDBError == nil {
-				mockStorage.On("UpdateCertificateStatus", mock.Anything, mock.Anything).Return(nil)
+				mockStorage.On("UpdateCertificate", mock.Anything, mock.Anything).Return(nil)
 			}
 
 			aggSender := &AggSender{
@@ -962,7 +961,7 @@ func TestSendCertificate(t *testing.T) {
 		var (
 			aggsender = &AggSender{
 				log:          log.WithFields("aggsender", 1),
-				cfg:          Config{},
+				cfg:          Config{MaxRetriesStoreCertificate: 1},
 				sequencerKey: cfg.sequencerKey,
 			}
 			mockStorage          *mocks.AggSenderStorage
@@ -974,8 +973,8 @@ func TestSendCertificate(t *testing.T) {
 		if cfg.shouldSendCertificate != nil || cfg.getLastSentCertificate != nil ||
 			cfg.saveLastSentCertificate != nil {
 			mockStorage = mocks.NewAggSenderStorage(t)
-			mockStorage.On("GetCertificatesByStatus", nonSettledStatuses).
-				Return(cfg.shouldSendCertificate...).Once()
+			mockStorage.On("GetCertificatesByStatus", agglayer.NonSettledStatuses).
+				Return(cfg.shouldSendCertificate...)
 
 			aggsender.storage = mockStorage
 
@@ -984,7 +983,7 @@ func TestSendCertificate(t *testing.T) {
 			}
 
 			if cfg.saveLastSentCertificate != nil {
-				mockStorage.On("SaveLastSentCertificate", mock.Anything, mock.Anything).Return(cfg.saveLastSentCertificate...).Once()
+				mockStorage.On("SaveLastSentCertificate", mock.Anything, mock.Anything).Return(cfg.saveLastSentCertificate...)
 			}
 		}
 
@@ -1056,14 +1055,14 @@ func TestSendCertificate(t *testing.T) {
 			name:                   "error getting last sent certificate",
 			shouldSendCertificate:  []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:   []interface{}{uint64(8), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{}, errors.New("error getting last sent certificate")},
+			getLastSentCertificate: []interface{}{&aggsendertypes.CertificateInfo{}, errors.New("error getting last sent certificate")},
 			expectedError:          "error getting last sent certificate",
 		},
 		{
 			name:                  "no new blocks to send certificate",
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(41), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
+			getLastSentCertificate: []interface{}{&aggsendertypes.CertificateInfo{
 				Height:           41,
 				CertificateID:    common.HexToHash("0x111"),
 				NewLocalExitRoot: common.HexToHash("0x13223"),
@@ -1075,7 +1074,7 @@ func TestSendCertificate(t *testing.T) {
 			name:                  "get bridges error",
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(59), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
+			getLastSentCertificate: []interface{}{&aggsendertypes.CertificateInfo{
 				Height:           50,
 				CertificateID:    common.HexToHash("0x1111"),
 				NewLocalExitRoot: common.HexToHash("0x132233"),
@@ -1089,7 +1088,7 @@ func TestSendCertificate(t *testing.T) {
 			name:                  "no bridges",
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(69), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
+			getLastSentCertificate: []interface{}{&aggsendertypes.CertificateInfo{
 				Height:           60,
 				CertificateID:    common.HexToHash("0x11111"),
 				NewLocalExitRoot: common.HexToHash("0x1322233"),
@@ -1102,7 +1101,7 @@ func TestSendCertificate(t *testing.T) {
 			name:                  "get claims error",
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(79), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
+			getLastSentCertificate: []interface{}{&aggsendertypes.CertificateInfo{
 				Height:           70,
 				CertificateID:    common.HexToHash("0x121111"),
 				NewLocalExitRoot: common.HexToHash("0x13122233"),
@@ -1124,7 +1123,7 @@ func TestSendCertificate(t *testing.T) {
 			name:                  "error getting info by global exit root",
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(89), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
+			getLastSentCertificate: []interface{}{&aggsendertypes.CertificateInfo{
 				Height:           80,
 				CertificateID:    common.HexToHash("0x1321111"),
 				NewLocalExitRoot: common.HexToHash("0x131122233"),
@@ -1151,7 +1150,7 @@ func TestSendCertificate(t *testing.T) {
 			name:                  "error getting L1 Info tree root by index",
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(89), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
+			getLastSentCertificate: []interface{}{&aggsendertypes.CertificateInfo{
 				Height:           80,
 				CertificateID:    common.HexToHash("0x1321111"),
 				NewLocalExitRoot: common.HexToHash("0x131122233"),
@@ -1188,7 +1187,7 @@ func TestSendCertificate(t *testing.T) {
 			name:                  "error getting L1 Info tree merkle proof from index to root",
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(89), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
+			getLastSentCertificate: []interface{}{&aggsendertypes.CertificateInfo{
 				Height:           80,
 				CertificateID:    common.HexToHash("0x1321111"),
 				NewLocalExitRoot: common.HexToHash("0x131122233"),
@@ -1227,12 +1226,14 @@ func TestSendCertificate(t *testing.T) {
 			name:                  "send certificate error",
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(99), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
-				Height:           90,
-				CertificateID:    common.HexToHash("0x1121111"),
-				NewLocalExitRoot: common.HexToHash("0x111122211"),
-				FromBlock:        80,
-				ToBlock:          81,
+			getLastSentCertificate: []interface{}{&aggsendertypes.CertificateInfo{
+				Height:                90,
+				CertificateID:         common.HexToHash("0x1121111"),
+				NewLocalExitRoot:      common.HexToHash("0x111122211"),
+				PreviousLocalExitRoot: &ler1,
+				FromBlock:             80,
+				ToBlock:               81,
+				Status:                agglayer.Settled,
 			}, nil},
 			getBridges: []interface{}{[]bridgesync.Bridge{
 				{
@@ -1254,12 +1255,13 @@ func TestSendCertificate(t *testing.T) {
 			name:                  "store last sent certificate error",
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(109), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
+			getLastSentCertificate: []interface{}{&aggsendertypes.CertificateInfo{
 				Height:           100,
 				CertificateID:    common.HexToHash("0x11121111"),
 				NewLocalExitRoot: common.HexToHash("0x1211122211"),
 				FromBlock:        90,
 				ToBlock:          91,
+				Status:           agglayer.Settled,
 			}, nil},
 			getBridges: []interface{}{[]bridgesync.Bridge{
 				{
@@ -1282,12 +1284,13 @@ func TestSendCertificate(t *testing.T) {
 			name:                  "successful sending of certificate",
 			shouldSendCertificate: []interface{}{[]*aggsendertypes.CertificateInfo{}, nil},
 			lastL2BlockProcessed:  []interface{}{uint64(119), nil},
-			getLastSentCertificate: []interface{}{aggsendertypes.CertificateInfo{
+			getLastSentCertificate: []interface{}{&aggsendertypes.CertificateInfo{
 				Height:           110,
 				CertificateID:    common.HexToHash("0x12121111"),
 				NewLocalExitRoot: common.HexToHash("0x1221122211"),
 				FromBlock:        100,
 				ToBlock:          101,
+				Status:           agglayer.Settled,
 			}, nil},
 			getBridges: []interface{}{[]bridgesync.Bridge{
 				{
@@ -1494,14 +1497,18 @@ func TestGetNextHeightAndPreviousLER(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name                    string
-		lastSentCertificateInfo aggsendertypes.CertificateInfo
-		expectedHeight          uint64
-		expectedPreviousLER     common.Hash
+		name                           string
+		lastSentCertificateInfo        *aggsendertypes.CertificateInfo
+		lastSettleCertificateInfoCall  bool
+		lastSettleCertificateInfo      *aggsendertypes.CertificateInfo
+		lastSettleCertificateInfoError error
+		expectedHeight                 uint64
+		expectedPreviousLER            common.Hash
+		expectedError                  bool
 	}{
 		{
 			name: "Normal case",
-			lastSentCertificateInfo: aggsendertypes.CertificateInfo{
+			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
 				Height:           10,
 				NewLocalExitRoot: common.HexToHash("0x123"),
 				Status:           agglayer.Settled,
@@ -1510,24 +1517,107 @@ func TestGetNextHeightAndPreviousLER(t *testing.T) {
 			expectedPreviousLER: common.HexToHash("0x123"),
 		},
 		{
-			name: "Previous certificate in error",
-			lastSentCertificateInfo: aggsendertypes.CertificateInfo{
+			name:                    "First certificate",
+			lastSentCertificateInfo: nil,
+			expectedHeight:          0,
+			expectedPreviousLER:     zeroLER,
+		},
+		{
+			name: "First certificate error, with prevLER",
+			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
+				Height:                0,
+				NewLocalExitRoot:      common.HexToHash("0x123"),
+				Status:                agglayer.InError,
+				PreviousLocalExitRoot: &ler1,
+			},
+			expectedHeight:      0,
+			expectedPreviousLER: ler1,
+		},
+		{
+			name: "First certificate error, no prevLER",
+			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
+				Height:           0,
+				NewLocalExitRoot: common.HexToHash("0x123"),
+				Status:           agglayer.InError,
+			},
+			expectedHeight:      0,
+			expectedPreviousLER: zeroLER,
+		},
+		{
+			name: "n certificate error, prevLER",
+			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
+				Height:                10,
+				NewLocalExitRoot:      common.HexToHash("0x123"),
+				PreviousLocalExitRoot: &ler1,
+				Status:                agglayer.InError,
+			},
+			expectedHeight:      10,
+			expectedPreviousLER: ler1,
+		},
+		{
+			name: "last cert not closed, error",
+			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
+				Height:                10,
+				NewLocalExitRoot:      common.HexToHash("0x123"),
+				PreviousLocalExitRoot: &ler1,
+				Status:                agglayer.Pending,
+			},
+			expectedHeight:      10,
+			expectedPreviousLER: ler1,
+			expectedError:       true,
+		},
+		{
+			name: "Previous certificate in error, no prevLER",
+			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
 				Height:           10,
 				NewLocalExitRoot: common.HexToHash("0x123"),
 				Status:           agglayer.InError,
 			},
-			expectedHeight:      10,
-			expectedPreviousLER: common.HexToHash("0x123"),
-		},
-		{
-			name: "First certificate",
-			lastSentCertificateInfo: aggsendertypes.CertificateInfo{
-				Height:           0,
-				NewLocalExitRoot: common.Hash{},
+			lastSettleCertificateInfo: &aggsendertypes.CertificateInfo{
+				Height:           9,
+				NewLocalExitRoot: common.HexToHash("0x3456"),
 				Status:           agglayer.Settled,
 			},
-			expectedHeight:      0,
-			expectedPreviousLER: zeroLER,
+			expectedHeight:      10,
+			expectedPreviousLER: common.HexToHash("0x3456"),
+		},
+		{
+			name: "Previous certificate in error, no prevLER. Error getting previous cert",
+			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
+				Height:           10,
+				NewLocalExitRoot: common.HexToHash("0x123"),
+				Status:           agglayer.InError,
+			},
+			lastSettleCertificateInfo:      nil,
+			lastSettleCertificateInfoError: errors.New("error getting last settle certificate"),
+			expectedError:                  true,
+		},
+		{
+			name: "Previous certificate in error, no prevLER. prev cert not available on storage",
+			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
+				Height:           10,
+				NewLocalExitRoot: common.HexToHash("0x123"),
+				Status:           agglayer.InError,
+			},
+			lastSettleCertificateInfoCall:  true,
+			lastSettleCertificateInfo:      nil,
+			lastSettleCertificateInfoError: nil,
+			expectedError:                  true,
+		},
+		{
+			name: "Previous certificate in error, no prevLER. prev cert not available on storage",
+			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
+				Height:           10,
+				NewLocalExitRoot: common.HexToHash("0x123"),
+				Status:           agglayer.InError,
+			},
+			lastSettleCertificateInfo: &aggsendertypes.CertificateInfo{
+				Height:           9,
+				NewLocalExitRoot: common.HexToHash("0x3456"),
+				Status:           agglayer.InError,
+			},
+			lastSettleCertificateInfoError: nil,
+			expectedError:                  true,
 		},
 	}
 
@@ -1536,12 +1626,19 @@ func TestGetNextHeightAndPreviousLER(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-
-			aggSender := &AggSender{log: log.WithFields("aggsender-test", "getNextHeightAndPreviousLER")}
-			height, previousLER := aggSender.getNextHeightAndPreviousLER(&tt.lastSentCertificateInfo)
-
-			require.Equal(t, tt.expectedHeight, height)
-			require.Equal(t, tt.expectedPreviousLER, previousLER)
+			storageMock := mocks.NewAggSenderStorage(t)
+			aggSender := &AggSender{log: log.WithFields("aggsender-test", "getNextHeightAndPreviousLER"), storage: storageMock}
+			if tt.lastSettleCertificateInfoCall || tt.lastSettleCertificateInfo != nil || tt.lastSettleCertificateInfoError != nil {
+				storageMock.EXPECT().GetCertificateByHeight(mock.Anything).Return(tt.lastSettleCertificateInfo, tt.lastSettleCertificateInfoError).Once()
+			}
+			height, previousLER, err := aggSender.getNextHeightAndPreviousLER(tt.lastSentCertificateInfo)
+			if tt.expectedError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedHeight, height)
+				require.Equal(t, tt.expectedPreviousLER, previousLER)
+			}
 		})
 	}
 }
@@ -1571,12 +1668,13 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("GetCertificatesByStatus", nonSettledStatuses).Return([]*aggsendertypes.CertificateInfo{}, nil).Once()
-	mockStorage.On("GetLastSentCertificate").Return(aggsendertypes.CertificateInfo{
+	mockStorage.On("GetCertificatesByStatus", agglayer.NonSettledStatuses).Return([]*aggsendertypes.CertificateInfo{}, nil).Once()
+	mockStorage.On("GetLastSentCertificate").Return(&aggsendertypes.CertificateInfo{
 		NewLocalExitRoot: common.HexToHash("0x123"),
 		Height:           1,
 		FromBlock:        0,
 		ToBlock:          10,
+		Status:           agglayer.Settled,
 	}, nil).Once()
 	mockStorage.On("SaveLastSentCertificate", mock.Anything, mock.Anything).Return(nil).Once()
 	mockL2Syncer.On("GetLastProcessedBlock", mock.Anything).Return(uint64(50), nil)
@@ -1611,4 +1709,283 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 	mockL2Syncer.AssertExpectations(t)
 	mockAggLayerClient.AssertExpectations(t)
 	mockL1InfoTreeSyncer.AssertExpectations(t)
+}
+
+func TestMetadataConversions(t *testing.T) {
+	toBlock := uint64(123567890)
+	c := createCertificateMetadata(toBlock)
+	extractBlock := extractFromCertificateMetadataToBlock(c)
+	require.Equal(t, toBlock, extractBlock)
+}
+
+func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		metadata common.Hash
+		expected uint64
+	}{
+		{
+			name:     "Valid metadata",
+			metadata: common.BigToHash(big.NewInt(123567890)),
+			expected: 123567890,
+		},
+		{
+			name:     "Zero metadata",
+			metadata: common.BigToHash(big.NewInt(0)),
+			expected: 0,
+		},
+		{
+			name:     "Max uint64 metadata",
+			metadata: common.BigToHash(new(big.Int).SetUint64(^uint64(0))),
+			expected: ^uint64(0),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := extractFromCertificateMetadataToBlock(tt.metadata)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestCheckLastCertificateFromAgglayer_ErrorAggLayer(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).Return(nil, fmt.Errorf("unittest error")).Once()
+
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.Error(t, err)
+}
+
+func TestCheckLastCertificateFromAgglayer_ErrorStorageGetLastSentCertificate(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).Return(nil, nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(nil, fmt.Errorf("unittest error"))
+
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.Error(t, err)
+}
+
+// TestCheckLastCertificateFromAgglayer_Case1NoCerts
+// CASE 1: No certificates in local storage and agglayer
+// Aggsender and agglayer are empty so it's ok
+func TestCheckLastCertificateFromAgglayer_Case1NoCerts(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagNone)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).Return(nil, nil).Once()
+
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.NoError(t, err)
+}
+
+// TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemote
+// CASE 2: No certificates in local storage but agglayer has one
+// The local DB is empty and we set the lastCert reported by AggLayer
+func TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemote(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagNone)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.NoError(t, err)
+	localCert, err := testData.sut.storage.GetLastSentCertificate()
+	require.NoError(t, err)
+	require.Equal(t, testData.testCerts[0].CertificateID, localCert.CertificateID)
+}
+
+// TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemoteErrorStorage
+// sub case of previous one that fails to update local storage
+func TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemoteErrorStorage(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(nil, nil)
+	testData.storageMock.EXPECT().SaveLastSentCertificate(mock.Anything, mock.Anything).Return(errTest).Once()
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.Error(t, err)
+}
+
+// CASE 2.1: certificate in storage but not in agglayer
+// sub case of previous one that fails to update local storage
+func TestCheckLastCertificateFromAgglayer_Case2_1NoCertRemoteButCertLocal(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(nil, nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[0], nil)
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.Error(t, err)
+}
+
+// CASE 3: AggSender and AggLayer not same certificateID. AggLayer has a new certificate
+func TestCheckLastCertificateFromAgglayer_Case3Mismatch(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(certInfoToCertHeader(&testData.testCerts[1], networkIDTest), nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[0], nil)
+	testData.storageMock.EXPECT().SaveLastSentCertificate(mock.Anything, mock.Anything).Return(nil).Once()
+
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.NoError(t, err)
+}
+
+// CASE 4: AggSender and AggLayer not same certificateID
+func TestCheckLastCertificateFromAgglayer_Case4Mismatch(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[1], nil)
+
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.Error(t, err)
+}
+
+// CASE 5: AggSender and AggLayer same certificateID and same status
+func TestCheckLastCertificateFromAgglayer_Case5SameStatus(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[0], nil)
+
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.NoError(t, err)
+}
+
+// CASE 5: AggSender and AggLayer same certificateID and differ on status
+func TestCheckLastCertificateFromAgglayer_Case5UpdateStatus(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	aggLayerCert := certInfoToCertHeader(&testData.testCerts[0], networkIDTest)
+	aggLayerCert.Status = agglayer.Settled
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(aggLayerCert, nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[0], nil)
+	testData.storageMock.EXPECT().UpdateCertificate(mock.Anything, mock.Anything).Return(nil).Once()
+
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.NoError(t, err)
+}
+
+// CASE 4: AggSender and AggLayer same certificateID and differ on status but fails update
+func TestCheckLastCertificateFromAgglayer_Case4ErrorUpdateStatus(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	aggLayerCert := certInfoToCertHeader(&testData.testCerts[0], networkIDTest)
+	aggLayerCert.Status = agglayer.Settled
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(aggLayerCert, nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[0], nil)
+	testData.storageMock.EXPECT().UpdateCertificate(mock.Anything, mock.Anything).Return(errTest).Once()
+
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.Error(t, err)
+}
+
+type testDataFlags = int
+
+const (
+	testDataFlagNone        testDataFlags = 0
+	testDataFlagMockStorage testDataFlags = 1
+)
+
+type aggsenderTestData struct {
+	ctx                  context.Context
+	agglayerClientMock   *agglayer.AgglayerClientMock
+	l2syncerMock         *mocks.L2BridgeSyncer
+	l1InfoTreeSyncerMock *mocks.L1InfoTreeSyncer
+	storageMock          *mocks.AggSenderStorage
+	sut                  *AggSender
+	testCerts            []aggsendertypes.CertificateInfo
+}
+
+func certInfoToCertHeader(certInfo *aggsendertypes.CertificateInfo, networkID uint32) *agglayer.CertificateHeader {
+	if certInfo == nil {
+		return nil
+	}
+	return &agglayer.CertificateHeader{
+		Height:           certInfo.Height,
+		NetworkID:        networkID,
+		CertificateID:    certInfo.CertificateID,
+		NewLocalExitRoot: certInfo.NewLocalExitRoot,
+		Status:           agglayer.Pending,
+		Metadata:         createCertificateMetadata(certInfo.ToBlock),
+	}
+}
+
+func newAggsenderTestData(t *testing.T, creationFlags testDataFlags) *aggsenderTestData {
+	t.Helper()
+	l2syncerMock := mocks.NewL2BridgeSyncer(t)
+	agglayerClientMock := agglayer.NewAgglayerClientMock(t)
+	l1InfoTreeSyncerMock := mocks.NewL1InfoTreeSyncer(t)
+	logger := log.WithFields("aggsender-test", "checkLastCertificateFromAgglayer")
+	var storageMock *mocks.AggSenderStorage
+	var storage db.AggSenderStorage
+	var err error
+	if creationFlags&testDataFlagMockStorage != 0 {
+		storageMock = mocks.NewAggSenderStorage(t)
+		storage = storageMock
+	} else {
+		pc, _, _, _ := runtime.Caller(1)
+		part := runtime.FuncForPC(pc)
+		dbPath := fmt.Sprintf("file:%d?mode=memory&cache=shared", part.Entry())
+		storage, err = db.NewAggSenderSQLStorage(logger, dbPath)
+		require.NoError(t, err)
+	}
+
+	ctx := context.TODO()
+	sut := &AggSender{
+		log:              logger,
+		l2Syncer:         l2syncerMock,
+		aggLayerClient:   agglayerClientMock,
+		storage:          storage,
+		l1infoTreeSyncer: l1InfoTreeSyncerMock,
+	}
+	testCerts := []aggsendertypes.CertificateInfo{
+		{
+			Height:           1,
+			CertificateID:    common.HexToHash("0x1"),
+			NewLocalExitRoot: common.HexToHash("0x2"),
+			Status:           agglayer.Pending,
+		},
+		{
+			Height:           2,
+			CertificateID:    common.HexToHash("0x1a111"),
+			NewLocalExitRoot: common.HexToHash("0x2a2"),
+			Status:           agglayer.Pending,
+		},
+	}
+
+	return &aggsenderTestData{
+		ctx:                  ctx,
+		agglayerClientMock:   agglayerClientMock,
+		l2syncerMock:         l2syncerMock,
+		l1InfoTreeSyncerMock: l1InfoTreeSyncerMock,
+		storageMock:          storageMock,
+		sut:                  sut,
+		testCerts:            testCerts,
+	}
 }

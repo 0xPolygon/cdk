@@ -16,3 +16,12 @@ func Test_checkMigrations(t *testing.T) {
 	_, err := migrationSource.FileSystem.ReadFile("migrations/0001.sql")
 	assert.NoError(t, err)
 }
+
+func Test_runMigrations(t *testing.T) {
+	dbPath := "file::memory:?cache=shared"
+	err := runMigrations(dbPath, AggregatorMigrationName, migrate.Up)
+	assert.NoError(t, err)
+
+	err = runMigrations(dbPath, AggregatorMigrationName, migrate.Down)
+	assert.NoError(t, err)
+}

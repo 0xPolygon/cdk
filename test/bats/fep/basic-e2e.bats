@@ -1,6 +1,7 @@
 setup() {
-    load 'helpers/common-setup'
-    load 'helpers/common'
+    load '../helpers/common-setup'
+    load '../helpers/common'
+    
     _common_setup
 
     readonly sender_private_key=${SENDER_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"slices"
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
@@ -28,8 +27,7 @@ var (
 	errNoBridgesAndClaims   = errors.New("no bridges and claims to build certificate")
 	errInvalidSignatureSize = errors.New("invalid signature size")
 
-	zeroLER            = common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
-	nonSettledStatuses = []agglayer.CertificateStatus{agglayer.Pending, agglayer.Candidate, agglayer.Proven}
+	zeroLER = common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
 )
 
 // AggSender is a component that will send certificates to the aggLayer
@@ -83,7 +81,29 @@ func New(
 
 // Start starts the AggSender
 func (a *AggSender) Start(ctx context.Context) {
+	a.log.Info("AggSender started")
+	a.checkInitialStatus(ctx)
 	a.sendCertificates(ctx)
+}
+
+// checkInitialStatus check local status vs agglayer status
+func (a *AggSender) checkInitialStatus(ctx context.Context) {
+	ticker := time.NewTicker(a.cfg.DelayBeetweenRetries.Duration)
+	defer ticker.Stop()
+
+	for {
+		if err := a.checkLastCertificateFromAgglayer(ctx); err != nil {
+			a.log.Errorf("error checking initial status: %w, retrying in %s", err, a.cfg.DelayBeetweenRetries.String())
+		} else {
+			a.log.Info("Initial status checked successfully")
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 // sendCertificates sends certificates to the aggLayer
@@ -96,7 +116,7 @@ func (a *AggSender) sendCertificates(ctx context.Context) {
 			thereArePendingCerts := a.checkPendingCertificatesStatus(ctx)
 			if !thereArePendingCerts {
 				if _, err := a.sendCertificate(ctx); err != nil {
-					log.Error(err)
+					a.log.Error(err)
 				}
 			} else {
 				log.Infof("Skipping epoch %s because there are pending certificates",
@@ -132,12 +152,14 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	if err != nil {
 		return nil, err
 	}
-
-	previousToBlock := lastSentCertificateInfo.ToBlock
-	if lastSentCertificateInfo.Status == agglayer.InError {
-		// if the last certificate was in error, we need to resend it
-		// from the block before the error
-		previousToBlock = lastSentCertificateInfo.FromBlock - 1
+	previousToBlock := uint64(0)
+	if lastSentCertificateInfo != nil {
+		previousToBlock = lastSentCertificateInfo.ToBlock
+		if lastSentCertificateInfo.Status == agglayer.InError {
+			// if the last certificate was in error, we need to resend it
+			// from the block before the error
+			previousToBlock = lastSentCertificateInfo.FromBlock - 1
+		}
 	}
 
 	if previousToBlock >= lasL2BlockSynced {
@@ -178,7 +200,6 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.saveCertificateToFile(signedCertificate)
 	a.log.Infof("certificate ready to be send to AggLayer: %s", signedCertificate.String())
-
 	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
 	if err != nil {
 		return nil, fmt.Errorf("error sending certificate: %w", err)
@@ -192,18 +213,22 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	}
 
 	createdTime := time.Now().UTC().UnixMilli()
+	prevLER := common.BytesToHash(certificate.PrevLocalExitRoot[:])
 	certInfo := types.CertificateInfo{
-		Height:            certificate.Height,
-		CertificateID:     certificateHash,
-		NewLocalExitRoot:  certificate.NewLocalExitRoot,
-		FromBlock:         fromBlock,
-		ToBlock:           toBlock,
-		CreatedAt:         createdTime,
-		UpdatedAt:         createdTime,
-		SignedCertificate: string(raw),
+		Height:                certificate.Height,
+		CertificateID:         certificateHash,
+		NewLocalExitRoot:      certificate.NewLocalExitRoot,
+		PreviousLocalExitRoot: &prevLER,
+		FromBlock:             fromBlock,
+		ToBlock:               toBlock,
+		CreatedAt:             createdTime,
+		UpdatedAt:             createdTime,
+		SignedCertificate:     string(raw),
 	}
-
-	if err := a.storage.SaveLastSentCertificate(ctx, certInfo); err != nil {
+	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
+	err = a.saveCertificateToStorage(ctx, certInfo, a.cfg.MaxRetriesStoreCertificate)
+	if err != nil {
+		a.log.Errorf("error saving certificate to storage: %w", err)
 		return nil, fmt.Errorf("error saving last sent certificate %s in db: %w", certInfo.String(), err)
 	}
 
@@ -211,6 +236,26 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		certificateHash, fromBlock, toBlock, signedCertificate.String())
 
 	return signedCertificate, nil
+}
+
+// saveCertificateToStorage saves the certificate to the storage
+// it retries if it fails. if param retries == 0 it retries indefinitely
+func (a *AggSender) saveCertificateToStorage(ctx context.Context, cert types.CertificateInfo, maxRetries int) error {
+	retries := 1
+	err := fmt.Errorf("initial_error")
+	for err != nil {
+		if err = a.storage.SaveLastSentCertificate(ctx, cert); err != nil {
+			// If this happens we can't work as normal, because local DB is outdated, we have to retry
+			a.log.Errorf("error saving last sent certificate %s in db: %w", cert.String(), err)
+			if retries == maxRetries {
+				return fmt.Errorf("error saving last sent certificate %s in db: %w", cert.String(), err)
+			} else {
+				retries++
+				time.Sleep(a.cfg.DelayBeetweenRetries.Duration)
+			}
+		}
+	}
+	return nil
 }
 
 // saveCertificate saves the certificate to a tmp file
@@ -233,30 +278,53 @@ func (a *AggSender) saveCertificateToFile(signedCertificate *agglayer.SignedCert
 
 // getNextHeightAndPreviousLER returns the height and previous LER for the new certificate
 func (a *AggSender) getNextHeightAndPreviousLER(
-	lastSentCertificateInfo *types.CertificateInfo) (uint64, common.Hash) {
-	height := lastSentCertificateInfo.Height + 1
-	if lastSentCertificateInfo.Status == agglayer.InError {
-		// previous certificate was in error, so we need to resend it
-		a.log.Debugf("Last certificate %s failed so reusing height %d",
-			lastSentCertificateInfo.CertificateID, lastSentCertificateInfo.Height)
-		height = lastSentCertificateInfo.Height
+	lastSentCertificateInfo *types.CertificateInfo) (uint64, common.Hash, error) {
+	if lastSentCertificateInfo == nil {
+		return 0, zeroLER, nil
+	}
+	if !lastSentCertificateInfo.Status.IsClosed() {
+		return 0, zeroLER, fmt.Errorf("last certificate %s is not closed (status: %s)",
+			lastSentCertificateInfo.ID(), lastSentCertificateInfo.Status.String())
+	}
+	if lastSentCertificateInfo.Status.IsSettled() {
+		return lastSentCertificateInfo.Height + 1, lastSentCertificateInfo.NewLocalExitRoot, nil
 	}
 
-	previousLER := lastSentCertificateInfo.NewLocalExitRoot
-	if lastSentCertificateInfo.NewLocalExitRoot == (common.Hash{}) {
-		// meaning this is the first certificate
-		height = 0
-		previousLER = zeroLER
-	}
+	if lastSentCertificateInfo.Status.IsInError() {
+		// We can reuse last one of lastCert?
+		if lastSentCertificateInfo.PreviousLocalExitRoot != nil {
+			return lastSentCertificateInfo.Height, *lastSentCertificateInfo.PreviousLocalExitRoot, nil
+		}
+		// Is the first one, so we can set the zeroLER
+		if lastSentCertificateInfo.Height == 0 {
+			return 0, zeroLER, nil
+		}
+		// We get previous certificate that must be settled
+		a.log.Debugf("last certificate %s is in error, getting previous settled certificate height:%d",
+			lastSentCertificateInfo.Height-1)
+		lastSettleCert, err := a.storage.GetCertificateByHeight(lastSentCertificateInfo.Height - 1)
+		if err != nil {
+			return 0, common.Hash{}, fmt.Errorf("error getting last settled certificate: %w", err)
+		}
+		if lastSettleCert == nil {
+			return 0, common.Hash{}, fmt.Errorf("none settled certificate: %w", err)
+		}
+		if !lastSettleCert.Status.IsSettled() {
+			return 0, common.Hash{}, fmt.Errorf("last settled certificate %s is not settled (status: %s)",
+				lastSettleCert.ID(), lastSettleCert.Status.String())
+		}
 
-	return height, previousLER
+		return lastSentCertificateInfo.Height, lastSettleCert.NewLocalExitRoot, nil
+	}
+	return 0, zeroLER, fmt.Errorf("last certificate %s has an unknown status: %s",
+		lastSentCertificateInfo.ID(), lastSentCertificateInfo.Status.String())
 }
 
 // buildCertificate builds a certificate from the bridge events
 func (a *AggSender) buildCertificate(ctx context.Context,
 	bridges []bridgesync.Bridge,
 	claims []bridgesync.Claim,
-	lastSentCertificateInfo types.CertificateInfo,
+	lastSentCertificateInfo *types.CertificateInfo,
 	toBlock uint64) (*agglayer.Certificate, error) {
 	if len(bridges) == 0 && len(claims) == 0 {
 		return nil, errNoBridgesAndClaims
@@ -279,7 +347,10 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting exit root by index: %d. Error: %w", depositCount, err)
 	}
 
-	height, previousLER := a.getNextHeightAndPreviousLER(&lastSentCertificateInfo)
+	height, previousLER, err := a.getNextHeightAndPreviousLER(lastSentCertificateInfo)
+	if err != nil {
+		return nil, fmt.Errorf("error getting next height and previous LER: %w", err)
+	}
 
 	return &agglayer.Certificate{
 		NetworkID:           a.l2Syncer.OriginNetwork(),
@@ -489,59 +560,150 @@ func (a *AggSender) signCertificate(certificate *agglayer.Certificate) (*agglaye
 // It returns:
 // bool -> if there are pending certificates
 func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) bool {
-	pendingCertificates, err := a.storage.GetCertificatesByStatus(nonSettledStatuses)
+	pendingCertificates, err := a.storage.GetCertificatesByStatus(agglayer.NonSettledStatuses)
 	if err != nil {
-		err = fmt.Errorf("error getting pending certificates: %w", err)
-		a.log.Error(err)
+		a.log.Errorf("error getting pending certificates: %w", err)
 		return true
 	}
-	thereArePendingCerts := false
+
 	a.log.Debugf("checkPendingCertificatesStatus num of pendingCertificates: %d", len(pendingCertificates))
+	thereArePendingCerts := false
+
 	for _, certificate := range pendingCertificates {
 		certificateHeader, err := a.aggLayerClient.GetCertificateHeader(certificate.CertificateID)
 		if err != nil {
-			err = fmt.Errorf("error getting certificate header of %d/%s from agglayer: %w",
-				certificate.Height, certificate.String(), err)
-			a.log.Error(err)
+			a.log.Errorf("error getting certificate header of %s from agglayer: %w",
+				certificate.ID(), err)
 			return true
 		}
-		elapsedTime := time.Now().UTC().Sub(time.UnixMilli(certificate.CreatedAt))
+
 		a.log.Debugf("aggLayerClient.GetCertificateHeader status [%s] of certificate %s  elapsed time:%s",
 			certificateHeader.Status,
-			certificateHeader.String(),
-			elapsedTime)
+			certificateHeader.ID(),
+			certificate.ElapsedTimeSinceCreation())
 
-		if certificateHeader.Status != certificate.Status {
-			a.log.Infof("certificate %s changed status from [%s] to [%s] elapsed time: %s",
-				certificateHeader.String(), certificate.Status, certificateHeader.Status, elapsedTime)
-
-			certificate.Status = certificateHeader.Status
-			certificate.UpdatedAt = time.Now().UTC().UnixMilli()
-
-			if err := a.storage.UpdateCertificateStatus(ctx, *certificate); err != nil {
-				err = fmt.Errorf("error updating certificate %s status in storage: %w", certificateHeader.String(), err)
-				a.log.Error(err)
-				return true
-			}
+		if err := a.updateCertificateStatus(ctx, certificate, certificateHeader); err != nil {
+			a.log.Errorf("error updating certificate %s status in storage: %w", certificateHeader.String(), err)
+			return true
 		}
-		if slices.Contains(nonSettledStatuses, certificateHeader.Status) {
+
+		if !certificate.IsClosed() {
 			a.log.Infof("certificate %s is still pending, elapsed time:%s ",
-				certificateHeader.String(), elapsedTime)
+				certificateHeader.ID(), certificate.ElapsedTimeSinceCreation())
 			thereArePendingCerts = true
 		}
 	}
 	return thereArePendingCerts
 }
 
+// updateCertificate updates the certificate status in the storage
+func (a *AggSender) updateCertificateStatus(ctx context.Context,
+	localCert *types.CertificateInfo,
+	agglayerCert *agglayer.CertificateHeader) error {
+	if localCert.Status == agglayerCert.Status {
+		return nil
+	}
+	a.log.Infof("certificate %s changed status from [%s] to [%s] elapsed time: %s full_cert: %s",
+		localCert.ID(), localCert.Status, agglayerCert.Status, localCert.ElapsedTimeSinceCreation(),
+		localCert.String())
+
+	// That is a strange situation
+	if agglayerCert.Status.IsOpen() && localCert.Status.IsClosed() {
+		a.log.Warnf("certificate %s is reopen! from [%s] to [%s]",
+			localCert.ID(), localCert.Status, agglayerCert.Status)
+	}
+
+	localCert.Status = agglayerCert.Status
+	localCert.UpdatedAt = time.Now().UTC().UnixMilli()
+	if err := a.storage.UpdateCertificate(ctx, *localCert); err != nil {
+		a.log.Errorf("error updating certificate %s status in storage: %w", agglayerCert.ID(), err)
+		return fmt.Errorf("error updating certificate. Err: %w", err)
+	}
+	return nil
+}
+
 // shouldSendCertificate checks if a certificate should be sent at given time
 // if we have pending certificates, then we wait until they are settled
 func (a *AggSender) shouldSendCertificate() (bool, error) {
-	pendingCertificates, err := a.storage.GetCertificatesByStatus(nonSettledStatuses)
+	pendingCertificates, err := a.storage.GetCertificatesByStatus(agglayer.NonSettledStatuses)
 	if err != nil {
 		return false, fmt.Errorf("error getting pending certificates: %w", err)
 	}
 
 	return len(pendingCertificates) == 0, nil
+}
+
+// checkLastCertificateFromAgglayer checks the last certificate from agglayer
+func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error {
+	networkID := a.l2Syncer.OriginNetwork()
+	a.log.Infof("recovery: checking last certificate from AggLayer for network %d", networkID)
+	aggLayerLastCert, err := a.aggLayerClient.GetLatestKnownCertificateHeader(networkID)
+	if err != nil {
+		return fmt.Errorf("recovery: error getting latest known certificate header from agglayer: %w", err)
+	}
+	a.log.Infof("recovery: last certificate from AggLayer: %s", aggLayerLastCert.String())
+	localLastCert, err := a.storage.GetLastSentCertificate()
+	if err != nil {
+		return fmt.Errorf("recovery: error getting last sent certificate from local storage: %w", err)
+	}
+	a.log.Infof("recovery: last certificate in storage: %s", localLastCert.String())
+
+	// CASE 1: No certificates in local storage and agglayer
+	if localLastCert == nil && aggLayerLastCert == nil {
+		a.log.Info("recovery: No certificates in local storage and agglayer: initial state")
+		return nil
+	}
+	// CASE 2: No certificates in local storage but agglayer has one
+	if localLastCert == nil && aggLayerLastCert != nil {
+		a.log.Info("recovery: No certificates in local storage but agglayer have one: recovery aggSender cert: %s",
+			aggLayerLastCert.String())
+		if _, err := a.updateLocalStorageWithAggLayerCert(ctx, aggLayerLastCert); err != nil {
+			return fmt.Errorf("recovery: error updating local storage with agglayer certificate: %w", err)
+		}
+		return nil
+	}
+	// CASE 2.1: certificate in storage but not in agglayer
+	// this is a non-sense, so thrown an error
+	if localLastCert != nil && aggLayerLastCert == nil {
+		return fmt.Errorf("recovery: certificate in storage but not in agglayer. Inconsistency")
+	}
+	// CASE 3: aggsender stopped between sending to agglayer and storing on DB
+	if aggLayerLastCert.Height == localLastCert.Height+1 {
+		a.log.Infof("recovery: AggLayer have next cert (height:%d), so is a recovery case: storing cert: %s",
+			aggLayerLastCert.Height, localLastCert.String())
+		// we need to store the certificate in the local storage.
+		localLastCert, err = a.updateLocalStorageWithAggLayerCert(ctx, aggLayerLastCert)
+		if err != nil {
+			log.Errorf("recovery: error updating status certificate: %s status: %w", aggLayerLastCert.String(), err)
+			return fmt.Errorf("recovery: error updating certificate status: %w", err)
+		}
+	}
+	// CASE 4: AggSender and AggLayer are not on the same page
+	// note: we don't need to check individual fields of the certificate
+	// because CertificateID is a hash of all the fields
+	if localLastCert.CertificateID != aggLayerLastCert.CertificateID {
+		a.log.Errorf("recovery: Local certificate:\n %s \n is different from agglayer certificate:\n %s",
+			localLastCert.String(), aggLayerLastCert.String())
+		return fmt.Errorf("recovery: mismatch between local and agglayer certificates")
+	}
+	// CASE 5: AggSender and AggLayer are at same page
+	// just update status
+	err = a.updateCertificateStatus(ctx, localLastCert, aggLayerLastCert)
+	if err != nil {
+		a.log.Errorf("recovery: error updating status certificate: %s status: %w", aggLayerLastCert.String(), err)
+		return fmt.Errorf("recovery: error updating certificate status: %w", err)
+	}
+
+	a.log.Infof("recovery: successfully checked last certificate from AggLayer for network %d", networkID)
+	return nil
+}
+
+// updateLocalStorageWithAggLayerCert updates the local storage with the certificate from the AggLayer
+func (a *AggSender) updateLocalStorageWithAggLayerCert(ctx context.Context,
+	aggLayerCert *agglayer.CertificateHeader) (*types.CertificateInfo, error) {
+	certInfo := NewCertificateInfoFromAgglayerCertHeader(aggLayerCert)
+	a.log.Infof("setting initial certificate from AggLayer: %s", certInfo.String())
+	return certInfo, a.storage.SaveLastSentCertificate(ctx, *certInfo)
 }
 
 // extractSignatureData extracts the R, S, and V from a 65-byte signature
@@ -561,4 +723,30 @@ func extractSignatureData(signature []byte) (r, s common.Hash, isOddParity bool,
 // createCertificateMetadata creates a certificate metadata from given input
 func createCertificateMetadata(toBlock uint64) common.Hash {
 	return common.BigToHash(new(big.Int).SetUint64(toBlock))
+}
+
+func extractFromCertificateMetadataToBlock(metadata common.Hash) uint64 {
+	return metadata.Big().Uint64()
+}
+
+func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *types.CertificateInfo {
+	if c == nil {
+		return nil
+	}
+	now := time.Now().UTC().UnixMilli()
+	res := &types.CertificateInfo{
+		Height:            c.Height,
+		CertificateID:     c.CertificateID,
+		NewLocalExitRoot:  c.NewLocalExitRoot,
+		FromBlock:         0,
+		ToBlock:           extractFromCertificateMetadataToBlock(c.Metadata),
+		Status:            c.Status,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+		SignedCertificate: "na/agglayer header",
+	}
+	if c.PreviousLocalExitRoot != nil {
+		res.PreviousLocalExitRoot = c.PreviousLocalExitRoot
+	}
+	return res
 }

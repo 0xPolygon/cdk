@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Error code reference https://hackmd.io/WwahVBZERJKdfK3BbKxzQQ
-function bridgeAsset() {
+function bridge_message() {
     local token_addr="$1"
     local rpc_url="$2"
-    readonly bridge_sig='bridgeAsset(uint32,address,uint256,address,bool,bytes)'
+    local bridge_sig='bridgeMessage(uint32,address,bool,bytes)'
 
     if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
         echo "The ETH balance for sender "$sender_addr":" >&3
@@ -15,7 +15,37 @@ function bridgeAsset() {
         echo "$(cast --from-wei "$balance_wei")" >&3
     fi
 
-    echo "Attempting to deposit $amount [wei] to $destination_addr, token $token_addr (sender=$sender_addr, network id=$destination_net, rpc url=$rpc_url)" >&3
+    echo "Attempting to deposit $amount [wei] using bridgeMessage to $destination_addr, token $token_addr (sender=$sender_addr, network id=$destination_net, rpc url=$rpc_url)" >&3
+
+    if [[ $dry_run == "true" ]]; then
+        cast calldata $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
+    else
+        if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
+            echo "cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $is_forced $meta_bytes" >&3
+            cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $is_forced $meta_bytes
+        else
+            echo "cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $is_forced $meta_bytes"
+            cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $is_forced $meta_bytes
+        fi
+    fi
+}
+
+function bridge_asset() {
+    local token_addr="$1"
+    local rpc_url="$2"
+    local bridge_sig='bridgeAsset(uint32,address,uint256,address,bool,bytes)'
+
+    if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
+        echo "The ETH balance for sender "$sender_addr":" >&3
+        cast balance -e --rpc-url $rpc_url $sender_addr >&3
+    else
+        echo "The "$token_addr" token balance for sender "$sender_addr":" >&3
+        echo "cast call --rpc-url $rpc_url $token_addr \"$balance_of_fn_sig\" $sender_addr" >&3
+        balance_wei=$(cast call --rpc-url "$rpc_url" "$token_addr" "$balance_of_fn_sig" "$sender_addr" | awk '{print $1}')
+        echo "$(cast --from-wei "$balance_wei")" >&3
+    fi
+
+    echo "Attempting to deposit $amount [wei] using bridgeAsset to $destination_addr, token $token_addr (sender=$sender_addr, network id=$destination_net, rpc url=$rpc_url)" >&3
 
     if [[ $dry_run == "true" ]]; then
         cast calldata $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
@@ -24,7 +54,7 @@ function bridgeAsset() {
             echo "cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes" >&3
             cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         else
-            echo "cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr \"$bridge_sig\" $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes"
+            echo "cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes"
             cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
         fi
     fi
@@ -32,7 +62,12 @@ function bridgeAsset() {
 
 function claim() {
     local destination_rpc_url="$1"
-    readonly claim_sig="claimAsset(bytes32[32],bytes32[32],uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)"
+    local bridge_type="$2"
+    local claim_sig="claimAsset(bytes32[32],bytes32[32],uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)"
+    if [[ $bridge_type == "bridgeMessage" ]]; then
+        claim_sig="claimMessage(bytes32[32],bytes32[32],uint256,bytes32,bytes32,uint32,address,uint32,address,uint256,bytes)"
+    fi
+    
     readonly bridge_deposit_file=$(mktemp)
     readonly claimable_deposit_file=$(mktemp)
     echo "Getting full list of deposits" >&3
@@ -94,6 +129,7 @@ function wait_for_claim() {
     local timeout="$1"         # timeout (in seconds)
     local claim_frequency="$2" # claim frequency (in seconds)
     local destination_rpc_url="$3" # destination rpc url
+    local bridge_type="$4"        # bridgeAsset or bridgeMessage
     local start_time=$(date +%s)
     local end_time=$((start_time + timeout))
 
@@ -104,7 +140,7 @@ function wait_for_claim() {
             exit 1
         fi
 
-        run claim $destination_rpc_url
+        run claim $destination_rpc_url $bridge_type
         if [ $status -eq 0 ]; then
             break
         fi

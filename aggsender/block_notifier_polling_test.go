@@ -32,11 +32,8 @@ func TestExploratoryBlockNotifierPolling(t *testing.T) {
 	require.NoError(t, errSut)
 	go sut.Start(context.Background())
 	ch := sut.Subscribe("test")
-	for {
-		select {
-		case block := <-ch:
-			fmt.Println(block)
-		}
+	for block := range ch {
+		fmt.Println(block)
 	}
 }
 
