@@ -1951,7 +1951,7 @@ func newAggsenderTestData(t *testing.T, creationFlags testDataFlags) *aggsenderT
 	} else {
 		pc, _, _, _ := runtime.Caller(1)
 		part := runtime.FuncForPC(pc)
-		dbPath := fmt.Sprintf("file:%d?mode=memory&cache=shared", part.Entry())
+		dbPath := path.Join(t.TempDir(), "newAggsenderTestData.sqlite")
 		storage, err = db.NewAggSenderSQLStorage(logger, dbPath)
 		require.NoError(t, err)
 	}
