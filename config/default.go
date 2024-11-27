@@ -213,7 +213,7 @@ SyncBlockChunkSize=100
 BlockFinality="LatestBlock"
 URLRPCL1="{{L1URL}}"
 WaitForNewBlocksPeriod="100ms"
-InitialBlock=0
+InitialBlock={{genesisBlockNumber}}
 
 [AggOracle]
 TargetChainType="EVM"
@@ -238,7 +238,7 @@ WaitPeriodNextGER="100ms"
 				ForcedGas = 0
 				GasPriceMarginFactor = 1
 				MaxGasPriceLimit = 0
-				StoragePath = "/{{PathRWData}}/ethtxmanager-sequencesender.sqlite"
+				StoragePath = "{{PathRWData}}/ethtxmanager-sequencesender.sqlite"
 				ReadPendingL1Txs = false
 				SafeStatusL1NumberOfBlocks = 5
 				FinalizedStatusL1NumberOfBlocks = 10
@@ -256,7 +256,7 @@ WriteTimeout = "2s"
 MaxRequestsPerIPAndSecond = 10
 
 [ClaimSponsor]
-DBPath = "/{{PathRWData}}/claimsopnsor.sqlite"
+DBPath = "{{PathRWData}}/claimsopnsor.sqlite"
 Enabled = true
 SenderAddr = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
 BridgeAddrL2 = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
@@ -277,7 +277,7 @@ GasOffset = 0
 		ForcedGas = 0
 		GasPriceMarginFactor = 1
 		MaxGasPriceLimit = 0
-		StoragePath = "/{{PathRWData}}/ethtxmanager-claimsponsor.sqlite"
+		StoragePath = "{{PathRWData}}/ethtxmanager-claimsponsor.sqlite"
 		ReadPendingL1Txs = false
 		SafeStatusL1NumberOfBlocks = 5
 		FinalizedStatusL1NumberOfBlocks = 10
@@ -337,4 +337,6 @@ CheckSettledInterval = "2s"
 BlockFinality = "LatestBlock"
 EpochNotificationPercentage = 50
 SaveCertificatesToFilesPath = ""
+MaxRetriesStoreCertificate = 3
+DelayBeetweenRetries = "60s"
 `
