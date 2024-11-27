@@ -55,24 +55,32 @@ type Logger interface {
 }
 
 type CertificateInfo struct {
-	Height            uint64                     `meddler:"height"`
-	CertificateID     common.Hash                `meddler:"certificate_id,hash"`
-	NewLocalExitRoot  common.Hash                `meddler:"new_local_exit_root,hash"`
-	FromBlock         uint64                     `meddler:"from_block"`
-	ToBlock           uint64                     `meddler:"to_block"`
-	Status            agglayer.CertificateStatus `meddler:"status"`
-	CreatedAt         int64                      `meddler:"created_at"`
-	UpdatedAt         int64                      `meddler:"updated_at"`
-	SignedCertificate string                     `meddler:"signed_certificate"`
+	Height        uint64      `meddler:"height"`
+	CertificateID common.Hash `meddler:"certificate_id,hash"`
+	// PreviousLocalExitRoot if it's nil means no reported
+	PreviousLocalExitRoot *common.Hash               `meddler:"previous_local_exit_root,hash"`
+	NewLocalExitRoot      common.Hash                `meddler:"new_local_exit_root,hash"`
+	FromBlock             uint64                     `meddler:"from_block"`
+	ToBlock               uint64                     `meddler:"to_block"`
+	Status                agglayer.CertificateStatus `meddler:"status"`
+	CreatedAt             int64                      `meddler:"created_at"`
+	UpdatedAt             int64                      `meddler:"updated_at"`
+	SignedCertificate     string                     `meddler:"signed_certificate"`
 }
 
 func (c *CertificateInfo) String() string {
 	if c == nil {
+		//nolint:all
 		return "nil"
+	}
+	previousLocalExitRoot := "nil"
+	if c.PreviousLocalExitRoot != nil {
+		previousLocalExitRoot = c.PreviousLocalExitRoot.String()
 	}
 	return fmt.Sprintf(
 		"Height: %d "+
 			"CertificateID: %s "+
+			"PreviousLocalExitRoot: %s "+
 			"NewLocalExitRoot: %s "+
 			"Status: %s "+
 			"FromBlock: %d "+
@@ -81,6 +89,7 @@ func (c *CertificateInfo) String() string {
 			"UpdatedAt: %s",
 		c.Height,
 		c.CertificateID.String(),
+		previousLocalExitRoot,
 		c.NewLocalExitRoot.String(),
 		c.Status.String(),
 		c.FromBlock,
