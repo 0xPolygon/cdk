@@ -117,7 +117,7 @@ func (c *Certificate) Brief() string {
 	if c == nil {
 		return nilStr
 	}
-	res := fmt.Sprintf("agglayer.Cert {height: %d prevLER: %s newLER:%s exits:%d imported_exits:%d}", c.Height,
+	res := fmt.Sprintf("agglayer.Cert {height: %d prevLER: %s newLER: %s exits: %d imported_exits: %d}", c.Height,
 		common.Bytes2Hex(c.PrevLocalExitRoot[:]), common.Bytes2Hex(c.NewLocalExitRoot[:]),
 		len(c.BridgeExits), len(c.ImportedBridgeExits))
 	return res
