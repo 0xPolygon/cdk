@@ -1,5 +1,6 @@
 setup() {
-    load '../../helpers/common-setup'
+    load '../../helpers/bats/common-setup'
+    
     _common_setup
 }
 

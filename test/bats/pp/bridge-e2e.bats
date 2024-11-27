@@ -1,8 +1,9 @@
 setup() {
-    load '../../helpers/common-setup'
+    load '../../helpers/bats/common-setup'
+    load '../../helpers/bats/common'
+    load '../../helpers/bats/lxly-bridge'
+
     _common_setup
-    load '../../helpers/common'
-    load '../../helpers/lxly-bridge-test'
 
     if [ -z "$BRIDGE_ADDRESS" ]; then
         local combined_json_file="/opt/zkevm/combined.json"
