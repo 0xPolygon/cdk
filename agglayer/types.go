@@ -591,7 +591,7 @@ func (c *CertificateHeader) String() string {
 	if c.Error != nil {
 		errors = c.Error.String()
 	}
-	previousLocalExitRoot := "nil"
+	previousLocalExitRoot := nilStr
 	if c.PreviousLocalExitRoot != nil {
 		previousLocalExitRoot = c.PreviousLocalExitRoot.String()
 	}
