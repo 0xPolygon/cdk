@@ -66,12 +66,12 @@ jobs:
     - name: Install foundry
       uses: foundry-rs/foundry-toolchain@v1
 
-    - name: checkout kurtosis-cdk
+    - name: Checkout kurtosis-cdk
       uses: actions/checkout@v4
       with:
-        repository: leovct/kurtosis-cdk
+        repository: 0xPolygon/kurtosis-cdk
         path: kurtosis-cdk
-        ref: feat/pre-deployed-erc20-gas-token
+        ref: v0.2.22
 
     - name: Setup Bats and bats libs
       uses: bats-core/bats-action@2.0.0
