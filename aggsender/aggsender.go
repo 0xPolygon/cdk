@@ -205,7 +205,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		return nil, fmt.Errorf("error sending certificate: %w", err)
 	}
 
-	a.log.Debugf("certificate send: Height: %d hash: %s", signedCertificate.Height, certificateHash.String())
+	a.log.Debugf("certificate send: Height: %d cert: %s", signedCertificate.Height, signedCertificate.Brief())
 
 	raw, err := json.Marshal(signedCertificate)
 	if err != nil {
@@ -233,7 +233,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	}
 
 	a.log.Infof("certificate: %s sent successfully for range of l2 blocks (from block: %d, to block: %d) cert:%s",
-		certificateHash, fromBlock, toBlock, signedCertificate.Brief())
+		certInfo.ID(), fromBlock, toBlock, signedCertificate.Brief())
 
 	return signedCertificate, nil
 }
@@ -454,7 +454,8 @@ func (a *AggSender) getImportedBridgeExits(
 	for i, claim := range claims {
 		l1Info := claimL1Info[i]
 
-		a.log.Debugf("claim[%d]: destAddr: %s GER:%s", i, claim.DestinationAddress.String(), claim.GlobalExitRoot.String())
+		a.log.Debugf("claim[%d]: destAddr: %s GER:%s Block:%d Pos:%d GlobalIndex:0x%x", i, claim.DestinationAddress.String(), claim.GlobalExitRoot.String(),
+			claim.BlockNum, claim.BlockPos, claim.GlobalIndex)
 		ibe, err := a.convertClaimToImportedBridgeExit(claim)
 		if err != nil {
 			return nil, fmt.Errorf("error converting claim to imported bridge exit: %w", err)
