@@ -354,7 +354,7 @@ func (a *Aggregator) Start() error {
 		// Delete existing proofs
 		err = a.state.DeleteGeneratedProofs(a.ctx, lastVerifiedBatchNumber, maxDBBigIntValue, nil)
 		if err != nil {
-			return fmt.Errorf("failed to initialize proofs cache %w", err)
+			return fmt.Errorf("failed to delete proofs table %w", err)
 		}
 
 		a.resetVerifyProofTime()
