@@ -454,7 +454,8 @@ func (a *AggSender) getImportedBridgeExits(
 	for i, claim := range claims {
 		l1Info := claimL1Info[i]
 
-		a.log.Debugf("claim[%d]: destAddr: %s GER: %s Block: %d Pos: %d GlobalIndex: 0x%x", i, claim.DestinationAddress.String(), claim.GlobalExitRoot.String(),
+		a.log.Debugf("claim[%d]: destAddr: %s GER: %s Block: %d Pos: %d GlobalIndex: 0x%x",
+			i, claim.DestinationAddress.String(), claim.GlobalExitRoot.String(),
 			claim.BlockNum, claim.BlockPos, claim.GlobalIndex)
 		ibe, err := a.convertClaimToImportedBridgeExit(claim)
 		if err != nil {
