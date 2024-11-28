@@ -1832,8 +1832,21 @@ func TestCheckLastCertificateFromAgglayer_Case2_1NoCertRemoteButCertLocal(t *tes
 	require.Error(t, err)
 }
 
-// CASE 3: AggSender and AggLayer not same certificateID. AggLayer has a new certificate
-func TestCheckLastCertificateFromAgglayer_Case3Mismatch(t *testing.T) {
+// CASE 3.1: the certificate on the agglayer has less height than the one stored in the local storage
+func TestCheckLastCertificateFromAgglayer_Case3_1LessHeight(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
+	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
+		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[1], nil)
+
+	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
+
+	require.ErrorContains(t, err, "recovery: the last certificate in the agglayer has less height (1) than the one in the local storage (2)")
+}
+
+// CASE 3.2: AggSender and AggLayer not same height. AggLayer has a new certificate
+func TestCheckLastCertificateFromAgglayer_Case3_2Mismatch(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
