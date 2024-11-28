@@ -851,7 +851,8 @@ func TestGetBridgesPublished(t *testing.T) {
 
 func TestProcessBlockInvalidIndex(t *testing.T) {
 	path := path.Join(t.TempDir(), "aggsenderTestProceessor.sqlite")
-	p, err := newProcessor(path, "foo")
+	logger := log.WithFields("bridge-syncer", "foo")
+	p, err := newProcessor(path, logger)
 	require.NoError(t, err)
 	err = p.ProcessBlock(context.Background(), sync.Block{
 		Num: 0,
