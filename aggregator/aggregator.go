@@ -325,12 +325,6 @@ func (a *Aggregator) Start() error {
 		healthService := newHealthChecker()
 		grpchealth.RegisterHealthServer(a.srv, healthService)
 
-		// Delete ungenerated recursive proofs
-		err = a.storage.DeleteUngeneratedProofs(a.ctx, nil)
-		if err != nil {
-			return fmt.Errorf("failed to initialize proofs cache %w", err)
-		}
-
 		// Get last verified batch number to set the starting point for verifications
 		lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
 		if err != nil {
@@ -346,6 +340,12 @@ func (a *Aggregator) Start() error {
 
 		a.logger.Infof("Starting AccInputHash:%v", accInputHash.String())
 		a.setAccInputHash(lastVerifiedBatchNumber, *accInputHash)
+
+		// Delete existing proofs
+		err = a.storage.DeleteGeneratedProofs(a.ctx, lastVerifiedBatchNumber, maxDBBigIntValue, nil)
+		if err != nil {
+			return fmt.Errorf("failed to delete proofs table %w", err)
+		}
 
 		a.resetVerifyProofTime()
 
