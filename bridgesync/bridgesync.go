@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk/etherman"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	tree "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -113,7 +114,8 @@ func newBridgeSync(
 	originNetwork uint32,
 	syncFullClaims bool,
 ) (*BridgeSync, error) {
-	processor, err := newProcessor(dbPath, l1OrL2ID)
+	logger := log.WithFields("bridge-syncer", l1OrL2ID)
+	processor, err := newProcessor(dbPath, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -158,6 +160,13 @@ func newBridgeSync(
 	if err != nil {
 		return nil, err
 	}
+	logger.Infof("BridgeSyncer [%s] created: dbPath: %s initialBlock: %d bridgeAddr: %s, syncFullClaims: %d,"+
+		" maxRetryAttemptsAfterError: %d RetryAfterErrorPeriod: %s"+
+		"syncBlockChunkSize: %d, blockFinalityType: %s waitForNewBlocksPeriod: %s",
+		l1OrL2ID,
+		dbPath, initialBlock, bridge.String(), syncFullClaims,
+		maxRetryAttemptsAfterError, retryAfterErrorPeriod.String(),
+		syncBlockChunkSize, blockFinalityType, waitForNewBlocksPeriod.String())
 
 	return &BridgeSync{
 		processor:     processor,

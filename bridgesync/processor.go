@@ -108,7 +108,7 @@ type processor struct {
 	haltedReason string
 }
 
-func newProcessor(dbPath, loggerPrefix string) (*processor, error) {
+func newProcessor(dbPath string, logger *log.Logger) (*processor, error) {
 	err := migrations.RunMigrations(dbPath)
 	if err != nil {
 		return nil, err
@@ -117,7 +117,7 @@ func newProcessor(dbPath, loggerPrefix string) (*processor, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger := log.WithFields("bridge-syncer", loggerPrefix)
+
 	exitTree := tree.NewAppendOnlyTree(db, "")
 	return &processor{
 		db:       db,

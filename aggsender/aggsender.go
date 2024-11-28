@@ -199,17 +199,17 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	}
 
 	a.saveCertificateToFile(signedCertificate)
-	a.log.Infof("certificate ready to be send to AggLayer: %s", signedCertificate.String())
+	a.log.Infof("certificate ready to be send to AggLayer: %s", signedCertificate.Brief())
 	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
 	if err != nil {
 		return nil, fmt.Errorf("error sending certificate: %w", err)
 	}
 
-	a.log.Debugf("certificate send: Height: %d hash: %s", signedCertificate.Height, certificateHash.String())
+	a.log.Debugf("certificate send: Height: %d cert: %s", signedCertificate.Height, signedCertificate.Brief())
 
 	raw, err := json.Marshal(signedCertificate)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling signed certificate: %w", err)
+		return nil, fmt.Errorf("error marshalling signed certificate. Cert:%s. Err: %w", signedCertificate.Brief(), err)
 	}
 
 	createdTime := time.Now().UTC().UnixMilli()
@@ -228,12 +228,12 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
 	err = a.saveCertificateToStorage(ctx, certInfo, a.cfg.MaxRetriesStoreCertificate)
 	if err != nil {
-		a.log.Errorf("error saving certificate to storage: %w", err)
+		a.log.Errorf("error saving certificate  to storage. Cert:%s Err: %w", certInfo.String(), err)
 		return nil, fmt.Errorf("error saving last sent certificate %s in db: %w", certInfo.String(), err)
 	}
 
 	a.log.Infof("certificate: %s sent successfully for range of l2 blocks (from block: %d, to block: %d) cert:%s",
-		certificateHash, fromBlock, toBlock, signedCertificate.String())
+		certInfo.ID(), fromBlock, toBlock, signedCertificate.Brief())
 
 	return signedCertificate, nil
 }
@@ -454,7 +454,9 @@ func (a *AggSender) getImportedBridgeExits(
 	for i, claim := range claims {
 		l1Info := claimL1Info[i]
 
-		a.log.Debugf("claim[%d]: destAddr: %s GER:%s", i, claim.DestinationAddress.String(), claim.GlobalExitRoot.String())
+		a.log.Debugf("claim[%d]: destAddr: %s GER: %s Block: %d Pos: %d GlobalIndex: 0x%x",
+			i, claim.DestinationAddress.String(), claim.GlobalExitRoot.String(),
+			claim.BlockNum, claim.BlockPos, claim.GlobalIndex)
 		ibe, err := a.convertClaimToImportedBridgeExit(claim)
 		if err != nil {
 			return nil, fmt.Errorf("error converting claim to imported bridge exit: %w", err)
