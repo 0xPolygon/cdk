@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"os"
 	"path"
-	"runtime"
 	"testing"
 	"time"
 
@@ -1949,8 +1948,6 @@ func newAggsenderTestData(t *testing.T, creationFlags testDataFlags) *aggsenderT
 		storageMock = mocks.NewAggSenderStorage(t)
 		storage = storageMock
 	} else {
-		pc, _, _, _ := runtime.Caller(1)
-		part := runtime.FuncForPC(pc)
 		dbPath := path.Join(t.TempDir(), "newAggsenderTestData.sqlite")
 		storage, err = db.NewAggSenderSQLStorage(logger, dbPath)
 		require.NoError(t, err)
