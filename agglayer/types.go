@@ -112,27 +112,14 @@ type Certificate struct {
 	Metadata            common.Hash           `json:"metadata"`
 }
 
-func (c *Certificate) String() string {
-	res := fmt.Sprintf("NetworkID: %d, Height: %d, PrevLocalExitRoot: %s, NewLocalExitRoot: %s,  Metadata: %s\n",
-		c.NetworkID, c.Height, common.Bytes2Hex(c.PrevLocalExitRoot[:]),
-		common.Bytes2Hex(c.NewLocalExitRoot[:]), c.Metadata.String())
-
-	if c.BridgeExits == nil {
-		res += "    BridgeExits: nil\n"
-	} else {
-		for i, bridgeExit := range c.BridgeExits {
-			res += fmt.Sprintf(", BridgeExit[%d]: %s\n", i, bridgeExit.String())
-		}
+// Brief returns a string with a brief cert
+func (c *Certificate) Brief() string {
+	if c == nil {
+		return nilStr
 	}
-
-	if c.ImportedBridgeExits == nil {
-		res += "    ImportedBridgeExits: nil\n"
-	} else {
-		for i, importedBridgeExit := range c.ImportedBridgeExits {
-			res += fmt.Sprintf("    ImportedBridgeExit[%d]: %s\n", i, importedBridgeExit.String())
-		}
-	}
-
+	res := fmt.Sprintf("agglayer.Cert {height: %d prevLER: %s newLER: %s exits: %d imported_exits: %d}", c.Height,
+		common.Bytes2Hex(c.PrevLocalExitRoot[:]), common.Bytes2Hex(c.NewLocalExitRoot[:]),
+		len(c.BridgeExits), len(c.ImportedBridgeExits))
 	return res
 }
 
@@ -181,8 +168,8 @@ type SignedCertificate struct {
 	Signature *Signature `json:"signature"`
 }
 
-func (s *SignedCertificate) String() string {
-	return fmt.Sprintf("Certificate:%s,\nSignature: %s", s.Certificate.String(), s.Signature.String())
+func (s *SignedCertificate) Brief() string {
+	return fmt.Sprintf("Certificate:%s,\nSignature: %s", s.Certificate.Brief(), s.Signature.String())
 }
 
 // CopyWithDefaulting returns a shallow copy of the signed certificate
@@ -604,7 +591,7 @@ func (c *CertificateHeader) String() string {
 	if c.Error != nil {
 		errors = c.Error.String()
 	}
-	previousLocalExitRoot := "nil"
+	previousLocalExitRoot := nilStr
 	if c.PreviousLocalExitRoot != nil {
 		previousLocalExitRoot = c.PreviousLocalExitRoot.String()
 	}

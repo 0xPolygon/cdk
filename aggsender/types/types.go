@@ -77,16 +77,16 @@ func (c *CertificateInfo) String() string {
 	if c.PreviousLocalExitRoot != nil {
 		previousLocalExitRoot = c.PreviousLocalExitRoot.String()
 	}
-	return fmt.Sprintf(
+	return fmt.Sprintf("aggsender.CertificateInfo: "+
 		"Height: %d "+
-			"CertificateID: %s "+
-			"PreviousLocalExitRoot: %s "+
-			"NewLocalExitRoot: %s "+
-			"Status: %s "+
-			"FromBlock: %d "+
-			"ToBlock: %d "+
-			"CreatedAt: %s "+
-			"UpdatedAt: %s",
+		"CertificateID: %s "+
+		"PreviousLocalExitRoot: %s "+
+		"NewLocalExitRoot: %s "+
+		"Status: %s "+
+		"FromBlock: %d "+
+		"ToBlock: %d "+
+		"CreatedAt: %s "+
+		"UpdatedAt: %s",
 		c.Height,
 		c.CertificateID.String(),
 		previousLocalExitRoot,
