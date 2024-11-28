@@ -1951,7 +1951,11 @@ func newAggsenderTestData(t *testing.T, creationFlags testDataFlags) *aggsenderT
 		pc, _, _, _ := runtime.Caller(1)
 		part := runtime.FuncForPC(pc)
 		dbPath := fmt.Sprintf("file:%d?mode=memory&cache=shared", part.Entry())
-		storage, err = db.NewAggSenderSQLStorage(logger, dbPath)
+		storageConfig := db.AggSenderSQLStorageConfig{
+			DBPath:                  dbPath,
+			KeepCertificatesHistory: true,
+		}
+		storage, err = db.NewAggSenderSQLStorage(logger, storageConfig)
 		require.NoError(t, err)
 	}
 

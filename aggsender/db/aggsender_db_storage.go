@@ -36,26 +36,33 @@ type AggSenderStorage interface {
 
 var _ AggSenderStorage = (*AggSenderSQLStorage)(nil)
 
+// AggSenderSQLStorageConfig is the configuration for the AggSenderSQLStorage
+type AggSenderSQLStorageConfig struct {
+	DBPath                  string
+	KeepCertificatesHistory bool
+}
+
 // AggSenderSQLStorage is the struct that implements the AggSenderStorage interface
 type AggSenderSQLStorage struct {
 	logger *log.Logger
 	db     *sql.DB
+	cfg    AggSenderSQLStorageConfig
 }
 
 // NewAggSenderSQLStorage creates a new AggSenderSQLStorage
-func NewAggSenderSQLStorage(logger *log.Logger, dbPath string) (*AggSenderSQLStorage, error) {
-	if err := migrations.RunMigrations(dbPath); err != nil {
+func NewAggSenderSQLStorage(logger *log.Logger, cfg AggSenderSQLStorageConfig) (*AggSenderSQLStorage, error) {
+	db, err := db.NewSQLiteDB(cfg.DBPath)
+	if err != nil {
 		return nil, err
 	}
-
-	db, err := db.NewSQLiteDB(dbPath)
-	if err != nil {
+	if err := migrations.RunMigrations(logger, db); err != nil {
 		return nil, err
 	}
 
 	return &AggSenderSQLStorage{
 		db:     db,
 		logger: logger,
+		cfg:    cfg,
 	}, nil
 }
 
@@ -93,7 +100,7 @@ func (a *AggSenderSQLStorage) GetCertificateByHeight(height uint64) (*types.Cert
 }
 
 // getCertificateByHeight returns a certificate by its height using the provided db
-func getCertificateByHeight(db meddler.DB,
+func getCertificateByHeight(db db.Querier,
 	height uint64) (*types.CertificateInfo, error) {
 	var certificateInfo types.CertificateInfo
 	if err := meddler.QueryRow(db, &certificateInfo,
@@ -119,7 +126,7 @@ func (a *AggSenderSQLStorage) GetLastSentCertificate() (*types.CertificateInfo, 
 func (a *AggSenderSQLStorage) SaveLastSentCertificate(ctx context.Context, certificate types.CertificateInfo) error {
 	tx, err := db.NewTx(ctx, a.db)
 	if err != nil {
-		return err
+		return fmt.Errorf("saveLastSentCertificate NewTx. Err: %w", err)
 	}
 	defer func() {
 		if err != nil {
@@ -131,14 +138,14 @@ func (a *AggSenderSQLStorage) SaveLastSentCertificate(ctx context.Context, certi
 
 	cert, err := getCertificateByHeight(tx, certificate.Height)
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
-		return err
+		return fmt.Errorf("saveLastSentCertificate getCertificateByHeight. Err: %w", err)
 	}
 
 	if cert != nil {
 		// we already have a certificate with this height
 		// we need to delete it before inserting the new one
-		if err = deleteCertificate(tx, cert.CertificateID); err != nil {
-			return err
+		if err = a.moveCertificateToHistory(tx, cert); err != nil {
+			return fmt.Errorf("saveLastSentCertificate moveCertificateToHistory Err: %w", err)
 		}
 	}
 
@@ -147,10 +154,26 @@ func (a *AggSenderSQLStorage) SaveLastSentCertificate(ctx context.Context, certi
 	}
 
 	if err = tx.Commit(); err != nil {
-		return err
+		return fmt.Errorf("saveLastSentCertificate commit. Err: %w", err)
 	}
 
 	a.logger.Debugf("inserted certificate - Height: %d. Hash: %s", certificate.Height, certificate.CertificateID)
+
+	return nil
+}
+
+func (a *AggSenderSQLStorage) moveCertificateToHistory(tx db.Querier, certificate *types.CertificateInfo) error {
+	if a.cfg.KeepCertificatesHistory {
+		a.logger.Debugf("moving certificate to history - new CertificateID: %s", certificate.ID())
+		if _, err := tx.Exec(`INSERT INTO certificate_info_history SELECT * FROM certificate_info WHERE height = $1;`,
+			certificate.Height); err != nil {
+			return fmt.Errorf("error moving certificate to history: %w", err)
+		}
+	}
+	a.logger.Debugf("deleting certificate - CertificateID: %s", certificate.ID())
+	if err := deleteCertificate(tx, certificate.CertificateID); err != nil {
+		return fmt.Errorf("deleteCertificate %s . Error: %w", certificate.ID(), err)
+	}
 
 	return nil
 }
@@ -169,7 +192,7 @@ func (a *AggSenderSQLStorage) DeleteCertificate(ctx context.Context, certificate
 		}
 	}()
 
-	if err = deleteCertificate(a.db, certificateID); err != nil {
+	if err = deleteCertificate(tx, certificateID); err != nil {
 		return err
 	}
 
@@ -183,8 +206,8 @@ func (a *AggSenderSQLStorage) DeleteCertificate(ctx context.Context, certificate
 }
 
 // deleteCertificate deletes a certificate from the storage using the provided db
-func deleteCertificate(db meddler.DB, certificateID common.Hash) error {
-	if _, err := db.Exec(`DELETE FROM certificate_info WHERE certificate_id = $1;`, certificateID.String()); err != nil {
+func deleteCertificate(tx db.Querier, certificateID common.Hash) error {
+	if _, err := tx.Exec(`DELETE FROM certificate_info WHERE certificate_id = $1;`, certificateID.String()); err != nil {
 		return fmt.Errorf("error deleting certificate info: %w", err)
 	}
 
@@ -205,8 +228,8 @@ func (a *AggSenderSQLStorage) UpdateCertificate(ctx context.Context, certificate
 		}
 	}()
 
-	if _, err = tx.Exec(`UPDATE certificate_info SET status = $1 WHERE certificate_id = $2;`,
-		certificate.Status, certificate.CertificateID.String()); err != nil {
+	if _, err = tx.Exec(`UPDATE certificate_info SET status = $1, updated_at=$2 WHERE certificate_id = $3;`,
+		certificate.Status, certificate.UpdatedAt, certificate.CertificateID.String()); err != nil {
 		return fmt.Errorf("error updating certificate info: %w", err)
 	}
 	if err = tx.Commit(); err != nil {

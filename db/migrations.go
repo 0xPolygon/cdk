@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -23,6 +24,10 @@ func RunMigrations(dbPath string, migrations []types.Migration) error {
 	if err != nil {
 		return fmt.Errorf("error creating DB %w", err)
 	}
+	return RunMigrationsDB(log.GetDefaultLogger(), db, migrations)
+}
+
+func RunMigrationsDB(logger *log.Logger, db *sql.DB, migrations []types.Migration) error {
 	migs := &migrate.MemoryMigrationSource{Migrations: []*migrate.Migration{}}
 	for _, m := range migrations {
 		prefixed := strings.ReplaceAll(m.SQL, dbPrefixReplacer, m.Prefix)
@@ -34,15 +39,15 @@ func RunMigrations(dbPath string, migrations []types.Migration) error {
 		})
 	}
 
-	log.Debugf("running migrations:")
+	logger.Debugf("running migrations:")
 	for _, m := range migs.Migrations {
-		log.Debugf("%+v", m.Id)
+		logger.Debugf("%+v", m.Id)
 	}
 	nMigrations, err := migrate.Exec(db, "sqlite3", migs, migrate.Up)
 	if err != nil {
 		return fmt.Errorf("error executing migration %w", err)
 	}
 
-	log.Infof("successfully ran %d migrations", nMigrations)
+	logger.Infof("successfully ran %d migrations", nMigrations)
 	return nil
 }
