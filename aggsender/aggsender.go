@@ -735,7 +735,7 @@ func createCertificateMetadata(fromBlock, toBlock, createdAt uint64) common.Hash
 	binary.BigEndian.PutUint64(b[8:16], toBlock)
 
 	// Encode createdAt into next 8 bytes
-	binary.BigEndian.PutUint64(b[16:24], uint64(createdAt))
+	binary.BigEndian.PutUint64(b[16:24], createdAt)
 
 	// Last 8 bytes remain as zero padding
 
