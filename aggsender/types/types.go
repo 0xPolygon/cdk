@@ -80,6 +80,7 @@ func (c *CertificateInfo) String() string {
 	}
 	return fmt.Sprintf("aggsender.CertificateInfo: "+
 		"Height: %d "+
+		"RetryCount: %d "+
 		"CertificateID: %s "+
 		"PreviousLocalExitRoot: %s "+
 		"NewLocalExitRoot: %s "+
