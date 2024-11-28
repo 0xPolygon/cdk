@@ -1,5 +1,6 @@
 setup() {
-    load '../../helpers/common-setup'
+    load '../helpers/common-setup'
+    
     _common_setup
 
     if [ -z "$BRIDGE_ADDRESS" ]; then
