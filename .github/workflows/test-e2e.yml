@@ -7,39 +7,49 @@ on:
 
 
 jobs:
+  build-cdk-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version: 1.22.x
+
+    - name: Build cdk docker image
+      run: make build-docker
+    
+    - name: Save cdk image to archive
+      run: docker save --output /tmp/cdk.tar cdk
+    
+    - name: Upload archive
+      uses: actions/upload-artifact@v4
+      with:
+        name: cdk
+        path: /tmp/cdk.tar
+
   test-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build-cdk-image
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ 1.22.x ]
-        goarch: [ "amd64" ]
         e2e-group:
           - "fork9-validium"
           - "fork11-rollup"
           - "fork12-validium"
           - "fork12-rollup"
           - "fork12-pessimistic"
-    runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: ${{ matrix.go-version }}
-      env:
-        GOARCH: ${{ matrix.goarch }}
-
-    - name: Build Docker
-      run: make build-docker
+    - uses: actions/checkout@v4
     
-    - name: Checkout kurtosis-cdk
+    - name: Checkout kurtosis-cdk repository
       uses: actions/checkout@v4
       with:
         repository: 0xPolygon/kurtosis-cdk
         path: kurtosis-cdk
-        ref: v0.2.22
+        ref: v0.2.23
     
     - name: Install Kurtosis CDK tools
       uses: ./kurtosis-cdk/.github/actions/setup-kurtosis-cdk
@@ -54,10 +64,21 @@ jobs:
         sudo chmod +x /usr/local/bin/polycli
         /usr/local/bin/polycli version
 
-    - name: Setup Bats and bats libs
+    - name: Setup bats
       uses: bats-core/bats-action@2.0.0
+    
+    - name: Download cdk archive
+      uses: actions/download-artifact@v4
+      with:
+        name: cdk
+        path: /tmp
+    
+    - name: Load cdk image
+      run: |
+        docker load --input /tmp/cdk.tar
+        docker image ls -a
 
-    - name: Test
+    - name: Run e2e tests
       run: make test-e2e-${{ matrix.e2e-group }}
       working-directory: test
       env:
