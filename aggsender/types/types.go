@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"math/big"
 	"time"
@@ -126,5 +127,43 @@ func (c *CertificateInfo) ElapsedTimeSinceCreation() time.Duration {
 type CertificateMetadata struct {
 	FromBlock uint64 `json:"fromBlock"`
 	ToBlock   uint64 `json:"toBlock"`
-	CreatedAt int64  `json:"createdAt"`
+	CreatedAt uint64 `json:"createdAt"`
+}
+
+// NewCertificateMetadataFromHash returns a new CertificateMetadata from the given hash
+func NewCertificateMetadata(fromBlock, toBlock, createdAt uint64) *CertificateMetadata {
+	return &CertificateMetadata{
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
+		CreatedAt: createdAt,
+	}
+}
+
+// NewCertificateMetadataFromHash returns a new CertificateMetadata from the given hash
+func NewCertificateMetadataFromHash(hash common.Hash) *CertificateMetadata {
+	b := hash.Bytes()
+
+	return NewCertificateMetadata(
+		binary.BigEndian.Uint64(b[0:8]),
+		binary.BigEndian.Uint64(b[8:16]),
+		binary.BigEndian.Uint64(b[16:24]),
+	)
+}
+
+// ToHash returns the hash of the metadata
+func (c *CertificateMetadata) ToHash() common.Hash {
+	b := make([]byte, common.HashLength) // 32-byte hash
+
+	// Encode fromBlock into first 8 bytes
+	binary.BigEndian.PutUint64(b[0:8], c.FromBlock)
+
+	// Encode toBlock into next 8 bytes
+	binary.BigEndian.PutUint64(b[8:16], c.ToBlock)
+
+	// Encode createdAt into next 8 bytes
+	binary.BigEndian.PutUint64(b[16:24], c.CreatedAt)
+
+	// Last 8 bytes remain as zero padding
+
+	return common.BytesToHash(b)
 }

@@ -638,7 +638,7 @@ func TestBuildCertificate(t *testing.T) {
 				NetworkID:         1,
 				PrevLocalExitRoot: common.HexToHash("0x123"),
 				NewLocalExitRoot:  common.HexToHash("0x789"),
-				Metadata:          createCertificateMetadata(0, 10, 0),
+				Metadata:          aggsendertypes.NewCertificateMetadata(0, 10, 0).ToHash(),
 				BridgeExits: []*agglayer.BridgeExit{
 					{
 						LeafType: agglayer.LeafTypeAsset,
@@ -1724,11 +1724,12 @@ func TestMetadataConversions(t *testing.T) {
 	fromBlock := uint64(123567890)
 	toBlock := uint64(123567890)
 	createdAt := uint64(0)
-	c := createCertificateMetadata(fromBlock, toBlock, createdAt)
-	extractBlock := extractCertificateMetadata(c)
+	meta := aggsendertypes.NewCertificateMetadata(fromBlock, toBlock, createdAt)
+	c := meta.ToHash()
+	extractBlock := aggsendertypes.NewCertificateMetadataFromHash(c)
 	require.Equal(t, fromBlock, extractBlock.FromBlock)
 	require.Equal(t, toBlock, extractBlock.ToBlock)
-	require.Equal(t, createdAt, uint64(extractBlock.CreatedAt))
+	require.Equal(t, createdAt, extractBlock.CreatedAt)
 }
 
 func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
@@ -1741,7 +1742,7 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 	}{
 		{
 			name:     "Valid metadata",
-			metadata: createCertificateMetadata(0, 123567890, 123567890),
+			metadata: aggsendertypes.NewCertificateMetadata(0, 123567890, 123567890).ToHash(),
 			expected: aggsendertypes.CertificateMetadata{
 				FromBlock: 0,
 				ToBlock:   123567890,
@@ -1750,7 +1751,7 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 		},
 		{
 			name:     "Zero metadata",
-			metadata: createCertificateMetadata(0, 0, 0),
+			metadata: aggsendertypes.NewCertificateMetadata(0, 0, 0).ToHash(),
 			expected: aggsendertypes.CertificateMetadata{
 				FromBlock: 0,
 				ToBlock:   0,
@@ -1765,7 +1766,7 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := extractCertificateMetadata(tt.metadata)
+			result := *aggsendertypes.NewCertificateMetadataFromHash(tt.metadata)
 			require.Equal(t, tt.expected, result)
 		})
 	}
@@ -1948,7 +1949,11 @@ func certInfoToCertHeader(certInfo *aggsendertypes.CertificateInfo, networkID ui
 		CertificateID:    certInfo.CertificateID,
 		NewLocalExitRoot: certInfo.NewLocalExitRoot,
 		Status:           agglayer.Pending,
-		Metadata:         createCertificateMetadata(certInfo.FromBlock, certInfo.ToBlock, uint64(certInfo.CreatedAt)),
+		Metadata: aggsendertypes.NewCertificateMetadata(
+			certInfo.FromBlock,
+			certInfo.ToBlock,
+			uint64(certInfo.CreatedAt),
+		).ToHash(),
 	}
 }
 

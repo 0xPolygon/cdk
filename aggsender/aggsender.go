@@ -3,7 +3,6 @@ package aggsender
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -354,6 +353,12 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting next height and previous LER: %w", err)
 	}
 
+	meta := &types.CertificateMetadata{
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
+		CreatedAt: createdAt,
+	}
+
 	return &agglayer.Certificate{
 		NetworkID:           a.l2Syncer.OriginNetwork(),
 		PrevLocalExitRoot:   previousLER,
@@ -361,7 +366,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		BridgeExits:         bridgeExits,
 		ImportedBridgeExits: importedBridgeExits,
 		Height:              height,
-		Metadata:            createCertificateMetadata(fromBlock, toBlock, createdAt),
+		Metadata:            meta.ToHash(),
 	}, nil
 }
 
@@ -724,40 +729,11 @@ func extractSignatureData(signature []byte) (r, s common.Hash, isOddParity bool,
 	return
 }
 
-// createCertificateMetadata creates a certificate metadata from given input
-func createCertificateMetadata(fromBlock, toBlock, createdAt uint64) common.Hash {
-	b := make([]byte, common.HashLength) // 32-byte hash
-
-	// Encode fromBlock into first 8 bytes
-	binary.BigEndian.PutUint64(b[0:8], fromBlock)
-
-	// Encode toBlock into next 8 bytes
-	binary.BigEndian.PutUint64(b[8:16], toBlock)
-
-	// Encode createdAt into next 8 bytes
-	binary.BigEndian.PutUint64(b[16:24], createdAt)
-
-	// Last 8 bytes remain as zero padding
-
-	return common.BytesToHash(b)
-}
-
-// extractCertificateMetadata extracts the metadata values from hash
-func extractCertificateMetadata(metadata common.Hash) types.CertificateMetadata {
-	b := metadata.Bytes()
-
-	return types.CertificateMetadata{
-		FromBlock: binary.BigEndian.Uint64(b[0:8]),
-		ToBlock:   binary.BigEndian.Uint64(b[8:16]),
-		CreatedAt: int64(binary.BigEndian.Uint64(b[16:24])),
-	}
-}
-
 func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *types.CertificateInfo {
 	if c == nil {
 		return nil
 	}
-	meta := extractCertificateMetadata(c.Metadata)
+	meta := types.NewCertificateMetadataFromHash(c.Metadata)
 
 	res := &types.CertificateInfo{
 		Height:            c.Height,
@@ -766,8 +742,8 @@ func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *ty
 		FromBlock:         meta.FromBlock,
 		ToBlock:           meta.ToBlock,
 		Status:            c.Status,
-		CreatedAt:         meta.CreatedAt,
-		UpdatedAt:         meta.CreatedAt,
+		CreatedAt:         int64(meta.CreatedAt),
+		UpdatedAt:         int64(meta.CreatedAt),
 		SignedCertificate: "na/agglayer header",
 	}
 	if c.PreviousLocalExitRoot != nil {
