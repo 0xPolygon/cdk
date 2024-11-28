@@ -1741,7 +1741,7 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 	}{
 		{
 			name:     "Valid metadata",
-			metadata: common.BigToHash(big.NewInt(123567890)),
+			metadata: createCertificateMetadata(0, 123567890, 123567890),
 			expected: aggsendertypes.CertificateMetadata{
 				FromBlock: 0,
 				ToBlock:   123567890,
@@ -1750,7 +1750,7 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 		},
 		{
 			name:     "Zero metadata",
-			metadata: common.BigToHash(big.NewInt(0)),
+			metadata: createCertificateMetadata(0, 0, 0),
 			expected: aggsendertypes.CertificateMetadata{
 				FromBlock: 0,
 				ToBlock:   0,
