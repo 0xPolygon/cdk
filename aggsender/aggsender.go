@@ -734,6 +734,7 @@ func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *ty
 		return nil
 	}
 	meta := types.NewCertificateMetadataFromHash(c.Metadata)
+	now := time.Now().UTC().UnixMilli()
 
 	res := &types.CertificateInfo{
 		Height:            c.Height,
@@ -743,7 +744,7 @@ func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *ty
 		ToBlock:           meta.ToBlock,
 		Status:            c.Status,
 		CreatedAt:         int64(meta.CreatedAt),
-		UpdatedAt:         int64(meta.CreatedAt),
+		UpdatedAt:         now,
 		SignedCertificate: "na/agglayer header",
 	}
 	if c.PreviousLocalExitRoot != nil {
