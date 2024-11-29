@@ -679,7 +679,7 @@ func (a *AggSender) updateCertificateStatus(ctx context.Context,
 
 	// That is a strange situation
 	if agglayerCert.Status.IsOpen() && localCert.Status.IsClosed() {
-		a.log.Warnf("certificate %s is reopen! from [%s] to [%s]",
+		a.log.Warnf("certificate %s is reopened! from [%s] to [%s]",
 			localCert.ID(), localCert.Status, agglayerCert.Status)
 	}
 

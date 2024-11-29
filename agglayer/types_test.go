@@ -76,7 +76,7 @@ func TestCertificateHeaderString(t *testing.T) {
 		Height:        1,
 		CertificateID: common.HexToHash("0x123"),
 	}
-	require.Equal(t, "Height: 1, CertificateID: 0x0000000000000000000000000000000000000000000000000000000000000123, previousLocalExitRoot:nil, NewLocalExitRoot: 0x0000000000000000000000000000000000000000000000000000000000000000. Status: Pending. Errors: []",
+	require.Equal(t, "Height: 1, CertificateID: 0x0000000000000000000000000000000000000000000000000000000000000123, PreviousLocalExitRoot: nil, NewLocalExitRoot: 0x0000000000000000000000000000000000000000000000000000000000000000. Status: Pending. Errors: []",
 		certificate.String())
 
 	var certNil *CertificateHeader

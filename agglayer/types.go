@@ -592,7 +592,7 @@ func (c *CertificateHeader) String() string {
 	if c.PreviousLocalExitRoot != nil {
 		previousLocalExitRoot = c.PreviousLocalExitRoot.String()
 	}
-	return fmt.Sprintf("Height: %d, CertificateID: %s, previousLocalExitRoot:%s, NewLocalExitRoot: %s. Status: %s."+
+	return fmt.Sprintf("Height: %d, CertificateID: %s, PreviousLocalExitRoot: %s, NewLocalExitRoot: %s. Status: %s."+
 		" Errors: [%s]",
 		c.Height, c.CertificateID.String(), previousLocalExitRoot, c.NewLocalExitRoot.String(), c.Status.String(), errors)
 }
