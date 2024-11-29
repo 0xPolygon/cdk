@@ -90,6 +90,12 @@ func main() {
 			Action:  start,
 			Flags:   append(flags, &customNetworkFlag),
 		},
+		{
+			Name:    "config",
+			Aliases: []string{},
+			Usage:   "Output a default configuration file",
+			Action:  configCmd,
+		},
 	}
 
 	err := app.Run(os.Args)

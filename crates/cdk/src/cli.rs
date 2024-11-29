@@ -55,4 +55,6 @@ pub(crate) enum Commands {
     },
     /// Output the corresponding versions of the components
     Versions,
+    /// Output the default config template file
+    Config,
 }
