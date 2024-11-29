@@ -77,8 +77,8 @@ func start(cliCtx *cli.Context) error {
 
 	l1InfoTreeSync := runL1InfoTreeSyncerIfNeeded(cliCtx.Context, components, *c, l1Client, reorgDetectorL1)
 	claimSponsor := runClaimSponsorIfNeeded(cliCtx.Context, components, l2Client, c.ClaimSponsor)
-	l1BridgeSync := runBridgeSyncL1IfNeeded(cliCtx.Context, components, c.BridgeL1Sync, reorgDetectorL1, l1Client)
-	l2BridgeSync := runBridgeSyncL2IfNeeded(cliCtx.Context, components, c.BridgeL2Sync, reorgDetectorL2, l2Client)
+	l1BridgeSync := runBridgeSyncL1IfNeeded(cliCtx.Context, components, *c, reorgDetectorL1, l1Client)
+	l2BridgeSync := runBridgeSyncL2IfNeeded(cliCtx.Context, components, *c, reorgDetectorL2, l2Client)
 	lastGERSync := runLastGERSyncIfNeeded(
 		cliCtx.Context, components, c.LastGERSync, reorgDetectorL2, l2Client, l1InfoTreeSync,
 	)
@@ -683,19 +683,19 @@ func runLastGERSyncIfNeeded(
 func runBridgeSyncL1IfNeeded(
 	ctx context.Context,
 	components []string,
-	cfg bridgesync.Config,
+	c config.Config,
 	reorgDetectorL1 *reorgdetector.ReorgDetector,
 	l1Client *ethclient.Client,
 ) *bridgesync.BridgeSync {
 	if !isNeeded([]string{cdkcommon.RPC}, components) {
 		return nil
 	}
-
-	originNetwork, err := l1Client.NetworkID(ctx)
+	ethermanClient, err := newEtherman(c)
 	if err != nil {
-		log.Fatalf("error getting network ID: %s", err)
+		log.Fatal(err)
 	}
 
+	cfg := c.BridgeL1Sync
 	bridgeSyncL1, err := bridgesync.NewL1(
 		ctx,
 		cfg.DBPath,
@@ -708,7 +708,7 @@ func runBridgeSyncL1IfNeeded(
 		cfg.WaitForNewBlocksPeriod.Duration,
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
-		uint32(originNetwork.Uint64()),
+		ethermanClient.RollupID,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL1: %s", err)
@@ -721,7 +721,7 @@ func runBridgeSyncL1IfNeeded(
 func runBridgeSyncL2IfNeeded(
 	ctx context.Context,
 	components []string,
-	cfg bridgesync.Config,
+	c config.Config,
 	reorgDetectorL2 *reorgdetector.ReorgDetector,
 	l2Client *ethclient.Client,
 ) *bridgesync.BridgeSync {
@@ -729,11 +729,12 @@ func runBridgeSyncL2IfNeeded(
 		return nil
 	}
 
-	originNetwork, err := l2Client.NetworkID(ctx)
+	ethermanClient, err := newEtherman(c)
 	if err != nil {
-		log.Fatalf("error getting network ID: %s", err)
+		log.Fatal(err)
 	}
 
+	cfg := c.BridgeL2Sync
 	bridgeSyncL2, err := bridgesync.NewL2(
 		ctx,
 		cfg.DBPath,
@@ -746,7 +747,7 @@ func runBridgeSyncL2IfNeeded(
 		cfg.WaitForNewBlocksPeriod.Duration,
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
-		uint32(originNetwork.Uint64()),
+		ethermanClient.RollupID,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL2: %s", err)
