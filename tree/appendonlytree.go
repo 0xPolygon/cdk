@@ -6,8 +6,13 @@ import (
 	"fmt"
 
 	"github.com/0xPolygon/cdk/db"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
+)
+
+var (
+	ErrInvalidIndex = errors.New("invalid index")
 )
 
 // AppendOnlyTree is a tree where leaves are added sequentially (by index)
@@ -35,10 +40,11 @@ func (t *AppendOnlyTree) AddLeaf(tx db.Txer, blockNum, blockPosition uint64, lea
 			return err
 		}
 		if int64(leaf.Index) != t.lastIndex+1 {
-			return fmt.Errorf(
+			log.Errorf(
 				"mismatched index. Expected: %d, actual: %d",
 				t.lastIndex+1, leaf.Index,
 			)
+			return ErrInvalidIndex
 		}
 	}
 	// Calculate new tree nodes
@@ -74,7 +80,10 @@ func (t *AppendOnlyTree) AddLeaf(tx db.Txer, blockNum, blockPosition uint64, lea
 		return err
 	}
 	t.lastIndex++
-	tx.AddRollbackCallback(func() { t.lastIndex-- })
+	tx.AddRollbackCallback(func() {
+		log.Debugf("decreasing index due to rollback")
+		t.lastIndex--
+	})
 	return nil
 }
 

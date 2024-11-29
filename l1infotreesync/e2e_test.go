@@ -3,7 +3,6 @@ package l1infotreesync_test
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"path"
 	"strconv"
 	"testing"
@@ -14,7 +13,6 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	mocks_l1infotreesync "github.com/0xPolygon/cdk/l1infotreesync/mocks"
-	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/test/contracts/verifybatchesmock"
 	"github.com/0xPolygon/cdk/test/helpers"
@@ -58,7 +56,7 @@ func newSimulatedClient(t *testing.T) (
 
 func TestE2E(t *testing.T) {
 	ctx, cancelCtx := context.WithCancel(context.Background())
-	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPath := path.Join(t.TempDir(), "l1infotreesyncTestE2E.sqlite")
 
 	rdm := mocks_l1infotreesync.NewReorgDetectorMock(t)
 	rdm.On("Subscribe", mock.Anything).Return(&reorgdetector.Subscription{}, nil)
@@ -144,8 +142,8 @@ func TestE2E(t *testing.T) {
 
 func TestWithReorgs(t *testing.T) {
 	ctx := context.Background()
-	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	dbPathReorg := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPathSyncer := path.Join(t.TempDir(), "l1infotreesyncTestWithReorgs_sync.sqlite")
+	dbPathReorg := path.Join(t.TempDir(), "l1infotreesyncTestWithReorgs_reorg.sqlite")
 
 	client, auth, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
 
@@ -184,7 +182,7 @@ func TestWithReorgs(t *testing.T) {
 	updateL1InfoTreeAndRollupExitTree(1, 1)
 
 	// Block 4
-	commitBlocks(t, client, 1, time.Second*5)
+	helpers.CommitBlocks(t, client, 1, time.Second*5)
 
 	// Make sure syncer is up to date
 	waitForSyncerToCatchUp(ctx, t, syncer, client)
@@ -215,7 +213,7 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 
 	// Block 4, 5, 6 after the fork
-	commitBlocks(t, client, 3, time.Millisecond*500)
+	helpers.CommitBlocks(t, client, 3, time.Millisecond*500)
 
 	// Make sure syncer is up to date
 	waitForSyncerToCatchUp(ctx, t, syncer, client)
@@ -237,7 +235,7 @@ func TestWithReorgs(t *testing.T) {
 	updateL1InfoTreeAndRollupExitTree(2, 1)
 
 	// Block 4, 5, 6, 7 after the fork
-	commitBlocks(t, client, 4, time.Millisecond*100)
+	helpers.CommitBlocks(t, client, 4, time.Millisecond*100)
 
 	// Make sure syncer is up to date
 	waitForSyncerToCatchUp(ctx, t, syncer, client)
@@ -262,8 +260,8 @@ func TestStressAndReorgs(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	dbPathSyncer := path.Join(t.TempDir(), "file:TestStressAndReorgs:memory:?cache=shared")
-	dbPathReorg := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPathSyncer := path.Join(t.TempDir(), "l1infotreesyncTestStressAndReorgs_sync.sqlite")
+	dbPathReorg := path.Join(t.TempDir(), "l1infotreesyncTestStressAndReorgs_reorg.sqlite")
 
 	client, auth, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
 
@@ -294,25 +292,16 @@ func TestStressAndReorgs(t *testing.T) {
 
 	for i := 1; i <= totalIterations; i++ {
 		for j := 1; j <= blocksInIteration; j++ {
-			commitBlocks(t, client, 1, time.Millisecond*10)
-
+			helpers.CommitBlocks(t, client, 1, time.Millisecond*10)
 			if j%reorgEveryXIterations == 0 {
-				currentBlockNum, err := client.Client().BlockNumber(ctx)
-				require.NoError(t, err)
-
-				block, err := client.Client().BlockByNumber(ctx, big.NewInt(int64(currentBlockNum-reorgSizeInBlocks)))
-				log.Debugf("reorging until block %d. Current block %d (before reorg)", block.NumberU64(), currentBlockNum)
-				require.NoError(t, err)
-				reorgFrom := block.Hash()
-				err = client.Fork(reorgFrom)
-				require.NoError(t, err)
+				helpers.Reorg(t, client, reorgSizeInBlocks)
 			} else {
 				updateL1InfoTreeAndRollupExitTree(i, j, uint32(j%maxRollupID)+1)
 			}
 		}
 	}
 
-	commitBlocks(t, client, 1, time.Millisecond*10)
+	helpers.CommitBlocks(t, client, 1, time.Millisecond*10)
 
 	waitForSyncerToCatchUp(ctx, t, syncer, client)
 
@@ -350,15 +339,5 @@ func waitForSyncerToCatchUp(ctx context.Context, t *testing.T, syncer *l1infotre
 		if lastBlockNum == lastBlockNum2 {
 			return
 		}
-	}
-}
-
-// commitBlocks commits the specified number of blocks with the given client and waits for the specified duration after each block
-func commitBlocks(t *testing.T, client *simulated.Backend, numBlocks int, waitDuration time.Duration) {
-	t.Helper()
-
-	for i := 0; i < numBlocks; i++ {
-		client.Commit()
-		time.Sleep(waitDuration)
 	}
 }

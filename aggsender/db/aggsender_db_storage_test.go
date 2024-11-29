@@ -19,7 +19,7 @@ import (
 func Test_Storage(t *testing.T) {
 	ctx := context.Background()
 
-	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	path := path.Join(t.TempDir(), "aggsenderTest_Storage.sqlite")
 	log.Debugf("sqlite path: %s", path)
 	cfg := AggSenderSQLStorageConfig{
 		DBPath:                  path,
@@ -232,7 +232,7 @@ func Test_Storage(t *testing.T) {
 func Test_SaveLastSentCertificate(t *testing.T) {
 	ctx := context.Background()
 
-	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	path := path.Join(t.TempDir(), "aggsenderTest_SaveLastSentCertificate.sqlite")
 	log.Debugf("sqlite path: %s", path)
 	cfg := AggSenderSQLStorageConfig{
 		DBPath:                  path,
@@ -375,6 +375,14 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 
 		require.NoError(t, storage.clean())
 	})
+}
+
+func (a *AggSenderSQLStorage) clean() error {
+	if _, err := a.db.Exec(`DELETE FROM certificate_info;`); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func Test_StoragePreviousLER(t *testing.T) {

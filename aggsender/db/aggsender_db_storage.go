@@ -100,8 +100,7 @@ func (a *AggSenderSQLStorage) GetCertificateByHeight(height uint64) (*types.Cert
 }
 
 // getCertificateByHeight returns a certificate by its height using the provided db
-func getCertificateByHeight(db db.Querier,
-	height uint64) (*types.CertificateInfo, error) {
+func getCertificateByHeight(db db.Querier, height uint64) (*types.CertificateInfo, error) {
 	var certificateInfo types.CertificateInfo
 	if err := meddler.QueryRow(db, &certificateInfo,
 		"SELECT * FROM certificate_info WHERE height = $1;", height); err != nil {
@@ -128,8 +127,9 @@ func (a *AggSenderSQLStorage) SaveLastSentCertificate(ctx context.Context, certi
 	if err != nil {
 		return fmt.Errorf("saveLastSentCertificate NewTx. Err: %w", err)
 	}
+	shouldRollback := true
 	defer func() {
-		if err != nil {
+		if shouldRollback {
 			if errRllbck := tx.Rollback(); errRllbck != nil {
 				a.logger.Errorf(errWhileRollbackFormat, errRllbck)
 			}
@@ -156,6 +156,7 @@ func (a *AggSenderSQLStorage) SaveLastSentCertificate(ctx context.Context, certi
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("saveLastSentCertificate commit. Err: %w", err)
 	}
+	shouldRollback = false
 
 	a.logger.Debugf("inserted certificate - Height: %d. Hash: %s", certificate.Height, certificate.CertificateID)
 
@@ -181,28 +182,10 @@ func (a *AggSenderSQLStorage) moveCertificateToHistoryOrDelete(tx db.Querier,
 
 // DeleteCertificate deletes a certificate from the storage
 func (a *AggSenderSQLStorage) DeleteCertificate(ctx context.Context, certificateID common.Hash) error {
-	tx, err := db.NewTx(ctx, a.db)
-	if err != nil {
+	if err := deleteCertificate(tx, certificateID); err != nil {
 		return err
 	}
-	defer func() {
-		if err != nil {
-			if errRllbck := tx.Rollback(); errRllbck != nil {
-				a.logger.Errorf(errWhileRollbackFormat, errRllbck)
-			}
-		}
-	}()
-
-	if err = deleteCertificate(tx, certificateID); err != nil {
-		return err
-	}
-
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-
 	a.logger.Debugf("deleted certificate - CertificateID: %s", certificateID)
-
 	return nil
 }
 
@@ -221,8 +204,9 @@ func (a *AggSenderSQLStorage) UpdateCertificate(ctx context.Context, certificate
 	if err != nil {
 		return err
 	}
+	shouldRollback := true
 	defer func() {
-		if err != nil {
+		if shouldRollback {
 			if errRllbck := tx.Rollback(); errRllbck != nil {
 				a.logger.Errorf(errWhileRollbackFormat, errRllbck)
 			}
@@ -236,18 +220,9 @@ func (a *AggSenderSQLStorage) UpdateCertificate(ctx context.Context, certificate
 	if err = tx.Commit(); err != nil {
 		return err
 	}
+	shouldRollback = false
 
 	a.logger.Debugf("updated certificate status - CertificateID: %s", certificate.CertificateID)
-
-	return nil
-}
-
-// clean deletes all the data from the storage
-// NOTE: Used only in tests
-func (a *AggSenderSQLStorage) clean() error {
-	if _, err := a.db.Exec(`DELETE FROM certificate_info;`); err != nil {
-		return err
-	}
 
 	return nil
 }

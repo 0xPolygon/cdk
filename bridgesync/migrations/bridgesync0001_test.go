@@ -10,7 +10,7 @@ import (
 )
 
 func Test001(t *testing.T) {
-	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPath := path.Join(t.TempDir(), "bridgesyncTest001.sqlite")
 
 	err := RunMigrations(dbPath)
 	require.NoError(t, err)

@@ -92,7 +92,7 @@ func (rd *ReorgDetector) AddBlockToTrack(ctx context.Context, id string, num uin
 	}
 	rd.trackedBlocksLock.RUnlock()
 
-	if existingHeader := trackedBlocks.get(num); existingHeader != nil && existingHeader.Hash == hash {
+	if existingHeader, err := trackedBlocks.get(num); err == nil && existingHeader.Hash == hash {
 		return nil
 	}
 
@@ -141,6 +141,7 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 			headers := hdrs.getSorted()
 			for _, hdr := range headers {
 				// Get the actual header from the network or from the cache
+				var err error
 				headersCacheLock.Lock()
 				currentHeader, ok := headersCache[hdr.Num]
 				if !ok || currentHeader == nil {

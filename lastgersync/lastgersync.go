@@ -22,7 +22,7 @@ type LastGERSync struct {
 func New(
 	ctx context.Context,
 	dbPath string,
-	rd sync.ReorgDetector,
+	rdL2 sync.ReorgDetector,
 	l2Client EthClienter,
 	globalExitRootL2 common.Address,
 	l1InfoTreesync *l1infotreesync.L1InfoTreeSync,
@@ -58,7 +58,7 @@ func New(
 		return nil, err
 	}
 
-	driver, err := sync.NewEVMDriver(rd, processor, downloader, reorgDetectorID, downloadBufferSize, rh)
+	driver, err := sync.NewEVMDriver(rdL2, processor, downloader, reorgDetectorID, downloadBufferSize, rh)
 	if err != nil {
 		return nil, err
 	}
