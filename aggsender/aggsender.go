@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"time"
 
@@ -188,7 +187,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
 
-	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo, toBlock)
+	createdTime := uint64(time.Now().UTC().UnixMilli())
+	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo, fromBlock, toBlock, createdTime)
 	if err != nil {
 		return nil, fmt.Errorf("error building certificate: %w", err)
 	}
@@ -212,7 +212,6 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		return nil, fmt.Errorf("error marshalling signed certificate. Cert:%s. Err: %w", signedCertificate.Brief(), err)
 	}
 
-	createdTime := time.Now().UTC().UnixMilli()
 	prevLER := common.BytesToHash(certificate.PrevLocalExitRoot[:])
 	certInfo := types.CertificateInfo{
 		Height:                certificate.Height,
@@ -221,8 +220,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		PreviousLocalExitRoot: &prevLER,
 		FromBlock:             fromBlock,
 		ToBlock:               toBlock,
-		CreatedAt:             createdTime,
-		UpdatedAt:             createdTime,
+		CreatedAt:             int64(createdTime),
+		UpdatedAt:             int64(createdTime),
 		SignedCertificate:     string(raw),
 	}
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
@@ -325,7 +324,9 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	bridges []bridgesync.Bridge,
 	claims []bridgesync.Claim,
 	lastSentCertificateInfo *types.CertificateInfo,
-	toBlock uint64) (*agglayer.Certificate, error) {
+	fromBlock, toBlock uint64,
+	createdAt uint64,
+) (*agglayer.Certificate, error) {
 	if len(bridges) == 0 && len(claims) == 0 {
 		return nil, errNoBridgesAndClaims
 	}
@@ -352,6 +353,12 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting next height and previous LER: %w", err)
 	}
 
+	meta := &types.CertificateMetadata{
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
+		CreatedAt: createdAt,
+	}
+
 	return &agglayer.Certificate{
 		NetworkID:           a.l2Syncer.OriginNetwork(),
 		PrevLocalExitRoot:   previousLER,
@@ -359,7 +366,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		BridgeExits:         bridgeExits,
 		ImportedBridgeExits: importedBridgeExits,
 		Height:              height,
-		Metadata:            createCertificateMetadata(toBlock),
+		Metadata:            meta.ToHash(),
 	}, nil
 }
 
@@ -722,28 +729,21 @@ func extractSignatureData(signature []byte) (r, s common.Hash, isOddParity bool,
 	return
 }
 
-// createCertificateMetadata creates a certificate metadata from given input
-func createCertificateMetadata(toBlock uint64) common.Hash {
-	return common.BigToHash(new(big.Int).SetUint64(toBlock))
-}
-
-func extractFromCertificateMetadataToBlock(metadata common.Hash) uint64 {
-	return metadata.Big().Uint64()
-}
-
 func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *types.CertificateInfo {
 	if c == nil {
 		return nil
 	}
+	meta := types.NewCertificateMetadataFromHash(c.Metadata)
 	now := time.Now().UTC().UnixMilli()
+
 	res := &types.CertificateInfo{
 		Height:            c.Height,
 		CertificateID:     c.CertificateID,
 		NewLocalExitRoot:  c.NewLocalExitRoot,
-		FromBlock:         0,
-		ToBlock:           extractFromCertificateMetadataToBlock(c.Metadata),
+		FromBlock:         meta.FromBlock,
+		ToBlock:           meta.ToBlock,
 		Status:            c.Status,
-		CreatedAt:         now,
+		CreatedAt:         int64(meta.CreatedAt),
 		UpdatedAt:         now,
 		SignedCertificate: "na/agglayer header",
 	}
