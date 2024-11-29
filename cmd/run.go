@@ -690,6 +690,12 @@ func runBridgeSyncL1IfNeeded(
 	if !isNeeded([]string{cdkcommon.RPC}, components) {
 		return nil
 	}
+
+	originNetwork, err := l1Client.NetworkID(ctx)
+	if err != nil {
+		log.Fatalf("error getting network ID: %s", err)
+	}
+
 	bridgeSyncL1, err := bridgesync.NewL1(
 		ctx,
 		cfg.DBPath,
@@ -702,7 +708,7 @@ func runBridgeSyncL1IfNeeded(
 		cfg.WaitForNewBlocksPeriod.Duration,
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
-		cfg.OriginNetwork,
+		uint32(originNetwork.Uint64()),
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL1: %s", err)
@@ -723,6 +729,11 @@ func runBridgeSyncL2IfNeeded(
 		return nil
 	}
 
+	originNetwork, err := l2Client.NetworkID(ctx)
+	if err != nil {
+		log.Fatalf("error getting network ID: %s", err)
+	}
+
 	bridgeSyncL2, err := bridgesync.NewL2(
 		ctx,
 		cfg.DBPath,
@@ -735,7 +746,7 @@ func runBridgeSyncL2IfNeeded(
 		cfg.WaitForNewBlocksPeriod.Duration,
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
-		cfg.OriginNetwork,
+		uint32(originNetwork.Uint64()),
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL2: %s", err)
