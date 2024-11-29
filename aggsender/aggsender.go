@@ -712,19 +712,24 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 		return nil
 	}
 	// CASE 2.1: certificate in storage but not in agglayer
-	// this is a non-sense, so thrown an error
+	// this is a non-sense, so throw an error
 	if localLastCert != nil && aggLayerLastCert == nil {
-		return fmt.Errorf("recovery: certificate in storage but not in agglayer. Inconsistency")
+		return fmt.Errorf("recovery: certificate exists in storage but not in agglayer. Inconsistency")
 	}
-	// CASE 3: aggsender stopped between sending to agglayer and storing on DB
+	// CASE 3.1: the certificate on the agglayer has less height than the one stored in the local storage
+	if aggLayerLastCert.Height < localLastCert.Height {
+		return fmt.Errorf("recovery: the last certificate in the agglayer has less height (%d) "+
+			"than the one in the local storage (%d)", aggLayerLastCert.Height, localLastCert.Height)
+	}
+	// CASE 3.2: aggsender stopped between sending to agglayer and storing to the local storage
 	if aggLayerLastCert.Height == localLastCert.Height+1 {
-		a.log.Infof("recovery: AggLayer have next cert (height:%d), so is a recovery case: storing cert: %s",
-			aggLayerLastCert.Height, localLastCert.String())
+		a.log.Infof("recovery: AggLayer has the next cert (height: %d), so is a recovery case: storing cert: %s",
+			aggLayerLastCert.Height, aggLayerLastCert.String())
 		// we need to store the certificate in the local storage.
 		localLastCert, err = a.updateLocalStorageWithAggLayerCert(ctx, aggLayerLastCert)
 		if err != nil {
-			log.Errorf("recovery: error updating status certificate: %s status: %w", aggLayerLastCert.String(), err)
-			return fmt.Errorf("recovery: error updating certificate status: %w", err)
+			log.Errorf("recovery: error updating certificate: %s, reason: %w", aggLayerLastCert.String(), err)
+			return fmt.Errorf("recovery: error updating certificate: %w", err)
 		}
 	}
 	// CASE 4: AggSender and AggLayer are not on the same page
