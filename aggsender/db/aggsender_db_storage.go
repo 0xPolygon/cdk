@@ -228,7 +228,7 @@ func (a *AggSenderSQLStorage) UpdateCertificate(ctx context.Context, certificate
 		}
 	}()
 
-	if _, err = tx.Exec(`UPDATE certificate_info SET status = $1, updated_at=$2 WHERE certificate_id = $3;`,
+	if _, err = tx.Exec(`UPDATE certificate_info SET status = $1, updated_at = $2 WHERE certificate_id = $3;`,
 		certificate.Status, certificate.UpdatedAt, certificate.CertificateID.String()); err != nil {
 		return fmt.Errorf("error updating certificate info: %w", err)
 	}
