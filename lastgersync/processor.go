@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/lastgersync/migrations"
@@ -112,7 +113,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	_, err := p.db.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
-	return err
+	return fmt.Errorf("error processing reorg: %w", err)
 }
 
 // GetFirstGERAfterL1InfoTreeIndex returns the first GER injected on the chain that is related to l1InfoTreeIndex

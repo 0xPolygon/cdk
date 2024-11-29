@@ -4,6 +4,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/0xPolygon/cdk/db"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -80,15 +81,15 @@ func (hl *headersList) copy() *headersList {
 }
 
 // get returns a header by block number
-func (hl *headersList) get(num uint64) *header {
+func (hl *headersList) get(num uint64) (*header, error) {
 	hl.RLock()
 	defer hl.RUnlock()
 
 	if b, ok := hl.headers[num]; ok {
-		return &b
+		return &b, nil
 	}
 
-	return nil
+	return nil, db.ErrNotFound
 }
 
 // getSorted returns headers in sorted order

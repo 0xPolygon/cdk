@@ -3,6 +3,7 @@ package dbstorage
 import (
 	"context"
 	"math"
+	"path"
 	"testing"
 	"time"
 
@@ -19,7 +20,7 @@ var (
 )
 
 func Test_Proof(t *testing.T) {
-	dbPath := "file::memory:?cache=shared"
+	dbPath := path.Join(t.TempDir(), "Test_Proof.sqlite")
 	err := db.RunMigrationsUp(dbPath, db.AggregatorMigrationName)
 	assert.NoError(t, err)
 

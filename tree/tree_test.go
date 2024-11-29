@@ -21,7 +21,7 @@ import (
 
 func TestCheckExpectedRoot(t *testing.T) {
 	createTreeDB := func() *sql.DB {
-		dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+		dbPath := path.Join(t.TempDir(), "treeTestCheckExpectedRoot.sqlite")
 		log.Debug("DB created at: ", dbPath)
 		require.NoError(t, migrations.RunMigrations(dbPath))
 		treeDB, err := db.NewSQLiteDB(dbPath)
@@ -112,7 +112,7 @@ func TestMTAddLeaf(t *testing.T) {
 
 	for ti, testVector := range mtTestVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
-			dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+			dbPath := path.Join(t.TempDir(), "treeTestMTAddLeaf.sqlite")
 			log.Debug("DB created at: ", dbPath)
 			err := migrations.RunMigrations(dbPath)
 			require.NoError(t, err)
@@ -167,7 +167,7 @@ func TestMTGetProof(t *testing.T) {
 
 	for ti, testVector := range mtTestVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
-			dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+			dbPath := path.Join(t.TempDir(), "treeTestMTGetProof.sqlite")
 			err := migrations.RunMigrations(dbPath)
 			require.NoError(t, err)
 			treeDB, err := db.NewSQLiteDB(dbPath)
@@ -201,7 +201,7 @@ func TestMTGetProof(t *testing.T) {
 
 func createTreeDBForTest(t *testing.T) *sql.DB {
 	t.Helper()
-	dbPath := "file::memory:?cache=shared"
+	dbPath := path.Join(t.TempDir(), "tree_createTreeDBForTest.sqlite")
 	err := migrations.RunMigrations(dbPath)
 	require.NoError(t, err)
 	treeDB, err := db.NewSQLiteDB(dbPath)

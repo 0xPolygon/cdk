@@ -2,6 +2,7 @@ package l1infotreesync
 
 import (
 	"context"
+	"path"
 	"testing"
 
 	"github.com/0xPolygon/cdk/db"
@@ -11,7 +12,7 @@ import (
 )
 
 func TestProcessVerifyBatchesNil(t *testing.T) {
-	dbPath := "file:TestProcessVerifyBatchesNil?mode=memory&cache=shared"
+	dbPath := path.Join(t.TempDir(), "l1infotreesyncTestProcessVerifyBatchesNil.sqlite")
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	err = sut.processVerifyBatches(nil, 1, nil)
@@ -19,7 +20,7 @@ func TestProcessVerifyBatchesNil(t *testing.T) {
 }
 
 func TestProcessVerifyBatchesOK(t *testing.T) {
-	dbPath := "file:TestProcessVerifyBatchesOK?mode=memory&cache=shared"
+	dbPath := path.Join(t.TempDir(), "l1infotreesyncTestProcessVerifyBatchesOK.sqlite")
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	event := VerifyBatches{
@@ -41,7 +42,7 @@ func TestProcessVerifyBatchesOK(t *testing.T) {
 }
 
 func TestProcessVerifyBatchesSkip0000(t *testing.T) {
-	dbPath := "file:TestProcessVerifyBatchesSkip0000?mode=memory&cache=shared"
+	dbPath := path.Join(t.TempDir(), "l1infotreesyncTestProcessVerifyBatchesSkip0000.sqlite")
 	sut, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	event := VerifyBatches{
@@ -61,7 +62,7 @@ func TestProcessVerifyBatchesSkip0000(t *testing.T) {
 }
 
 func TestGetVerifiedBatches(t *testing.T) {
-	dbPath := "file:TestGetVerifiedBatches?mode=memory&cache=shared"
+	dbPath := path.Join(t.TempDir(), "l1infotreesyncTestGetVerifiedBatches.sqlite")
 	p, err := newProcessor(dbPath)
 	require.NoError(t, err)
 	ctx := context.Background()

@@ -86,7 +86,7 @@ reset:
 	cancellableCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	log.Info("Starting sync...", " lastProcessedBlock", lastProcessedBlock)
+	d.log.Infof("Starting sync... lastProcessedBlock %d", lastProcessedBlock)
 	// start downloading
 	downloadCh := make(chan EVMBlock, d.downloadBufferSize)
 	go d.downloader.Download(cancellableCtx, lastProcessedBlock+1, downloadCh)
@@ -152,7 +152,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFun
 					return
 				}
 				attempts++
-				d.log.Errorf("error processing events for block %d, err: ", b.Num, err)
+				d.log.Errorf("error processing events for block %d, err: %v", b.Num, err)
 				d.rh.Handle("handleNewBlock", attempts)
 			} else {
 				succeed = true

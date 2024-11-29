@@ -33,12 +33,12 @@ func (tc TestClient) Client() *rpc.Client {
 
 // SimulatedBackendSetup defines the setup for a simulated backend.
 type SimulatedBackendSetup struct {
-	UserAuth                   *bind.TransactOpts
-	DeployerAuth               *bind.TransactOpts
-	EBZkevmBridgeAddr          common.Address
-	EBZkevmBridgeContract      *polygonzkevmbridgev2.Polygonzkevmbridgev2
-	EBZkevmBridgeProxyAddr     common.Address
-	EBZkevmBridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	UserAuth            *bind.TransactOpts
+	DeployerAuth        *bind.TransactOpts
+	BridgeAddr          common.Address
+	BridgeContract      *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	BridgeProxyAddr     common.Address
+	BridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
 }
 
 // SimulatedBackend creates a simulated backend with two accounts: user and deployer.
@@ -81,13 +81,13 @@ func SimulatedBackend(
 
 	// MUST BE DEPLOYED FIRST
 	// Deploy zkevm bridge contract
-	ebZkevmBridgeAddr, _, ebZkevmBridgeContract, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(deployerAuth, client.Client())
+	bridgeAddr, _, bridgeContract, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(deployerAuth, client.Client())
 	require.NoError(t, err)
 	client.Commit()
 
 	// Create proxy contract for the bridge
-	var ebZkevmBridgeProxyAddr common.Address
-	var ebZkevmBridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	var bridgeProxyAddr common.Address
+	var bridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
 	{
 		precalculatedAddr := crypto.CreateAddress(deployerAuth.From, 2) //nolint:mnd
 
@@ -105,31 +105,31 @@ func SimulatedBackend(
 		)
 		require.NoError(t, err)
 
-		ebZkevmBridgeProxyAddr, _, _, err = transparentupgradableproxy.DeployTransparentupgradableproxy(
+		bridgeProxyAddr, _, _, err = transparentupgradableproxy.DeployTransparentupgradableproxy(
 			deployerAuth,
 			client.Client(),
-			ebZkevmBridgeAddr,
+			bridgeAddr,
 			deployerAuth.From,
 			dataCallProxy,
 		)
 		require.NoError(t, err)
-		require.Equal(t, precalculatedBridgeAddr, ebZkevmBridgeProxyAddr)
+		require.Equal(t, precalculatedBridgeAddr, bridgeProxyAddr)
 		client.Commit()
 
-		ebZkevmBridgeProxyContract, err = polygonzkevmbridgev2.NewPolygonzkevmbridgev2(ebZkevmBridgeProxyAddr, client.Client())
+		bridgeProxyContract, err = polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeProxyAddr, client.Client())
 		require.NoError(t, err)
 
-		checkGERAddr, err := ebZkevmBridgeProxyContract.GlobalExitRootManager(&bind.CallOpts{})
+		checkGERAddr, err := bridgeProxyContract.GlobalExitRootManager(&bind.CallOpts{})
 		require.NoError(t, err)
 		require.Equal(t, precalculatedAddr, checkGERAddr)
 	}
 
 	return client, &SimulatedBackendSetup{
-		UserAuth:                   userAuth,
-		DeployerAuth:               deployerAuth,
-		EBZkevmBridgeAddr:          ebZkevmBridgeAddr,
-		EBZkevmBridgeContract:      ebZkevmBridgeContract,
-		EBZkevmBridgeProxyAddr:     ebZkevmBridgeProxyAddr,
-		EBZkevmBridgeProxyContract: ebZkevmBridgeProxyContract,
+		UserAuth:            userAuth,
+		DeployerAuth:        deployerAuth,
+		BridgeAddr:          bridgeAddr,
+		BridgeContract:      bridgeContract,
+		BridgeProxyAddr:     bridgeProxyAddr,
+		BridgeProxyContract: bridgeProxyContract,
 	}
 }
