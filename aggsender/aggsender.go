@@ -55,7 +55,11 @@ func New(
 	l1InfoTreeSyncer *l1infotreesync.L1InfoTreeSync,
 	l2Syncer types.L2BridgeSyncer,
 	epochNotifier types.EpochNotifier) (*AggSender, error) {
-	storage, err := db.NewAggSenderSQLStorage(logger, cfg.StoragePath)
+	storageConfig := db.AggSenderSQLStorageConfig{
+		DBPath:                  cfg.StoragePath,
+		KeepCertificatesHistory: cfg.KeepCertificatesHistory,
+	}
+	storage, err := db.NewAggSenderSQLStorage(logger, storageConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -153,12 +157,14 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		return nil, err
 	}
 	previousToBlock := uint64(0)
+	retryCount := 0
 	if lastSentCertificateInfo != nil {
 		previousToBlock = lastSentCertificateInfo.ToBlock
 		if lastSentCertificateInfo.Status == agglayer.InError {
 			// if the last certificate was in error, we need to resend it
 			// from the block before the error
 			previousToBlock = lastSentCertificateInfo.FromBlock - 1
+			retryCount = lastSentCertificateInfo.RetryCount + 1
 		}
 	}
 
@@ -216,6 +222,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	prevLER := common.BytesToHash(certificate.PrevLocalExitRoot[:])
 	certInfo := types.CertificateInfo{
 		Height:                certificate.Height,
+		RetryCount:            retryCount,
 		CertificateID:         certificateHash,
 		NewLocalExitRoot:      certificate.NewLocalExitRoot,
 		PreviousLocalExitRoot: &prevLER,
