@@ -36,6 +36,8 @@ type Config struct {
 	// DelayBeetweenRetries is the delay between retries:
 	//  is used on store Certificate and also in initial check
 	DelayBeetweenRetries types.Duration `mapstructure:"DelayBeetweenRetries"`
+	// KeepCertificatesHistory is a flag to keep the certificates history on storage
+	KeepCertificatesHistory bool `mapstructure:"KeepCertificatesHistory"`
 }
 
 // String returns a string representation of the Config

@@ -57,6 +57,7 @@ type Logger interface {
 
 type CertificateInfo struct {
 	Height        uint64      `meddler:"height"`
+	RetryCount    int         `meddler:"retry_count"`
 	CertificateID common.Hash `meddler:"certificate_id,hash"`
 	// PreviousLocalExitRoot if it's nil means no reported
 	PreviousLocalExitRoot *common.Hash               `meddler:"previous_local_exit_root,hash"`
@@ -80,6 +81,7 @@ func (c *CertificateInfo) String() string {
 	}
 	return fmt.Sprintf("aggsender.CertificateInfo: "+
 		"Height: %d "+
+		"RetryCount: %d "+
 		"CertificateID: %s "+
 		"PreviousLocalExitRoot: %s "+
 		"NewLocalExitRoot: %s "+
@@ -89,6 +91,7 @@ func (c *CertificateInfo) String() string {
 		"CreatedAt: %s "+
 		"UpdatedAt: %s",
 		c.Height,
+		c.RetryCount,
 		c.CertificateID.String(),
 		previousLocalExitRoot,
 		c.NewLocalExitRoot.String(),
@@ -105,7 +108,7 @@ func (c *CertificateInfo) ID() string {
 	if c == nil {
 		return "nil"
 	}
-	return fmt.Sprintf("%d/%s", c.Height, c.CertificateID.String())
+	return fmt.Sprintf("%d/%s (retry %d)", c.Height, c.CertificateID.String(), c.RetryCount)
 }
 
 // IsClosed returns true if the certificate is closed (settled or inError)
