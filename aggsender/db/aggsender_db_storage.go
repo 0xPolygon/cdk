@@ -144,7 +144,7 @@ func (a *AggSenderSQLStorage) SaveLastSentCertificate(ctx context.Context, certi
 	if cert != nil {
 		// we already have a certificate with this height
 		// we need to delete it before inserting the new one
-		if err = a.moveCertificateToHistory(tx, cert); err != nil {
+		if err = a.moveCertificateToHistoryOrDelete(tx, cert); err != nil {
 			return fmt.Errorf("saveLastSentCertificate moveCertificateToHistory Err: %w", err)
 		}
 	}
@@ -162,7 +162,7 @@ func (a *AggSenderSQLStorage) SaveLastSentCertificate(ctx context.Context, certi
 	return nil
 }
 
-func (a *AggSenderSQLStorage) moveCertificateToHistory(tx db.Querier, certificate *types.CertificateInfo) error {
+func (a *AggSenderSQLStorage) moveCertificateToHistoryOrDelete(tx db.Querier, certificate *types.CertificateInfo) error {
 	if a.cfg.KeepCertificatesHistory {
 		a.logger.Debugf("moving certificate to history - new CertificateID: %s", certificate.ID())
 		if _, err := tx.Exec(`INSERT INTO certificate_info_history SELECT * FROM certificate_info WHERE height = $1;`,
