@@ -67,8 +67,11 @@ setup() {
     run verify_balance "$l2_rpc_url" "$weth_token_addr" "$destination_addr" "$initial_receiver_balance" "$ether_value"
     assert_success
 
-    echo "Waiting for a time interval before the second bridge..." >&3
-    sleep 30
+    echo "Waiting for one agglayer certificate to settle before the second transaction..." >&3
+    settle_certificates_target=1
+    agglayer_timeout=600
+    run ./agglayer_certificates_monitor.sh "$settle_certificates_target" "$agglayer_timeout" "$l2_rpc_network_id"
+    assert_success
 
     echo "=== Running second LxLy deposit on L1 to network: $l2_rpc_network_id native_token: $native_token_addr" >&3
     run bridge_asset "$native_token_addr" "$l1_rpc_url"
