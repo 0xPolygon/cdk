@@ -27,7 +27,7 @@ type L1InfoTreeSyncer interface {
 
 // L2BridgeSyncer is an interface defining functions that an L2BridgeSyncer should implement
 type L2BridgeSyncer interface {
-	GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error)
+	GetRootByLER(ctx context.Context, ler common.Hash) (*treeTypes.Root, error)
 	GetExitRootByIndex(ctx context.Context, index uint32) (treeTypes.Root, error)
 	GetBridgesPublished(ctx context.Context, fromBlock, toBlock uint64) ([]bridgesync.Bridge, error)
 	GetClaims(ctx context.Context, fromBlock, toBlock uint64) ([]bridgesync.Claim, error)

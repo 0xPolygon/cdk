@@ -4,7 +4,6 @@ package mocks
 
 import (
 	bridgesync "github.com/0xPolygon/cdk/bridgesync"
-	common "github.com/ethereum/go-ethereum/common"
 
 	context "context"
 
@@ -69,63 +68,6 @@ func (_c *L2BridgeSyncer_BlockFinality_Call) Return(_a0 etherman.BlockNumberFina
 }
 
 func (_c *L2BridgeSyncer_BlockFinality_Call) RunAndReturn(run func() etherman.BlockNumberFinality) *L2BridgeSyncer_BlockFinality_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetBlockByLER provides a mock function with given fields: ctx, ler
-func (_m *L2BridgeSyncer) GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error) {
-	ret := _m.Called(ctx, ler)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetBlockByLER")
-	}
-
-	var r0 uint64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (uint64, error)); ok {
-		return rf(ctx, ler)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) uint64); ok {
-		r0 = rf(ctx, ler)
-	} else {
-		r0 = ret.Get(0).(uint64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
-		r1 = rf(ctx, ler)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// L2BridgeSyncer_GetBlockByLER_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBlockByLER'
-type L2BridgeSyncer_GetBlockByLER_Call struct {
-	*mock.Call
-}
-
-// GetBlockByLER is a helper method to define mock.On call
-//   - ctx context.Context
-//   - ler common.Hash
-func (_e *L2BridgeSyncer_Expecter) GetBlockByLER(ctx interface{}, ler interface{}) *L2BridgeSyncer_GetBlockByLER_Call {
-	return &L2BridgeSyncer_GetBlockByLER_Call{Call: _e.mock.On("GetBlockByLER", ctx, ler)}
-}
-
-func (_c *L2BridgeSyncer_GetBlockByLER_Call) Run(run func(ctx context.Context, ler common.Hash)) *L2BridgeSyncer_GetBlockByLER_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(common.Hash))
-	})
-	return _c
-}
-
-func (_c *L2BridgeSyncer_GetBlockByLER_Call) Return(_a0 uint64, _a1 error) *L2BridgeSyncer_GetBlockByLER_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *L2BridgeSyncer_GetBlockByLER_Call) RunAndReturn(run func(context.Context, common.Hash) (uint64, error)) *L2BridgeSyncer_GetBlockByLER_Call {
 	_c.Call.Return(run)
 	return _c
 }
