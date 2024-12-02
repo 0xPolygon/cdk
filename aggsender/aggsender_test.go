@@ -1703,13 +1703,6 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 	mockL1InfoTreeSyncer.AssertExpectations(t)
 }
 
-func TestMetadataConversions(t *testing.T) {
-	toBlock := uint64(123567890)
-	c := createCertificateMetadata(toBlock)
-	extractBlock := extractFromCertificateMetadataToBlock(c)
-	require.Equal(t, toBlock, extractBlock)
-}
-
 func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 	t.Parallel()
 
