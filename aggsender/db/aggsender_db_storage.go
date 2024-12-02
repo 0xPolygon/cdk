@@ -162,7 +162,8 @@ func (a *AggSenderSQLStorage) SaveLastSentCertificate(ctx context.Context, certi
 	return nil
 }
 
-func (a *AggSenderSQLStorage) moveCertificateToHistoryOrDelete(tx db.Querier, certificate *types.CertificateInfo) error {
+func (a *AggSenderSQLStorage) moveCertificateToHistoryOrDelete(tx db.Querier,
+	certificate *types.CertificateInfo) error {
 	if a.cfg.KeepCertificatesHistory {
 		a.logger.Debugf("moving certificate to history - new CertificateID: %s", certificate.ID())
 		if _, err := tx.Exec(`INSERT INTO certificate_info_history SELECT * FROM certificate_info WHERE height = $1;`,
