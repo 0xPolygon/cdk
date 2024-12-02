@@ -4,6 +4,7 @@ package mocks
 
 import (
 	bridgesync "github.com/0xPolygon/cdk/bridgesync"
+	common "github.com/ethereum/go-ethereum/common"
 
 	context "context"
 
@@ -301,6 +302,65 @@ func (_c *L2BridgeSyncer_GetLastProcessedBlock_Call) Return(_a0 uint64, _a1 erro
 }
 
 func (_c *L2BridgeSyncer_GetLastProcessedBlock_Call) RunAndReturn(run func(context.Context) (uint64, error)) *L2BridgeSyncer_GetLastProcessedBlock_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetRootByLER provides a mock function with given fields: ctx, ler
+func (_m *L2BridgeSyncer) GetRootByLER(ctx context.Context, ler common.Hash) (*treetypes.Root, error) {
+	ret := _m.Called(ctx, ler)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetRootByLER")
+	}
+
+	var r0 *treetypes.Root
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (*treetypes.Root, error)); ok {
+		return rf(ctx, ler)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) *treetypes.Root); ok {
+		r0 = rf(ctx, ler)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*treetypes.Root)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
+		r1 = rf(ctx, ler)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// L2BridgeSyncer_GetRootByLER_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRootByLER'
+type L2BridgeSyncer_GetRootByLER_Call struct {
+	*mock.Call
+}
+
+// GetRootByLER is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ler common.Hash
+func (_e *L2BridgeSyncer_Expecter) GetRootByLER(ctx interface{}, ler interface{}) *L2BridgeSyncer_GetRootByLER_Call {
+	return &L2BridgeSyncer_GetRootByLER_Call{Call: _e.mock.On("GetRootByLER", ctx, ler)}
+}
+
+func (_c *L2BridgeSyncer_GetRootByLER_Call) Run(run func(ctx context.Context, ler common.Hash)) *L2BridgeSyncer_GetRootByLER_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(common.Hash))
+	})
+	return _c
+}
+
+func (_c *L2BridgeSyncer_GetRootByLER_Call) Return(_a0 *treetypes.Root, _a1 error) *L2BridgeSyncer_GetRootByLER_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *L2BridgeSyncer_GetRootByLER_Call) RunAndReturn(run func(context.Context, common.Hash) (*treetypes.Root, error)) *L2BridgeSyncer_GetRootByLER_Call {
 	_c.Call.Return(run)
 	return _c
 }
