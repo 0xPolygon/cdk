@@ -75,7 +75,10 @@ func start(cliCtx *cli.Context) error {
 		}
 	}()
 
-	rollupID := uint32(0)
+	rollupID, err := etherman.GetRollupID(cfg.NetworkConfig.L1Config, l1Client)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	l1InfoTreeSync := runL1InfoTreeSyncerIfNeeded(cliCtx.Context, components, *cfg, l1Client, reorgDetectorL1)
 	claimSponsor := runClaimSponsorIfNeeded(cliCtx.Context, components, l2Client, cfg.ClaimSponsor)

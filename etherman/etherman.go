@@ -87,6 +87,22 @@ type Client struct {
 	auth  map[common.Address]bind.TransactOpts // empty in case of read-only client
 }
 
+func GetRollupID(l1Config config.L1Config, ethClient bind.ContractBackend) (uint32, error) {
+	contracts, err := contracts.NewContracts(l1Config, ethClient)
+	if err != nil {
+		return 0, fmt.Errorf("error creating contracts. Err: %w", err)
+	}
+	rollupID, err := contracts.Banana.RollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, l1Config.ZkEVMAddr)
+	if err != nil {
+		log.Errorf("error getting rollupID from %s : %+v", contracts.Banana.RollupManager.String(), err)
+
+		return 0, fmt.Errorf("error calling SMC RollupManager.RollupAddressToID(%s). Err: %w", l1Config.ZkEVMAddr.String(), err)
+	}
+	log.Infof("rollupID: %d (obtenied from SMC: %s )", rollupID, contracts.Banana.RollupManager.String())
+
+	return rollupID, nil
+}
+
 // NewClient creates a new etherman.
 func NewClient(cfg config.Config, l1Config config.L1Config, commonConfig cdkcommon.Config) (*Client, error) {
 	// Connect to ethereum node
