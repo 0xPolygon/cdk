@@ -75,15 +75,11 @@ func start(cliCtx *cli.Context) error {
 		}
 	}()
 
-	rollupID, err := etherman.GetRollupID(cfg.NetworkConfig.L1Config, l1Client)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	rollupID := getRollUpIDIfNeeded(components, cfg.NetworkConfig.L1Config, l1Client)
 	l1InfoTreeSync := runL1InfoTreeSyncerIfNeeded(cliCtx.Context, components, *cfg, l1Client, reorgDetectorL1)
 	claimSponsor := runClaimSponsorIfNeeded(cliCtx.Context, components, l2Client, cfg.ClaimSponsor)
 	l1BridgeSync := runBridgeSyncL1IfNeeded(cliCtx.Context, components, cfg.BridgeL1Sync, reorgDetectorL1,
-		l1Client, rollupID)
+		l1Client, 0)
 	l2BridgeSync := runBridgeSyncL2IfNeeded(cliCtx.Context, components, cfg.BridgeL2Sync, reorgDetectorL2,
 		l2Client, rollupID)
 	lastGERSync := runLastGERSyncIfNeeded(
@@ -551,6 +547,20 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 	}
 
 	return l1CLient
+}
+
+func getRollUpIDIfNeeded(components []string, networkConfig ethermanconfig.L1Config,
+	l1Client *ethclient.Client) uint32 {
+	if !isNeeded([]string{
+		cdkcommon.AGGSENDER,
+	}, components) {
+		return 0
+	}
+	rollupID, err := etherman.GetRollupID(networkConfig, networkConfig.ZkEVMAddr, l1Client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return rollupID
 }
 
 func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client {
