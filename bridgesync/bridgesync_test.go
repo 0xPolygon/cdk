@@ -109,12 +109,6 @@ func TestGetProof(t *testing.T) {
 	require.True(t, errors.Is(err, sync.ErrInconsistentState))
 }
 
-func TestGetBlockByLER(t *testing.T) {
-	s := BridgeSync{processor: &processor{halted: true}}
-	_, err := s.GetBlockByLER(context.Background(), common.Hash{})
-	require.True(t, errors.Is(err, sync.ErrInconsistentState))
-}
-
 func TestGetRootByLER(t *testing.T) {
 	s := BridgeSync{processor: &processor{halted: true}}
 	_, err := s.GetRootByLER(context.Background(), common.Hash{})
