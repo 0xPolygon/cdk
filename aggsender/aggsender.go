@@ -297,7 +297,7 @@ func (a *AggSender) limitCertSize(ctx context.Context, fromBlock, toBlock uint64
 		previousBridges = bridges
 		previousClaims = claims
 	}
-
+	return 0, nil, nil, fmt.Errorf("error reducing the size of the certificate")
 }
 
 func (a *AggSender) estimateSizeCert(numBridges, numClaims int) uint {
