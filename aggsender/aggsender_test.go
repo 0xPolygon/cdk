@@ -2011,7 +2011,6 @@ func NewClaimData(num int, blockNum []uint64) []bridgesync.Claim {
 		})
 	}
 	return res
-
 }
 
 func certInfoToCertHeader(certInfo *aggsendertypes.CertificateInfo, networkID uint32) *agglayer.CertificateHeader {

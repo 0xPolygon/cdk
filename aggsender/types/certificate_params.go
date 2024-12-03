@@ -19,7 +19,8 @@ type CertificateLocalParams struct {
 }
 
 func (c *CertificateLocalParams) String() string {
-	return fmt.Sprintf("FromBlock: %d, ToBlock: %d, numBridges: %d, numClaims: %d", c.FromBlock, c.ToBlock, c.NumberOfBridges(), c.NumberOfClaims())
+	return fmt.Sprintf("FromBlock: %d, ToBlock: %d, numBridges: %d, numClaims: %d",
+		c.FromBlock, c.ToBlock, c.NumberOfBridges(), c.NumberOfClaims())
 }
 
 func (c *CertificateLocalParams) Range(fromBlock, toBlock uint64) (*CertificateLocalParams, error) {
