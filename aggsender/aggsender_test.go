@@ -1915,6 +1915,63 @@ func TestCheckLastCertificateFromAgglayer_Case4ErrorUpdateStatus(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestLimitSize_FirstOneFit(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	fromBlock := uint64(1)
+	toBlock := uint64(20)
+	// It returns 1 bridge
+	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock).Return([]bridgesync.Bridge{
+		{},
+	}, nil)
+	testData.l2syncerMock.EXPECT().GetClaims(testData.ctx, fromBlock, toBlock).Return([]bridgesync.Claim{}, nil)
+	newToBlock, _, _, err := testData.sut.limitCertSize(testData.ctx, fromBlock, toBlock)
+	require.NoError(t, err)
+	require.Equal(t, toBlock, newToBlock)
+}
+
+func TestLimitSize_FirstMinusOneFit(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.sut.cfg.MaxCertSize = (estimatedSizeBridgeExit * 3) + 1
+	fromBlock := uint64(1)
+	toBlock := uint64(20)
+	// It returns 4 bridge
+	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock).Return([]bridgesync.Bridge{
+		{}, {}, {}, {},
+	}, nil).Once()
+
+	// fromBlock is 1, toBlock is 20, so it will return 3
+	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock-1).Return([]bridgesync.Bridge{
+		{}, {}, {},
+	}, nil).Once()
+	testData.l2syncerMock.EXPECT().GetClaims(testData.ctx, fromBlock, mock.Anything).Return([]bridgesync.Claim{}, nil)
+	newToBlock, _, _, err := testData.sut.limitCertSize(testData.ctx, fromBlock, toBlock)
+	require.NoError(t, err)
+	require.Equal(t, toBlock-1, newToBlock)
+}
+
+func TestLimitSize_NoWayToFitInMaxSize(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.sut.cfg.MaxCertSize = (estimatedSizeBridgeExit * 2) + 1
+	fromBlock := uint64(1)
+	toBlock := uint64(20)
+	// It returns 4 bridge
+	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock).Return([]bridgesync.Bridge{
+		{}, {}, {}, {},
+	}, nil).Once()
+
+	// fromBlock is 1, toBlock is 19, so it will return 3  that is bigger hat maxSize
+	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock-1).Return([]bridgesync.Bridge{
+		{}, {}, {},
+	}, nil).Once()
+
+	// fromBlock is 1, toBlock is 18, so it will return 0. So must use previous one even that is > maxSize
+	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock-2).Return([]bridgesync.Bridge{}, nil).Once()
+	testData.l2syncerMock.EXPECT().GetClaims(testData.ctx, fromBlock, mock.Anything).Return([]bridgesync.Claim{}, nil)
+	newToBlock, _, _, err := testData.sut.limitCertSize(testData.ctx, fromBlock, toBlock)
+	require.NoError(t, err)
+	require.Equal(t, toBlock-1, newToBlock)
+}
+
 type testDataFlags = int
 
 const (
@@ -1977,6 +2034,9 @@ func newAggsenderTestData(t *testing.T, creationFlags testDataFlags) *aggsenderT
 		aggLayerClient:   agglayerClientMock,
 		storage:          storage,
 		l1infoTreeSyncer: l1InfoTreeSyncerMock,
+		cfg: Config{
+			MaxCertSize: 1024 * 1024,
+		},
 	}
 	testCerts := []aggsendertypes.CertificateInfo{
 		{
