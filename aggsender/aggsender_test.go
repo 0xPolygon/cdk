@@ -1971,7 +1971,11 @@ func newAggsenderTestData(t *testing.T, creationFlags testDataFlags) *aggsenderT
 		storage = storageMock
 	} else {
 		dbPath := path.Join(t.TempDir(), "newAggsenderTestData.sqlite")
-		storage, err = db.NewAggSenderSQLStorage(logger, dbPath)
+		storageConfig := db.AggSenderSQLStorageConfig{
+			DBPath:                  dbPath,
+			KeepCertificatesHistory: true,
+		}
+		storage, err = db.NewAggSenderSQLStorage(logger, storageConfig)
 		require.NoError(t, err)
 	}
 

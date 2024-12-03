@@ -47,9 +47,19 @@ jobs:
     - name: Checkout kurtosis-cdk repository
       uses: actions/checkout@v4
       with:
+        go-version: ${{ matrix.go-version }}
+      env:
+        GOARCH: ${{ matrix.goarch }}
+
+    - name: Build Docker
+      run: make build-docker
+    
+    - name: Checkout kurtosis-cdk
+      uses: actions/checkout@v4
+      with:
         repository: 0xPolygon/kurtosis-cdk
         path: kurtosis-cdk
-        ref: v0.2.22
+        ref: v0.2.24
     
     - name: Install Kurtosis CDK tools
       uses: ./kurtosis-cdk/.github/actions/setup-kurtosis-cdk
@@ -64,7 +74,7 @@ jobs:
         sudo chmod +x /usr/local/bin/polycli
         /usr/local/bin/polycli version
 
-    - name: Setup bats
+    - name: Setup Bats and bats libs
       uses: bats-core/bats-action@2.0.0
     
     - name: Download cdk archive
