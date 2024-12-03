@@ -20,20 +20,20 @@ const (
 // TypeConversionError is an error that is returned when verifying a certficate
 // before generating its proof.
 type TypeConversionError struct {
-	InnerErrors []PPError
+	InnerErrors []error
 }
 
 // String is the implementation of the Error interface
-func (p *TypeConversionError) String() string {
+func (p *TypeConversionError) Error() string {
 	return fmt.Sprintf("Type conversion error: %v", p.InnerErrors)
 }
 
 // Unmarshal unmarshals the data from a map into a ProofGenerationError struct.
 func (p *TypeConversionError) Unmarshal(data interface{}) error {
-	getPPErrFn := func(key string, value interface{}) (PPError, error) {
+	getPPErrFn := func(key string, value interface{}) (error, error) {
 		switch key {
 		case MultipleL1InfoRootErrorType:
-			p.InnerErrors = append(p.InnerErrors, &MultipleL1InfoRoot{})
+			p.InnerErrors = append(p.InnerErrors, &MultipleL1InfoRootError{})
 		case MismatchNewLocalExitRootErrorType:
 			p.InnerErrors = append(p.InnerErrors, NewMismatchNewLocalExitRoot())
 		case BalanceOverflowErrorType:
@@ -61,7 +61,7 @@ func (p *TypeConversionError) Unmarshal(data interface{}) error {
 			}
 			return nullifierPathGenerationFailed, nil
 		case L1InfoRootIncorrectErrorType:
-			l1InfoRootIncorrect := &L1InfoRootIncorrect{}
+			l1InfoRootIncorrect := &L1InfoRootIncorrectError{}
 			if err := l1InfoRootIncorrect.Unmarshal(value); err != nil {
 				return nil, err
 			}
@@ -101,60 +101,60 @@ func (p *TypeConversionError) Unmarshal(data interface{}) error {
 	return nil
 }
 
-// MultipleL1InfoRoot is an error that is returned when the imported bridge exits
+// MultipleL1InfoRootError is an error that is returned when the imported bridge exits
 // refer to different L1 info roots.
-type MultipleL1InfoRoot struct{}
+type MultipleL1InfoRootError struct{}
 
 // String is the implementation of the Error interface
-func (e *MultipleL1InfoRoot) String() string {
+func (e *MultipleL1InfoRootError) Error() string {
 	return fmt.Sprintf(`%s: The imported bridge exits should refer to one and the same L1 info root.`,
 		MultipleL1InfoRootErrorType)
 }
 
 // MissingNewLocalExitRoot is an error that is returned when the certificate refers to
 // a new local exit root which differ from the one computed by the agglayer.
-type MismatchNewLocalExitRoot struct {
+type MismatchNewLocalExitRootError struct {
 	*DeclaredComputedError
 }
 
-func NewMismatchNewLocalExitRoot() *MismatchNewLocalExitRoot {
-	return &MismatchNewLocalExitRoot{
+func NewMismatchNewLocalExitRoot() *MismatchNewLocalExitRootError {
+	return &MismatchNewLocalExitRootError{
 		DeclaredComputedError: &DeclaredComputedError{ErrType: MismatchNewLocalExitRootErrorType},
 	}
 }
 
-// BalanceOverflow is an error that is returned when the given token balance cannot overflow.
-type BalanceOverflow struct {
+// BalanceOverflowError is an error that is returned when the given token balance cannot overflow.
+type BalanceOverflowError struct {
 	*TokenInfoError
 }
 
 // NewBalanceOverflow returns a new BalanceOverflow error.
-func NewBalanceOverflow() *BalanceOverflow {
-	return &BalanceOverflow{
+func NewBalanceOverflow() *BalanceOverflowError {
+	return &BalanceOverflowError{
 		TokenInfoError: &TokenInfoError{},
 	}
 }
 
 // String is the implementation of the Error interface
-func (e *BalanceOverflow) String() string {
+func (e *BalanceOverflowError) Error() string {
 	return fmt.Sprintf("%s: The given token balance cannot overflow. %s",
 		BalanceOverflowErrorType, e.TokenInfo.String())
 }
 
-// BalanceUnderflow is an error that is returned when the given token balance cannot be negative.
-type BalanceUnderflow struct {
+// BalanceUnderflowError is an error that is returned when the given token balance cannot be negative.
+type BalanceUnderflowError struct {
 	*TokenInfoError
 }
 
 // NewBalanceOverflow returns a new BalanceOverflow error.
-func NewBalanceUnderflow() *BalanceUnderflow {
-	return &BalanceUnderflow{
+func NewBalanceUnderflow() *BalanceUnderflowError {
+	return &BalanceUnderflowError{
 		TokenInfoError: &TokenInfoError{},
 	}
 }
 
 // String is the implementation of the Error interface
-func (e *BalanceUnderflow) String() string {
+func (e *BalanceUnderflowError) Error() string {
 	return fmt.Sprintf("%s: The given token balance cannot be negative. %s",
 		BalanceUnderflowErrorType, e.TokenInfo.String())
 }
@@ -189,28 +189,28 @@ func (e *SmtError) Unmarshal(data interface{}) error {
 	return nil
 }
 
-// BalanceProofGenerationFailed is a struct that represents an error that occurs when
+// BalanceProofGenerationFailedError is a struct that represents an error that occurs when
 // the  balance proof for the given token cannot be generated.
-type BalanceProofGenerationFailed struct {
+type BalanceProofGenerationFailedError struct {
 	*TokenInfoError
 	*SmtError
 }
 
-func NewBalanceProofGenerationFailed() *BalanceProofGenerationFailed {
-	return &BalanceProofGenerationFailed{
+func NewBalanceProofGenerationFailed() *BalanceProofGenerationFailedError {
+	return &BalanceProofGenerationFailedError{
 		TokenInfoError: &TokenInfoError{},
 		SmtError:       &SmtError{},
 	}
 }
 
 // String is the implementation of the Error interface
-func (e *BalanceProofGenerationFailed) String() string {
+func (e *BalanceProofGenerationFailedError) Error() string {
 	return fmt.Sprintf("%s: The balance proof for the given token cannot be generated. TokenInfo: %s. Error type: %s. %s",
 		BalanceProofGenerationFailedErrorType, e.TokenInfo.String(),
 		e.SmtError.ErrorCode, e.SmtError.Error)
 }
 
-func (e *BalanceProofGenerationFailed) UnmarshalFromMap(data interface{}) error {
+func (e *BalanceProofGenerationFailedError) UnmarshalFromMap(data interface{}) error {
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {
 		return errNotMap
@@ -223,28 +223,28 @@ func (e *BalanceProofGenerationFailed) UnmarshalFromMap(data interface{}) error 
 	return e.SmtError.Unmarshal(dataMap["source"])
 }
 
-// NullifierPathGenerationFailed is a struct that represents an error that occurs when
+// NullifierPathGenerationFailedError is a struct that represents an error that occurs when
 // the nullifier path for the given imported bridge exit cannot be generated..
-type NullifierPathGenerationFailed struct {
+type NullifierPathGenerationFailedError struct {
 	GlobalIndex *GlobalIndex `json:"global_index"`
 	*SmtError
 }
 
-func NewNullifierPathGenerationFailed() *NullifierPathGenerationFailed {
-	return &NullifierPathGenerationFailed{
+func NewNullifierPathGenerationFailed() *NullifierPathGenerationFailedError {
+	return &NullifierPathGenerationFailedError{
 		SmtError: &SmtError{},
 	}
 }
 
 // String is the implementation of the Error interface
-func (e *NullifierPathGenerationFailed) String() string {
+func (e *NullifierPathGenerationFailedError) Error() string {
 	return fmt.Sprintf("%s: The nullifier path for the given imported bridge exit cannot be generated. "+
 		"GlobalIndex: %s. Error type: %s. %s",
 		NullifierPathGenerationFailedErrorType, e.GlobalIndex.String(),
 		e.SmtError.ErrorCode, e.SmtError.Error)
 }
 
-func (e *NullifierPathGenerationFailed) UnmarshalFromMap(data interface{}) error {
+func (e *NullifierPathGenerationFailedError) UnmarshalFromMap(data interface{}) error {
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {
 		return errNotMap
@@ -263,21 +263,21 @@ func (e *NullifierPathGenerationFailed) UnmarshalFromMap(data interface{}) error
 	return e.GlobalIndex.UnmarshalFromMap(globalIndexMap)
 }
 
-// L1InfoRootIncorrect is an error that is returned when the L1 Info Root is invalid or unsettled
-type L1InfoRootIncorrect struct {
+// L1InfoRootIncorrectError is an error that is returned when the L1 Info Root is invalid or unsettled
+type L1InfoRootIncorrectError struct {
 	Declared  common.Hash `json:"declared"`
 	Retrieved common.Hash `json:"retrieved"`
 	LeafCount uint32      `json:"leaf_count"`
 }
 
 // String is the implementation of the Error interface
-func (e *L1InfoRootIncorrect) String() string {
+func (e *L1InfoRootIncorrectError) Error() string {
 	return fmt.Sprintf("%s: The L1 Info Root is incorrect. Declared: %s, Retrieved: %s, LeafCount: %d",
 		L1InfoRootIncorrectErrorType, e.Declared.String(), e.Retrieved.String(), e.LeafCount)
 }
 
 // Unmarshal unmarshals the data from a map into a L1InfoRootIncorrect struct.
-func (e *L1InfoRootIncorrect) Unmarshal(data interface{}) error {
+func (e *L1InfoRootIncorrectError) Unmarshal(data interface{}) error {
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {
 		return errNotMap

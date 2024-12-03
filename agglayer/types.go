@@ -555,7 +555,7 @@ type GenericPPError struct {
 	Value string
 }
 
-func (p *GenericPPError) String() string {
+func (p *GenericPPError) Error() string {
 	return fmt.Sprintf("Generic error: %s: %s", p.Key, p.Value)
 }
 
@@ -570,7 +570,7 @@ type CertificateHeader struct {
 	NewLocalExitRoot      common.Hash       `json:"new_local_exit_root"`
 	Status                CertificateStatus `json:"status"`
 	Metadata              common.Hash       `json:"metadata"`
-	Error                 PPError           `json:"-"`
+	Error                 error             `json:"-"`
 }
 
 // ID returns a string with the ident of this cert (height/certID)
@@ -587,7 +587,7 @@ func (c *CertificateHeader) String() string {
 	}
 	errors := ""
 	if c.Error != nil {
-		errors = c.Error.String()
+		errors = c.Error.Error()
 	}
 	previousLocalExitRoot := nilStr
 	if c.PreviousLocalExitRoot != nil {
@@ -629,7 +629,7 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 			return err
 		}
 
-		var ppError PPError
+		var ppError error
 
 		for key, value := range inErrDataMap {
 			switch key {

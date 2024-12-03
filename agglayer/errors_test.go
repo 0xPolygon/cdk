@@ -42,7 +42,7 @@ func TestErrorVectors(t *testing.T) {
 				if tc.ExpectedError == "" {
 					require.NoError(t, err, "Test: %s not expected any unmarshal error, but got: %v", tc.TestName, err)
 					require.NotNil(t, certificateHeader.Error, "Test: %s unpacked error is nil", tc.TestName)
-					fmt.Println(certificateHeader.Error.String())
+					fmt.Println(certificateHeader.Error)
 				} else {
 					require.ErrorContains(t, err, tc.ExpectedError, "Test: %s expected error: %s. Got: %v", tc.TestName, tc.ExpectedError, err)
 				}

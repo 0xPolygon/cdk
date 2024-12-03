@@ -151,7 +151,7 @@ func TestGetLatestKnownCertificateHeaderWithPrevLERResponse(t *testing.T) {
 	response := rpc.Response{
 		Result: []byte(`{"network_id":1,"height":0,"epoch_number":223,"certificate_index":0,"certificate_id":"0xf9179d2fbe535814b5a14496e2eed474f49c6131227a9dfc5d2d8caf9e212054","prev_local_exit_root":"0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757","new_local_exit_root":"0x7ae06f4a5d0b6da7dd4973fb6ef40d82c9f2680899b3baaf9e564413b59cc160","metadata":"0x00000000000000000000000000000000000000000000000000000000000001a7","status":"Settled"}`),
 	}
-	jSONRPCCall = func(url, method string, params ...interface{}) (rpc.Response, error) {
+	jSONRPCCall = func(_, _ string, _ ...interface{}) (rpc.Response, error) {
 		return response, nil
 	}
 	cert, err := sut.GetLatestKnownCertificateHeader(1)

@@ -13,50 +13,50 @@ const (
 
 // ProofVerificationError is an error that is returned when verifying a proof
 type ProofVerificationError struct {
-	InnerErrors []PPError
+	InnerErrors []error
 }
 
 // String is the implementation of the Error interface
-func (p *ProofVerificationError) String() string {
+func (p *ProofVerificationError) Error() string {
 	return fmt.Sprintf("Proof verification error: %v", p.InnerErrors)
 }
 
 // Unmarshal unmarshals the data from a map into a ProofVerificationError struct.
 func (p *ProofVerificationError) Unmarshal(data interface{}) error {
-	getPPErrFn := func(key string, value interface{}) (PPError, error) {
+	getPPErrFn := func(key string, value interface{}) (error, error) {
 		switch key {
 		case VersionMismatchErrorType:
-			versionMismatch := &VersionMismatch{}
+			versionMismatch := &VersionMismatchError{}
 			if err := versionMismatch.Unmarshal(value); err != nil {
 				return nil, err
 			}
 			return versionMismatch, nil
 		case CoreErrorType:
-			core := &Core{}
+			core := &CoreError{}
 			if err := core.Unmarshal(value); err != nil {
 				return nil, err
 			}
 			return core, nil
 		case RecursionErrorType:
-			recursion := &Recursion{}
+			recursion := &RecursionError{}
 			if err := recursion.Unmarshal(value); err != nil {
 				return nil, err
 			}
 			return recursion, nil
 		case PlankErrorType:
-			plank := &Plank{}
+			plank := &PlankError{}
 			if err := plank.Unmarshal(value); err != nil {
 				return nil, err
 			}
 			return plank, nil
 		case Groth16ErrorType:
-			groth16 := &Groth16{}
+			groth16 := &Groth16Error{}
 			if err := groth16.Unmarshal(value); err != nil {
 				return nil, err
 			}
 			return groth16, nil
 		case InvalidPublicValuesErrorType:
-			return &InvalidPublicValues{}, nil
+			return &InvalidPublicValuesError{}, nil
 		default:
 			return nil, fmt.Errorf("unknown proof verification error type: %v", key)
 		}
@@ -104,61 +104,65 @@ func (e *StringError) Unmarshal(data interface{}) error {
 	return nil
 }
 
-// VersionMismatch is an error that is returned when the version of the proof is
+// VersionMismatchError is an error that is returned when the version of the proof is
 // different from the version of the core.
-type VersionMismatch struct {
+type VersionMismatchError struct {
 	StringError
 }
 
 // String is the implementation of the Error interface
-func (e *VersionMismatch) String() string {
+func (e *VersionMismatchError) String() string {
 	return fmt.Sprintf("%s: %s", VersionMismatchErrorType, e.StringError)
 }
 
-// Core is an error that is returned when the core machine verification fails.
-type Core struct {
+func (e *VersionMismatchError) Error() string {
+	return e.String()
+}
+
+// CoreError is an error that is returned when the core machine verification fails.
+type CoreError struct {
 	StringError
 }
 
 // String is the implementation of the Error interface
-func (e *Core) String() string {
+func (e *CoreError) Error() string {
 	return fmt.Sprintf("%s: Core machine verification error: %s", CoreErrorType, e.StringError)
 }
 
-// Recursion is an error that is returned when the recursion verification fails.
-type Recursion struct {
+// RecursionError is an error that is returned when the recursion verification fails.
+type RecursionError struct {
 	StringError
 }
 
 // String is the implementation of the Error interface
-func (e *Recursion) String() string {
+func (e *RecursionError) Error() string {
 	return fmt.Sprintf("%s: Recursion verification error: %s", RecursionErrorType, e.StringError)
 }
 
-// Plank is an error that is returned when the plank verification fails.
-type Plank struct {
+// PlankError is an error that is returned when the plank verification fails.
+type PlankError struct {
 	StringError
 }
 
 // String is the implementation of the Error interface
-func (e *Plank) String() string {
+func (e *PlankError) Error() string {
 	return fmt.Sprintf("%s: Plank verification error: %s", PlankErrorType, e.StringError)
 }
 
-// Groth16 is an error that is returned when the Groth16 verification fails.
-type Groth16 struct {
+// Groth16Error is an error that is returned when the Groth16Error verification fails.
+type Groth16Error struct {
 	StringError
 }
 
 // String is the implementation of the Error interface
-func (e *Groth16) String() string {
+func (e *Groth16Error) Error() string {
 	return fmt.Sprintf("%s: Groth16 verification error: %s", Groth16ErrorType, e.StringError)
 }
 
-// InvalidPublicValues is an error that is returned when the public values are invalid.
-type InvalidPublicValues struct{}
+// InvalidPublicValuesError is an error that is returned when the public values are invalid.
+type InvalidPublicValuesError struct{}
 
 // String is the implementation of the Error interface
-func (e *InvalidPublicValues) String() string {
+func (e *InvalidPublicValuesError) Error() string {
 	return fmt.Sprintf("%s: Invalid public values", InvalidPublicValuesErrorType)
 }

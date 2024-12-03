@@ -34,18 +34,14 @@ const (
 	UnknownErrorType                      = "UnknownError"
 )
 
-type PPError interface {
-	String() string
-}
-
 // ProofGenerationError is a struct that represents an error that occurs when generating a proof.
 type ProofGenerationError struct {
 	GenerationType string
-	InnerErrors    []PPError
+	InnerErrors    []error
 }
 
 // String is the implementation of the Error interface
-func (p *ProofGenerationError) String() string {
+func (p *ProofGenerationError) Error() string {
 	return fmt.Sprintf("Proof generation error: %s. %s", p.GenerationType, p.InnerErrors)
 }
 
@@ -63,7 +59,7 @@ func (p *ProofGenerationError) Unmarshal(data interface{}) error {
 
 	p.GenerationType = generationType
 
-	getPPErrFn := func(key string, value interface{}) (PPError, error) {
+	getPPErrFn := func(key string, value interface{}) (error, error) {
 		switch key {
 		case InvalidSignerErrorType:
 			invalidSigner := &InvalidSignerError{}
@@ -114,19 +110,19 @@ func (p *ProofGenerationError) Unmarshal(data interface{}) error {
 			}
 			p.InnerErrors = append(p.InnerErrors, invalidImportedExitsRoot)
 		case MismatchImportedExitsRootErrorType:
-			p.InnerErrors = append(p.InnerErrors, &MismatchImportedExitsRoot{})
+			p.InnerErrors = append(p.InnerErrors, &MismatchImportedExitsRootError{})
 		case InvalidNullifierPathErrorType:
-			p.InnerErrors = append(p.InnerErrors, &InvalidNullifierPath{})
+			p.InnerErrors = append(p.InnerErrors, &InvalidNullifierPathError{})
 		case InvalidBalancePathErrorType:
-			p.InnerErrors = append(p.InnerErrors, &InvalidBalancePath{})
+			p.InnerErrors = append(p.InnerErrors, &InvalidBalancePathError{})
 		case BalanceOverflowInBridgeExitErrorType:
-			p.InnerErrors = append(p.InnerErrors, &BalanceOverflowInBridgeExit{})
+			p.InnerErrors = append(p.InnerErrors, &BalanceOverflowInBridgeExitError{})
 		case BalanceUnderflowInBridgeExitErrorType:
-			p.InnerErrors = append(p.InnerErrors, &BalanceUnderflowInBridgeExit{})
+			p.InnerErrors = append(p.InnerErrors, &BalanceUnderflowInBridgeExitError{})
 		case CannotExitToSameNetworkErrorType:
-			p.InnerErrors = append(p.InnerErrors, &CannotExitToSameNetwork{})
+			p.InnerErrors = append(p.InnerErrors, &CannotExitToSameNetworkError{})
 		case InvalidMessageOriginNetworkErrorType:
-			p.InnerErrors = append(p.InnerErrors, &InvalidMessageOriginNetwork{})
+			p.InnerErrors = append(p.InnerErrors, &InvalidMessageOriginNetworkError{})
 		case InvalidL1TokenInfoErrorType:
 			invalidL1TokenInfo := NewInvalidL1TokenInfo()
 			if err := invalidL1TokenInfo.UnmarshalFromMap(value); err != nil {
@@ -146,9 +142,9 @@ func (p *ProofGenerationError) Unmarshal(data interface{}) error {
 			}
 			p.InnerErrors = append(p.InnerErrors, duplicateTokenBalanceProof)
 		case InvalidSignatureErrorType:
-			p.InnerErrors = append(p.InnerErrors, &InvalidSignature{})
+			p.InnerErrors = append(p.InnerErrors, &InvalidSignatureError{})
 		case InvalidImportedBridgeExitErrorType:
-			invalidImportedBridgeExit := &InvalidImportedBridgeExit{}
+			invalidImportedBridgeExit := &InvalidImportedBridgeExitError{}
 			if err := invalidImportedBridgeExit.UnmarshalFromMap(value); err != nil {
 				return nil, err
 			}
@@ -210,6 +206,10 @@ func (e *InvalidSignerError) String() string {
 		InvalidSignerErrorType, e.Declared.String(), e.Recovered.String())
 }
 
+func (e *InvalidSignerError) Error() string {
+	return e.String()
+}
+
 func (e *InvalidSignerError) UnmarshalFromMap(data interface{}) error {
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {
@@ -240,7 +240,7 @@ type DeclaredComputedError struct {
 }
 
 // String is the implementation of the Error interface
-func (e *DeclaredComputedError) String() string {
+func (e *DeclaredComputedError) Error() string {
 	return fmt.Sprintf("%s. Declared: %s, Computed: %s",
 		e.ErrType, e.Declared.String(), e.Computed.String())
 }
@@ -268,153 +268,153 @@ func (e *DeclaredComputedError) UnmarshalFromMap(data interface{}) error {
 	return nil
 }
 
-// InvalidPreviousLocalExitRoot is a struct that represents an error that occurs when
+// InvalidPreviousLocalExitRootError is a struct that represents an error that occurs when
 // the previous local exit root is invalid.
-type InvalidPreviousLocalExitRoot struct {
+type InvalidPreviousLocalExitRootError struct {
 	*DeclaredComputedError
 }
 
-func NewInvalidPreviousLocalExitRoot() *InvalidPreviousLocalExitRoot {
-	return &InvalidPreviousLocalExitRoot{
+func NewInvalidPreviousLocalExitRoot() *InvalidPreviousLocalExitRootError {
+	return &InvalidPreviousLocalExitRootError{
 		DeclaredComputedError: &DeclaredComputedError{ErrType: InvalidPreviousLERErrorType},
 	}
 }
 
-// InvalidPreviousBalanceRoot is a struct that represents an error that occurs when
+// InvalidPreviousBalanceRootError is a struct that represents an error that occurs when
 // the previous balance root is invalid.
-type InvalidPreviousBalanceRoot struct {
+type InvalidPreviousBalanceRootError struct {
 	*DeclaredComputedError
 }
 
-func NewInvalidPreviousBalanceRoot() *InvalidPreviousBalanceRoot {
-	return &InvalidPreviousBalanceRoot{
+func NewInvalidPreviousBalanceRoot() *InvalidPreviousBalanceRootError {
+	return &InvalidPreviousBalanceRootError{
 		DeclaredComputedError: &DeclaredComputedError{ErrType: InvalidPreviousBalanceRootErrorType},
 	}
 }
 
-// InvalidPreviousNullifierRoot is a struct that represents an error that occurs when
+// InvalidPreviousNullifierRootError is a struct that represents an error that occurs when
 // the previous nullifier root is invalid.
-type InvalidPreviousNullifierRoot struct {
+type InvalidPreviousNullifierRootError struct {
 	*DeclaredComputedError
 }
 
-func NewInvalidPreviousNullifierRoot() *InvalidPreviousNullifierRoot {
-	return &InvalidPreviousNullifierRoot{
+func NewInvalidPreviousNullifierRoot() *InvalidPreviousNullifierRootError {
+	return &InvalidPreviousNullifierRootError{
 		DeclaredComputedError: &DeclaredComputedError{ErrType: InvalidPreviousNullifierRootErrorType},
 	}
 }
 
-// InvalidNewLocalExitRoot is a struct that represents an error that occurs when
+// InvalidNewLocalExitRootError is a struct that represents an error that occurs when
 // the new local exit root is invalid.
-type InvalidNewLocalExitRoot struct {
+type InvalidNewLocalExitRootError struct {
 	*DeclaredComputedError
 }
 
-func NewInvalidNewLocalExitRoot() *InvalidNewLocalExitRoot {
-	return &InvalidNewLocalExitRoot{
+func NewInvalidNewLocalExitRoot() *InvalidNewLocalExitRootError {
+	return &InvalidNewLocalExitRootError{
 		DeclaredComputedError: &DeclaredComputedError{ErrType: InvalidNewLocalExitRootErrorType},
 	}
 }
 
-// InvalidNewBalanceRoot is a struct that represents an error that occurs when
+// InvalidNewBalanceRootError is a struct that represents an error that occurs when
 // the new balance root is invalid.
-type InvalidNewBalanceRoot struct {
+type InvalidNewBalanceRootError struct {
 	*DeclaredComputedError
 }
 
-func NewInvalidNewBalanceRoot() *InvalidNewBalanceRoot {
-	return &InvalidNewBalanceRoot{
+func NewInvalidNewBalanceRoot() *InvalidNewBalanceRootError {
+	return &InvalidNewBalanceRootError{
 		DeclaredComputedError: &DeclaredComputedError{ErrType: InvalidNewBalanceRootErrorType},
 	}
 }
 
-// InvalidNewNullifierRoot is a struct that represents an error that occurs when
+// InvalidNewNullifierRootError is a struct that represents an error that occurs when
 // the new nullifier root is invalid.
-type InvalidNewNullifierRoot struct {
+type InvalidNewNullifierRootError struct {
 	*DeclaredComputedError
 }
 
-func NewInvalidNewNullifierRoot() *InvalidNewNullifierRoot {
-	return &InvalidNewNullifierRoot{
+func NewInvalidNewNullifierRoot() *InvalidNewNullifierRootError {
+	return &InvalidNewNullifierRootError{
 		DeclaredComputedError: &DeclaredComputedError{ErrType: InvalidNewNullifierRootErrorType},
 	}
 }
 
-// InvalidImportedExitsRoot is a struct that represents an error that occurs when
+// InvalidImportedExitsRootError is a struct that represents an error that occurs when
 // the imported exits root is invalid.
-type InvalidImportedExitsRoot struct {
+type InvalidImportedExitsRootError struct {
 	*DeclaredComputedError
 }
 
-func NewInvalidImportedExitsRoot() *InvalidImportedExitsRoot {
-	return &InvalidImportedExitsRoot{
+func NewInvalidImportedExitsRoot() *InvalidImportedExitsRootError {
+	return &InvalidImportedExitsRootError{
 		DeclaredComputedError: &DeclaredComputedError{ErrType: InvalidImportedExitsRootErrorType},
 	}
 }
 
-// MismatchImportedExitsRoot is a struct that represents an error that occurs when
+// MismatchImportedExitsRootError is a struct that represents an error that occurs when
 // the commitment to the list of imported bridge exits but the list of imported bridge exits is empty.
-type MismatchImportedExitsRoot struct{}
+type MismatchImportedExitsRootError struct{}
 
 // String is the implementation of the Error interface
-func (e *MismatchImportedExitsRoot) String() string {
+func (e *MismatchImportedExitsRootError) Error() string {
 	return fmt.Sprintf(`%s: The commitment to the list of imported bridge exits 
 	should be Some if and only if this list is non-empty, should be None otherwise.`,
 		MismatchImportedExitsRootErrorType)
 }
 
-// InvalidNullifierPath is a struct that represents an error that occurs when
+// InvalidNullifierPathError is a struct that represents an error that occurs when
 // the provided nullifier path is invalid.
-type InvalidNullifierPath struct{}
+type InvalidNullifierPathError struct{}
 
 // String is the implementation of the Error interface
-func (e *InvalidNullifierPath) String() string {
+func (e *InvalidNullifierPathError) Error() string {
 	return fmt.Sprintf("%s: The provided nullifier path is invalid", InvalidNullifierPathErrorType)
 }
 
-// InvalidBalancePath is a struct that represents an error that occurs when
+// InvalidBalancePathError is a struct that represents an error that occurs when
 // the provided balance path is invalid.
-type InvalidBalancePath struct{}
+type InvalidBalancePathError struct{}
 
 // String is the implementation of the Error interface
-func (e *InvalidBalancePath) String() string {
+func (e *InvalidBalancePathError) Error() string {
 	return fmt.Sprintf("%s: The provided balance path is invalid", InvalidBalancePathErrorType)
 }
 
-// BalanceOverflowInBridgeExit is a struct that represents an error that occurs when
+// BalanceOverflowInBridgeExitError is a struct that represents an error that occurs when
 // bridge exit led to balance overflow.
-type BalanceOverflowInBridgeExit struct{}
+type BalanceOverflowInBridgeExitError struct{}
 
 // String is the implementation of the Error interface
-func (e *BalanceOverflowInBridgeExit) String() string {
+func (e *BalanceOverflowInBridgeExitError) Error() string {
 	return fmt.Sprintf("%s: The imported bridge exit led to balance overflow.", BalanceOverflowInBridgeExitErrorType)
 }
 
-// BalanceUnderflowInBridgeExit is a struct that represents an error that occurs when
+// BalanceUnderflowInBridgeExitError is a struct that represents an error that occurs when
 // bridge exit led to balance underflow.
-type BalanceUnderflowInBridgeExit struct{}
+type BalanceUnderflowInBridgeExitError struct{}
 
 // String is the implementation of the Error interface
-func (e *BalanceUnderflowInBridgeExit) String() string {
+func (e *BalanceUnderflowInBridgeExitError) Error() string {
 	return fmt.Sprintf("%s: The imported bridge exit led to balance underflow.", BalanceUnderflowInBridgeExitErrorType)
 }
 
-// CannotExitToSameNetwork is a struct that represents an error that occurs when
+// CannotExitToSameNetworkError is a struct that represents an error that occurs when
 // the user tries to exit to the same network.
-type CannotExitToSameNetwork struct{}
+type CannotExitToSameNetworkError struct{}
 
 // String is the implementation of the Error interface
-func (e *CannotExitToSameNetwork) String() string {
+func (e *CannotExitToSameNetworkError) Error() string {
 	return fmt.Sprintf("%s: The provided bridge exit goes to the sender’s own network which is not permitted.",
 		CannotExitToSameNetworkErrorType)
 }
 
-// InvalidMessageOriginNetwork is a struct that represents an error that occurs when
+// InvalidMessageOriginNetworkError is a struct that represents an error that occurs when
 // the origin network of the message is invalid.
-type InvalidMessageOriginNetwork struct{}
+type InvalidMessageOriginNetworkError struct{}
 
 // String is the implementation of the Error interface
-func (e *InvalidMessageOriginNetwork) String() string {
+func (e *InvalidMessageOriginNetworkError) Error() string {
 	return fmt.Sprintf("%s: The origin network of the message is invalid.", InvalidMessageOriginNetworkErrorType)
 }
 
@@ -462,69 +462,73 @@ func (e *TokenInfoError) UnmarshalFromMap(data interface{}) error {
 	return nil
 }
 
-// InvalidL1TokenInfo is a struct that represents an error that occurs when
+func (e *TokenInfoError) Error() string {
+	return fmt.Sprintf("token info %v, is nested %t", e.TokenInfo.String(), e.isNested)
+}
+
+// InvalidL1TokenInfoError is a struct that represents an error that occurs when
 // the L1 token info is invalid.
-type InvalidL1TokenInfo struct {
+type InvalidL1TokenInfoError struct {
 	*TokenInfoError
 }
 
 // NewInvalidL1TokenInfo returns a new instance of InvalidL1TokenInfo.
-func NewInvalidL1TokenInfo() *InvalidL1TokenInfo {
-	return &InvalidL1TokenInfo{
+func NewInvalidL1TokenInfo() *InvalidL1TokenInfoError {
+	return &InvalidL1TokenInfoError{
 		TokenInfoError: &TokenInfoError{isNested: true},
 	}
 }
 
 // String is the implementation of the Error interface
-func (e *InvalidL1TokenInfo) String() string {
+func (e *InvalidL1TokenInfoError) String() string {
 	return fmt.Sprintf("%s: The L1 token info is invalid. %s",
 		InvalidL1TokenInfoErrorType, e.TokenInfo.String())
 }
 
-// MissingTokenBalanceProof is a struct that represents an error that occurs when
+// MissingTokenBalanceProofError is a struct that represents an error that occurs when
 // the token balance proof is missing.
-type MissingTokenBalanceProof struct {
+type MissingTokenBalanceProofError struct {
 	*TokenInfoError
 }
 
 // NewMissingTokenBalanceProof returns a new instance of MissingTokenBalanceProof.
-func NewMissingTokenBalanceProof() *MissingTokenBalanceProof {
-	return &MissingTokenBalanceProof{
+func NewMissingTokenBalanceProof() *MissingTokenBalanceProofError {
+	return &MissingTokenBalanceProofError{
 		TokenInfoError: &TokenInfoError{isNested: true},
 	}
 }
 
 // String is the implementation of the Error interface
-func (e *MissingTokenBalanceProof) String() string {
+func (e *MissingTokenBalanceProofError) String() string {
 	return fmt.Sprintf("%s: The provided token is missing a balance proof. %s",
 		MissingTokenBalanceProofErrorType, e.TokenInfo.String())
 }
 
-// DuplicateTokenBalanceProof is a struct that represents an error that occurs when
+// DuplicateTokenBalanceProofError is a struct that represents an error that occurs when
 // the token balance proof is duplicated.
-type DuplicateTokenBalanceProof struct {
+type DuplicateTokenBalanceProofError struct {
 	*TokenInfoError
 }
 
 // NewDuplicateTokenBalanceProof returns a new instance of DuplicateTokenBalanceProof.
-func NewDuplicateTokenBalanceProof() *DuplicateTokenBalanceProof {
-	return &DuplicateTokenBalanceProof{
+func NewDuplicateTokenBalanceProof() *DuplicateTokenBalanceProofError {
+	return &DuplicateTokenBalanceProofError{
 		TokenInfoError: &TokenInfoError{isNested: true},
 	}
 }
 
 // String is the implementation of the Error interface
-func (e *DuplicateTokenBalanceProof) String() string {
+func (e *DuplicateTokenBalanceProofError) String() string {
 	return fmt.Sprintf("%s: The provided token comes with multiple balance proofs. %s",
 		DuplicateTokenBalanceProofErrorType, e.TokenInfo.String())
 }
 
-// InvalidSignature is a struct that represents an error that occurs when
+// InvalidSignatureError is a struct that represents an error that occurs when
 // the signature is invalid.
-type InvalidSignature struct{}
+type InvalidSignatureError struct{}
 
 // String is the implementation of the Error interface
-func (e *InvalidSignature) String() string {
+func (e *InvalidSignatureError) Error() string {
 	return fmt.Sprintf("%s: The provided signature is invalid.", InvalidSignatureErrorType)
 }
 
@@ -533,19 +537,19 @@ func (e *InvalidSignature) String() string {
 type UnknownError struct{}
 
 // String is the implementation of the Error interface
-func (e *UnknownError) String() string {
+func (e *UnknownError) Error() string {
 	return fmt.Sprintf("%s: An unknown error occurred.", UnknownErrorType)
 }
 
-// InvalidImportedBridgeExit is a struct that represents an error that occurs when
+// InvalidImportedBridgeExitError is a struct that represents an error that occurs when
 // the imported bridge exit is invalid.
-type InvalidImportedBridgeExit struct {
+type InvalidImportedBridgeExitError struct {
 	GlobalIndex *GlobalIndex `json:"global_index"`
 	ErrorType   string       `json:"error_type"`
 }
 
 // String is the implementation of the Error interface
-func (e *InvalidImportedBridgeExit) String() string {
+func (e *InvalidImportedBridgeExitError) Error() string {
 	var errorDescription string
 	switch e.ErrorType {
 	case "MismatchGlobalIndexInclusionProof":
@@ -573,7 +577,7 @@ func (e *InvalidImportedBridgeExit) String() string {
 		InvalidImportedBridgeExitErrorType, e.GlobalIndex.String(), e.ErrorType, errorDescription)
 }
 
-func (e *InvalidImportedBridgeExit) UnmarshalFromMap(data interface{}) error {
+func (e *InvalidImportedBridgeExitError) UnmarshalFromMap(data interface{}) error {
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {
 		return errNotMap
