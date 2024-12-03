@@ -191,8 +191,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	if err != nil {
 		return nil, fmt.Errorf("error limitCertSize: %w", err)
 	}
-	a.log.Infof("building certificate for block: %d to block: %d, numBridges=%d, numClaims=%d estimatedSize=%d", fromBlock, toBlock,
-		len(bridges), len(claims), a.estimateSizeCert(len(bridges), len(claims)))
+	a.log.Infof("building certificate for block: %d to block: %d, numBridges=%d, numClaims=%d estimatedSize=%d",
+		fromBlock, toBlock, len(bridges), len(claims), a.estimateSizeCert(len(bridges), len(claims)))
 
 	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo, toBlock)
 	if err != nil {
@@ -270,7 +270,8 @@ const (
 	estimatedSizeClaim      = 44000
 )
 
-func (a *AggSender) limitCertSize(ctx context.Context, fromBlock, toBlock uint64) (uint64, []bridgesync.Bridge, []bridgesync.Claim, error) {
+func (a *AggSender) limitCertSize(ctx context.Context, fromBlock, toBlock uint64) (uint64,
+	[]bridgesync.Bridge, []bridgesync.Claim, error) {
 	var err error
 	var bridges, previousBridges []bridgesync.Bridge
 	var claims, previousClaims []bridgesync.Claim
