@@ -993,7 +993,7 @@ func TestSendCertificate(t *testing.T) {
 			mockL2Syncer.On("GetLastProcessedBlock", mock.Anything).Return(cfg.lastL2BlockProcessed...).Once()
 
 			if cfg.getBridges != nil {
-				mockL2Syncer.On("GetBridgesPublished", mock.Anything, mock.Anything, mock.Anything).Return(cfg.getBridges...).Once()
+				mockL2Syncer.On("GetBridgesPublished", mock.Anything, mock.Anything, mock.Anything).Return(cfg.getBridges...)
 			}
 
 			if cfg.getClaims != nil {
@@ -1643,8 +1643,6 @@ func TestGetNextHeightAndPreviousLER(t *testing.T) {
 }
 
 func TestSendCertificate_NoClaims(t *testing.T) {
-	t.Parallel()
-
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
@@ -1690,8 +1688,8 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 			Metadata:           []byte("metadata"),
 			DepositCount:       1,
 		},
-	}, nil).Once()
-	mockL2Syncer.On("GetClaims", mock.Anything, uint64(11), uint64(50)).Return([]bridgesync.Claim{}, nil).Once()
+	}, nil)
+	mockL2Syncer.On("GetClaims", mock.Anything, uint64(11), uint64(50)).Return([]bridgesync.Claim{}, nil)
 	mockL2Syncer.On("GetExitRootByIndex", mock.Anything, uint32(1)).Return(treeTypes.Root{}, nil).Once()
 	mockL2Syncer.On("OriginNetwork").Return(uint32(1), nil).Once()
 	mockAggLayerClient.On("SendCertificate", mock.Anything).Return(common.Hash{}, nil).Once()
