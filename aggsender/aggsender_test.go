@@ -792,6 +792,13 @@ func TestBuildCertificate(t *testing.T) {
 			}
 			cert, err := aggSender.buildCertificate(context.Background(), certParam, &tt.lastSentCertificateInfo)
 
+			certParam := &aggsendertypes.CertificateBuildParams{
+				ToBlock: tt.toBlock,
+				Bridges: tt.bridges,
+				Claims:  tt.claims,
+			}
+			cert, err := aggSender.buildCertificate(context.Background(), certParam, &tt.lastSentCertificateInfo)
+
 			if tt.expectedError {
 				require.Error(t, err)
 				require.Nil(t, cert)
@@ -1830,7 +1837,7 @@ func TestCheckLastCertificateFromAgglayer_Case3_1LessHeight(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
-		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+		Return(certInfoToCertHeader(t, &testData.testCerts[0], networkIDTest), nil).Once()
 	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[1], nil)
 
 	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
