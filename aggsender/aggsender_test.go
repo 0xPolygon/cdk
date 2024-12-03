@@ -1974,28 +1974,26 @@ func TestLimitSize_NoWayToFitInMaxSize(t *testing.T) {
 
 func TestLimitSize_InvalidCall(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
-	_, _, _, err := testData.sut.limitCertSize(testData.ctx, 10, 5)
+	_, _, _, err := testData.sut.limitCertSize(testData.ctx, 10, 5) //nolint: dogsled
 	require.Error(t, err)
 }
 
 func TestLimitSize_MinNumBlocks(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.sut.cfg.MaxCertSize = (estimatedSizeBridgeExit * 2) + 1
-	fromBlock := uint64(1)
-	toBlock := uint64(2)
 	// It returns 4 bridge
-	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock).Return([]bridgesync.Bridge{
+	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, uint64(1), uint64(2)).Return([]bridgesync.Bridge{
 		{}, {}, {}, {},
 	}, nil).Once()
 
 	// fromBlock is 1, toBlock is 19, so it will return 3  that is bigger hat maxSize
-	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock-1).Return([]bridgesync.Bridge{
+	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, uint64(1), uint64(1)).Return([]bridgesync.Bridge{
 		{}, {}, {},
 	}, nil).Once()
-	testData.l2syncerMock.EXPECT().GetClaims(testData.ctx, fromBlock, mock.Anything).Return([]bridgesync.Claim{}, nil)
-	newToBlock, _, _, err := testData.sut.limitCertSize(testData.ctx, fromBlock, toBlock)
+	testData.l2syncerMock.EXPECT().GetClaims(testData.ctx, uint64(1), mock.Anything).Return([]bridgesync.Claim{}, nil)
+	newToBlock, _, _, err := testData.sut.limitCertSize(testData.ctx, 1, 2)
 	require.NoError(t, err)
-	require.Equal(t, toBlock-1, newToBlock)
+	require.Equal(t, uint64(1), newToBlock)
 }
 
 type testDataFlags = int

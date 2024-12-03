@@ -290,7 +290,7 @@ func (a *AggSender) limitCertSize(ctx context.Context, fromBlock, toBlock uint64
 
 		if len(bridges) == 0 {
 			// We can't reduce more the certificate, so this is the minium size
-			a.log.Warnf("We reach the minium size of bridge: %d that is bigger than the max size of certificate: %d",
+			a.log.Warnf("We reach the minium size of bridge.Certificate size: %d >max size: %d",
 				a.estimateSizeCert(len(previousBridges), len(previousClaims)), a.cfg.MaxCertSize)
 			return toBlock + 1, previousBridges, previousClaims, nil
 		}
@@ -300,7 +300,7 @@ func (a *AggSender) limitCertSize(ctx context.Context, fromBlock, toBlock uint64
 		}
 		// Minimum size of the certificate
 		if fromBlock == toBlock {
-			a.log.Warnf("We reach the minium num blocks [%d to %d] of certificate: %d that is bigger than the max size of certificate: %d",
+			a.log.Warnf("reach the minium num blocks [%d to %d].Certificate size: %d >max size: %d",
 				fromBlock, toBlock, a.estimateSizeCert(len(bridges), len(claims)), a.cfg.MaxCertSize)
 			return toBlock, bridges, claims, nil
 		}
@@ -310,7 +310,6 @@ func (a *AggSender) limitCertSize(ctx context.Context, fromBlock, toBlock uint64
 		previousBridges = bridges
 		previousClaims = claims
 	}
-	return 0, nil, nil, fmt.Errorf("error reducing the size of the certificate")
 }
 
 func (a *AggSender) estimateSizeCert(numBridges, numClaims int) uint {
