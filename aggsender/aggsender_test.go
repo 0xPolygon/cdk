@@ -631,7 +631,7 @@ func TestBuildCertificate(t *testing.T) {
 				NetworkID:         1,
 				PrevLocalExitRoot: common.HexToHash("0x123"),
 				NewLocalExitRoot:  common.HexToHash("0x789"),
-				Metadata:          createCertificateMetadata(10),
+				Metadata:          aggsendertypes.NewCertificateMetadata(10, 0, 0).ToHash(),
 				BridgeExits: []*agglayer.BridgeExit{
 					{
 						LeafType: agglayer.LeafTypeAsset,
