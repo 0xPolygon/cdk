@@ -191,10 +191,21 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	if err != nil {
 		return nil, fmt.Errorf("error getting claims: %w", err)
 	}
+	certificateParams := &types.CertificateBuildParams{
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
+		Bridges:   bridges,
+		Claims:    claims,
+	}
 
-	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
+	certificateParams, err = a.limitCertSize(certificateParams)
+	if err != nil {
+		return nil, fmt.Errorf("error limitCertSize: %w", err)
+	}
+	a.log.Infof("building certificate for %s estimatedSize=%d",
+		certificateParams.String(), certificateParams.EstimatedSize())
 
-	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo, toBlock)
+	certificate, err := a.buildCertificate(ctx, certificateParams, lastSentCertificateInfo)
 	if err != nil {
 		return nil, fmt.Errorf("error building certificate: %w", err)
 	}
@@ -265,6 +276,36 @@ func (a *AggSender) saveCertificateToStorage(ctx context.Context, cert types.Cer
 	return nil
 }
 
+func (a *AggSender) limitCertSize(fullCert *types.CertificateBuildParams) (*types.CertificateBuildParams, error) {
+	currentCert := fullCert
+	var previousCert *types.CertificateBuildParams
+	var err error
+	for {
+		if currentCert.NumberOfBridges() == 0 {
+			// We can't reduce more the certificate, so this is the minium size
+			a.log.Warnf("We reach the minium size of bridge.Certificate size: %d >max size: %d",
+				previousCert.EstimatedSize(), a.cfg.MaxCertSize)
+			return previousCert, nil
+		}
+
+		if a.cfg.MaxCertSize == 0 || currentCert.EstimatedSize() < a.cfg.MaxCertSize {
+			return currentCert, nil
+		}
+
+		// Minimum size of the certificate
+		if currentCert.NumberOfBlocks() <= 1 {
+			a.log.Warnf("reach the minium num blocks [%d to %d].Certificate size: %d >max size: %d",
+				currentCert.FromBlock, currentCert.ToBlock, currentCert.EstimatedSize(), a.cfg.MaxCertSize)
+			return currentCert, nil
+		}
+		previousCert = currentCert
+		currentCert, err = currentCert.Range(currentCert.FromBlock, currentCert.ToBlock-1)
+		if err != nil {
+			return nil, fmt.Errorf("error reducing certificate: %w", err)
+		}
+	}
+}
+
 // saveCertificate saves the certificate to a tmp file
 func (a *AggSender) saveCertificateToFile(signedCertificate *agglayer.SignedCertificate) {
 	if signedCertificate == nil || a.cfg.SaveCertificatesToFilesPath == "" {
@@ -329,25 +370,19 @@ func (a *AggSender) getNextHeightAndPreviousLER(
 
 // buildCertificate builds a certificate from the bridge events
 func (a *AggSender) buildCertificate(ctx context.Context,
-	bridges []bridgesync.Bridge,
-	claims []bridgesync.Claim,
-	lastSentCertificateInfo *types.CertificateInfo,
-	toBlock uint64) (*agglayer.Certificate, error) {
-	if len(bridges) == 0 && len(claims) == 0 {
+	certParams *types.CertificateBuildParams,
+	lastSentCertificateInfo *types.CertificateInfo) (*agglayer.Certificate, error) {
+	if certParams.IsEmpty() {
 		return nil, errNoBridgesAndClaims
 	}
 
-	bridgeExits := a.getBridgeExits(bridges)
-	importedBridgeExits, err := a.getImportedBridgeExits(ctx, claims)
+	bridgeExits := a.getBridgeExits(certParams.Bridges)
+	importedBridgeExits, err := a.getImportedBridgeExits(ctx, certParams.Claims)
 	if err != nil {
 		return nil, fmt.Errorf("error getting imported bridge exits: %w", err)
 	}
 
-	var depositCount uint32
-
-	if len(bridges) > 0 {
-		depositCount = bridges[len(bridges)-1].DepositCount
-	}
+	depositCount := certParams.MaxDepoitCount()
 
 	exitRoot, err := a.l2Syncer.GetExitRootByIndex(ctx, depositCount)
 	if err != nil {
@@ -366,7 +401,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		BridgeExits:         bridgeExits,
 		ImportedBridgeExits: importedBridgeExits,
 		Height:              height,
-		Metadata:            createCertificateMetadata(toBlock),
+		Metadata:            createCertificateMetadata(certParams.ToBlock),
 	}, nil
 }
 

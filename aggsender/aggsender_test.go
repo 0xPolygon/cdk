@@ -787,7 +787,13 @@ func TestBuildCertificate(t *testing.T) {
 				l1infoTreeSyncer: mockL1InfoTreeSyncer,
 				log:              log.WithFields("test", "unittest"),
 			}
-			cert, err := aggSender.buildCertificate(context.Background(), tt.bridges, tt.claims, &tt.lastSentCertificateInfo, tt.toBlock)
+
+			certParam := &aggsendertypes.CertificateBuildParams{
+				ToBlock: tt.toBlock,
+				Bridges: tt.bridges,
+				Claims:  tt.claims,
+			}
+			cert, err := aggSender.buildCertificate(context.Background(), certParam, &tt.lastSentCertificateInfo)
 
 			if tt.expectedError {
 				require.Error(t, err)
@@ -993,7 +999,7 @@ func TestSendCertificate(t *testing.T) {
 			mockL2Syncer.On("GetLastProcessedBlock", mock.Anything).Return(cfg.lastL2BlockProcessed...).Once()
 
 			if cfg.getBridges != nil {
-				mockL2Syncer.On("GetBridgesPublished", mock.Anything, mock.Anything, mock.Anything).Return(cfg.getBridges...).Once()
+				mockL2Syncer.On("GetBridgesPublished", mock.Anything, mock.Anything, mock.Anything).Return(cfg.getBridges...)
 			}
 
 			if cfg.getClaims != nil {
@@ -1643,8 +1649,6 @@ func TestGetNextHeightAndPreviousLER(t *testing.T) {
 }
 
 func TestSendCertificate_NoClaims(t *testing.T) {
-	t.Parallel()
-
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
@@ -1690,8 +1694,8 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 			Metadata:           []byte("metadata"),
 			DepositCount:       1,
 		},
-	}, nil).Once()
-	mockL2Syncer.On("GetClaims", mock.Anything, uint64(11), uint64(50)).Return([]bridgesync.Claim{}, nil).Once()
+	}, nil)
+	mockL2Syncer.On("GetClaims", mock.Anything, uint64(11), uint64(50)).Return([]bridgesync.Claim{}, nil)
 	mockL2Syncer.On("GetExitRootByIndex", mock.Anything, uint32(1)).Return(treeTypes.Root{}, nil).Once()
 	mockL2Syncer.On("OriginNetwork").Return(uint32(1), nil).Once()
 	mockAggLayerClient.On("SendCertificate", mock.Anything).Return(common.Hash{}, nil).Once()
@@ -1795,7 +1799,7 @@ func TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemote(t *testing.
 	testData := newAggsenderTestData(t, testDataFlagNone)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
-		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+		Return(certInfoToCertHeader(t, &testData.testCerts[0], networkIDTest), nil).Once()
 
 	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
 
@@ -1811,7 +1815,7 @@ func TestCheckLastCertificateFromAgglayer_Case2NoCertLocalCertRemoteErrorStorage
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
-		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+		Return(certInfoToCertHeader(t, &testData.testCerts[0], networkIDTest), nil).Once()
 	testData.storageMock.EXPECT().GetLastSentCertificate().Return(nil, nil)
 	testData.storageMock.EXPECT().SaveLastSentCertificate(mock.Anything, mock.Anything).Return(errTest).Once()
 	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
@@ -1837,7 +1841,7 @@ func TestCheckLastCertificateFromAgglayer_Case3_1LessHeight(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
-		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+		Return(certInfoToCertHeader(t, &testData.testCerts[0], networkIDTest), nil).Once()
 	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[1], nil)
 
 	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
@@ -1850,7 +1854,7 @@ func TestCheckLastCertificateFromAgglayer_Case3_2Mismatch(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
-		Return(certInfoToCertHeader(&testData.testCerts[1], networkIDTest), nil).Once()
+		Return(certInfoToCertHeader(t, &testData.testCerts[1], networkIDTest), nil).Once()
 	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[0], nil)
 	testData.storageMock.EXPECT().SaveLastSentCertificate(mock.Anything, mock.Anything).Return(nil).Once()
 
@@ -1864,7 +1868,7 @@ func TestCheckLastCertificateFromAgglayer_Case4Mismatch(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
-		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+		Return(certInfoToCertHeader(t, &testData.testCerts[0], networkIDTest), nil).Once()
 	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[1], nil)
 
 	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
@@ -1877,7 +1881,7 @@ func TestCheckLastCertificateFromAgglayer_Case5SameStatus(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
-		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+		Return(certInfoToCertHeader(t, &testData.testCerts[0], networkIDTest), nil).Once()
 	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[0], nil)
 
 	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
@@ -1889,7 +1893,7 @@ func TestCheckLastCertificateFromAgglayer_Case5SameStatus(t *testing.T) {
 func TestCheckLastCertificateFromAgglayer_Case5UpdateStatus(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
-	aggLayerCert := certInfoToCertHeader(&testData.testCerts[0], networkIDTest)
+	aggLayerCert := certInfoToCertHeader(t, &testData.testCerts[0], networkIDTest)
 	aggLayerCert.Status = agglayer.Settled
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
 		Return(aggLayerCert, nil).Once()
@@ -1905,7 +1909,7 @@ func TestCheckLastCertificateFromAgglayer_Case5UpdateStatus(t *testing.T) {
 func TestCheckLastCertificateFromAgglayer_Case4ErrorUpdateStatus(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
-	aggLayerCert := certInfoToCertHeader(&testData.testCerts[0], networkIDTest)
+	aggLayerCert := certInfoToCertHeader(t, &testData.testCerts[0], networkIDTest)
 	aggLayerCert.Status = agglayer.Settled
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
 		Return(aggLayerCert, nil).Once()
@@ -1915,6 +1919,57 @@ func TestCheckLastCertificateFromAgglayer_Case4ErrorUpdateStatus(t *testing.T) {
 	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
 
 	require.Error(t, err)
+}
+
+func TestLimitSize_FirstOneFit(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	certParams := &aggsendertypes.CertificateBuildParams{
+		FromBlock: uint64(1),
+		ToBlock:   uint64(20),
+		Bridges:   NewBridgesData(t, 1, []uint64{1}),
+	}
+	newCert, err := testData.sut.limitCertSize(certParams)
+	require.NoError(t, err)
+	require.Equal(t, certParams, newCert)
+}
+
+func TestLimitSize_FirstMinusOneFit(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.sut.cfg.MaxCertSize = (aggsendertypes.EstimatedSizeBridgeExit * 3) + 1
+	certParams := &aggsendertypes.CertificateBuildParams{
+		FromBlock: uint64(1),
+		ToBlock:   uint64(20),
+		Bridges:   NewBridgesData(t, 0, []uint64{19, 19, 19, 20}),
+	}
+	newCert, err := testData.sut.limitCertSize(certParams)
+	require.NoError(t, err)
+	require.Equal(t, uint64(19), newCert.ToBlock)
+}
+
+func TestLimitSize_NoWayToFitInMaxSize(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.sut.cfg.MaxCertSize = (aggsendertypes.EstimatedSizeBridgeExit * 2) + 1
+	certParams := &aggsendertypes.CertificateBuildParams{
+		FromBlock: uint64(1),
+		ToBlock:   uint64(20),
+		Bridges:   NewBridgesData(t, 0, []uint64{19, 19, 19, 20}),
+	}
+	newCert, err := testData.sut.limitCertSize(certParams)
+	require.NoError(t, err)
+	require.Equal(t, uint64(19), newCert.ToBlock)
+}
+
+func TestLimitSize_MinNumBlocks(t *testing.T) {
+	testData := newAggsenderTestData(t, testDataFlagMockStorage)
+	testData.sut.cfg.MaxCertSize = (aggsendertypes.EstimatedSizeBridgeExit * 2) + 1
+	certParams := &aggsendertypes.CertificateBuildParams{
+		FromBlock: uint64(1),
+		ToBlock:   uint64(2),
+		Bridges:   NewBridgesData(t, 0, []uint64{1, 1, 1, 2, 2, 2}),
+	}
+	newCert, err := testData.sut.limitCertSize(certParams)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), newCert.ToBlock)
 }
 
 type testDataFlags = int
@@ -1934,7 +1989,40 @@ type aggsenderTestData struct {
 	testCerts            []aggsendertypes.CertificateInfo
 }
 
-func certInfoToCertHeader(certInfo *aggsendertypes.CertificateInfo, networkID uint32) *agglayer.CertificateHeader {
+func NewBridgesData(t *testing.T, num int, blockNum []uint64) []bridgesync.Bridge {
+	t.Helper()
+	if num == 0 {
+		num = len(blockNum)
+	}
+	res := make([]bridgesync.Bridge, 0)
+	for i := 0; i < num; i++ {
+		res = append(res, bridgesync.Bridge{
+			BlockNum:      blockNum[i%len(blockNum)],
+			BlockPos:      0,
+			LeafType:      agglayer.LeafTypeAsset.Uint8(),
+			OriginNetwork: 1,
+		})
+	}
+	return res
+}
+
+func NewClaimData(t *testing.T, num int, blockNum []uint64) []bridgesync.Claim {
+	t.Helper()
+	if num == 0 {
+		num = len(blockNum)
+	}
+	res := make([]bridgesync.Claim, 0)
+	for i := 0; i < num; i++ {
+		res = append(res, bridgesync.Claim{
+			BlockNum: blockNum[i%len(blockNum)],
+			BlockPos: 0,
+		})
+	}
+	return res
+}
+
+func certInfoToCertHeader(t *testing.T, certInfo *aggsendertypes.CertificateInfo, networkID uint32) *agglayer.CertificateHeader {
+	t.Helper()
 	if certInfo == nil {
 		return nil
 	}
@@ -1979,6 +2067,9 @@ func newAggsenderTestData(t *testing.T, creationFlags testDataFlags) *aggsenderT
 		aggLayerClient:   agglayerClientMock,
 		storage:          storage,
 		l1infoTreeSyncer: l1InfoTreeSyncerMock,
+		cfg: Config{
+			MaxCertSize: 1024 * 1024,
+		},
 	}
 	testCerts := []aggsendertypes.CertificateInfo{
 		{
