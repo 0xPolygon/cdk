@@ -275,7 +275,10 @@ func (a *AggSender) limitCertSize(ctx context.Context, fromBlock, toBlock uint64
 	var err error
 	var bridges, previousBridges []bridgesync.Bridge
 	var claims, previousClaims []bridgesync.Claim
-	for true {
+	if toBlock < fromBlock {
+		return toBlock, nil, nil, fmt.Errorf("invalid call, toBlock(%d)<fromBlock(%d)", toBlock, fromBlock)
+	}
+	for {
 		bridges, err = a.l2Syncer.GetBridgesPublished(ctx, fromBlock, toBlock)
 		if err != nil {
 			return 0, nil, nil, fmt.Errorf("error getting bridges: %w", err)
@@ -284,15 +287,24 @@ func (a *AggSender) limitCertSize(ctx context.Context, fromBlock, toBlock uint64
 		if err != nil {
 			return 0, nil, nil, fmt.Errorf("error getting claims: %w", err)
 		}
+
 		if len(bridges) == 0 {
 			// We can't reduce more the certificate, so this is the minium size
 			a.log.Warnf("We reach the minium size of bridge: %d that is bigger than the max size of certificate: %d",
 				a.estimateSizeCert(len(previousBridges), len(previousClaims)), a.cfg.MaxCertSize)
 			return toBlock + 1, previousBridges, previousClaims, nil
 		}
-		if toBlock == 0 || a.cfg.MaxCertSize == 0 || a.estimateSizeCert(len(bridges), len(claims)) < a.cfg.MaxCertSize {
+
+		if a.cfg.MaxCertSize == 0 || a.estimateSizeCert(len(bridges), len(claims)) < a.cfg.MaxCertSize {
 			return toBlock, bridges, claims, nil
 		}
+		// Minimum size of the certificate
+		if fromBlock == toBlock {
+			a.log.Warnf("We reach the minium num blocks [%d to %d] of certificate: %d that is bigger than the max size of certificate: %d",
+				fromBlock, toBlock, a.estimateSizeCert(len(bridges), len(claims)), a.cfg.MaxCertSize)
+			return toBlock, bridges, claims, nil
+		}
+
 		// We have to reduce the number of blocks
 		toBlock--
 		previousBridges = bridges
