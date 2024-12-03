@@ -187,12 +187,12 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		return nil, nil
 	}
 
-	claims, err := a.l2Syncer.GetClaims(ctx, fromBlock, toBlock)
+	toBlock, bridges, claims, err := a.limitCertSize(ctx, fromBlock, toBlock)
 	if err != nil {
-		return nil, fmt.Errorf("error getting claims: %w", err)
+		return nil, fmt.Errorf("error limitCertSize: %w", err)
 	}
-
-	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
+	a.log.Infof("building certificate for block: %d to block: %d, numBridges=%d, numClaims=%d estimatedSize=%d", fromBlock, toBlock,
+		len(bridges), len(claims), a.estimateSizeCert(len(bridges), len(claims)))
 
 	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo, toBlock)
 	if err != nil {
@@ -263,6 +263,45 @@ func (a *AggSender) saveCertificateToStorage(ctx context.Context, cert types.Cer
 		}
 	}
 	return nil
+}
+
+const (
+	estimatedSizeBridgeExit = 250
+	estimatedSizeClaim      = 44000
+)
+
+func (a *AggSender) limitCertSize(ctx context.Context, fromBlock, toBlock uint64) (uint64, []bridgesync.Bridge, []bridgesync.Claim, error) {
+	var err error
+	var bridges, previousBridges []bridgesync.Bridge
+	var claims, previousClaims []bridgesync.Claim
+	for true {
+		bridges, err = a.l2Syncer.GetBridgesPublished(ctx, fromBlock, toBlock)
+		if err != nil {
+			return 0, nil, nil, fmt.Errorf("error getting bridges: %w", err)
+		}
+		claims, err = a.l2Syncer.GetClaims(ctx, fromBlock, toBlock)
+		if err != nil {
+			return 0, nil, nil, fmt.Errorf("error getting claims: %w", err)
+		}
+		if len(bridges) == 0 {
+			// We can't reduce more the certificate, so this is the minium size
+			a.log.Warnf("We reach the minium size of bridge: %d that is bigger than the max size of certificate: %d",
+				a.estimateSizeCert(len(previousBridges), len(previousClaims)), a.cfg.MaxCertSize)
+			return toBlock + 1, previousBridges, previousClaims, nil
+		}
+		if toBlock == 0 || a.cfg.MaxCertSize == 0 || a.estimateSizeCert(len(bridges), len(claims)) < a.cfg.MaxCertSize {
+			return toBlock, bridges, claims, nil
+		}
+		// We have to reduce the number of blocks
+		toBlock--
+		previousBridges = bridges
+		previousClaims = claims
+	}
+
+}
+
+func (a *AggSender) estimateSizeCert(numBridges, numClaims int) uint {
+	return uint(numBridges*estimatedSizeBridgeExit + numClaims*estimatedSizeClaim)
 }
 
 // saveCertificate saves the certificate to a tmp file
