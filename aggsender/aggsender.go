@@ -191,7 +191,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	if err != nil {
 		return nil, fmt.Errorf("error getting claims: %w", err)
 	}
-	certificateParams := &types.CertificateLocalParams{
+	certificateParams := &types.CertificateBuildParams{
 		FromBlock: fromBlock,
 		ToBlock:   toBlock,
 		Bridges:   bridges,
@@ -276,9 +276,9 @@ func (a *AggSender) saveCertificateToStorage(ctx context.Context, cert types.Cer
 	return nil
 }
 
-func (a *AggSender) limitCertSize(fullCert *types.CertificateLocalParams) (*types.CertificateLocalParams, error) {
+func (a *AggSender) limitCertSize(fullCert *types.CertificateBuildParams) (*types.CertificateBuildParams, error) {
 	currentCert := fullCert
-	var previousCert *types.CertificateLocalParams
+	var previousCert *types.CertificateBuildParams
 	var err error
 	for {
 		if currentCert.NumberOfBridges() == 0 {
@@ -370,7 +370,7 @@ func (a *AggSender) getNextHeightAndPreviousLER(
 
 // buildCertificate builds a certificate from the bridge events
 func (a *AggSender) buildCertificate(ctx context.Context,
-	certParams *types.CertificateLocalParams,
+	certParams *types.CertificateBuildParams,
 	lastSentCertificateInfo *types.CertificateInfo) (*agglayer.Certificate, error) {
 	if certParams.IsEmpty() {
 		return nil, errNoBridgesAndClaims
