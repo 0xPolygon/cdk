@@ -397,8 +397,11 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		return fmt.Errorf("err: %w", err)
 	}
 	shouldRollback = false
-
-	log.Infof("block %d processed with %d events", block.Num, len(block.Events))
+	logFunc := log.Debugf
+	if len(block.Events) > 0 {
+		logFunc = log.Infof
+	}
+	logFunc("block %d processed with %d events", block.Num, len(block.Events))
 	return nil
 }
 

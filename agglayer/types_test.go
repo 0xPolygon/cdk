@@ -20,6 +20,29 @@ func TestMGenericPPError(t *testing.T) {
 	require.Equal(t, "Generic error: test: value", err.String())
 }
 
+func TestCertificateHeaderID(t *testing.T) {
+	certificate := CertificateHeader{
+		Height:        1,
+		CertificateID: common.HexToHash("0x123"),
+	}
+	require.Equal(t, "1/0x0000000000000000000000000000000000000000000000000000000000000123", certificate.ID())
+
+	var certNil *CertificateHeader
+	require.Equal(t, "nil", certNil.ID())
+}
+
+func TestCertificateHeaderString(t *testing.T) {
+	certificate := CertificateHeader{
+		Height:        1,
+		CertificateID: common.HexToHash("0x123"),
+	}
+	require.Equal(t, "Height: 1, CertificateID: 0x0000000000000000000000000000000000000000000000000000000000000123, PreviousLocalExitRoot: nil, NewLocalExitRoot: 0x0000000000000000000000000000000000000000000000000000000000000000. Status: Pending. Errors: []",
+		certificate.String())
+
+	var certNil *CertificateHeader
+	require.Equal(t, "nil", certNil.String())
+}
+
 func TestMarshalJSON(t *testing.T) {
 	cert := SignedCertificate{
 		Certificate: &Certificate{

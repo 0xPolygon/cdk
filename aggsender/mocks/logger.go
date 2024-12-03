@@ -189,6 +189,50 @@ func (_c *Logger_Errorf_Call) RunAndReturn(run func(string, ...interface{})) *Lo
 	return _c
 }
 
+// Fatalf provides a mock function with given fields: format, args
+func (_m *Logger) Fatalf(format string, args ...interface{}) {
+	var _ca []interface{}
+	_ca = append(_ca, format)
+	_ca = append(_ca, args...)
+	_m.Called(_ca...)
+}
+
+// Logger_Fatalf_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Fatalf'
+type Logger_Fatalf_Call struct {
+	*mock.Call
+}
+
+// Fatalf is a helper method to define mock.On call
+//   - format string
+//   - args ...interface{}
+func (_e *Logger_Expecter) Fatalf(format interface{}, args ...interface{}) *Logger_Fatalf_Call {
+	return &Logger_Fatalf_Call{Call: _e.mock.On("Fatalf",
+		append([]interface{}{format}, args...)...)}
+}
+
+func (_c *Logger_Fatalf_Call) Run(run func(format string, args ...interface{})) *Logger_Fatalf_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		variadicArgs := make([]interface{}, len(args)-1)
+		for i, a := range args[1:] {
+			if a != nil {
+				variadicArgs[i] = a.(interface{})
+			}
+		}
+		run(args[0].(string), variadicArgs...)
+	})
+	return _c
+}
+
+func (_c *Logger_Fatalf_Call) Return() *Logger_Fatalf_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *Logger_Fatalf_Call) RunAndReturn(run func(string, ...interface{})) *Logger_Fatalf_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Info provides a mock function with given fields: args
 func (_m *Logger) Info(args ...interface{}) {
 	var _ca []interface{}

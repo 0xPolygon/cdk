@@ -337,4 +337,5 @@ EpochNotificationPercentage = 50
 SaveCertificatesToFilesPath = ""
 MaxRetriesStoreCertificate = 3
 DelayBeetweenRetries = "60s"
+KeepCertificatesHistory = true
 `
