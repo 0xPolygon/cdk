@@ -787,7 +787,13 @@ func TestBuildCertificate(t *testing.T) {
 				l1infoTreeSyncer: mockL1InfoTreeSyncer,
 				log:              log.WithFields("test", "unittest"),
 			}
-			cert, err := aggSender.buildCertificate(context.Background(), tt.bridges, tt.claims, &tt.lastSentCertificateInfo, tt.toBlock)
+
+			certParam := &aggsendertypes.CertificateLocalParams{
+				ToBlock: tt.toBlock,
+				Bridges: tt.bridges,
+				Claims:  tt.claims,
+			}
+			cert, err := aggSender.buildCertificate(context.Background(), certParam, &tt.lastSentCertificateInfo)
 
 			if tt.expectedError {
 				require.Error(t, err)
@@ -1917,83 +1923,53 @@ func TestCheckLastCertificateFromAgglayer_Case4ErrorUpdateStatus(t *testing.T) {
 
 func TestLimitSize_FirstOneFit(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
-	fromBlock := uint64(1)
-	toBlock := uint64(20)
-	// It returns 1 bridge
-	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock).Return([]bridgesync.Bridge{
-		{},
-	}, nil)
-	testData.l2syncerMock.EXPECT().GetClaims(testData.ctx, fromBlock, toBlock).Return([]bridgesync.Claim{}, nil)
-	newToBlock, _, _, err := testData.sut.limitCertSize(testData.ctx, fromBlock, toBlock)
+	certParams := &aggsendertypes.CertificateLocalParams{
+		FromBlock: uint64(1),
+		ToBlock:   uint64(20),
+		Bridges:   NewBridgesData(1, []uint64{1}),
+	}
+	newCert, err := testData.sut.limitCertSize(certParams)
 	require.NoError(t, err)
-	require.Equal(t, toBlock, newToBlock)
+	require.Equal(t, certParams, newCert)
 }
 
 func TestLimitSize_FirstMinusOneFit(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
-	testData.sut.cfg.MaxCertSize = (estimatedSizeBridgeExit * 3) + 1
-	fromBlock := uint64(1)
-	toBlock := uint64(20)
-	// It returns 4 bridge
-	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock).Return([]bridgesync.Bridge{
-		{}, {}, {}, {},
-	}, nil).Once()
-
-	// fromBlock is 1, toBlock is 20, so it will return 3
-	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock-1).Return([]bridgesync.Bridge{
-		{}, {}, {},
-	}, nil).Once()
-	testData.l2syncerMock.EXPECT().GetClaims(testData.ctx, fromBlock, mock.Anything).Return([]bridgesync.Claim{}, nil)
-	newToBlock, _, _, err := testData.sut.limitCertSize(testData.ctx, fromBlock, toBlock)
+	testData.sut.cfg.MaxCertSize = (aggsendertypes.EstimatedSizeBridgeExit * 3) + 1
+	certParams := &aggsendertypes.CertificateLocalParams{
+		FromBlock: uint64(1),
+		ToBlock:   uint64(20),
+		Bridges:   NewBridgesData(4, []uint64{19, 19, 19, 20}),
+	}
+	newCert, err := testData.sut.limitCertSize(certParams)
 	require.NoError(t, err)
-	require.Equal(t, toBlock-1, newToBlock)
+	require.Equal(t, uint64(19), newCert.ToBlock)
 }
 
 func TestLimitSize_NoWayToFitInMaxSize(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
-	testData.sut.cfg.MaxCertSize = (estimatedSizeBridgeExit * 2) + 1
-	fromBlock := uint64(1)
-	toBlock := uint64(20)
-	// It returns 4 bridge
-	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock).Return([]bridgesync.Bridge{
-		{}, {}, {}, {},
-	}, nil).Once()
-
-	// fromBlock is 1, toBlock is 19, so it will return 3  that is bigger hat maxSize
-	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock-1).Return([]bridgesync.Bridge{
-		{}, {}, {},
-	}, nil).Once()
-
-	// fromBlock is 1, toBlock is 18, so it will return 0. So must use previous one even that is > maxSize
-	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, fromBlock, toBlock-2).Return([]bridgesync.Bridge{}, nil).Once()
-	testData.l2syncerMock.EXPECT().GetClaims(testData.ctx, fromBlock, mock.Anything).Return([]bridgesync.Claim{}, nil)
-	newToBlock, _, _, err := testData.sut.limitCertSize(testData.ctx, fromBlock, toBlock)
+	testData.sut.cfg.MaxCertSize = (aggsendertypes.EstimatedSizeBridgeExit * 2) + 1
+	certParams := &aggsendertypes.CertificateLocalParams{
+		FromBlock: uint64(1),
+		ToBlock:   uint64(20),
+		Bridges:   NewBridgesData(4, []uint64{19, 19, 19, 20}),
+	}
+	newCert, err := testData.sut.limitCertSize(certParams)
 	require.NoError(t, err)
-	require.Equal(t, toBlock-1, newToBlock)
-}
-
-func TestLimitSize_InvalidCall(t *testing.T) {
-	testData := newAggsenderTestData(t, testDataFlagMockStorage)
-	_, _, _, err := testData.sut.limitCertSize(testData.ctx, 10, 5) //nolint: dogsled
-	require.Error(t, err)
+	require.Equal(t, uint64(19), newCert.ToBlock)
 }
 
 func TestLimitSize_MinNumBlocks(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
-	testData.sut.cfg.MaxCertSize = (estimatedSizeBridgeExit * 2) + 1
-	// It returns 4 bridge
-	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, uint64(1), uint64(2)).Return([]bridgesync.Bridge{
-		{}, {}, {}, {},
-	}, nil).Once()
-
-	// fromBlock is 1, toBlock is 19, so it will return 3  that is bigger hat maxSize
-	testData.l2syncerMock.EXPECT().GetBridgesPublished(testData.ctx, uint64(1), uint64(1)).Return([]bridgesync.Bridge{
-		{}, {}, {},
-	}, nil).Once()
-	testData.l2syncerMock.EXPECT().GetClaims(testData.ctx, uint64(1), mock.Anything).Return([]bridgesync.Claim{}, nil)
-	newToBlock, _, _, err := testData.sut.limitCertSize(testData.ctx, 1, 2)
+	testData.sut.cfg.MaxCertSize = (aggsendertypes.EstimatedSizeBridgeExit * 2) + 1
+	certParams := &aggsendertypes.CertificateLocalParams{
+		FromBlock: uint64(1),
+		ToBlock:   uint64(2),
+		Bridges:   NewBridgesData(6, []uint64{1, 1, 1, 2, 2, 2}),
+	}
+	newCert, err := testData.sut.limitCertSize(certParams)
 	require.NoError(t, err)
-	require.Equal(t, uint64(1), newToBlock)
+	require.Equal(t, uint64(1), newCert.ToBlock)
 }
 
 type testDataFlags = int
@@ -2011,6 +1987,31 @@ type aggsenderTestData struct {
 	storageMock          *mocks.AggSenderStorage
 	sut                  *AggSender
 	testCerts            []aggsendertypes.CertificateInfo
+}
+
+func NewBridgesData(num int, blockNum []uint64) []bridgesync.Bridge {
+	res := make([]bridgesync.Bridge, 0)
+	for i := 0; i < num; i++ {
+		res = append(res, bridgesync.Bridge{
+			BlockNum:      blockNum[i%len(blockNum)],
+			BlockPos:      0,
+			LeafType:      agglayer.LeafTypeAsset.Uint8(),
+			OriginNetwork: 1,
+		})
+	}
+	return res
+}
+
+func NewClaimData(num int, blockNum []uint64) []bridgesync.Claim {
+	res := make([]bridgesync.Claim, 0)
+	for i := 0; i < num; i++ {
+		res = append(res, bridgesync.Claim{
+			BlockNum: blockNum[i%len(blockNum)],
+			BlockPos: 0,
+		})
+	}
+	return res
+
 }
 
 func certInfoToCertHeader(certInfo *aggsendertypes.CertificateInfo, networkID uint32) *agglayer.CertificateHeader {
