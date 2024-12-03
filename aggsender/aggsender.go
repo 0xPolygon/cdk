@@ -394,6 +394,8 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting next height and previous LER: %w", err)
 	}
 
+	meta := types.NewCertificateMetadata(fromBlock, toBlock, createdAt)
+
 	return &agglayer.Certificate{
 		NetworkID:           a.l2Syncer.OriginNetwork(),
 		PrevLocalExitRoot:   previousLER,

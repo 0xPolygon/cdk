@@ -134,7 +134,7 @@ type CertificateMetadata struct {
 }
 
 // NewCertificateMetadataFromHash returns a new CertificateMetadata from the given hash
-func NewCertificateMetadata(toBlock, fromBlock, createdAt uint64) *CertificateMetadata {
+func NewCertificateMetadata(fromBlock, toBlock, createdAt uint64) *CertificateMetadata {
 	return &CertificateMetadata{
 		FromBlock: fromBlock,
 		ToBlock:   toBlock,
@@ -147,8 +147,8 @@ func NewCertificateMetadataFromHash(hash common.Hash) *CertificateMetadata {
 	b := hash.Bytes()
 
 	return NewCertificateMetadata(
-		binary.BigEndian.Uint64(b[24:32]),
 		binary.BigEndian.Uint64(b[16:24]),
+		binary.BigEndian.Uint64(b[24:32]),
 		binary.BigEndian.Uint64(b[8:16]),
 	)
 }
@@ -156,6 +156,11 @@ func NewCertificateMetadataFromHash(hash common.Hash) *CertificateMetadata {
 // ToHash returns the hash of the metadata
 func (c *CertificateMetadata) ToHash() common.Hash {
 	b := make([]byte, common.HashLength) // 32-byte hash
+
+	// We encode the metadata with padding 0's at the start,
+	// because previous versions of the code stored the toBlock
+	// at the end of the hash, and we need to be able to decode
+	// those hashes.
 
 	// Encode createdAt
 	binary.BigEndian.PutUint64(b[8:16], c.CreatedAt)
