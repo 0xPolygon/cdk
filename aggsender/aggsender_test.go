@@ -34,15 +34,12 @@ const (
 var (
 	errTest = errors.New("unitest  error")
 	ler1    = common.HexToHash("0x123")
-	ler2    = common.HexToHash("0x12345")
 )
 
 func TestConfigString(t *testing.T) {
 	config := Config{
 		StoragePath:                 "/path/to/storage",
 		AggLayerURL:                 "http://agglayer.url",
-		BlockGetInterval:            types.Duration{Duration: 10 * time.Second},
-		CheckSettledInterval:        types.Duration{Duration: 20 * time.Second},
 		AggsenderPrivateKey:         types.KeystoreFileConfig{Path: "/path/to/key", Password: "password"},
 		URLRPCL2:                    "http://l2.rpc.url",
 		BlockFinality:               "latestBlock",
@@ -52,8 +49,6 @@ func TestConfigString(t *testing.T) {
 
 	expected := "StoragePath: /path/to/storage\n" +
 		"AggLayerURL: http://agglayer.url\n" +
-		"BlockGetInterval: 10s\n" +
-		"CheckSettledInterval: 20s\n" +
 		"AggsenderPrivateKeyPath: /path/to/key\n" +
 		"URLRPCL2: http://l2.rpc.url\n" +
 		"BlockFinality: latestBlock\n" +
@@ -922,10 +917,7 @@ func TestCheckIfCertificatesAreSettled(t *testing.T) {
 				log:            mockLogger,
 				storage:        mockStorage,
 				aggLayerClient: mockAggLayerClient,
-				cfg: Config{
-					BlockGetInterval:     types.Duration{Duration: time.Second},
-					CheckSettledInterval: types.Duration{Duration: time.Second},
-				},
+				cfg:            Config{},
 			}
 
 			ctx := context.TODO()
@@ -1665,10 +1657,7 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 		aggLayerClient:   mockAggLayerClient,
 		l1infoTreeSyncer: mockL1InfoTreeSyncer,
 		sequencerKey:     privateKey,
-		cfg: Config{
-			BlockGetInterval:     types.Duration{Duration: time.Second},
-			CheckSettledInterval: types.Duration{Duration: time.Second},
-		},
+		cfg:              Config{},
 	}
 
 	mockStorage.On("GetCertificatesByStatus", agglayer.NonSettledStatuses).Return([]*aggsendertypes.CertificateInfo{}, nil).Once()
