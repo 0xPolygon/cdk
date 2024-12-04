@@ -331,9 +331,7 @@ GlobalExitRootManagerAddr = "{{L1Config.polygonZkEVMGlobalExitRootAddress}}"
 StoragePath = "{{PathRWData}}/aggsender.sqlite"
 AggLayerURL = "{{AggLayerURL}}"
 AggsenderPrivateKey = {Path = "{{SequencerPrivateKeyPath}}", Password = "{{SequencerPrivateKeyPassword}}"}
-BlockGetInterval = "2s"
 URLRPCL2="{{L2URL}}"
-CheckSettledInterval = "2s"
 BlockFinality = "LatestBlock"
 EpochNotificationPercentage = 50
 SaveCertificatesToFilesPath = ""
