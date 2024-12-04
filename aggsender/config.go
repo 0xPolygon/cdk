@@ -34,6 +34,9 @@ type Config struct {
 	DelayBeetweenRetries types.Duration `mapstructure:"DelayBeetweenRetries"`
 	// KeepCertificatesHistory is a flag to keep the certificates history on storage
 	KeepCertificatesHistory bool `mapstructure:"KeepCertificatesHistory"`
+	// MaxCertSize is the maximum size of the certificate (the emitted certificate can be bigger that this size)
+	// 0 is infinite
+	MaxCertSize uint `mapstructure:"MaxCertSize"`
 }
 
 // String returns a string representation of the Config

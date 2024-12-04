@@ -190,11 +190,22 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	if err != nil {
 		return nil, fmt.Errorf("error getting claims: %w", err)
 	}
+	certificateParams := &types.CertificateBuildParams{
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
+		Bridges:   bridges,
+		Claims:    claims,
+	}
 
-	a.log.Infof("building certificate for block: %d to block: %d", fromBlock, toBlock)
+	certificateParams, err = a.limitCertSize(certificateParams)
+	if err != nil {
+		return nil, fmt.Errorf("error limitCertSize: %w", err)
+	}
+	a.log.Infof("building certificate for %s estimatedSize=%d",
+		certificateParams.String(), certificateParams.EstimatedSize())
 
-	createdTime := uint64(time.Now().UTC().UnixMilli())
-	certificate, err := a.buildCertificate(ctx, bridges, claims, lastSentCertificateInfo, fromBlock, toBlock, createdTime)
+	createdTime := time.Now().UTC().UnixMilli()
+	certificate, err := a.buildCertificate(ctx, certificateParams, lastSentCertificateInfo, createdTime)
 	if err != nil {
 		return nil, fmt.Errorf("error building certificate: %w", err)
 	}
@@ -227,8 +238,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		PreviousLocalExitRoot: &prevLER,
 		FromBlock:             fromBlock,
 		ToBlock:               toBlock,
-		CreatedAt:             int64(createdTime),
-		UpdatedAt:             int64(createdTime),
+		CreatedAt:             createdTime,
+		UpdatedAt:             createdTime,
 		SignedCertificate:     string(raw),
 	}
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
@@ -262,6 +273,36 @@ func (a *AggSender) saveCertificateToStorage(ctx context.Context, cert types.Cer
 		}
 	}
 	return nil
+}
+
+func (a *AggSender) limitCertSize(fullCert *types.CertificateBuildParams) (*types.CertificateBuildParams, error) {
+	currentCert := fullCert
+	var previousCert *types.CertificateBuildParams
+	var err error
+	for {
+		if currentCert.NumberOfBridges() == 0 {
+			// We can't reduce more the certificate, so this is the minium size
+			a.log.Warnf("We reach the minium size of bridge.Certificate size: %d >max size: %d",
+				previousCert.EstimatedSize(), a.cfg.MaxCertSize)
+			return previousCert, nil
+		}
+
+		if a.cfg.MaxCertSize == 0 || currentCert.EstimatedSize() < a.cfg.MaxCertSize {
+			return currentCert, nil
+		}
+
+		// Minimum size of the certificate
+		if currentCert.NumberOfBlocks() <= 1 {
+			a.log.Warnf("reach the minium num blocks [%d to %d].Certificate size: %d >max size: %d",
+				currentCert.FromBlock, currentCert.ToBlock, currentCert.EstimatedSize(), a.cfg.MaxCertSize)
+			return currentCert, nil
+		}
+		previousCert = currentCert
+		currentCert, err = currentCert.Range(currentCert.FromBlock, currentCert.ToBlock-1)
+		if err != nil {
+			return nil, fmt.Errorf("error reducing certificate: %w", err)
+		}
+	}
 }
 
 // saveCertificate saves the certificate to a tmp file
@@ -328,27 +369,19 @@ func (a *AggSender) getNextHeightAndPreviousLER(
 
 // buildCertificate builds a certificate from the bridge events
 func (a *AggSender) buildCertificate(ctx context.Context,
-	bridges []bridgesync.Bridge,
-	claims []bridgesync.Claim,
-	lastSentCertificateInfo *types.CertificateInfo,
-	fromBlock, toBlock uint64,
-	createdAt uint64,
-) (*agglayer.Certificate, error) {
-	if len(bridges) == 0 && len(claims) == 0 {
+	certParams *types.CertificateBuildParams,
+	lastSentCertificateInfo *types.CertificateInfo, createdAt int64) (*agglayer.Certificate, error) {
+	if certParams.IsEmpty() {
 		return nil, errNoBridgesAndClaims
 	}
 
-	bridgeExits := a.getBridgeExits(bridges)
-	importedBridgeExits, err := a.getImportedBridgeExits(ctx, claims)
+	bridgeExits := a.getBridgeExits(certParams.Bridges)
+	importedBridgeExits, err := a.getImportedBridgeExits(ctx, certParams.Claims)
 	if err != nil {
 		return nil, fmt.Errorf("error getting imported bridge exits: %w", err)
 	}
 
-	var depositCount uint32
-
-	if len(bridges) > 0 {
-		depositCount = bridges[len(bridges)-1].DepositCount
-	}
+	depositCount := certParams.MaxDepoitCount()
 
 	exitRoot, err := a.l2Syncer.GetExitRootByIndex(ctx, depositCount)
 	if err != nil {
@@ -361,9 +394,9 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	}
 
 	meta := &types.CertificateMetadata{
-		FromBlock: fromBlock,
-		ToBlock:   toBlock,
-		CreatedAt: createdAt,
+		FromBlock: certParams.FromBlock,
+		ToBlock:   certParams.ToBlock,
+		CreatedAt: uint64(createdAt),
 	}
 
 	return &agglayer.Certificate{
@@ -679,19 +712,24 @@ func (a *AggSender) checkLastCertificateFromAgglayer(ctx context.Context) error 
 		return nil
 	}
 	// CASE 2.1: certificate in storage but not in agglayer
-	// this is a non-sense, so thrown an error
+	// this is a non-sense, so throw an error
 	if localLastCert != nil && aggLayerLastCert == nil {
-		return fmt.Errorf("recovery: certificate in storage but not in agglayer. Inconsistency")
+		return fmt.Errorf("recovery: certificate exists in storage but not in agglayer. Inconsistency")
 	}
-	// CASE 3: aggsender stopped between sending to agglayer and storing on DB
+	// CASE 3.1: the certificate on the agglayer has less height than the one stored in the local storage
+	if aggLayerLastCert.Height < localLastCert.Height {
+		return fmt.Errorf("recovery: the last certificate in the agglayer has less height (%d) "+
+			"than the one in the local storage (%d)", aggLayerLastCert.Height, localLastCert.Height)
+	}
+	// CASE 3.2: aggsender stopped between sending to agglayer and storing to the local storage
 	if aggLayerLastCert.Height == localLastCert.Height+1 {
-		a.log.Infof("recovery: AggLayer have next cert (height:%d), so is a recovery case: storing cert: %s",
-			aggLayerLastCert.Height, localLastCert.String())
+		a.log.Infof("recovery: AggLayer has the next cert (height: %d), so is a recovery case: storing cert: %s",
+			aggLayerLastCert.Height, aggLayerLastCert.String())
 		// we need to store the certificate in the local storage.
 		localLastCert, err = a.updateLocalStorageWithAggLayerCert(ctx, aggLayerLastCert)
 		if err != nil {
-			log.Errorf("recovery: error updating status certificate: %s status: %w", aggLayerLastCert.String(), err)
-			return fmt.Errorf("recovery: error updating certificate status: %w", err)
+			log.Errorf("recovery: error updating certificate: %s, reason: %w", aggLayerLastCert.String(), err)
+			return fmt.Errorf("recovery: error updating certificate: %w", err)
 		}
 	}
 	// CASE 4: AggSender and AggLayer are not on the same page

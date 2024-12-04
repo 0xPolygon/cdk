@@ -338,4 +338,6 @@ SaveCertificatesToFilesPath = ""
 MaxRetriesStoreCertificate = 3
 DelayBeetweenRetries = "60s"
 KeepCertificatesHistory = true
+# MaxSize of the certificate to 8Mb
+MaxCertSize = 8388608
 `
