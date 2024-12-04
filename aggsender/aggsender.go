@@ -204,7 +204,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	a.log.Infof("building certificate for %s estimatedSize=%d",
 		certificateParams.String(), certificateParams.EstimatedSize())
 
-	certificate, err := a.buildCertificate(ctx, certificateParams, lastSentCertificateInfo)
+	createdTime := time.Now().UTC().UnixMilli()
+	certificate, err := a.buildCertificate(ctx, certificateParams, lastSentCertificateInfo, createdTime)
 	if err != nil {
 		return nil, fmt.Errorf("error building certificate: %w", err)
 	}
@@ -237,8 +238,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		PreviousLocalExitRoot: &prevLER,
 		FromBlock:             fromBlock,
 		ToBlock:               toBlock,
-		CreatedAt:             int64(createdTime),
-		UpdatedAt:             int64(createdTime),
+		CreatedAt:             createdTime,
+		UpdatedAt:             createdTime,
 		SignedCertificate:     string(raw),
 	}
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
@@ -369,7 +370,7 @@ func (a *AggSender) getNextHeightAndPreviousLER(
 // buildCertificate builds a certificate from the bridge events
 func (a *AggSender) buildCertificate(ctx context.Context,
 	certParams *types.CertificateBuildParams,
-	lastSentCertificateInfo *types.CertificateInfo) (*agglayer.Certificate, error) {
+	lastSentCertificateInfo *types.CertificateInfo, createdAt int64) (*agglayer.Certificate, error) {
 	if certParams.IsEmpty() {
 		return nil, errNoBridgesAndClaims
 	}
@@ -393,9 +394,9 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	}
 
 	meta := &types.CertificateMetadata{
-		FromBlock: fromBlock,
-		ToBlock:   toBlock,
-		CreatedAt: createdAt,
+		FromBlock: certParams.FromBlock,
+		ToBlock:   certParams.ToBlock,
+		CreatedAt: uint64(createdAt),
 	}
 
 	return &agglayer.Certificate{
@@ -405,7 +406,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		BridgeExits:         bridgeExits,
 		ImportedBridgeExits: importedBridgeExits,
 		Height:              height,
-		Metadata:            createCertificateMetadata(certParams.ToBlock),
+		Metadata:            meta.ToHash(),
 	}, nil
 }
 
