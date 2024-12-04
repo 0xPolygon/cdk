@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -550,13 +551,15 @@ func (c *ImportedBridgeExit) Hash() common.Hash {
 	)
 }
 
-type GenericPPError struct {
+var _ error = (*GenericError)(nil)
+
+type GenericError struct {
 	Key   string
 	Value string
 }
 
-func (p *GenericPPError) Error() string {
-	return fmt.Sprintf("Generic error: %s: %s", p.Key, p.Value)
+func (p *GenericError) Error() string {
+	return fmt.Sprintf("[Agglayer Error] %s: %s", p.Key, p.Value)
 }
 
 // CertificateHeader is the structure returned by the interop_getCertificateHeader RPC call
@@ -631,36 +634,16 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 
 		var ppError error
 
-		for key, value := range inErrDataMap {
-			switch key {
-			case "ProofGenerationError":
-				p := &ProofGenerationError{}
-				if err := p.Unmarshal(value); err != nil {
-					return err
+		for errKey, errValueRaw := range inErrDataMap {
+			errValueJSON, err := json.Marshal(errValueRaw)
+			if err != nil {
+				ppError = &GenericError{
+					Key: errKey,
+					Value: fmt.Sprintf("failed to marshal the agglayer error to the JSON. Raw value: %+v\nReason: %+v",
+						errValueRaw, err),
 				}
-
-				ppError = p
-			case "TypeConversionError":
-				t := &TypeConversionError{}
-				if err := t.Unmarshal(value); err != nil {
-					return err
-				}
-
-				ppError = t
-			case "ProofVerificationError":
-				p := &ProofVerificationError{}
-				if err := p.Unmarshal(value); err != nil {
-					return err
-				}
-
-				ppError = p
-			default:
-				valueStr, err := json.Marshal(value)
-				if err != nil {
-					ppError = &GenericPPError{Key: key, Value: "error marshalling value"}
-				} else {
-					ppError = &GenericPPError{Key: key, Value: string(valueStr)}
-				}
+			} else {
+				ppError = &GenericError{Key: errKey, Value: string(errValueJSON)}
 			}
 		}
 
@@ -671,6 +654,67 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// convertMapValue converts the value of a key in a map to a target type.
+func convertMapValue[T any](data map[string]interface{}, key string) (T, error) {
+	value, ok := data[key]
+	if !ok {
+		var zero T
+		return zero, fmt.Errorf("key %s not found in map", key)
+	}
+
+	// Try a direct type assertion
+	if convertedValue, ok := value.(T); ok {
+		return convertedValue, nil
+	}
+
+	// If direct assertion fails, handle numeric type conversions
+	var target T
+	targetType := reflect.TypeOf(target)
+
+	// Check if value is a float64 (default JSON number type) and target is a numeric type
+	if floatValue, ok := value.(float64); ok && targetType.Kind() >= reflect.Int && targetType.Kind() <= reflect.Uint64 {
+		convertedValue, err := convertNumeric(floatValue, targetType)
+		if err != nil {
+			return target, fmt.Errorf("conversion error for key %s: %w", key, err)
+		}
+		return convertedValue.(T), nil //nolint:forcetypeassert
+	}
+
+	return target, fmt.Errorf("value of key %s is not of type %T", key, target)
+}
+
+// convertNumeric converts a float64 to the specified numeric type.
+func convertNumeric(value float64, targetType reflect.Type) (interface{}, error) {
+	switch targetType.Kind() {
+	case reflect.Int:
+		return int(value), nil
+	case reflect.Int8:
+		return int8(value), nil
+	case reflect.Int16:
+		return int16(value), nil
+	case reflect.Int32:
+		return int32(value), nil
+	case reflect.Int64:
+		return int64(value), nil
+	case reflect.Uint:
+		return uint(value), nil
+	case reflect.Uint8:
+		return uint8(value), nil
+	case reflect.Uint16:
+		return uint16(value), nil
+	case reflect.Uint32:
+		return uint32(value), nil
+	case reflect.Uint64:
+		return uint64(value), nil
+	case reflect.Float32:
+		return float32(value), nil
+	case reflect.Float64:
+		return value, nil
+	default:
+		return nil, errors.New("unsupported target type")
+	}
 }
 
 // ClockConfiguration represents the configuration of the epoch clock

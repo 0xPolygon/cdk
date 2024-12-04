@@ -1,55 +1,10 @@
 package agglayer
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
-
-func TestErrorVectors(t *testing.T) {
-	t.Parallel()
-
-	type testCase struct {
-		TestName              string `json:"test_name"`
-		ExpectedError         string `json:"expected_error"`
-		CertificateHeaderJSON string `json:"certificate_header"`
-	}
-
-	files, err := filepath.Glob("testdata/*/*.json")
-	require.NoError(t, err)
-
-	for _, file := range files {
-		file := file
-
-		t.Run(file, func(t *testing.T) {
-			t.Parallel()
-
-			data, err := os.ReadFile(file)
-			require.NoError(t, err)
-
-			var testCases []*testCase
-
-			require.NoError(t, json.Unmarshal(data, &testCases))
-
-			for _, tc := range testCases {
-				certificateHeader := &CertificateHeader{}
-				err = json.Unmarshal([]byte(tc.CertificateHeaderJSON), certificateHeader)
-
-				if tc.ExpectedError == "" {
-					require.NoError(t, err, "Test: %s not expected any unmarshal error, but got: %v", tc.TestName, err)
-					require.NotNil(t, certificateHeader.Error, "Test: %s unpacked error is nil", tc.TestName)
-					fmt.Println(certificateHeader.Error)
-				} else {
-					require.ErrorContains(t, err, tc.ExpectedError, "Test: %s expected error: %s. Got: %v", tc.TestName, tc.ExpectedError, err)
-				}
-			}
-		})
-	}
-}
 
 func TestConvertMapValue_String(t *testing.T) {
 	t.Parallel()
