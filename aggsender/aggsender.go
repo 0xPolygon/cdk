@@ -412,10 +412,13 @@ func (a *AggSender) convertClaimToImportedBridgeExit(claim bridgesync.Claim) (*a
 		leafType = agglayer.LeafTypeMessage
 	}
 	var metaData []byte
-	if a.cfg.ImportedBridgeMetadataAsHash {
+	var MetadataIsHashed bool
+	if a.cfg.ImportedBridgeMetadataAsHash && len(claim.Metadata) > 0 {
 		metaData = crypto.Keccak256(claim.Metadata)
+		MetadataIsHashed = true
 	} else {
 		metaData = claim.Metadata
+		MetadataIsHashed = false
 	}
 
 	bridgeExit := &agglayer.BridgeExit{
@@ -427,7 +430,7 @@ func (a *AggSender) convertClaimToImportedBridgeExit(claim bridgesync.Claim) (*a
 		DestinationNetwork: claim.DestinationNetwork,
 		DestinationAddress: claim.DestinationAddress,
 		Amount:             claim.Amount,
-		MetadataIsHashed:   a.cfg.ImportedBridgeMetadataAsHash,
+		MetadataIsHashed:   MetadataIsHashed,
 		Metadata:           metaData,
 	}
 
