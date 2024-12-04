@@ -795,7 +795,7 @@ func TestBuildCertificate(t *testing.T) {
 				Bridges: tt.bridges,
 				Claims:  tt.claims,
 			}
-			cert, err := aggSender.buildCertificate(context.Background(), certParam, &tt.lastSentCertificateInfo)
+			cert, err := aggSender.buildCertificate(context.Background(), certParam, &tt.lastSentCertificateInfo, 0)
 
 			if tt.expectedError {
 				require.Error(t, err)
