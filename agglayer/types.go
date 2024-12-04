@@ -267,6 +267,7 @@ type BridgeExit struct {
 	DestinationNetwork uint32         `json:"dest_network"`
 	DestinationAddress common.Address `json:"dest_address"`
 	Amount             *big.Int       `json:"amount"`
+	MetadataIsHashed   bool           `json:"-"`
 	Metadata           []byte         `json:"metadata"`
 }
 
@@ -289,6 +290,12 @@ func (b *BridgeExit) Hash() common.Hash {
 	if b.Amount == nil {
 		b.Amount = big.NewInt(0)
 	}
+	var metaDataHash []byte
+	if b.MetadataIsHashed {
+		metaDataHash = b.Metadata
+	} else {
+		metaDataHash = crypto.Keccak256(b.Metadata)
+	}
 
 	return crypto.Keccak256Hash(
 		[]byte{b.LeafType.Uint8()},
@@ -297,7 +304,7 @@ func (b *BridgeExit) Hash() common.Hash {
 		cdkcommon.Uint32ToBytes(b.DestinationNetwork),
 		b.DestinationAddress.Bytes(),
 		b.Amount.Bytes(),
-		crypto.Keccak256(b.Metadata),
+		metaDataHash,
 	)
 }
 

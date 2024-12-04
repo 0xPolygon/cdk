@@ -37,6 +37,8 @@ type Config struct {
 	// MaxCertSize is the maximum size of the certificate (the emitted certificate can be bigger that this size)
 	// 0 is infinite
 	MaxCertSize uint `mapstructure:"MaxCertSize"`
+	// ImportedBridgeMetadataAsHash is a flag to import the bridge metadata as hash
+	ImportedBridgeMetadataAsHash bool `mapstructure:"ImportedBridgeMetadataAsHash"`
 }
 
 // String returns a string representation of the Config
