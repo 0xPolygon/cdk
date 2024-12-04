@@ -632,23 +632,23 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 			return err
 		}
 
-		var ppError error
+		var agglayerErr error
 
 		for errKey, errValueRaw := range inErrDataMap {
 			errValueJSON, err := json.Marshal(errValueRaw)
 			if err != nil {
-				ppError = &GenericError{
+				agglayerErr = &GenericError{
 					Key: errKey,
 					Value: fmt.Sprintf("failed to marshal the agglayer error to the JSON. Raw value: %+v\nReason: %+v",
 						errValueRaw, err),
 				}
 			} else {
-				ppError = &GenericError{Key: errKey, Value: string(errValueJSON)}
+				agglayerErr = &GenericError{Key: errKey, Value: string(errValueJSON)}
 			}
 		}
 
 		c.Status = InError
-		c.Error = ppError
+		c.Error = agglayerErr
 	default:
 		return errors.New("invalid status type")
 	}
