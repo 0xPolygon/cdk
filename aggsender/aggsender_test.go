@@ -1851,7 +1851,7 @@ func TestCheckLastCertificateFromAgglayer_Case3_1LessHeight(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
-		Return(certInfoToCertHeader(&testData.testCerts[0], networkIDTest), nil).Once()
+		Return(certInfoToCertHeader(t, &testData.testCerts[0], networkIDTest), nil).Once()
 	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[1], nil)
 
 	err := testData.sut.checkLastCertificateFromAgglayer(testData.ctx)
@@ -1861,12 +1861,10 @@ func TestCheckLastCertificateFromAgglayer_Case3_1LessHeight(t *testing.T) {
 
 // CASE 3.2: AggSender and AggLayer not same height. AggLayer has a new certificate
 func TestCheckLastCertificateFromAgglayer_Case3_2Mismatch(t *testing.T) {
-// CASE 3.1: the certificate on the agglayer has less height than the one stored in the local storage
-func TestCheckLastCertificateFromAgglayer_Case3_1LessHeight(t *testing.T) {
 	testData := newAggsenderTestData(t, testDataFlagMockStorage)
 	testData.l2syncerMock.EXPECT().OriginNetwork().Return(networkIDTest).Once()
 	testData.agglayerClientMock.EXPECT().GetLatestKnownCertificateHeader(networkIDTest).
-		Return(certInfoToCertHeader(&testData.testCerts[1], networkIDTest), nil).Once()
+		Return(certInfoToCertHeader(t, &testData.testCerts[1], networkIDTest), nil).Once()
 	testData.storageMock.EXPECT().GetLastSentCertificate().Return(&testData.testCerts[0], nil)
 	testData.storageMock.EXPECT().SaveLastSentCertificate(mock.Anything, mock.Anything).Return(nil).Once()
 
