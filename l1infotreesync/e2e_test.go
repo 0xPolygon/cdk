@@ -59,7 +59,7 @@ func newSimulatedClient(t *testing.T) (
 
 func TestE2E(t *testing.T) {
 	ctx, cancelCtx := context.WithCancel(context.Background())
-	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPath := path.Join(t.TempDir(), "L1InfoTreeTest.sqlite")
 
 	rdm := mocks_l1infotreesync.NewReorgDetectorMock(t)
 	rdm.On("Subscribe", mock.Anything).Return(&reorgdetector.Subscription{}, nil)
