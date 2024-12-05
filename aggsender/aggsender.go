@@ -454,6 +454,16 @@ func (a *AggSender) getBridgeExits(bridges []bridgesync.Bridge) []*agglayer.Brid
 	bridgeExits := make([]*agglayer.BridgeExit, 0, len(bridges))
 
 	for _, bridge := range bridges {
+		var metaData []byte
+		var MetadataIsHashed bool
+		if a.cfg.ImportedBridgeMetadataAsHash && len(bridge.Metadata) > 0 {
+			metaData = crypto.Keccak256(bridge.Metadata)
+			MetadataIsHashed = true
+		} else {
+			metaData = bridge.Metadata
+			MetadataIsHashed = false
+		}
+
 		bridgeExits = append(bridgeExits, &agglayer.BridgeExit{
 			LeafType: agglayer.LeafType(bridge.LeafType),
 			TokenInfo: &agglayer.TokenInfo{
@@ -463,7 +473,8 @@ func (a *AggSender) getBridgeExits(bridges []bridgesync.Bridge) []*agglayer.Brid
 			DestinationNetwork: bridge.DestinationNetwork,
 			DestinationAddress: bridge.DestinationAddress,
 			Amount:             bridge.Amount,
-			Metadata:           bridge.Metadata,
+			MetadataIsHashed:   MetadataIsHashed,
+			Metadata:           metaData,
 		})
 	}
 
