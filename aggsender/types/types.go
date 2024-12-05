@@ -65,8 +65,8 @@ type CertificateInfo struct {
 	FromBlock             uint64                     `meddler:"from_block"`
 	ToBlock               uint64                     `meddler:"to_block"`
 	Status                agglayer.CertificateStatus `meddler:"status"`
-	CreatedAt             int64                      `meddler:"created_at"`
-	UpdatedAt             int64                      `meddler:"updated_at"`
+	CreatedAt             uint32                     `meddler:"created_at"`
+	UpdatedAt             uint32                     `meddler:"updated_at"`
 	SignedCertificate     string                     `meddler:"signed_certificate"`
 }
 
@@ -98,8 +98,8 @@ func (c *CertificateInfo) String() string {
 		c.Status.String(),
 		c.FromBlock,
 		c.ToBlock,
-		time.UnixMilli(c.CreatedAt),
-		time.UnixMilli(c.UpdatedAt),
+		time.Unix(int64(c.CreatedAt), 0),
+		time.Unix(int64(c.UpdatedAt), 0),
 	)
 }
 
@@ -124,7 +124,7 @@ func (c *CertificateInfo) ElapsedTimeSinceCreation() time.Duration {
 	if c == nil {
 		return 0
 	}
-	return time.Now().UTC().Sub(time.UnixMilli(c.CreatedAt))
+	return time.Now().UTC().Sub(time.Unix(int64(c.CreatedAt), 0))
 }
 
 type CertificateMetadata struct {
