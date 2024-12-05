@@ -214,6 +214,8 @@ BlockFinality="LatestBlock"
 URLRPCL1="{{L1URL}}"
 WaitForNewBlocksPeriod="100ms"
 InitialBlock={{genesisBlockNumber}}
+RetryAfterErrorPeriod="1s"
+MaxRetryAttemptsAfterError=-1
 
 [AggOracle]
 TargetChainType="EVM"
