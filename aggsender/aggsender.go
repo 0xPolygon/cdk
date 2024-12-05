@@ -405,21 +405,28 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	}, nil
 }
 
+// createCertificateMetadata creates the metadata for the certificate
+// it returns: newMetadata + bool if the metadata is hashed or not
+func convertBridgeMetadata(metadata []byte, importedBridgeMetadataAsHash bool) ([]byte, bool) {
+	var metaData []byte
+	var MetadataIsHashed bool
+	if importedBridgeMetadataAsHash && len(metadata) > 0 {
+		metaData = crypto.Keccak256(metadata)
+		MetadataIsHashed = true
+	} else {
+		metaData = metadata
+		MetadataIsHashed = false
+	}
+	return metaData, MetadataIsHashed
+}
+
 // convertClaimToImportedBridgeExit converts a claim to an ImportedBridgeExit object
 func (a *AggSender) convertClaimToImportedBridgeExit(claim bridgesync.Claim) (*agglayer.ImportedBridgeExit, error) {
 	leafType := agglayer.LeafTypeAsset
 	if claim.IsMessage {
 		leafType = agglayer.LeafTypeMessage
 	}
-	var metaData []byte
-	var MetadataIsHashed bool
-	if a.cfg.ImportedBridgeMetadataAsHash && len(claim.Metadata) > 0 {
-		metaData = crypto.Keccak256(claim.Metadata)
-		MetadataIsHashed = true
-	} else {
-		metaData = claim.Metadata
-		MetadataIsHashed = false
-	}
+	metaData, MetadataIsHashed := convertBridgeMetadata(claim.Metadata, a.cfg.ImportedBridgeMetadataAsHash)
 
 	bridgeExit := &agglayer.BridgeExit{
 		LeafType: leafType,
@@ -454,16 +461,7 @@ func (a *AggSender) getBridgeExits(bridges []bridgesync.Bridge) []*agglayer.Brid
 	bridgeExits := make([]*agglayer.BridgeExit, 0, len(bridges))
 
 	for _, bridge := range bridges {
-		var metaData []byte
-		var MetadataIsHashed bool
-		if a.cfg.ImportedBridgeMetadataAsHash && len(bridge.Metadata) > 0 {
-			metaData = crypto.Keccak256(bridge.Metadata)
-			MetadataIsHashed = true
-		} else {
-			metaData = bridge.Metadata
-			MetadataIsHashed = false
-		}
-
+		metaData, MetadataIsHashed := convertBridgeMetadata(bridge.Metadata, a.cfg.ImportedBridgeMetadataAsHash)
 		bridgeExits = append(bridgeExits, &agglayer.BridgeExit{
 			LeafType: agglayer.LeafType(bridge.LeafType),
 			TokenInfo: &agglayer.TokenInfo{
