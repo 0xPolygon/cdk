@@ -38,7 +38,6 @@ func TestBridgeExitHash(t *testing.T) {
 	bridge.Metadata = []byte{}
 	require.Equal(t, "0x184125b2e3d1ded2ad3f82a383d9b09bd5bac4ccea4d41092f49523399598aca",
 		bridge.Hash().String(), "metadata is a hashed and it's empty,use it")
-
 }
 
 func TestMGenericPPError(t *testing.T) {
