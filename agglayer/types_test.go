@@ -1,14 +1,19 @@
 package agglayer
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"testing"
 
+	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -479,4 +484,296 @@ func generateTestProof(t *testing.T) types.Proof {
 	}
 
 	return proof
+}
+
+func TestConvertNumeric(t *testing.T) {
+	tests := []struct {
+		name        string
+		value       float64
+		target      reflect.Type
+		expected    interface{}
+		expectedErr error
+	}{
+		// Integer conversions
+		{"FloatToInt", 42.5, reflect.TypeOf(int(0)), int(42), nil},
+		{"FloatToInt8", 127.5, reflect.TypeOf(int8(0)), int8(127), nil},
+		{"FloatToInt16", 32767.5, reflect.TypeOf(int16(0)), int16(32767), nil},
+		{"FloatToInt32", 2147483647.5, reflect.TypeOf(int32(0)), int32(2147483647), nil},
+		{"FloatToInt64", -10000000000000000.9, reflect.TypeOf(int64(0)), int64(-10000000000000000), nil},
+
+		// Unsigned integer conversions
+		{"FloatToUint", 42.5, reflect.TypeOf(uint(0)), uint(42), nil},
+		{"FloatToUint8", 255.5, reflect.TypeOf(uint8(0)), uint8(255), nil},
+		{"FloatToUint16", 65535.5, reflect.TypeOf(uint16(0)), uint16(65535), nil},
+		{"FloatToUint32", 4294967295.5, reflect.TypeOf(uint32(0)), uint32(4294967295), nil},
+		{"FloatToUint64", 10000000000000000.9, reflect.TypeOf(uint64(0)), uint64(10000000000000000), nil},
+
+		// Float conversions
+		{"FloatToFloat32", 3.14, reflect.TypeOf(float32(0)), float32(3.14), nil},
+		{"FloatToFloat64", 3.14, reflect.TypeOf(float64(0)), float64(3.14), nil},
+
+		// Unsupported type
+		{"UnsupportedType", 3.14, reflect.TypeOf("string"), nil, errors.New("unsupported target type string")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := convertNumeric(tt.value, tt.target)
+			if tt.expectedErr != nil {
+				require.ErrorContains(t, err, tt.expectedErr.Error())
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// Helper function to create a dummy TokenInfo (mocking as needed).
+func createDummyTokenInfo() *TokenInfo {
+	return &TokenInfo{
+		OriginNetwork:      1,
+		OriginTokenAddress: common.HexToAddress("0x2345"),
+	}
+}
+
+// Helper function to create a dummy GlobalIndex.
+func createDummyGlobalIndex() *GlobalIndex {
+	return &GlobalIndex{
+		MainnetFlag: false,
+		RollupIndex: 1,
+		LeafIndex:   1,
+	}
+}
+
+// Helper function to create a dummy Claim (mock as needed).
+func createDummyClaim() *ClaimFromMainnnet {
+	return &ClaimFromMainnnet{
+		ProofLeafMER: &MerkleProof{
+			Root: common.HexToHash("0x1234"),
+			Proof: [common.HashLength]common.Hash{
+				common.HexToHash("0x1234"),
+				common.HexToHash("0x5678"),
+			},
+		},
+		ProofGERToL1Root: &MerkleProof{
+			Root: common.HexToHash("0x5678"),
+			Proof: [common.HashLength]common.Hash{
+				common.HexToHash("0x5678"),
+				common.HexToHash("0x1234"),
+			},
+		},
+		L1Leaf: &L1InfoTreeLeaf{
+			L1InfoTreeIndex: 1,
+			RollupExitRoot:  common.HexToHash("0x987654321"),
+			MainnetExitRoot: common.HexToHash("0x123456789"),
+			Inner:           &L1InfoTreeLeafInner{},
+		},
+	}
+}
+
+func TestCertificateHash(t *testing.T) {
+	// Test inputs
+	prevLocalExitRoot := [common.HashLength]byte{}
+	newLocalExitRoot := [common.HashLength]byte{}
+	copy(prevLocalExitRoot[:], bytes.Repeat([]byte{0x01}, common.HashLength))
+	copy(newLocalExitRoot[:], bytes.Repeat([]byte{0x02}, common.HashLength))
+
+	// Create dummy BridgeExits
+	bridgeExits := []*BridgeExit{
+		{
+			LeafType:           LeafTypeAsset,
+			TokenInfo:          createDummyTokenInfo(),
+			DestinationNetwork: 1,
+			DestinationAddress: common.HexToAddress("0x0000000000000000000000000000000000000001"),
+			Amount:             big.NewInt(100),
+			Metadata:           []byte("metadata1"),
+		},
+		{
+			LeafType:           LeafTypeMessage,
+			TokenInfo:          createDummyTokenInfo(),
+			DestinationNetwork: 2,
+			DestinationAddress: common.HexToAddress("0x0000000000000000000000000000000000000002"),
+			Amount:             big.NewInt(200),
+			Metadata:           []byte("metadata2"),
+		},
+	}
+
+	// Create dummy ImportedBridgeExits
+	importedBridgeExits := []*ImportedBridgeExit{
+		{
+			BridgeExit: &BridgeExit{
+				LeafType:           LeafTypeAsset,
+				TokenInfo:          createDummyTokenInfo(),
+				DestinationNetwork: 3,
+				DestinationAddress: common.HexToAddress("0x0000000000000000000000000000000000000003"),
+				Amount:             big.NewInt(300),
+				Metadata:           []byte("metadata3"),
+			},
+			ClaimData:   createDummyClaim(),
+			GlobalIndex: createDummyGlobalIndex(),
+		},
+		{
+			BridgeExit: &BridgeExit{
+				LeafType:           LeafTypeAsset,
+				TokenInfo:          createDummyTokenInfo(),
+				DestinationNetwork: 4,
+				DestinationAddress: common.HexToAddress("0x0000000000000000000000000000000000000004"),
+				Amount:             big.NewInt(400),
+				Metadata:           []byte("metadata4"),
+			},
+			ClaimData:   createDummyClaim(),
+			GlobalIndex: createDummyGlobalIndex(),
+		},
+	}
+
+	metadata := common.HexToHash("0x123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234")
+
+	// Create the certificate
+	certificate := &Certificate{
+		NetworkID:           1,
+		Height:              100,
+		PrevLocalExitRoot:   prevLocalExitRoot,
+		NewLocalExitRoot:    newLocalExitRoot,
+		BridgeExits:         bridgeExits,
+		ImportedBridgeExits: importedBridgeExits,
+		Metadata:            metadata,
+	}
+
+	// Manually calculate the expected hash
+	bridgeExitsHashes := [][]byte{
+		bridgeExits[0].Hash().Bytes(),
+		bridgeExits[1].Hash().Bytes(),
+	}
+	importedBridgeExitsHashes := [][]byte{
+		importedBridgeExits[0].Hash().Bytes(),
+		importedBridgeExits[1].Hash().Bytes(),
+	}
+
+	bridgeExitsPart := crypto.Keccak256(bridgeExitsHashes...)
+	importedBridgeExitsPart := crypto.Keccak256(importedBridgeExitsHashes...)
+
+	expectedHash := crypto.Keccak256Hash(
+		cdkcommon.Uint32ToBytes(1),
+		cdkcommon.Uint64ToBytes(100),
+		prevLocalExitRoot[:],
+		newLocalExitRoot[:],
+		bridgeExitsPart,
+		importedBridgeExitsPart,
+	)
+
+	// Test the certificate hash
+	calculatedHash := certificate.Hash()
+
+	require.Equal(t, calculatedHash, expectedHash)
+}
+
+func TestCertificate_HashToSign(t *testing.T) {
+	c := &Certificate{
+		NewLocalExitRoot: common.HexToHash("0xabcd"),
+		ImportedBridgeExits: []*ImportedBridgeExit{
+			{
+				GlobalIndex: &GlobalIndex{
+					MainnetFlag: true,
+					RollupIndex: 23,
+					LeafIndex:   1,
+				},
+			},
+			{
+				GlobalIndex: &GlobalIndex{
+					MainnetFlag: false,
+					RollupIndex: 15,
+					LeafIndex:   2,
+				},
+			},
+		},
+	}
+
+	globalIndexHashes := make([][]byte, len(c.ImportedBridgeExits))
+	for i, importedBridgeExit := range c.ImportedBridgeExits {
+		globalIndexHashes[i] = importedBridgeExit.GlobalIndex.Hash().Bytes()
+	}
+
+	expectedHash := crypto.Keccak256Hash(
+		c.NewLocalExitRoot[:],
+		crypto.Keccak256Hash(globalIndexHashes...).Bytes(),
+	)
+
+	certHash := c.HashToSign()
+	require.Equal(t, expectedHash, certHash)
+}
+
+func TestClaimFromMainnnet_MarshalJSON(t *testing.T) {
+	// Test data
+	merkleProof := &MerkleProof{
+		Root: common.HexToHash("0x1"),
+		Proof: [types.DefaultHeight]common.Hash{
+			common.HexToHash("0x2"),
+			common.HexToHash("0x3"),
+		},
+	}
+
+	l1InfoTreeLeaf := &L1InfoTreeLeaf{
+		L1InfoTreeIndex: 42,
+		RollupExitRoot:  [common.HashLength]byte{0xaa, 0xbb, 0xcc},
+		MainnetExitRoot: [common.HashLength]byte{0xdd, 0xee, 0xff},
+		Inner: &L1InfoTreeLeafInner{
+			GlobalExitRoot: common.HexToHash("0x1"),
+			BlockHash:      common.HexToHash("0x2"),
+			Timestamp:      1672531200, // Example timestamp
+		},
+	}
+
+	claim := &ClaimFromMainnnet{
+		ProofLeafMER:     merkleProof,
+		ProofGERToL1Root: merkleProof,
+		L1Leaf:           l1InfoTreeLeaf,
+	}
+
+	// Marshal the ClaimFromMainnnet struct to JSON
+	expectedJSON, err := claim.MarshalJSON()
+	require.NoError(t, err)
+
+	var actualClaim ClaimFromMainnnet
+	err = json.Unmarshal(expectedJSON, &actualClaim)
+	require.NoError(t, err)
+}
+
+func TestBridgeExitString(t *testing.T) {
+	tests := []struct {
+		name           string
+		bridgeExit     *BridgeExit
+		expectedOutput string
+	}{
+		{
+			name: "With TokenInfo",
+			bridgeExit: &BridgeExit{
+				LeafType:           LeafTypeAsset,
+				TokenInfo:          createDummyTokenInfo(),
+				DestinationNetwork: 100,
+				DestinationAddress: common.HexToAddress("0x2"),
+				Amount:             big.NewInt(1000),
+				Metadata:           []byte{0x01, 0x02, 0x03},
+			},
+			expectedOutput: "LeafType: Transfer, DestinationNetwork: 100, DestinationAddress: 0x0000000000000000000000000000000000000002, Amount: 1000, Metadata: 010203, TokenInfo: OriginNetwork: 1, OriginTokenAddress: 0x0000000000000000000000000000000000002345",
+		},
+		{
+			name: "Without TokenInfo",
+			bridgeExit: &BridgeExit{
+				LeafType:           LeafTypeMessage,
+				DestinationNetwork: 200,
+				DestinationAddress: common.HexToAddress("0x1"),
+				Amount:             big.NewInt(5000),
+				Metadata:           []byte{0xff, 0xee, 0xdd},
+			},
+			expectedOutput: "LeafType: Message, DestinationNetwork: 200, DestinationAddress: 0x0000000000000000000000000000000000000001, Amount: 5000, Metadata: ffeedd, TokenInfo: nil",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualOutput := tt.bridgeExit.String()
+			require.Equal(t, tt.expectedOutput, actualOutput)
+		})
+	}
 }

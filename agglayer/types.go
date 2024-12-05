@@ -273,7 +273,7 @@ type BridgeExit struct {
 }
 
 func (b *BridgeExit) String() string {
-	res := fmt.Sprintf("LeafType: %s,  DestinationNetwork: %d, DestinationAddress: %s, Amount: %s, Metadata: %s",
+	res := fmt.Sprintf("LeafType: %s, DestinationNetwork: %d, DestinationAddress: %s, Amount: %s, Metadata: %s",
 		b.LeafType.String(), b.DestinationNetwork, b.DestinationAddress.String(),
 		b.Amount.String(), common.Bytes2Hex(b.Metadata))
 
@@ -713,7 +713,7 @@ func convertNumeric(value float64, targetType reflect.Type) (interface{}, error)
 	case reflect.Float64:
 		return value, nil
 	default:
-		return nil, errors.New("unsupported target type")
+		return nil, fmt.Errorf("unsupported target type %v", targetType)
 	}
 }
 
