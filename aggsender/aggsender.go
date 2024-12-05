@@ -195,6 +195,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		ToBlock:   toBlock,
 		Bridges:   bridges,
 		Claims:    claims,
+		CreatedAt: uint32(time.Now().UTC().Unix()),
 	}
 
 	certificateParams, err = a.limitCertSize(certificateParams)
@@ -228,7 +229,6 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		return nil, fmt.Errorf("error marshalling signed certificate. Cert:%s. Err: %w", signedCertificate.Brief(), err)
 	}
 
-	createdTime := time.Now().UTC().UnixMilli()
 	prevLER := common.BytesToHash(certificate.PrevLocalExitRoot[:])
 	certInfo := types.CertificateInfo{
 		Height:                certificate.Height,
@@ -238,8 +238,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		PreviousLocalExitRoot: &prevLER,
 		FromBlock:             fromBlock,
 		ToBlock:               toBlock,
-		CreatedAt:             createdTime,
-		UpdatedAt:             createdTime,
+		CreatedAt:             int64(certificateParams.CreatedAt),
+		UpdatedAt:             int64(certificateParams.CreatedAt),
 		SignedCertificate:     string(raw),
 	}
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
@@ -396,7 +396,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	meta := types.NewCertificateMetadata(
 		certParams.FromBlock,
 		uint32(certParams.ToBlock-certParams.FromBlock),
-		uint32(time.Now().UTC().Unix()),
+		certParams.CreatedAt,
 	)
 
 	return &agglayer.Certificate{
