@@ -93,7 +93,7 @@ func (c *CertificateBuildParams) IsEmpty() bool {
 }
 
 // MaxDepoitCount returns the maximum deposit count in the certificate
-func (c *CertificateBuildParams) MaxDepoitCount() uint32 {
+func (c *CertificateBuildParams) MaxDepositCount() uint32 {
 	if c == nil || c.NumberOfBridges() == 0 {
 		return 0
 	}

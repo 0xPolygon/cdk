@@ -381,7 +381,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting imported bridge exits: %w", err)
 	}
 
-	depositCount := certParams.MaxDepoitCount()
+	depositCount := certParams.MaxDepositCount()
 
 	exitRoot, err := a.l2Syncer.GetExitRootByIndex(ctx, depositCount)
 	if err != nil {
