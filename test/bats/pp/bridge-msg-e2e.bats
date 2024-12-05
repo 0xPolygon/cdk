@@ -44,7 +44,7 @@ setup() {
 @test "transfer message" {
     echo "====== bridgeMessage L1 -> L2" >&3
     destination_addr=$sender_addr
-    destination_net=1
+    destination_net=$l2_rpc_network_id
     run bridge_message "$native_token_addr" "$l1_rpc_url"
     assert_success
 
@@ -55,8 +55,7 @@ setup() {
     assert_success
 
     echo "====== bridgeMessage L2->L1" >&3
-    destination_addr=$sender_addr
     destination_net=0
-    run bridge_message "$native_token_addr" "$l1_rpc_url"
+    run bridge_message "$native_token_addr" "$l2_rpc_url"
     assert_success
 }
