@@ -405,12 +405,28 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 	}, nil
 }
 
+// createCertificateMetadata creates the metadata for the certificate
+// it returns: newMetadata + bool if the metadata is hashed or not
+func convertBridgeMetadata(metadata []byte, importedBridgeMetadataAsHash bool) ([]byte, bool) {
+	var metaData []byte
+	var isMetadataHashed bool
+	if importedBridgeMetadataAsHash && len(metadata) > 0 {
+		metaData = crypto.Keccak256(metadata)
+		isMetadataHashed = true
+	} else {
+		metaData = metadata
+		isMetadataHashed = false
+	}
+	return metaData, isMetadataHashed
+}
+
 // convertClaimToImportedBridgeExit converts a claim to an ImportedBridgeExit object
 func (a *AggSender) convertClaimToImportedBridgeExit(claim bridgesync.Claim) (*agglayer.ImportedBridgeExit, error) {
 	leafType := agglayer.LeafTypeAsset
 	if claim.IsMessage {
 		leafType = agglayer.LeafTypeMessage
 	}
+	metaData, isMetadataIsHashed := convertBridgeMetadata(claim.Metadata, a.cfg.BridgeMetadataAsHash)
 
 	bridgeExit := &agglayer.BridgeExit{
 		LeafType: leafType,
@@ -421,7 +437,8 @@ func (a *AggSender) convertClaimToImportedBridgeExit(claim bridgesync.Claim) (*a
 		DestinationNetwork: claim.DestinationNetwork,
 		DestinationAddress: claim.DestinationAddress,
 		Amount:             claim.Amount,
-		Metadata:           claim.Metadata,
+		IsMetadataHashed:   isMetadataIsHashed,
+		Metadata:           metaData,
 	}
 
 	mainnetFlag, rollupIndex, leafIndex, err := bridgesync.DecodeGlobalIndex(claim.GlobalIndex)
@@ -444,6 +461,7 @@ func (a *AggSender) getBridgeExits(bridges []bridgesync.Bridge) []*agglayer.Brid
 	bridgeExits := make([]*agglayer.BridgeExit, 0, len(bridges))
 
 	for _, bridge := range bridges {
+		metaData, isMetadataHashed := convertBridgeMetadata(bridge.Metadata, a.cfg.BridgeMetadataAsHash)
 		bridgeExits = append(bridgeExits, &agglayer.BridgeExit{
 			LeafType: agglayer.LeafType(bridge.LeafType),
 			TokenInfo: &agglayer.TokenInfo{
@@ -453,7 +471,8 @@ func (a *AggSender) getBridgeExits(bridges []bridgesync.Bridge) []*agglayer.Brid
 			DestinationNetwork: bridge.DestinationNetwork,
 			DestinationAddress: bridge.DestinationAddress,
 			Amount:             bridge.Amount,
-			Metadata:           bridge.Metadata,
+			IsMetadataHashed:   isMetadataHashed,
+			Metadata:           metaData,
 		})
 	}
 

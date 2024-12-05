@@ -214,6 +214,8 @@ BlockFinality="LatestBlock"
 URLRPCL1="{{L1URL}}"
 WaitForNewBlocksPeriod="100ms"
 InitialBlock={{genesisBlockNumber}}
+RetryAfterErrorPeriod="1s"
+MaxRetryAttemptsAfterError=-1
 
 [AggOracle]
 TargetChainType="EVM"
@@ -338,4 +340,5 @@ DelayBeetweenRetries = "60s"
 KeepCertificatesHistory = true
 # MaxSize of the certificate to 8Mb
 MaxCertSize = 8388608
+BridgeMetadataAsHash = true
 `
