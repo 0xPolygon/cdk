@@ -780,13 +780,17 @@ func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *ty
 	}
 	now := time.Now().UTC().UnixMilli()
 	meta := types.NewCertificateMetadataFromHash(c.Metadata)
+	toBlock := meta.FromBlock + uint64(meta.Offset)
+	if meta.Version < 1 {
+		toBlock = meta.ToBlock
+	}
 
 	res := &types.CertificateInfo{
 		Height:            c.Height,
 		CertificateID:     c.CertificateID,
 		NewLocalExitRoot:  c.NewLocalExitRoot,
 		FromBlock:         meta.FromBlock,
-		ToBlock:           meta.FromBlock + uint64(meta.Offset),
+		ToBlock:           toBlock,
 		Status:            c.Status,
 		CreatedAt:         int64(meta.CreatedAt),
 		UpdatedAt:         now,

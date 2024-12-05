@@ -11,8 +11,8 @@ import (
 func TestMetadataConversions_toBlock_Only(t *testing.T) {
 	toBlock := uint64(123567890)
 	hash := common.BigToHash(new(big.Int).SetUint64(toBlock))
-	extractBlock := NewCertificateMetadataFromHash(hash)
-	require.Equal(t, toBlock, extractBlock.FromBlock)
+	meta := NewCertificateMetadataFromHash(hash)
+	require.Equal(t, toBlock, meta.ToBlock)
 }
 
 func TestMetadataConversions(t *testing.T) {

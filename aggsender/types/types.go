@@ -128,10 +128,21 @@ func (c *CertificateInfo) ElapsedTimeSinceCreation() time.Duration {
 }
 
 type CertificateMetadata struct {
-	FromBlock uint64 `json:"fromBlock"`
-	Offset    uint32 `json:"toBlock"`
-	CreatedAt uint32 `json:"createdAt"`
-	Version   uint8  `json:"version"`
+	// ToBlock contains the pre v1 value stored in the metadata certificate field
+	// is not stored in the hash post v1
+	ToBlock uint64
+
+	// FromBlock is the block number from which the certificate contains data
+	FromBlock uint64
+
+	// Offset is the number of blocks from the FromBlock that the certificate contains
+	Offset uint32
+
+	// CreatedAt is the timestamp when the certificate was created
+	CreatedAt uint32
+
+	// Version is the version of the metadata
+	Version uint8
 }
 
 // NewCertificateMetadataFromHash returns a new CertificateMetadata from the given hash
@@ -149,13 +160,8 @@ func NewCertificateMetadataFromHash(hash common.Hash) *CertificateMetadata {
 	b := hash.Bytes()
 
 	if b[0] < 1 {
-		hash.Big().Uint64()
-
 		return &CertificateMetadata{
-			Version:   b[0],
-			FromBlock: binary.BigEndian.Uint64(b[1:9]),
-			Offset:    binary.BigEndian.Uint32(b[9:13]),
-			CreatedAt: binary.BigEndian.Uint32(b[13:17]),
+			ToBlock: hash.Big().Uint64(),
 		}
 	}
 
