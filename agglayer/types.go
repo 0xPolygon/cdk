@@ -105,8 +105,8 @@ const (
 type Certificate struct {
 	NetworkID           uint32                `json:"network_id"`
 	Height              uint64                `json:"height"`
-	PrevLocalExitRoot   [32]byte              `json:"prev_local_exit_root"`
-	NewLocalExitRoot    [32]byte              `json:"new_local_exit_root"`
+	PrevLocalExitRoot   common.Hash           `json:"prev_local_exit_root"`
+	NewLocalExitRoot    common.Hash           `json:"new_local_exit_root"`
 	BridgeExits         []*BridgeExit         `json:"bridge_exits"`
 	ImportedBridgeExits []*ImportedBridgeExit `json:"imported_bridge_exits"`
 	Metadata            common.Hash           `json:"metadata"`
@@ -118,7 +118,7 @@ func (c *Certificate) Brief() string {
 		return nilStr
 	}
 	res := fmt.Sprintf("agglayer.Cert {height: %d prevLER: %s newLER: %s exits: %d imported_exits: %d}", c.Height,
-		common.Bytes2Hex(c.PrevLocalExitRoot[:]), common.Bytes2Hex(c.NewLocalExitRoot[:]),
+		c.PrevLocalExitRoot.String(), c.NewLocalExitRoot.String(),
 		len(c.BridgeExits), len(c.ImportedBridgeExits))
 	return res
 }
@@ -141,8 +141,8 @@ func (c *Certificate) Hash() common.Hash {
 	return crypto.Keccak256Hash(
 		cdkcommon.Uint32ToBytes(c.NetworkID),
 		cdkcommon.Uint64ToBytes(c.Height),
-		c.PrevLocalExitRoot[:],
-		c.NewLocalExitRoot[:],
+		c.PrevLocalExitRoot.Bytes(),
+		c.NewLocalExitRoot.Bytes(),
 		bridgeExitsPart,
 		importedBridgeExitsPart,
 	)
@@ -157,7 +157,7 @@ func (c *Certificate) HashToSign() common.Hash {
 	}
 
 	return crypto.Keccak256Hash(
-		c.NewLocalExitRoot[:],
+		c.NewLocalExitRoot.Bytes(),
 		crypto.Keccak256Hash(globalIndexHashes...).Bytes(),
 	)
 }
@@ -344,18 +344,13 @@ type MerkleProof struct {
 
 // MarshalJSON is the implementation of the json.Marshaler interface
 func (m *MerkleProof) MarshalJSON() ([]byte, error) {
-	proofsAsBytes := [types.DefaultHeight][types.DefaultHeight]byte{}
-	for i, proof := range m.Proof {
-		proofsAsBytes[i] = proof
-	}
-
 	return json.Marshal(&struct {
-		Root  [types.DefaultHeight]byte                                 `json:"root"`
-		Proof map[string][types.DefaultHeight][types.DefaultHeight]byte `json:"proof"`
+		Root  [types.DefaultHeight]byte                   `json:"root"`
+		Proof map[string][types.DefaultHeight]common.Hash `json:"proof"`
 	}{
 		Root: m.Root,
-		Proof: map[string][types.DefaultHeight][types.DefaultHeight]byte{
-			"siblings": proofsAsBytes,
+		Proof: map[string][types.DefaultHeight]common.Hash{
+			"siblings": m.Proof,
 		},
 	})
 }
@@ -394,19 +389,6 @@ func (l *L1InfoTreeLeafInner) Hash() common.Hash {
 	)
 }
 
-// MarshalJSON is the implementation of the json.Marshaler interface
-func (l *L1InfoTreeLeafInner) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		GlobalExitRoot [types.DefaultHeight]byte `json:"global_exit_root"`
-		BlockHash      [types.DefaultHeight]byte `json:"block_hash"`
-		Timestamp      uint64                    `json:"timestamp"`
-	}{
-		GlobalExitRoot: l.GlobalExitRoot,
-		BlockHash:      l.BlockHash,
-		Timestamp:      l.Timestamp,
-	})
-}
-
 func (l *L1InfoTreeLeafInner) String() string {
 	return fmt.Sprintf("GlobalExitRoot: %s, BlockHash: %s, Timestamp: %d",
 		l.GlobalExitRoot.String(), l.BlockHash.String(), l.Timestamp)
@@ -415,8 +397,8 @@ func (l *L1InfoTreeLeafInner) String() string {
 // L1InfoTreeLeaf represents the leaf of the L1 info tree
 type L1InfoTreeLeaf struct {
 	L1InfoTreeIndex uint32               `json:"l1_info_tree_index"`
-	RollupExitRoot  [32]byte             `json:"rer"`
-	MainnetExitRoot [32]byte             `json:"mer"`
+	RollupExitRoot  common.Hash          `json:"rer"`
+	MainnetExitRoot common.Hash          `json:"mer"`
 	Inner           *L1InfoTreeLeafInner `json:"inner"`
 }
 
@@ -428,8 +410,8 @@ func (l *L1InfoTreeLeaf) Hash() common.Hash {
 func (l *L1InfoTreeLeaf) String() string {
 	return fmt.Sprintf("L1InfoTreeIndex: %d, RollupExitRoot: %s, MainnetExitRoot: %s, Inner: %s",
 		l.L1InfoTreeIndex,
-		common.Bytes2Hex(l.RollupExitRoot[:]),
-		common.Bytes2Hex(l.MainnetExitRoot[:]),
+		l.RollupExitRoot.String(),
+		l.MainnetExitRoot.String(),
 		l.Inner.String(),
 	)
 }
