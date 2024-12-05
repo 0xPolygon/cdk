@@ -394,7 +394,11 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting next height and previous LER: %w", err)
 	}
 
-	meta := types.NewCertificateMetadata(fromBlock, toBlock, createdAt)
+	meta := types.NewCertificateMetadata(
+		certParams.FromBlock,
+		certParams.ToBlock,
+		uint64(time.Now().UTC().UnixMilli()),
+	)
 
 	return &agglayer.Certificate{
 		NetworkID:           a.l2Syncer.OriginNetwork(),
@@ -403,7 +407,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		BridgeExits:         bridgeExits,
 		ImportedBridgeExits: importedBridgeExits,
 		Height:              height,
-		Metadata:            createCertificateMetadata(certParams.ToBlock),
+		Metadata:            meta.ToHash(),
 	}, nil
 }
 
