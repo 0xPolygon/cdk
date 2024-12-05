@@ -409,15 +409,15 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 // it returns: newMetadata + bool if the metadata is hashed or not
 func convertBridgeMetadata(metadata []byte, importedBridgeMetadataAsHash bool) ([]byte, bool) {
 	var metaData []byte
-	var MetadataIsHashed bool
+	var isMetadataHashed bool
 	if importedBridgeMetadataAsHash && len(metadata) > 0 {
 		metaData = crypto.Keccak256(metadata)
-		MetadataIsHashed = true
+		isMetadataHashed = true
 	} else {
 		metaData = metadata
-		MetadataIsHashed = false
+		isMetadataHashed = false
 	}
-	return metaData, MetadataIsHashed
+	return metaData, isMetadataHashed
 }
 
 // convertClaimToImportedBridgeExit converts a claim to an ImportedBridgeExit object
@@ -426,7 +426,7 @@ func (a *AggSender) convertClaimToImportedBridgeExit(claim bridgesync.Claim) (*a
 	if claim.IsMessage {
 		leafType = agglayer.LeafTypeMessage
 	}
-	metaData, MetadataIsHashed := convertBridgeMetadata(claim.Metadata, a.cfg.ImportedBridgeMetadataAsHash)
+	metaData, isMetadataIsHashed := convertBridgeMetadata(claim.Metadata, a.cfg.BridgeMetadataAsHash)
 
 	bridgeExit := &agglayer.BridgeExit{
 		LeafType: leafType,
@@ -437,7 +437,7 @@ func (a *AggSender) convertClaimToImportedBridgeExit(claim bridgesync.Claim) (*a
 		DestinationNetwork: claim.DestinationNetwork,
 		DestinationAddress: claim.DestinationAddress,
 		Amount:             claim.Amount,
-		MetadataIsHashed:   MetadataIsHashed,
+		IsMetadataHashed:   isMetadataIsHashed,
 		Metadata:           metaData,
 	}
 
@@ -461,7 +461,7 @@ func (a *AggSender) getBridgeExits(bridges []bridgesync.Bridge) []*agglayer.Brid
 	bridgeExits := make([]*agglayer.BridgeExit, 0, len(bridges))
 
 	for _, bridge := range bridges {
-		metaData, MetadataIsHashed := convertBridgeMetadata(bridge.Metadata, a.cfg.ImportedBridgeMetadataAsHash)
+		metaData, isMetadataHashed := convertBridgeMetadata(bridge.Metadata, a.cfg.BridgeMetadataAsHash)
 		bridgeExits = append(bridgeExits, &agglayer.BridgeExit{
 			LeafType: agglayer.LeafType(bridge.LeafType),
 			TokenInfo: &agglayer.TokenInfo{
@@ -471,7 +471,7 @@ func (a *AggSender) getBridgeExits(bridges []bridgesync.Bridge) []*agglayer.Brid
 			DestinationNetwork: bridge.DestinationNetwork,
 			DestinationAddress: bridge.DestinationAddress,
 			Amount:             bridge.Amount,
-			MetadataIsHashed:   MetadataIsHashed,
+			IsMetadataHashed:   isMetadataHashed,
 			Metadata:           metaData,
 		})
 	}

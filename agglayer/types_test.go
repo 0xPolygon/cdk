@@ -19,22 +19,22 @@ func TestBridgeExitHash(t *testing.T) {
 	MetadaHash := common.HexToHash("0x1234")
 	bridge := BridgeExit{
 		TokenInfo:        &TokenInfo{},
-		MetadataIsHashed: true,
+		IsMetadataHashed: true,
 		Metadata:         MetadaHash[:],
 	}
 	require.Equal(t, "0x7d344cd1a895c66f0819be6a392d2a5d649c0cd5c8345706e11c757324da2943",
 		bridge.Hash().String(), "use the hashed metadata, instead of calculating hash")
 
-	bridge.MetadataIsHashed = false
+	bridge.IsMetadataHashed = false
 	require.Equal(t, "0xa3ef92d7ca132432b864e424039077556b8757d2da4e01d6040c6ccbb39bef60",
 		bridge.Hash().String(), "metadata is not hashed, calculate hash")
 
-	bridge.MetadataIsHashed = false
+	bridge.IsMetadataHashed = false
 	bridge.Metadata = []byte{}
 	require.Equal(t, "0xad4224e96b39d42026b4795e5be83f43e0df757cdb13e781cd49e1a5363b193c",
 		bridge.Hash().String(), "metadata is not hashed and it's empty, calculate hash")
 
-	bridge.MetadataIsHashed = true
+	bridge.IsMetadataHashed = true
 	bridge.Metadata = []byte{}
 	require.Equal(t, "0x184125b2e3d1ded2ad3f82a383d9b09bd5bac4ccea4d41092f49523399598aca",
 		bridge.Hash().String(), "metadata is a hashed and it's empty,use it")
