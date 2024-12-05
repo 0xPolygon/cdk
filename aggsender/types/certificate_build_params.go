@@ -83,13 +83,18 @@ func (c *CertificateBuildParams) EstimatedSize() uint {
 	if c == nil {
 		return 0
 	}
-	numBridges := len(c.Bridges)
+	sizeBridges := int(0)
+	for _, bridge := range c.Bridges {
+		sizeBridges += EstimatedSizeBridgeExit
+		sizeBridges += int(byteArrayJsonSizeFactor * float32(len(bridge.Metadata)))
+	}
+
 	sizeClaims := int(0)
 	for _, claim := range c.Claims {
 		sizeClaims += EstimatedSizeClaim
 		sizeClaims += int(byteArrayJsonSizeFactor * float32(len(claim.Metadata)))
 	}
-	return uint(numBridges*EstimatedSizeBridgeExit + sizeClaims)
+	return uint(sizeBridges + sizeClaims)
 }
 
 // IsEmpty returns true if the certificate is empty
