@@ -2022,7 +2022,7 @@ func certInfoToCertHeader(t *testing.T, certInfo *aggsendertypes.CertificateInfo
 		Metadata: aggsendertypes.NewCertificateMetadata(
 			certInfo.FromBlock,
 			uint32(certInfo.FromBlock-certInfo.ToBlock),
-			uint32(certInfo.CreatedAt),
+			certInfo.CreatedAt,
 		).ToHash(),
 	}
 }
