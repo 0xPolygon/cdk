@@ -86,6 +86,6 @@ setup() {
 
     echo "====== bridgeMessage L2->L1" >&3
     destination_net=0
-    run bridge_message "$native_token_addr" "$l2_rpc_url"
+    run bridge_message "0x0000000000000000000000000000000000000000" "$l2_rpc_url"
     assert_success
 }
