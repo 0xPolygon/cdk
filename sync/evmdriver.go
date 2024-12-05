@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
@@ -97,8 +98,8 @@ reset:
 			cancel()
 			return
 		case b := <-downloadCh:
-			d.log.Debug("handleNewBlock", " blockNum: ", b.Num, " blockHash: ", b.Hash)
-			d.handleNewBlock(ctx, b)
+			d.log.Debugf("handleNewBlock, blockNum: %d, blockHash: %s", b.Num, b.Hash)
+			d.handleNewBlock(ctx, cancel, b)
 		case firstReorgedBlock := <-d.reorgSub.ReorgedBlock:
 			d.log.Debug("handleReorg from block: ", firstReorgedBlock)
 			d.handleReorg(ctx, cancel, firstReorgedBlock)
@@ -107,32 +108,59 @@ reset:
 	}
 }
 
-func (d *EVMDriver) handleNewBlock(ctx context.Context, b EVMBlock) {
+func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFunc, b EVMBlock) {
 	attempts := 0
+	succeed := false
 	for {
-		err := d.reorgDetector.AddBlockToTrack(ctx, d.reorgDetectorID, b.Num, b.Hash)
-		if err != nil {
-			attempts++
-			d.log.Errorf("error adding block %d to tracker: %v", b.Num, err)
-			d.rh.Handle("handleNewBlock", attempts)
-			continue
+		select {
+		case <-ctx.Done():
+			// If the context is canceled, exit the function
+			d.log.Warnf("context canceled while adding block %d to tracker", b.Num)
+			return
+		default:
+			err := d.reorgDetector.AddBlockToTrack(ctx, d.reorgDetectorID, b.Num, b.Hash)
+			if err != nil {
+				attempts++
+				d.log.Errorf("error adding block %d to tracker: %v", b.Num, err)
+				d.rh.Handle("handleNewBlock", attempts)
+			} else {
+				succeed = true
+			}
 		}
-		break
+		if succeed {
+			break
+		}
 	}
 	attempts = 0
+	succeed = false
 	for {
-		blockToProcess := Block{
-			Num:    b.Num,
-			Events: b.Events,
+		select {
+		case <-ctx.Done():
+			// If the context is canceled, exit the function
+			d.log.Warnf("context canceled while processing block %d", b.Num)
+			return
+		default:
+			blockToProcess := Block{
+				Num:    b.Num,
+				Events: b.Events,
+			}
+			err := d.processor.ProcessBlock(ctx, blockToProcess)
+			if err != nil {
+				if errors.Is(err, ErrInconsistentState) {
+					d.log.Warn("state got inconsistent after processing this block. Stopping downloader until there is a reorg")
+					cancel()
+					return
+				}
+				attempts++
+				d.log.Errorf("error processing events for block %d, err: ", b.Num, err)
+				d.rh.Handle("handleNewBlock", attempts)
+			} else {
+				succeed = true
+			}
 		}
-		err := d.processor.ProcessBlock(ctx, blockToProcess)
-		if err != nil {
-			attempts++
-			d.log.Errorf("error processing events for block %d, err: ", b.Num, err)
-			d.rh.Handle("handleNewBlock", attempts)
-			continue
+		if succeed {
+			break
 		}
-		break
 	}
 }
 

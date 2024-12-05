@@ -74,6 +74,7 @@ func TestClaimCalldata(t *testing.T) {
 		ProofRollupExitRoot: proofRollupH,
 		DestinationNetwork:  0,
 		Metadata:            []byte{},
+		GlobalExitRoot:      crypto.Keccak256Hash(common.HexToHash("5ca1e").Bytes(), common.HexToHash("dead").Bytes()),
 	}
 	expectedClaim2 := Claim{
 		OriginNetwork:       87,
@@ -86,6 +87,7 @@ func TestClaimCalldata(t *testing.T) {
 		ProofRollupExitRoot: proofRollupH,
 		DestinationNetwork:  0,
 		Metadata:            []byte{},
+		GlobalExitRoot:      crypto.Keccak256Hash(common.HexToHash("5ca1e").Bytes(), common.HexToHash("dead").Bytes()),
 	}
 	expectedClaim3 := Claim{
 		OriginNetwork:       69,
@@ -98,6 +100,7 @@ func TestClaimCalldata(t *testing.T) {
 		ProofRollupExitRoot: proofRollupH,
 		DestinationNetwork:  0,
 		Metadata:            []byte{},
+		GlobalExitRoot:      crypto.Keccak256Hash(common.HexToHash("5ca1e").Bytes(), common.HexToHash("dead").Bytes()),
 	}
 	auth.GasLimit = 999999 // for some reason gas estimation fails :(
 
@@ -124,6 +127,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err := client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "direct call to claim asset",
 		bridgeAddr:    bridgeAddr,
@@ -152,6 +156,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "indirect call to claim asset",
 		bridgeAddr:    bridgeAddr,
@@ -185,6 +190,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "indirect call to claim asset bytes",
 		bridgeAddr:    bridgeAddr,
@@ -212,6 +218,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "direct call to claim message",
 		bridgeAddr:    bridgeAddr,
@@ -240,6 +247,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "indirect call to claim message",
 		bridgeAddr:    bridgeAddr,
@@ -273,6 +281,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "indirect call to claim message bytes",
 		bridgeAddr:    bridgeAddr,
@@ -306,6 +315,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	log.Infof("%+v", r.Logs)
 
 	reverted := [2]bool{false, false}
@@ -354,6 +364,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect call claim message 1 (same globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -411,6 +422,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect call claim message 1 (diff globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -470,6 +482,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect call claim message (same globalIndex) (1 ok, 1 reverted)",
 		bridgeAddr:    bridgeAddr,
@@ -521,6 +534,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect call claim message (diff globalIndex) (1 ok, 1 reverted)",
 		bridgeAddr:    bridgeAddr,
@@ -574,6 +588,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect call claim message (same globalIndex) (reverted,ok)",
 		bridgeAddr:    bridgeAddr,
@@ -625,6 +640,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect call claim message (diff globalIndex) (reverted,ok)",
 		bridgeAddr:    bridgeAddr,
@@ -678,6 +694,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect call claim asset 1 (same globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -735,6 +752,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect call claim asset 1 (diff globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -794,6 +812,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect call claim asset (same globalIndex) (1 ok, 1 reverted)",
 		bridgeAddr:    bridgeAddr,
@@ -845,6 +864,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect call claim asset (diff globalIndex) (1 ok, 1 reverted)",
 		bridgeAddr:    bridgeAddr,
@@ -898,6 +918,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect call claim asset (same globalIndex) (reverted,ok)",
 		bridgeAddr:    bridgeAddr,
@@ -949,6 +970,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect call claim asset (diff globalIndex) (reverted,ok)",
 		bridgeAddr:    bridgeAddr,
@@ -982,6 +1004,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "indirect + indirect call to claim message bytes",
 		bridgeAddr:    bridgeAddr,
@@ -1035,6 +1058,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 indirect + indirect call claim message 1 (same globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -1112,6 +1136,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "3 ok (indirectx2, indirect, indirectx2) call claim message 1 (same globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -1193,6 +1218,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "3 ok (indirectx2, indirect, indirectx2) call claim message 1 (diff globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -1276,6 +1302,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "1 ko 2 ok (indirectx2, indirect, indirectx2) call claim message 1 (diff globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -1353,6 +1380,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "1 ko 2 ok (indirectx2, indirect, indirectx2) call claim message 1 (diff globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -1430,6 +1458,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "1 ok 1 ok 1 ko (indirectx2, indirect, indirectx2) call claim message 1 (diff globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -1507,6 +1536,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "1 ko 2 ok (indirectx2, indirect, indirectx2) call claim message 1 (same globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -1584,6 +1614,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "1 ko 2 ok (indirectx2, indirect, indirectx2) call claim message 1 (same globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -1661,6 +1692,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "1 ok 1 ok 1 ko (indirectx2, indirect, indirectx2) call claim message 1 (same globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -1738,6 +1770,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "2 ko 1 ok (indirectx2, indirect, indirectx2) call claim message 1 (same globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -1809,6 +1842,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "1 ok 2 ko (indirectx2, indirect, indirectx2) call claim message 1 (same globalIndex)",
 		bridgeAddr:    bridgeAddr,
@@ -1880,6 +1914,7 @@ func TestClaimCalldata(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second)
 	r, err = client.TransactionReceipt(ctx, tx.Hash())
+	require.NoError(t, err)
 	testCases = append(testCases, testCase{
 		description:   "1 ko 1 ok 1 ko (indirectx2, indirect, indirectx2) call claim message 1 (same globalIndex)",
 		bridgeAddr:    bridgeAddr,

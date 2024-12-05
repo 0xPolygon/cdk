@@ -20,7 +20,7 @@ import (
 func TestBridgeEventE2E(t *testing.T) {
 	ctx := context.Background()
 	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	dbPathReorg := t.TempDir()
+	dbPathReorg := path.Join(t.TempDir(), "file::memory:?cache=shared")
 
 	client, setup := helpers.SimulatedBackend(t, nil, 0)
 	rd, err := reorgdetector.New(client.Client(), reorgdetector.Config{DBPath: dbPathReorg})
@@ -29,7 +29,7 @@ func TestBridgeEventE2E(t *testing.T) {
 	go rd.Start(ctx) //nolint:errcheck
 
 	testClient := helpers.TestClient{ClientRenamed: client.Client()}
-	syncer, err := bridgesync.NewL1(ctx, dbPathSyncer, setup.EBZkevmBridgeAddr, 10, etherman.LatestBlock, rd, testClient, 0, time.Millisecond*10, 0, 0)
+	syncer, err := bridgesync.NewL1(ctx, dbPathSyncer, setup.EBZkevmBridgeAddr, 10, etherman.LatestBlock, rd, testClient, 0, time.Millisecond*10, 0, 0, 1)
 	require.NoError(t, err)
 
 	go syncer.Start(ctx)

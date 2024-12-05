@@ -149,21 +149,25 @@ func (t *TxBuilderBananaBase) NewSequence(
 
 	counterL1InfoRoot, err := t.GetCounterL1InfoRoot(ctx, greatestL1Index)
 	if err != nil {
+		log.Errorf("error getting CounterL1InfoRoot: %s", err)
 		return nil, err
 	}
 	sequence.CounterL1InfoRoot = counterL1InfoRoot
 	l1InfoRoot, err := t.getL1InfoRoot(sequence.CounterL1InfoRoot)
 	if err != nil {
+		log.Errorf("error getting L1InfoRootMap: %s", err)
 		return nil, err
 	}
 	err = t.CheckL1InfoTreeLeafCounterVsInitL1InfoMap(ctx, sequence.CounterL1InfoRoot)
 	if err != nil {
+		log.Errorf("error checking L1InfoTreeLeafCounterVsInitL1InfoMap: %s", err)
 		return nil, err
 	}
 	sequence.L1InfoRoot = l1InfoRoot
 
 	accInputHash, err := t.rollupContract.LastAccInputHash(&bind.CallOpts{Pending: false})
 	if err != nil {
+		log.Errorf("error getting LastAccInputHash: %s", err)
 		return nil, err
 	}
 
@@ -187,24 +191,8 @@ func (t *TxBuilderBananaBase) NewSequence(
 
 	sequence.OldAccInputHash = oldAccInputHash
 	sequence.AccInputHash = accInputHash
-
-	err = SequenceSanityCheck(sequence)
-	if err != nil {
-		return nil, fmt.Errorf("sequenceSanityCheck fails. Err: %w", err)
-	}
 	res := NewBananaSequence(*sequence)
 	return res, nil
-}
-
-func SequenceSanityCheck(seq *etherman.SequenceBanana) error {
-	maxL1InfoIndex, err := calculateMaxL1InfoTreeIndexInsideSequence(seq)
-	if err != nil {
-		return err
-	}
-	if seq.CounterL1InfoRoot < maxL1InfoIndex+1 {
-		return fmt.Errorf("wrong CounterL1InfoRoot(%d): BatchL2Data (max=%d) ", seq.CounterL1InfoRoot, maxL1InfoIndex)
-	}
-	return nil
 }
 
 func (t *TxBuilderBananaBase) getL1InfoRoot(counterL1InfoRoot uint32) (common.Hash, error) {

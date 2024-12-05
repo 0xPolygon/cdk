@@ -24,4 +24,6 @@ type Config struct {
 	MaxRetryAttemptsAfterError int `mapstructure:"MaxRetryAttemptsAfterError"`
 	// WaitForNewBlocksPeriod time that will be waited when the synchronizer has reached the latest block
 	WaitForNewBlocksPeriod types.Duration `mapstructure:"WaitForNewBlocksPeriod"`
+	// OriginNetwork is the id of the network where the bridge is deployed
+	OriginNetwork uint32 `mapstructure:"OriginNetwork"`
 }

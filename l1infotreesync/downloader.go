@@ -130,17 +130,20 @@ func buildAppender(client EthClienter, globalExitRoot,
 		return nil
 	}
 
-	// TODO: integrate this event to perform sanity checks
-	appender[updateL1InfoTreeSignatureV2] = func(b *sync.EVMBlock, l types.Log) error { //nolint:unparam
-		l1InfoTreeUpdate, err := ger.ParseUpdateL1InfoTreeV2(l)
+	appender[updateL1InfoTreeSignatureV2] = func(b *sync.EVMBlock, l types.Log) error {
+		l1InfoTreeUpdateV2, err := ger.ParseUpdateL1InfoTreeV2(l)
 		if err != nil {
 			return fmt.Errorf(
 				"error parsing log %+v using ger.ParseUpdateL1InfoTreeV2: %w",
 				l, err,
 			)
 		}
-		log.Infof("updateL1InfoTreeSignatureV2: expected root: %s",
-			common.BytesToHash(l1InfoTreeUpdate.CurrentL1InfoRoot[:]))
+		b.Events = append(b.Events, Event{UpdateL1InfoTreeV2: &UpdateL1InfoTreeV2{
+			CurrentL1InfoRoot: l1InfoTreeUpdateV2.CurrentL1InfoRoot,
+			LeafCount:         l1InfoTreeUpdateV2.LeafCount,
+			Blockhash:         common.BytesToHash(l1InfoTreeUpdateV2.Blockhash.Bytes()),
+			MinTimestamp:      l1InfoTreeUpdateV2.MinTimestamp,
+		}})
 
 		return nil
 	}

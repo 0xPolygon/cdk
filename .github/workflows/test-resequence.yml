@@ -86,22 +86,20 @@ jobs:
         working-directory: ./cdk-erigon
         run: .github/scripts/test_resequence.sh
 
-      - name: Prepare logs
-        if: always()
-        working-directory: ./kurtosis-cdk
+      - name: Dump enclave logs
+        if: failure()
+        run: kurtosis dump ./dump
+  
+      - name: Generate archive name
+        if: failure()
         run: |
-          mkdir -p ci_logs
-          cd ci_logs
-          kurtosis service logs cdk-v1 cdk-erigon-node-001 --all > cdk-erigon-node-001.log
-          kurtosis service logs cdk-v1 cdk-erigon-sequencer-001 --all > cdk-erigon-sequencer-001.log
-          kurtosis service logs cdk-v1 zkevm-agglayer-001 --all > zkevm-agglayer-001.log
-          kurtosis service logs cdk-v1 zkevm-prover-001 --all > zkevm-prover-001.log
-          kurtosis service logs cdk-v1 cdk-node-001 --all > cdk-node-001.log
-          kurtosis service logs cdk-v1 zkevm-bridge-service-001 --all > zkevm-bridge-service-001.log
+          archive_name="dump_run_with_args_${{matrix.e2e-group}}_${{ github.run_id }}"
+          echo "ARCHIVE_NAME=${archive_name}" >> "$GITHUB_ENV"
+          echo "Generated archive name: ${archive_name}"
 
       - name: Upload logs
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: logs_${{ github.run_id }}
-          path: ./kurtosis-cdk/ci_logs
+          name: ${{ env.ARCHIVE_NAME }}
+          path: ./dump

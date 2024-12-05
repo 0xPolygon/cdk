@@ -35,6 +35,14 @@ contract VerifyBatchesMock {
         address indexed aggregator
     );
 
+    event VerifyBatchesTrustedAggregator(
+        uint32 indexed rollupID,
+        uint64 numBatch,
+        bytes32 stateRoot,
+        bytes32 exitRoot,
+        address indexed aggregator
+    );
+
     constructor(
         IPolygonZkEVMGlobalExitRootV2 _globalExitRootManager
     ) {
@@ -57,6 +65,30 @@ contract VerifyBatchesMock {
         }
 
         emit VerifyBatches(
+            rollupID,
+            finalNewBatch,
+            newStateRoot,
+            newLocalExitRoot,
+            msg.sender
+        );
+    }
+
+    function verifyBatchesTrustedAggregator(
+        uint32 rollupID,
+        uint64 finalNewBatch,
+        bytes32 newLocalExitRoot,
+        bytes32 newStateRoot,
+        bool updateGER
+    ) external {
+        if (rollupID > rollupCount) {
+            rollupCount = rollupID;
+        }
+        rollupIDToLastExitRoot[rollupID] = newLocalExitRoot;
+        if (updateGER) {
+            globalExitRootManager.updateExitRoot(getRollupExitRoot());
+        }
+
+        emit VerifyBatchesTrustedAggregator(
             rollupID,
             finalNewBatch,
             newStateRoot,

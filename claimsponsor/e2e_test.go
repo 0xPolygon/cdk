@@ -26,12 +26,12 @@ func TestE2EL1toEVML2(t *testing.T) {
 	env := aggoraclehelpers.SetupAggoracleWithEVMChain(t)
 	dbPathBridgeSyncL1 := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	testClient := helpers.TestClient{ClientRenamed: env.L1Client.Client()}
-	bridgeSyncL1, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, env.BridgeL1Addr, 10, etherman.LatestBlock, env.ReorgDetector, testClient, 0, time.Millisecond*10, 0, 0)
+	bridgeSyncL1, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, env.BridgeL1Addr, 10, etherman.LatestBlock, env.ReorgDetector, testClient, 0, time.Millisecond*10, 0, 0, 1)
 	require.NoError(t, err)
 	go bridgeSyncL1.Start(ctx)
 
 	// start claim sponsor
-	dbPathClaimSponsor := t.TempDir()
+	dbPathClaimSponsor := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	claimer, err := claimsponsor.NewEVMClaimSponsor(
 		log.GetDefaultLogger(),
 		dbPathClaimSponsor,
@@ -71,7 +71,7 @@ func TestE2EL1toEVML2(t *testing.T) {
 
 		// Request to sponsor claim
 		globalIndex := bridgesync.GenerateGlobalIndex(true, 0, uint32(i))
-		err = claimer.AddClaimToQueue(ctx, &claimsponsor.Claim{
+		err = claimer.AddClaimToQueue(&claimsponsor.Claim{
 			LeafType:            0,
 			ProofLocalExitRoot:  localProof,
 			ProofRollupExitRoot: rollupProof,
@@ -90,7 +90,7 @@ func TestE2EL1toEVML2(t *testing.T) {
 		// Wait until success
 		succeed := false
 		for i := 0; i < 10; i++ {
-			claim, err := claimer.GetClaim(ctx, globalIndex)
+			claim, err := claimer.GetClaim(globalIndex)
 			require.NoError(t, err)
 			if claim.Status == claimsponsor.FailedClaimStatus {
 				require.NoError(t, errors.New("claim failed"))

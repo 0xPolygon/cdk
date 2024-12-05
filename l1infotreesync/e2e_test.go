@@ -13,6 +13,8 @@ import (
 	cdktypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	mocks_l1infotreesync "github.com/0xPolygon/cdk/l1infotreesync/mocks"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/test/contracts/verifybatchesmock"
 	"github.com/0xPolygon/cdk/test/helpers"
@@ -59,7 +61,7 @@ func TestE2E(t *testing.T) {
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
 
-	rdm := l1infotreesync.NewReorgDetectorMock(t)
+	rdm := mocks_l1infotreesync.NewReorgDetectorMock(t)
 	rdm.On("Subscribe", mock.Anything).Return(&reorgdetector.Subscription{}, nil)
 	rdm.On("AddBlockToTrack", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -154,7 +156,7 @@ func TestE2E(t *testing.T) {
 func TestWithReorgs(t *testing.T) {
 	ctx := context.Background()
 	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	dbPathReorg := t.TempDir()
+	dbPathReorg := path.Join(t.TempDir(), "file::memory:?cache=shared")
 
 	client, auth, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
 
@@ -180,12 +182,12 @@ func TestWithReorgs(t *testing.T) {
 
 		// Update L1 Info Tree + Rollup Exit Tree
 		newLocalExitRoot := common.HexToHash(strconv.Itoa(i) + "ffff" + strconv.Itoa(1))
-		_, err = verifySC.VerifyBatches(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, true)
+		_, err = verifySC.VerifyBatchesTrustedAggregator(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, true)
 		require.NoError(t, err)
 
 		// Update Rollup Exit Tree
 		newLocalExitRoot = common.HexToHash(strconv.Itoa(i) + "ffff" + strconv.Itoa(2))
-		_, err = verifySC.VerifyBatches(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, false)
+		_, err = verifySC.VerifyBatchesTrustedAggregator(auth, rollupID, 0, newLocalExitRoot, common.Hash{}, false)
 		require.NoError(t, err)
 	}
 
@@ -272,7 +274,7 @@ func TestStressAndReorgs(t *testing.T) {
 
 	ctx := context.Background()
 	dbPathSyncer := path.Join(t.TempDir(), "file:TestStressAndReorgs:memory:?cache=shared")
-	dbPathReorg := t.TempDir()
+	dbPathReorg := path.Join(t.TempDir(), "file::memory:?cache=shared")
 
 	client, auth, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
 
@@ -310,6 +312,7 @@ func TestStressAndReorgs(t *testing.T) {
 				require.NoError(t, err)
 
 				block, err := client.Client().BlockByNumber(ctx, big.NewInt(int64(currentBlockNum-reorgSizeInBlocks)))
+				log.Debugf("reorging until block %d. Current block %d (before reorg)", block.NumberU64(), currentBlockNum)
 				require.NoError(t, err)
 				reorgFrom := block.Hash()
 				err = client.Fork(reorgFrom)

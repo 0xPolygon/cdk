@@ -20,9 +20,14 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+const (
+	globalIndexPartSize = 4
+	globalIndexMaxSize  = 9
+)
+
 var (
-	// ErrBlockNotProcessed indicates that the given block(s) have not been processed yet.
-	ErrBlockNotProcessed = errors.New("given block(s) have not been processed yet")
+	// errBlockNotProcessedFormat indicates that the given block(s) have not been processed yet.
+	errBlockNotProcessedFormat = fmt.Sprintf("block %%d not processed, last processed: %%d")
 )
 
 // Bridge is the representation of a bridge event
@@ -93,10 +98,15 @@ type Event struct {
 	Claim  *Claim
 }
 
+type BridgeContractor interface {
+	LastUpdatedDepositCount(ctx context.Context, BlockNumber uint64) (uint32, error)
+}
+
 type processor struct {
-	db       *sql.DB
-	exitTree *tree.AppendOnlyTree
-	log      *log.Logger
+	db             *sql.DB
+	exitTree       *tree.AppendOnlyTree
+	log            *log.Logger
+	bridgeContract BridgeContractor
 }
 
 func newProcessor(dbPath, loggerPrefix string) (*processor, error) {
@@ -115,6 +125,11 @@ func newProcessor(dbPath, loggerPrefix string) (*processor, error) {
 		exitTree: exitTree,
 		log:      logger,
 	}, nil
+}
+func (p *processor) GetBridgesPublished(
+	ctx context.Context, fromBlock, toBlock uint64,
+) ([]Bridge, error) {
+	return p.GetBridges(ctx, fromBlock, toBlock)
 }
 
 func (p *processor) GetBridges(
@@ -196,7 +211,7 @@ func (p *processor) isBlockProcessed(tx db.Querier, blockNum uint64) error {
 		return err
 	}
 	if lpb < blockNum {
-		return ErrBlockNotProcessed
+		return fmt.Errorf(errBlockNotProcessedFormat, blockNum, lpb)
 	}
 	return nil
 }
@@ -254,8 +269,9 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if err != nil {
 		return err
 	}
+	shouldRollback := true
 	defer func() {
-		if err != nil {
+		if shouldRollback {
 			if errRllbck := tx.Rollback(); errRllbck != nil {
 				log.Errorf("error while rolling back tx %v", errRllbck)
 			}
@@ -291,16 +307,16 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+	shouldRollback = false
 
 	p.log.Debugf("processed %d events until block %d", len(block.Events), block.Num)
-
 	return nil
 }
 
 func GenerateGlobalIndex(mainnetFlag bool, rollupIndex uint32, localExitRootIndex uint32) *big.Int {
 	var (
 		globalIndexBytes []byte
-		buf              [4]byte
+		buf              [globalIndexPartSize]byte
 	)
 	if mainnetFlag {
 		globalIndexBytes = append(globalIndexBytes, big.NewInt(1).Bytes()...)
@@ -313,5 +329,52 @@ func GenerateGlobalIndex(mainnetFlag bool, rollupIndex uint32, localExitRootInde
 	leri := big.NewInt(0).SetUint64(uint64(localExitRootIndex)).FillBytes(buf[:])
 	globalIndexBytes = append(globalIndexBytes, leri...)
 
-	return big.NewInt(0).SetBytes(globalIndexBytes)
+	result := big.NewInt(0).SetBytes(globalIndexBytes)
+
+	return result
+}
+
+// Decodes global index to its three parts:
+// 1. mainnetFlag - first byte
+// 2. rollupIndex - next 4 bytes
+// 3. localExitRootIndex - last 4 bytes
+// NOTE - mainnet flag is not in the global index bytes if it is false
+// NOTE - rollup index is 0 if mainnet flag is true
+// NOTE - rollup index is not in the global index bytes if mainnet flag is false and rollup index is 0
+func DecodeGlobalIndex(globalIndex *big.Int) (mainnetFlag bool,
+	rollupIndex uint32, localExitRootIndex uint32, err error) {
+	globalIndexBytes := globalIndex.Bytes()
+	l := len(globalIndexBytes)
+	if l > globalIndexMaxSize {
+		return false, 0, 0, errors.New("invalid global index length")
+	}
+
+	if l == 0 {
+		// false, 0, 0
+		return
+	}
+
+	if l == globalIndexMaxSize {
+		// true, rollupIndex, localExitRootIndex
+		mainnetFlag = true
+	}
+
+	localExitRootFromIdx := l - globalIndexPartSize
+	if localExitRootFromIdx < 0 {
+		localExitRootFromIdx = 0
+	}
+
+	rollupIndexFromIdx := localExitRootFromIdx - globalIndexPartSize
+	if rollupIndexFromIdx < 0 {
+		rollupIndexFromIdx = 0
+	}
+
+	rollupIndex = convertBytesToUint32(globalIndexBytes[rollupIndexFromIdx:localExitRootFromIdx])
+	localExitRootIndex = convertBytesToUint32(globalIndexBytes[localExitRootFromIdx:])
+
+	return
+}
+
+func convertBytesToUint32(bytes []byte) uint32 {
+	return uint32(big.NewInt(0).SetBytes(bytes).Uint64())
 }

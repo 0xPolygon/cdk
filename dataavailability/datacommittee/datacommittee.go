@@ -105,61 +105,43 @@ func (d *Backend) Init() error {
 	return nil
 }
 
-// GetSequence gets backend data one hash at a time. This should be optimized on the DAC side to get them all at once.
+// GetSequence retrieves backend data by querying committee members for each hash concurrently.
 func (d *Backend) GetSequence(_ context.Context, hashes []common.Hash, _ []byte) ([][]byte, error) {
-	// TODO: optimize this on the DAC side by implementing a multi batch retrieve api)
-	batchData := make([][]byte, 0, len(hashes))
-	for _, h := range hashes {
-		data, err := d.GetBatchL2Data(h)
-		if err != nil {
-			return nil, err
-		}
-		batchData = append(batchData, data)
-	}
+	initialMember := d.selectedCommitteeMember
 
-	return batchData, nil
-}
-
-// GetBatchL2Data returns the data from the DAC. It checks that it matches with the expected hash
-func (d *Backend) GetBatchL2Data(hash common.Hash) ([]byte, error) {
-	intialMember := d.selectedCommitteeMember
-	found := false
-	for !found && intialMember != -1 {
+	var batchData [][]byte
+	for retries := 0; retries < len(d.committeeMembers); retries++ {
 		member := d.committeeMembers[d.selectedCommitteeMember]
 		d.logger.Infof("trying to get data from %s at %s", member.Addr.Hex(), member.URL)
+
 		c := d.dataCommitteeClientFactory.New(member.URL)
-		data, err := c.GetOffChainData(d.ctx, hash)
+		dataMap, err := c.ListOffChainData(d.ctx, hashes)
 		if err != nil {
-			d.logger.Warnf(
-				"error getting data from DAC node %s at %s: %s",
-				member.Addr.Hex(), member.URL, err,
-			)
+			d.logger.Warnf("error getting data from DAC node %s at %s: %s", member.Addr.Hex(), member.URL, err)
 			d.selectedCommitteeMember = (d.selectedCommitteeMember + 1) % len(d.committeeMembers)
-			if d.selectedCommitteeMember == intialMember {
+			if d.selectedCommitteeMember == initialMember {
 				break
 			}
-
-			continue
-		}
-		actualTransactionsHash := crypto.Keccak256Hash(data)
-		if actualTransactionsHash != hash {
-			unexpectedHash := fmt.Errorf(
-				unexpectedHashTemplate, hash, actualTransactionsHash,
-			)
-			d.logger.Warnf(
-				"error getting data from DAC node %s at %s: %s",
-				member.Addr.Hex(), member.URL, unexpectedHash,
-			)
-			d.selectedCommitteeMember = (d.selectedCommitteeMember + 1) % len(d.committeeMembers)
-			if d.selectedCommitteeMember == intialMember {
-				break
-			}
-
 			continue
 		}
 
-		return data, nil
+		batchData = make([][]byte, 0, len(hashes))
+		for _, hash := range hashes {
+			actualTransactionsHash := crypto.Keccak256Hash(dataMap[hash])
+			if actualTransactionsHash != hash {
+				unexpectedHash := fmt.Errorf(unexpectedHashTemplate, hash, actualTransactionsHash)
+				d.logger.Warnf("error getting data from DAC node %s at %s: %s", member.Addr.Hex(), member.URL, unexpectedHash)
+				d.selectedCommitteeMember = (d.selectedCommitteeMember + 1) % len(d.committeeMembers)
+				if d.selectedCommitteeMember == initialMember {
+					break
+				}
+				continue
+			}
+			batchData = append(batchData, dataMap[hash])
+		}
+		return batchData, nil
 	}
+
 	if err := d.Init(); err != nil {
 		return nil, fmt.Errorf("error loading data committee: %w", err)
 	}

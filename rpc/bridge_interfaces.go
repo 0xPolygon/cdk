@@ -6,6 +6,7 @@ import (
 
 	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/l1infotreesync"
+	"github.com/0xPolygon/cdk/lastgersync"
 	tree "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -18,7 +19,7 @@ type Bridger interface {
 type LastGERer interface {
 	GetFirstGERAfterL1InfoTreeIndex(
 		ctx context.Context, atOrAfterL1InfoTreeIndex uint32,
-	) (injectedL1InfoTreeIndex uint32, ger common.Hash, err error)
+	) (lastgersync.Event, error)
 }
 
 type L1InfoTreer interface {
@@ -35,6 +36,6 @@ type L1InfoTreer interface {
 }
 
 type ClaimSponsorer interface {
-	AddClaimToQueue(ctx context.Context, claim *claimsponsor.Claim) error
-	GetClaim(ctx context.Context, globalIndex *big.Int) (*claimsponsor.Claim, error)
+	AddClaimToQueue(claim *claimsponsor.Claim) error
+	GetClaim(globalIndex *big.Int) (*claimsponsor.Claim, error)
 }

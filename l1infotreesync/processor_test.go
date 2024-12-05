@@ -1,10 +1,15 @@
 package l1infotreesync
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/0xPolygon/cdk/db"
+	"github.com/0xPolygon/cdk/l1infotree"
+	"github.com/0xPolygon/cdk/l1infotreesync/migrations"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
+	"github.com/0xPolygon/cdk/tree"
 	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -124,8 +129,6 @@ func TestGetLatestInfoUntilBlockIfNotFoundReturnsErrNotFound(t *testing.T) {
 }
 
 func Test_processor_GetL1InfoTreeMerkleProof(t *testing.T) {
-	t.Parallel()
-
 	testTable := []struct {
 		name         string
 		getProcessor func(t *testing.T) *processor
@@ -184,8 +187,6 @@ func Test_processor_GetL1InfoTreeMerkleProof(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			p := tt.getProcessor(t)
 			proof, root, err := p.GetL1InfoTreeMerkleProof(context.Background(), tt.idx)
 			if tt.expectedErr != nil {
@@ -266,4 +267,117 @@ func Test_processor_Reorg(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProofsFromDifferentTrees(t *testing.T) {
+	fmt.Println("aggregator L1InfoTree ===============================================")
+
+	l1Tree, err := l1infotree.NewL1InfoTree(log.WithFields("test"), types.DefaultHeight, [][32]byte{})
+	require.NoError(t, err)
+
+	leaves := createTestLeaves(t, 2)
+
+	aLeaves := make([][32]byte, len(leaves))
+	for i, leaf := range leaves {
+		aLeaves[i] = l1infotree.HashLeafData(
+			leaf.GlobalExitRoot,
+			leaf.PreviousBlockHash,
+			leaf.Timestamp)
+	}
+
+	aggregatorL1InfoTree, aggregatorRoot, err := l1Tree.ComputeMerkleProof(leaves[0].L1InfoTreeIndex, aLeaves)
+	require.NoError(t, err)
+
+	aggregatorProof := types.Proof{}
+	for i, p := range aggregatorL1InfoTree {
+		aggregatorProof[i] = common.BytesToHash(p[:])
+	}
+
+	fmt.Println(aggregatorRoot)
+	fmt.Println(aggregatorProof)
+	fmt.Println("l1 info tree syncer L1InfoTree ===============================================")
+
+	dbPath := "file:l1InfoTreeTest?mode=memory&cache=shared"
+	require.NoError(t, migrations.RunMigrations(dbPath))
+
+	dbe, err := db.NewSQLiteDB(dbPath)
+	require.NoError(t, err)
+
+	l1InfoTree := tree.NewAppendOnlyTree(dbe, migrations.L1InfoTreePrefix)
+
+	tx, err := db.NewTx(context.Background(), dbe)
+	require.NoError(t, err)
+
+	for _, leaf := range leaves {
+		err = l1InfoTree.AddLeaf(tx, leaf.BlockNumber, leaf.BlockPosition, types.Leaf{
+			Index: leaf.L1InfoTreeIndex,
+			Hash:  leaf.Hash,
+		})
+
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, tx.Commit())
+
+	l1InfoTreeSyncerRoot, err := l1InfoTree.GetRootByIndex(context.Background(), leaves[1].L1InfoTreeIndex)
+	require.NoError(t, err)
+	l1InfoTreeSyncerProof, err := l1InfoTree.GetProof(context.Background(), leaves[0].L1InfoTreeIndex, l1InfoTreeSyncerRoot.Hash)
+	require.NoError(t, err)
+	for i, l := range aggregatorL1InfoTree {
+		require.Equal(t, common.Hash(l), l1InfoTreeSyncerProof[i])
+	}
+
+	fmt.Println(leaves[0].GlobalExitRoot)
+	fmt.Println(l1InfoTreeSyncerProof)
+
+	require.Equal(t, aggregatorRoot, l1InfoTreeSyncerRoot.Hash)
+	require.Equal(t, aggregatorProof, l1InfoTreeSyncerProof)
+}
+
+func createTestLeaves(t *testing.T, numOfLeaves int) []*L1InfoTreeLeaf {
+	t.Helper()
+
+	leaves := make([]*L1InfoTreeLeaf, 0, numOfLeaves)
+
+	for i := 0; i < numOfLeaves; i++ {
+		leaf := &L1InfoTreeLeaf{
+			L1InfoTreeIndex:   uint32(i),
+			Timestamp:         uint64(i),
+			BlockNumber:       uint64(i),
+			BlockPosition:     uint64(i),
+			PreviousBlockHash: common.HexToHash(fmt.Sprintf("0x%x", i)),
+			MainnetExitRoot:   common.HexToHash(fmt.Sprintf("0x%x", i)),
+			RollupExitRoot:    common.HexToHash(fmt.Sprintf("0x%x", i)),
+		}
+
+		leaf.GlobalExitRoot = leaf.globalExitRoot()
+		leaf.Hash = leaf.hash()
+
+		leaves = append(leaves, leaf)
+	}
+
+	return leaves
+}
+
+func TestProcessBlockUpdateL1InfoTreeV2DontMatchTree(t *testing.T) {
+	sut, err := newProcessor("file:Test_processor_BlockUpdateL1InfoTreeV2?mode=memory&cache=shared")
+	require.NoError(t, err)
+	block := sync.Block{
+		Num: 10,
+		Events: []interface{}{
+			Event{UpdateL1InfoTree: &UpdateL1InfoTree{
+				MainnetExitRoot: common.HexToHash("beef"),
+				RollupExitRoot:  common.HexToHash("5ca1e"),
+				ParentHash:      common.HexToHash("1010101"),
+				Timestamp:       420,
+			}},
+			Event{UpdateL1InfoTreeV2: &UpdateL1InfoTreeV2{
+				CurrentL1InfoRoot: common.HexToHash("beef"),
+				LeafCount:         1,
+			}},
+		},
+	}
+	err = sut.ProcessBlock(context.Background(), block)
+	require.ErrorIs(t, err, sync.ErrInconsistentState)
+	require.True(t, sut.halted)
 }

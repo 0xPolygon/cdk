@@ -1,69 +1,57 @@
 package reorgdetector
 
 import (
-	"context"
-	"encoding/json"
+	"errors"
+	"fmt"
 
-	"github.com/ledgerwatch/erigon-lib/kv"
+	"github.com/0xPolygon/cdk/db"
+	"github.com/russross/meddler"
 )
-
-const (
-	subscriberBlocks = "reorgdetector-subscriberBlocks"
-)
-
-func tableCfgFunc(_ kv.TableCfg) kv.TableCfg {
-	return kv.TableCfg{
-		subscriberBlocks: {},
-	}
-}
 
 // getTrackedBlocks returns a list of tracked blocks for each subscriber from db
-func (rd *ReorgDetector) getTrackedBlocks(ctx context.Context) (map[string]*headersList, error) {
-	tx, err := rd.db.BeginRo(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	defer tx.Rollback()
-
-	cursor, err := tx.Cursor(subscriberBlocks)
-	if err != nil {
-		return nil, err
-	}
-
-	defer cursor.Close()
-
+func (rd *ReorgDetector) getTrackedBlocks() (map[string]*headersList, error) {
 	trackedBlocks := make(map[string]*headersList, 0)
-
-	for k, v, err := cursor.First(); k != nil; k, v, err = cursor.Next() {
-		if err != nil {
-			return nil, err
+	var headersWithID []*headerWithSubscriberID
+	err := meddler.QueryAll(rd.db, &headersWithID, "SELECT * FROM tracked_block ORDER BY subscriber_id;")
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return trackedBlocks, nil
 		}
-
-		var headers []header
-		if err := json.Unmarshal(v, &headers); err != nil {
-			return nil, err
+		return nil, fmt.Errorf("error queryng tracked_block: %w", err)
+	}
+	if len(headersWithID) == 0 {
+		return trackedBlocks, nil
+	}
+	currentID := headersWithID[0].SubscriberID
+	currentHeaders := []header{}
+	for i := 0; i < len(headersWithID); i++ {
+		if i == len(headersWithID)-1 {
+			currentHeaders = append(currentHeaders, header{
+				Num:  headersWithID[i].Num,
+				Hash: headersWithID[i].Hash,
+			})
+			trackedBlocks[currentID] = newHeadersList(currentHeaders...)
+		} else if headersWithID[i].SubscriberID != currentID {
+			trackedBlocks[currentID] = newHeadersList(currentHeaders...)
+			currentHeaders = []header{{
+				Num:  headersWithID[i].Num,
+				Hash: headersWithID[i].Hash,
+			}}
+			currentID = headersWithID[i].SubscriberID
+		} else {
+			currentHeaders = append(currentHeaders, header{
+				Num:  headersWithID[i].Num,
+				Hash: headersWithID[i].Hash,
+			})
 		}
-
-		trackedBlocks[string(k)] = newHeadersList(headers...)
 	}
 
 	return trackedBlocks, nil
 }
 
 // saveTrackedBlock saves the tracked block for a subscriber in db and in memory
-func (rd *ReorgDetector) saveTrackedBlock(ctx context.Context, id string, b header) error {
+func (rd *ReorgDetector) saveTrackedBlock(id string, b header) error {
 	rd.trackedBlocksLock.Lock()
-
-	// this has to go after the lock, because of a possible deadlock
-	// between AddBlocksToTrack and detectReorgInTrackedList
-	tx, err := rd.db.BeginRw(ctx)
-	if err != nil {
-		return err
-	}
-
-	defer tx.Rollback()
-
 	hdrs, ok := rd.trackedBlocks[id]
 	if !ok || hdrs.isEmpty() {
 		hdrs = newHeadersList(b)
@@ -72,32 +60,18 @@ func (rd *ReorgDetector) saveTrackedBlock(ctx context.Context, id string, b head
 		hdrs.add(b)
 	}
 	rd.trackedBlocksLock.Unlock()
-
-	raw, err := json.Marshal(hdrs.getSorted())
-	if err != nil {
-		return err
-	}
-
-	return tx.Put(subscriberBlocks, []byte(id), raw)
+	return meddler.Insert(rd.db, "tracked_block", &headerWithSubscriberID{
+		SubscriberID: id,
+		Num:          b.Num,
+		Hash:         b.Hash,
+	})
 }
 
 // updateTrackedBlocksDB updates the tracked blocks for a subscriber in db
-func (rd *ReorgDetector) updateTrackedBlocksDB(ctx context.Context, id string, blocks *headersList) error {
-	tx, err := rd.db.BeginRw(ctx)
-	if err != nil {
-		return err
-	}
-
-	defer tx.Rollback()
-
-	raw, err := json.Marshal(blocks.getSorted())
-	if err != nil {
-		return err
-	}
-
-	if err = tx.Put(subscriberBlocks, []byte(id), raw); err != nil {
-		return err
-	}
-
-	return nil
+func (rd *ReorgDetector) removeTrackedBlockRange(id string, fromBlock, toBlock uint64) error {
+	_, err := rd.db.Exec(
+		"DELETE FROM tracked_block WHERE num >= $1 AND NUM <= 2 AND subscriber_id = $3;",
+		fromBlock, toBlock, id,
+	)
+	return err
 }

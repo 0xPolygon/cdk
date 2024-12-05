@@ -132,11 +132,11 @@ func (b *BridgeEndpoints) InjectedInfoAfterIndex(networkID uint32, l1InfoTreeInd
 		return info, nil
 	}
 	if networkID == b.networkID {
-		injectedL1InfoTreeIndex, _, err := b.injectedGERs.GetFirstGERAfterL1InfoTreeIndex(ctx, l1InfoTreeIndex)
+		e, err := b.injectedGERs.GetFirstGERAfterL1InfoTreeIndex(ctx, l1InfoTreeIndex)
 		if err != nil {
 			return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get global exit root, error: %s", err))
 		}
-		info, err := b.l1InfoTree.GetInfoByIndex(ctx, injectedL1InfoTreeIndex)
+		info, err := b.l1InfoTree.GetInfoByIndex(ctx, e.L1InfoTreeIndex)
 		if err != nil {
 			return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get global exit root, error: %s", err))
 		}
@@ -148,10 +148,10 @@ func (b *BridgeEndpoints) InjectedInfoAfterIndex(networkID uint32, l1InfoTreeInd
 	)
 }
 
-// ClaimProof returns the proofs needed to claim a bridge. NetworkID and depositCount refere to the bridge origin
+// GetProof returns the proofs needed to claim a bridge. NetworkID and depositCount refere to the bridge origin
 // while globalExitRoot should be already injected on the destination network.
 // This call needs to be done to a client of the same network were the bridge tx was sent
-func (b *BridgeEndpoints) ClaimProof(
+func (b *BridgeEndpoints) GetProof(
 	networkID uint32, depositCount uint32, l1InfoTreeIndex uint32,
 ) (interface{}, rpc.Error) {
 	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
@@ -229,7 +229,7 @@ func (b *BridgeEndpoints) SponsorClaim(claim claimsponsor.Claim) (interface{}, r
 			fmt.Sprintf("this client only sponsors claims for network %d", b.networkID),
 		)
 	}
-	if err := b.sponsor.AddClaimToQueue(ctx, &claim); err != nil {
+	if err := b.sponsor.AddClaimToQueue(&claim); err != nil {
 		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("error adding claim to the queue %s", err))
 	}
 	return nil, nil
@@ -250,7 +250,7 @@ func (b *BridgeEndpoints) GetSponsoredClaimStatus(globalIndex *big.Int) (interfa
 	if b.sponsor == nil {
 		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, "this client does not support claim sponsoring")
 	}
-	claim, err := b.sponsor.GetClaim(ctx, globalIndex)
+	claim, err := b.sponsor.GetClaim(globalIndex)
 	if err != nil {
 		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get claim status, error: %s", err))
 	}
@@ -292,7 +292,6 @@ func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL1Bridge(ctx context.Context
 		if err != nil {
 			return 0, err
 		}
-		//nolint:gocritic // switch statement doesn't make sense here, I couldn't break
 		if root.Index < depositCount {
 			lowerLimit = targetBlock + 1
 		} else if root.Index == depositCount {
@@ -346,7 +345,6 @@ func (b *BridgeEndpoints) getFirstL1InfoTreeIndexForL2Bridge(ctx context.Context
 		if err != nil {
 			return 0, err
 		}
-		//nolint:gocritic // switch statement doesn't make sense here, I couldn't break
 		if root.Index < depositCount {
 			lowerLimit = targetBlock + 1
 		} else if root.Index == depositCount {

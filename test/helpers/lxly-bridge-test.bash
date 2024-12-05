@@ -36,8 +36,8 @@ function claim() {
     readonly bridge_deposit_file=$(mktemp)
     readonly claimable_deposit_file=$(mktemp)
     echo "Getting full list of deposits" >&3
+    echo "    curl -s \"$bridge_api_url/bridges/$destination_addr?limit=100&offset=0\"" >&3
     curl -s "$bridge_api_url/bridges/$destination_addr?limit=100&offset=0" | jq '.' | tee $bridge_deposit_file
-
 
     echo "Looking for claimable deposits" >&3
     jq '[.deposits[] | select(.ready_for_claim == true and .claim_tx_hash == "" and .dest_net == '$destination_net')]' $bridge_deposit_file | tee $claimable_deposit_file

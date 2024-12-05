@@ -13,4 +13,8 @@ const (
 	CLAIM_SPONSOR = "claim-sponsor" //nolint:stylecheck
 	// PROVER name to identify the prover component
 	PROVER = "prover"
+	// AGGSENDER name to identify the aggsender component
+	AGGSENDER = "aggsender"
+	// L1INFOTREESYNC name to identify the l1infotreesync component
+	L1INFOTREESYNC = "l1infotreesync"
 )
