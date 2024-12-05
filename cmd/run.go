@@ -44,55 +44,58 @@ import (
 )
 
 func start(cliCtx *cli.Context) error {
-	c, err := config.Load(cliCtx)
+	cfg, err := config.Load(cliCtx)
 	if err != nil {
 		return err
 	}
 
-	log.Init(c.Log)
+	log.Init(cfg.Log)
 
-	if c.Log.Environment == log.EnvironmentDevelopment {
+	if cfg.Log.Environment == log.EnvironmentDevelopment {
 		zkevm.PrintVersion(os.Stdout)
 		log.Info("Starting application")
-	} else if c.Log.Environment == log.EnvironmentProduction {
+	} else if cfg.Log.Environment == log.EnvironmentProduction {
 		logVersion()
 	}
 
 	components := cliCtx.StringSlice(config.FlagComponents)
-	l1Client := runL1ClientIfNeeded(components, c.Etherman.URL)
-	l2Client := runL2ClientIfNeeded(components, getL2RPCUrl(c))
-	reorgDetectorL1, errChanL1 := runReorgDetectorL1IfNeeded(cliCtx.Context, components, l1Client, &c.ReorgDetectorL1)
+	l1Client := runL1ClientIfNeeded(components, cfg.Etherman.URL)
+	l2Client := runL2ClientIfNeeded(components, getL2RPCUrl(cfg))
+	reorgDetectorL1, errChanL1 := runReorgDetectorL1IfNeeded(cliCtx.Context, components, l1Client, &cfg.ReorgDetectorL1)
 	go func() {
 		if err := <-errChanL1; err != nil {
 			log.Fatal("Error from ReorgDetectorL1: ", err)
 		}
 	}()
 
-	reorgDetectorL2, errChanL2 := runReorgDetectorL2IfNeeded(cliCtx.Context, components, l2Client, &c.ReorgDetectorL2)
+	reorgDetectorL2, errChanL2 := runReorgDetectorL2IfNeeded(cliCtx.Context, components, l2Client, &cfg.ReorgDetectorL2)
 	go func() {
 		if err := <-errChanL2; err != nil {
 			log.Fatal("Error from ReorgDetectorL2: ", err)
 		}
 	}()
 
-	l1InfoTreeSync := runL1InfoTreeSyncerIfNeeded(cliCtx.Context, components, *c, l1Client, reorgDetectorL1)
-	claimSponsor := runClaimSponsorIfNeeded(cliCtx.Context, components, l2Client, c.ClaimSponsor)
-	l1BridgeSync := runBridgeSyncL1IfNeeded(cliCtx.Context, components, c.BridgeL1Sync, reorgDetectorL1, l1Client)
-	l2BridgeSync := runBridgeSyncL2IfNeeded(cliCtx.Context, components, c.BridgeL2Sync, reorgDetectorL2, l2Client)
+	rollupID := getRollUpIDIfNeeded(components, cfg.NetworkConfig.L1Config, l1Client)
+	l1InfoTreeSync := runL1InfoTreeSyncerIfNeeded(cliCtx.Context, components, *cfg, l1Client, reorgDetectorL1)
+	claimSponsor := runClaimSponsorIfNeeded(cliCtx.Context, components, l2Client, cfg.ClaimSponsor)
+	l1BridgeSync := runBridgeSyncL1IfNeeded(cliCtx.Context, components, cfg.BridgeL1Sync, reorgDetectorL1,
+		l1Client, 0)
+	l2BridgeSync := runBridgeSyncL2IfNeeded(cliCtx.Context, components, cfg.BridgeL2Sync, reorgDetectorL2,
+		l2Client, rollupID)
 	lastGERSync := runLastGERSyncIfNeeded(
-		cliCtx.Context, components, c.LastGERSync, reorgDetectorL2, l2Client, l1InfoTreeSync,
+		cliCtx.Context, components, cfg.LastGERSync, reorgDetectorL2, l2Client, l1InfoTreeSync,
 	)
 
 	for _, component := range components {
 		switch component {
 		case cdkcommon.SEQUENCE_SENDER:
-			c.SequenceSender.Log = c.Log
-			seqSender := createSequenceSender(*c, l1Client, l1InfoTreeSync)
+			cfg.SequenceSender.Log = cfg.Log
+			seqSender := createSequenceSender(*cfg, l1Client, l1InfoTreeSync)
 			// start sequence sender in a goroutine, checking for errors
 			go seqSender.Start(cliCtx.Context)
 
 		case cdkcommon.AGGREGATOR:
-			aggregator := createAggregator(cliCtx.Context, *c, !cliCtx.Bool(config.FlagMigrations))
+			aggregator := createAggregator(cliCtx.Context, *cfg, !cliCtx.Bool(config.FlagMigrations))
 			// start aggregator in a goroutine, checking for errors
 			go func() {
 				if err := aggregator.Start(); err != nil {
@@ -101,12 +104,12 @@ func start(cliCtx *cli.Context) error {
 				}
 			}()
 		case cdkcommon.AGGORACLE:
-			aggOracle := createAggoracle(*c, l1Client, l2Client, l1InfoTreeSync)
+			aggOracle := createAggoracle(*cfg, l1Client, l2Client, l1InfoTreeSync)
 			go aggOracle.Start(cliCtx.Context)
 		case cdkcommon.RPC:
 			server := createRPC(
-				c.RPC,
-				c.Common.NetworkID,
+				cfg.RPC,
+				cfg.Common.NetworkID,
 				claimSponsor,
 				l1InfoTreeSync,
 				lastGERSync,
@@ -121,7 +124,7 @@ func start(cliCtx *cli.Context) error {
 		case cdkcommon.AGGSENDER:
 			aggsender, err := createAggSender(
 				cliCtx.Context,
-				c.AggSender,
+				cfg.AggSender,
 				l1Client,
 				l1InfoTreeSync,
 				l2BridgeSync,
@@ -546,6 +549,20 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 	return l1CLient
 }
 
+func getRollUpIDIfNeeded(components []string, networkConfig ethermanconfig.L1Config,
+	l1Client *ethclient.Client) uint32 {
+	if !isNeeded([]string{
+		cdkcommon.AGGSENDER,
+	}, components) {
+		return 0
+	}
+	rollupID, err := etherman.GetRollupID(networkConfig, networkConfig.ZkEVMAddr, l1Client)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return rollupID
+}
+
 func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client {
 	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
 		return nil
@@ -686,10 +703,12 @@ func runBridgeSyncL1IfNeeded(
 	cfg bridgesync.Config,
 	reorgDetectorL1 *reorgdetector.ReorgDetector,
 	l1Client *ethclient.Client,
+	rollupID uint32,
 ) *bridgesync.BridgeSync {
 	if !isNeeded([]string{cdkcommon.RPC}, components) {
 		return nil
 	}
+
 	bridgeSyncL1, err := bridgesync.NewL1(
 		ctx,
 		cfg.DBPath,
@@ -702,7 +721,7 @@ func runBridgeSyncL1IfNeeded(
 		cfg.WaitForNewBlocksPeriod.Duration,
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
-		cfg.OriginNetwork,
+		rollupID,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL1: %s", err)
@@ -718,6 +737,7 @@ func runBridgeSyncL2IfNeeded(
 	cfg bridgesync.Config,
 	reorgDetectorL2 *reorgdetector.ReorgDetector,
 	l2Client *ethclient.Client,
+	rollupID uint32,
 ) *bridgesync.BridgeSync {
 	if !isNeeded([]string{cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
 		return nil
@@ -735,7 +755,7 @@ func runBridgeSyncL2IfNeeded(
 		cfg.WaitForNewBlocksPeriod.Duration,
 		cfg.RetryAfterErrorPeriod.Duration,
 		cfg.MaxRetryAttemptsAfterError,
-		cfg.OriginNetwork,
+		rollupID,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL2: %s", err)
