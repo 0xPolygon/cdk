@@ -35,7 +35,7 @@ setup() {
     fi
     readonly is_forced=${IS_FORCED:-"true"}
     readonly bridge_addr=$BRIDGE_ADDRESS
-    readonly meta_bytes=${META_BYTES:-"0x"}
+    readonly meta_bytes=${META_BYTES:-"0x1234"}
 
     readonly l1_rpc_url=${L1_ETH_RPC_URL:-"$(kurtosis port print $enclave el-1-geth-lighthouse rpc)"}
     readonly bridge_api_url=${BRIDGE_API_URL:-"$(kurtosis port print $enclave zkevm-bridge-service-001 rpc)"}
