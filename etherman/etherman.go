@@ -98,7 +98,7 @@ func GetRollupID(l1Config config.L1Config, rollupAddr common.Address, ethClient 
 
 		return 0, fmt.Errorf("error calling contract RollupManager.RollupAddressToID(%s). Err: %w", rollupAddr.String(), err)
 	}
-	log.Infof("rollupID: %d (obtenied from SMC: %s )", rollupID, contracts.Banana.RollupManager.String())
+	log.Infof("rollupID: %d (obtained from contract: %s )", rollupID, contracts.Banana.RollupManager.String())
 
 	return rollupID, nil
 }
