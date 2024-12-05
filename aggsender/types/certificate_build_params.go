@@ -9,7 +9,7 @@ import (
 const (
 	EstimatedSizeBridgeExit = 250
 	EstimatedSizeClaim      = 44000
-	byteArrayJsonSizeFactor = 1.5
+	byteArrayJSONSizeFactor = 1.5
 )
 
 // CertificateBuildParams is a struct that holds the parameters to build a certificate
@@ -86,13 +86,13 @@ func (c *CertificateBuildParams) EstimatedSize() uint {
 	sizeBridges := int(0)
 	for _, bridge := range c.Bridges {
 		sizeBridges += EstimatedSizeBridgeExit
-		sizeBridges += int(byteArrayJsonSizeFactor * float32(len(bridge.Metadata)))
+		sizeBridges += int(byteArrayJSONSizeFactor * float32(len(bridge.Metadata)))
 	}
 
 	sizeClaims := int(0)
 	for _, claim := range c.Claims {
 		sizeClaims += EstimatedSizeClaim
-		sizeClaims += int(byteArrayJsonSizeFactor * float32(len(claim.Metadata)))
+		sizeClaims += int(byteArrayJSONSizeFactor * float32(len(claim.Metadata)))
 	}
 	return uint(sizeBridges + sizeClaims)
 }
