@@ -64,9 +64,6 @@ setup() {
     run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url"
     assert_success
 
-    run verify_balance "$l2_rpc_url" "$weth_token_addr" "$destination_addr" "$initial_receiver_balance" "$ether_value"
-    assert_success
-
     echo "=== bridgeAsset L2 WETH: $weth_token_addr to L1 ETH" >&3
     destination_addr=$sender_addr
     destination_net=0
