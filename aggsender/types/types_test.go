@@ -12,17 +12,17 @@ func TestMetadataConversions_toBlock_Only(t *testing.T) {
 	toBlock := uint64(123567890)
 	hash := common.BigToHash(new(big.Int).SetUint64(toBlock))
 	extractBlock := NewCertificateMetadataFromHash(hash)
-	require.Equal(t, toBlock, extractBlock.ToBlock)
+	require.Equal(t, toBlock, extractBlock.FromBlock)
 }
 
 func TestMetadataConversions(t *testing.T) {
 	fromBlock := uint64(123567890)
-	toBlock := uint64(123567890)
-	createdAt := uint64(0)
-	meta := NewCertificateMetadata(fromBlock, toBlock, createdAt)
+	offset := uint32(1000)
+	createdAt := uint32(0)
+	meta := NewCertificateMetadata(fromBlock, offset, createdAt)
 	c := meta.ToHash()
 	extractBlock := NewCertificateMetadataFromHash(c)
 	require.Equal(t, fromBlock, extractBlock.FromBlock)
-	require.Equal(t, toBlock, extractBlock.ToBlock)
+	require.Equal(t, offset, extractBlock.Offset)
 	require.Equal(t, createdAt, extractBlock.CreatedAt)
 }

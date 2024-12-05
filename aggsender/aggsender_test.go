@@ -1709,22 +1709,25 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 	tests := []struct {
 		name     string
 		metadata common.Hash
-		expected uint64
+		expected aggsendertypes.CertificateMetadata
 	}{
 		{
 			name:     "Valid metadata",
-			metadata: common.BigToHash(big.NewInt(123567890)),
-			expected: 123567890,
+			metadata: aggsendertypes.NewCertificateMetadata(0, 123567890, 123567890).ToHash(),
+			expected: aggsendertypes.CertificateMetadata{
+				FromBlock: 0,
+				Offset:    1000,
+				CreatedAt: 123567890,
+			},
 		},
 		{
 			name:     "Zero metadata",
-			metadata: common.BigToHash(big.NewInt(0)),
-			expected: 0,
-		},
-		{
-			name:     "Max uint64 metadata",
-			metadata: common.BigToHash(new(big.Int).SetUint64(^uint64(0))),
-			expected: ^uint64(0),
+			metadata: aggsendertypes.NewCertificateMetadata(0, 0, 0).ToHash(),
+			expected: aggsendertypes.CertificateMetadata{
+				FromBlock: 0,
+				Offset:    0,
+				CreatedAt: 0,
+			},
 		},
 	}
 
@@ -1734,7 +1737,7 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := extractFromCertificateMetadataToBlock(tt.metadata)
+			result := *aggsendertypes.NewCertificateMetadataFromHash(tt.metadata)
 			require.Equal(t, tt.expected, result)
 		})
 	}
@@ -2014,7 +2017,11 @@ func certInfoToCertHeader(t *testing.T, certInfo *aggsendertypes.CertificateInfo
 		CertificateID:    certInfo.CertificateID,
 		NewLocalExitRoot: certInfo.NewLocalExitRoot,
 		Status:           agglayer.Pending,
-		Metadata:         createCertificateMetadata(certInfo.ToBlock),
+		Metadata: aggsendertypes.NewCertificateMetadata(
+			certInfo.FromBlock,
+			uint32(certInfo.FromBlock-certInfo.ToBlock),
+			uint32(certInfo.CreatedAt),
+		).ToHash(),
 	}
 }
 

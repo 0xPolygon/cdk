@@ -129,16 +129,18 @@ func (c *CertificateInfo) ElapsedTimeSinceCreation() time.Duration {
 
 type CertificateMetadata struct {
 	FromBlock uint64 `json:"fromBlock"`
-	ToBlock   uint64 `json:"toBlock"`
-	CreatedAt uint64 `json:"createdAt"`
+	Offset    uint32 `json:"toBlock"`
+	CreatedAt uint32 `json:"createdAt"`
+	Version   uint8  `json:"version"`
 }
 
 // NewCertificateMetadataFromHash returns a new CertificateMetadata from the given hash
-func NewCertificateMetadata(fromBlock, toBlock, createdAt uint64) *CertificateMetadata {
+func NewCertificateMetadata(fromBlock uint64, offset uint32, createdAt uint32) *CertificateMetadata {
 	return &CertificateMetadata{
 		FromBlock: fromBlock,
-		ToBlock:   toBlock,
+		Offset:    offset,
 		CreatedAt: createdAt,
+		Version:   1,
 	}
 }
 
@@ -146,30 +148,40 @@ func NewCertificateMetadata(fromBlock, toBlock, createdAt uint64) *CertificateMe
 func NewCertificateMetadataFromHash(hash common.Hash) *CertificateMetadata {
 	b := hash.Bytes()
 
-	return NewCertificateMetadata(
-		binary.BigEndian.Uint64(b[16:24]),
-		binary.BigEndian.Uint64(b[24:32]),
-		binary.BigEndian.Uint64(b[8:16]),
-	)
+	if b[0] < 1 {
+		hash.Big().Uint64()
+
+		return &CertificateMetadata{
+			Version:   b[0],
+			FromBlock: binary.BigEndian.Uint64(b[1:9]),
+			Offset:    binary.BigEndian.Uint32(b[9:13]),
+			CreatedAt: binary.BigEndian.Uint32(b[13:17]),
+		}
+	}
+
+	return &CertificateMetadata{
+		Version:   b[0],
+		FromBlock: binary.BigEndian.Uint64(b[1:9]),
+		Offset:    binary.BigEndian.Uint32(b[9:13]),
+		CreatedAt: binary.BigEndian.Uint32(b[13:17]),
+	}
 }
 
 // ToHash returns the hash of the metadata
 func (c *CertificateMetadata) ToHash() common.Hash {
 	b := make([]byte, common.HashLength) // 32-byte hash
 
-	// We encode the metadata with padding 0's at the start,
-	// because previous versions of the code stored the toBlock
-	// at the end of the hash, and we need to be able to decode
-	// those hashes.
-
-	// Encode createdAt
-	binary.BigEndian.PutUint64(b[8:16], c.CreatedAt)
+	// Encode version
+	b[0] = c.Version
 
 	// Encode fromBlock
-	binary.BigEndian.PutUint64(b[16:24], c.FromBlock)
+	binary.BigEndian.PutUint64(b[1:9], c.FromBlock)
 
-	// Encode toBlock
-	binary.BigEndian.PutUint64(b[24:32], c.ToBlock)
+	// Encode offset
+	binary.BigEndian.PutUint32(b[9:13], c.Offset)
+
+	// Encode createdAt
+	binary.BigEndian.PutUint32(b[13:17], c.CreatedAt)
 
 	// Last 8 bytes remain as zero padding
 

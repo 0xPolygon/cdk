@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"time"
 
@@ -396,8 +395,8 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 
 	meta := types.NewCertificateMetadata(
 		certParams.FromBlock,
-		certParams.ToBlock,
-		uint64(time.Now().UTC().UnixMilli()),
+		uint32(certParams.ToBlock-certParams.FromBlock),
+		uint32(time.Now().UTC().Unix()),
 	)
 
 	return &agglayer.Certificate{
@@ -775,28 +774,21 @@ func extractSignatureData(signature []byte) (r, s common.Hash, isOddParity bool,
 	return
 }
 
-// createCertificateMetadata creates a certificate metadata from given input
-func createCertificateMetadata(toBlock uint64) common.Hash {
-	return common.BigToHash(new(big.Int).SetUint64(toBlock))
-}
-
-func extractFromCertificateMetadataToBlock(metadata common.Hash) uint64 {
-	return metadata.Big().Uint64()
-}
-
 func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *types.CertificateInfo {
 	if c == nil {
 		return nil
 	}
 	now := time.Now().UTC().UnixMilli()
+	meta := types.NewCertificateMetadataFromHash(c.Metadata)
+
 	res := &types.CertificateInfo{
 		Height:            c.Height,
 		CertificateID:     c.CertificateID,
 		NewLocalExitRoot:  c.NewLocalExitRoot,
-		FromBlock:         0,
-		ToBlock:           extractFromCertificateMetadataToBlock(c.Metadata),
+		FromBlock:         meta.FromBlock,
+		ToBlock:           meta.FromBlock + uint64(meta.Offset),
 		Status:            c.Status,
-		CreatedAt:         now,
+		CreatedAt:         int64(meta.CreatedAt),
 		UpdatedAt:         now,
 		SignedCertificate: "na/agglayer header",
 	}
