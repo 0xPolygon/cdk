@@ -345,7 +345,7 @@ type MerkleProof struct {
 // MarshalJSON is the implementation of the json.Marshaler interface
 func (m *MerkleProof) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
-		Root  [types.DefaultHeight]byte                   `json:"root"`
+		Root  common.Hash                                 `json:"root"`
 		Proof map[string][types.DefaultHeight]common.Hash `json:"proof"`
 	}{
 		Root: m.Root,
