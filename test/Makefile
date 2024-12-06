@@ -101,7 +101,7 @@ test-e2e-fork12-rollup: stop
 .PHONY: test-e2e-fork12-pessimistic
 test-e2e-fork12-pessimistic: stop
 	./run-e2e.sh fork12 pessimistic
-	bats bats/pp/
+	bats bats/pp/bridge-e2e.bats bats/pp/e2e-pp.bats
 
 .PHONY: stop
 stop:

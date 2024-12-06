@@ -1,9 +1,8 @@
 setup() {
-    load '../helpers/common-setup'
-    load '../helpers/common'
-    load '../helpers/lxly-bridge'
-
+    load '../../helpers/common-setup'
     _common_setup
+    load '../../helpers/common'
+    load '../../helpers/lxly-bridge-test'
 
     if [ -z "$BRIDGE_ADDRESS" ]; then
         local combined_json_file="/opt/zkevm/combined.json"
@@ -48,26 +47,22 @@ setup() {
     readonly weth_token_addr=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'WETHToken()' | cast parse-bytes32-address)
 }
 
-@test "Native gas token deposit to WETH" {
-    destination_addr=$sender_addr
-    local initial_receiver_balance=$(cast call --rpc-url "$l2_rpc_url" "$weth_token_addr" "$balance_of_fn_sig" "$destination_addr" | awk '{print $1}')
-    echo "Initial receiver balance of native token on L2 $initial_receiver_balance" >&3
 
-    echo "=== Running LxLy deposit on L1 to network: $l2_rpc_network_id native_token: $native_token_addr" >&3
-    
+@test "transfer message" {
+    echo "====== bridgeMessage L1 -> L2" >&3
+    destination_addr=$sender_addr
     destination_net=$l2_rpc_network_id
-    run bridge_asset "$native_token_addr" "$l1_rpc_url"
+    run bridge_message "$native_token_addr" "$l1_rpc_url"
     assert_success
 
-    echo "=== Running LxLy claim on L2" >&3
+    echo "====== Claim in L2" >&3
     timeout="120"
     claim_frequency="10"
-    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url" "bridgeMessage"
     assert_success
 
-    echo "=== bridgeAsset L2 WETH: $weth_token_addr to L1 ETH" >&3
-    destination_addr=$sender_addr
+    echo "====== bridgeMessage L2->L1" >&3
     destination_net=0
-    run bridge_asset "$weth_token_addr" "$l2_rpc_url"
+    run bridge_message "$destination_addr" "$l2_rpc_url"
     assert_success
 }
