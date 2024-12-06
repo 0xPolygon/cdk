@@ -889,3 +889,46 @@ func TestMerkleProofString(t *testing.T) {
 		})
 	}
 }
+
+func TestGlobalIndexString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    GlobalIndex
+		expected string
+	}{
+		{
+			name: "All fields zero",
+			input: GlobalIndex{
+				MainnetFlag: false,
+				RollupIndex: 0,
+				LeafIndex:   0,
+			},
+			expected: "MainnetFlag: false, RollupIndex: 0, LeafIndex: 0",
+		},
+		{
+			name: "MainnetFlag true, non-zero indices",
+			input: GlobalIndex{
+				MainnetFlag: true,
+				RollupIndex: 123,
+				LeafIndex:   456,
+			},
+			expected: "MainnetFlag: true, RollupIndex: 123, LeafIndex: 456",
+		},
+		{
+			name: "MainnetFlag false, large indices",
+			input: GlobalIndex{
+				MainnetFlag: false,
+				RollupIndex: 4294967295, // Maximum value of uint32
+				LeafIndex:   2147483647, // Large but within uint32 range
+			},
+			expected: "MainnetFlag: false, RollupIndex: 4294967295, LeafIndex: 2147483647",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.input.String()
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
