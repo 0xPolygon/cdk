@@ -1705,18 +1705,6 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 	mockL1InfoTreeSyncer.AssertExpectations(t)
 }
 
-func TestMetadataConversions(t *testing.T) {
-	fromBlock := uint64(123567890)
-	toBlock := uint64(123567890)
-	createdAt := uint64(0)
-	meta := aggsendertypes.NewCertificateMetadata(fromBlock, toBlock, createdAt)
-	c := meta.ToHash()
-	extractBlock := aggsendertypes.NewCertificateMetadataFromHash(c)
-	require.Equal(t, fromBlock, extractBlock.FromBlock)
-	require.Equal(t, toBlock, extractBlock.ToBlock)
-	require.Equal(t, createdAt, extractBlock.CreatedAt)
-}
-
 func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 	t.Parallel()
 
@@ -1727,10 +1715,11 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 	}{
 		{
 			name:     "Valid metadata",
-			metadata: aggsendertypes.NewCertificateMetadata(0, 123567890, 123567890).ToHash(),
+			metadata: aggsendertypes.NewCertificateMetadata(0, 1000, 123567890).ToHash(),
 			expected: aggsendertypes.CertificateMetadata{
+				Version:   1,
 				FromBlock: 0,
-				ToBlock:   123567890,
+				Offset:    1000,
 				CreatedAt: 123567890,
 			},
 		},
@@ -1738,8 +1727,9 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 			name:     "Zero metadata",
 			metadata: aggsendertypes.NewCertificateMetadata(0, 0, 0).ToHash(),
 			expected: aggsendertypes.CertificateMetadata{
+				Version:   1,
 				FromBlock: 0,
-				ToBlock:   0,
+				Offset:    0,
 				CreatedAt: 0,
 			},
 		},
@@ -2033,8 +2023,8 @@ func certInfoToCertHeader(t *testing.T, certInfo *aggsendertypes.CertificateInfo
 		Status:           agglayer.Pending,
 		Metadata: aggsendertypes.NewCertificateMetadata(
 			certInfo.FromBlock,
-			certInfo.ToBlock,
-			uint64(certInfo.CreatedAt),
+			uint32(certInfo.FromBlock-certInfo.ToBlock),
+			certInfo.CreatedAt,
 		).ToHash(),
 	}
 }

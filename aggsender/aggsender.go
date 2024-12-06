@@ -195,6 +195,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		ToBlock:   toBlock,
 		Bridges:   bridges,
 		Claims:    claims,
+		CreatedAt: uint32(time.Now().UTC().Unix()),
 	}
 
 	certificateParams, err = a.limitCertSize(certificateParams)
@@ -238,8 +239,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		PreviousLocalExitRoot: &prevLER,
 		FromBlock:             fromBlock,
 		ToBlock:               toBlock,
-		CreatedAt:             createdTime,
-		UpdatedAt:             createdTime,
+		CreatedAt:             certificateParams.CreatedAt,
+		UpdatedAt:             certificateParams.CreatedAt,
 		SignedCertificate:     string(raw),
 	}
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
@@ -381,7 +382,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting imported bridge exits: %w", err)
 	}
 
-	depositCount := certParams.MaxDepoitCount()
+	depositCount := certParams.MaxDepositCount()
 
 	exitRoot, err := a.l2Syncer.GetExitRootByIndex(ctx, depositCount)
 	if err != nil {
@@ -393,11 +394,11 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting next height and previous LER: %w", err)
 	}
 
-	meta := &types.CertificateMetadata{
-		FromBlock: certParams.FromBlock,
-		ToBlock:   certParams.ToBlock,
-		CreatedAt: uint64(createdAt),
-	}
+	meta := types.NewCertificateMetadata(
+		certParams.FromBlock,
+		uint32(certParams.ToBlock-certParams.FromBlock),
+		certParams.CreatedAt,
+	)
 
 	return &agglayer.Certificate{
 		NetworkID:           a.l2Syncer.OriginNetwork(),
@@ -682,7 +683,7 @@ func (a *AggSender) updateCertificateStatus(ctx context.Context,
 	}
 
 	localCert.Status = agglayerCert.Status
-	localCert.UpdatedAt = time.Now().UTC().UnixMilli()
+	localCert.UpdatedAt = uint32(time.Now().UTC().Unix())
 	if err := a.storage.UpdateCertificate(ctx, *localCert); err != nil {
 		a.log.Errorf("error updating certificate %s status in storage: %w", agglayerCert.ID(), err)
 		return fmt.Errorf("error updating certificate. Err: %w", err)
@@ -797,17 +798,24 @@ func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *ty
 	if c == nil {
 		return nil
 	}
+	now := uint32(time.Now().UTC().Unix())
 	meta := types.NewCertificateMetadataFromHash(c.Metadata)
-	now := time.Now().UTC().UnixMilli()
+	toBlock := meta.FromBlock + uint64(meta.Offset)
+	createdAt := meta.CreatedAt
+
+	if meta.Version < 1 {
+		toBlock = meta.ToBlock
+		createdAt = now
+	}
 
 	res := &types.CertificateInfo{
 		Height:            c.Height,
 		CertificateID:     c.CertificateID,
 		NewLocalExitRoot:  c.NewLocalExitRoot,
 		FromBlock:         meta.FromBlock,
-		ToBlock:           meta.ToBlock,
+		ToBlock:           toBlock,
 		Status:            c.Status,
-		CreatedAt:         int64(meta.CreatedAt),
+		CreatedAt:         createdAt,
 		UpdatedAt:         now,
 		SignedCertificate: "na/agglayer header",
 	}
