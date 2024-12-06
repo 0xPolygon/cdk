@@ -843,3 +843,49 @@ func TestCertificateStatusUnmarshalJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestMerkleProofString(t *testing.T) {
+	tests := []struct {
+		name     string
+		proof    MerkleProof
+		expected string
+	}{
+		{
+			name: "Empty Root and Empty Proof",
+			proof: MerkleProof{
+				Root:  common.Hash{},
+				Proof: [types.DefaultHeight]common.Hash{},
+			},
+			expected: fmt.Sprintf("Root: %s, Proof: %v", common.Hash{}.String(), [types.DefaultHeight]common.Hash{}),
+		},
+		{
+			name: "Non-Empty Root and Empty Proof",
+			proof: MerkleProof{
+				Root:  common.HexToHash("0xabc123"),
+				Proof: [types.DefaultHeight]common.Hash{},
+			},
+			expected: fmt.Sprintf("Root: %s, Proof: %v", common.HexToHash("0xabc123").String(), [types.DefaultHeight]common.Hash{}),
+		},
+		{
+			name: "Non-Empty Root and Partially Populated Proof",
+			proof: MerkleProof{
+				Root: common.HexToHash("0xabc123"),
+				Proof: [types.DefaultHeight]common.Hash{
+					common.HexToHash("0xdef456"),
+					common.HexToHash("0x123789"),
+				},
+			},
+			expected: fmt.Sprintf("Root: %s, Proof: %v", common.HexToHash("0xabc123").String(), [types.DefaultHeight]common.Hash{
+				common.HexToHash("0xdef456"),
+				common.HexToHash("0x123789"),
+			}),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.proof.String()
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
