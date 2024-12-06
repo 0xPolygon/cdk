@@ -59,14 +59,10 @@ func (c CertificateStatus) IsOpen() bool {
 }
 
 // UnmarshalJSON is the implementation of the json.Unmarshaler interface
-func (c *CertificateStatus) UnmarshalJSON(data []byte) error {
-	dataStr := string(data)
-
-	var status string
-	if strings.Contains(dataStr, "InError") {
+func (c *CertificateStatus) UnmarshalJSON(rawStatus []byte) error {
+	status := strings.Trim(string(rawStatus), "\"")
+	if strings.Contains(status, "InError") {
 		status = "InError"
-	} else {
-		status = string(data)
 	}
 
 	switch status {

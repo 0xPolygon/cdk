@@ -777,3 +777,69 @@ func TestBridgeExitString(t *testing.T) {
 		})
 	}
 }
+
+func TestCertificateStatusUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    CertificateStatus
+		expectError bool
+	}{
+		{
+			name:        "Valid status - Pending",
+			input:       `"Pending"`,
+			expected:    Pending,
+			expectError: false,
+		},
+		{
+			name:        "Valid status - Proven",
+			input:       `"Proven"`,
+			expected:    Proven,
+			expectError: false,
+		},
+		{
+			name:        "Valid status - Candidate",
+			input:       `"Candidate"`,
+			expected:    Candidate,
+			expectError: false,
+		},
+		{
+			name:        "Valid status - InError",
+			input:       `"InError"`,
+			expected:    InError,
+			expectError: false,
+		},
+		{
+			name:        "Valid status - Settled",
+			input:       `"Settled"`,
+			expected:    Settled,
+			expectError: false,
+		},
+		{
+			name:        "Invalid status",
+			input:       `"InvalidStatus"`,
+			expected:    0, // Unchanged (default value of CertificateStatus)
+			expectError: true,
+		},
+		{
+			name:        "Contains 'InError' string",
+			input:       `"SomeStringWithInError"`,
+			expected:    InError,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var status CertificateStatus
+			err := json.Unmarshal([]byte(tt.input), &status)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expected, status)
+			}
+		})
+	}
+}
