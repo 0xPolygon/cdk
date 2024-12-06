@@ -240,6 +240,11 @@ func TestMarshalJSON(t *testing.T) {
 		data, err := json.Marshal(cert)
 		require.NoError(t, err)
 		require.Equal(t, expectedJSON, string(data))
+
+		require.Equal(t, "0xeb25e9b7f4551e438a9647a70a4da39a49d34545bd828a1b6ee6bc1a0065b8a5", cert.Hash().String())
+		require.Equal(t, "0x40691cd4f9ff623a146d61e1e55240688ba4c5ebe373392884a8bdd33739e810", cert.BridgeExits[0].Hash().String())
+		require.Equal(t, "0x23fbdb2d272c9a4ae45135986363363d2e87dd6c2f2494a62b86851396f3fed4", cert.ImportedBridgeExits[0].Hash().String())
+		require.Equal(t, "0x7eb947fcd0ed89ba0f41ec3f85e600d7114ec9349eb99a9478e3dd4e456297b1", cert.ImportedBridgeExits[1].Hash().String())
 	})
 }
 
