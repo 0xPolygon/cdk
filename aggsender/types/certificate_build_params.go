@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	EstimatedSizeBridgeExit = 250
-	EstimatedSizeClaim      = 44000
+	EstimatedSizeBridgeExit = 230
+	EstimatedSizeClaim      = 8000
 )
 
 // CertificateBuildParams is a struct that holds the parameters to build a certificate
