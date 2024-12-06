@@ -631,7 +631,7 @@ func TestBuildCertificate(t *testing.T) {
 				NetworkID:         1,
 				PrevLocalExitRoot: common.HexToHash("0x123"),
 				NewLocalExitRoot:  common.HexToHash("0x789"),
-				Metadata:          createCertificateMetadata(10),
+				Metadata:          aggsendertypes.NewCertificateMetadata(0, 10, 0).ToHash(),
 				BridgeExits: []*agglayer.BridgeExit{
 					{
 						LeafType: agglayer.LeafTypeAsset,
@@ -1703,35 +1703,33 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 	mockL1InfoTreeSyncer.AssertExpectations(t)
 }
 
-func TestMetadataConversions(t *testing.T) {
-	toBlock := uint64(123567890)
-	c := createCertificateMetadata(toBlock)
-	extractBlock := extractFromCertificateMetadataToBlock(c)
-	require.Equal(t, toBlock, extractBlock)
-}
-
 func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name     string
 		metadata common.Hash
-		expected uint64
+		expected aggsendertypes.CertificateMetadata
 	}{
 		{
 			name:     "Valid metadata",
-			metadata: common.BigToHash(big.NewInt(123567890)),
-			expected: 123567890,
+			metadata: aggsendertypes.NewCertificateMetadata(0, 1000, 123567890).ToHash(),
+			expected: aggsendertypes.CertificateMetadata{
+				Version:   1,
+				FromBlock: 0,
+				Offset:    1000,
+				CreatedAt: 123567890,
+			},
 		},
 		{
 			name:     "Zero metadata",
-			metadata: common.BigToHash(big.NewInt(0)),
-			expected: 0,
-		},
-		{
-			name:     "Max uint64 metadata",
-			metadata: common.BigToHash(new(big.Int).SetUint64(^uint64(0))),
-			expected: ^uint64(0),
+			metadata: aggsendertypes.NewCertificateMetadata(0, 0, 0).ToHash(),
+			expected: aggsendertypes.CertificateMetadata{
+				Version:   1,
+				FromBlock: 0,
+				Offset:    0,
+				CreatedAt: 0,
+			},
 		},
 	}
 
@@ -1741,7 +1739,7 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := extractFromCertificateMetadataToBlock(tt.metadata)
+			result := *aggsendertypes.NewCertificateMetadataFromHash(tt.metadata)
 			require.Equal(t, tt.expected, result)
 		})
 	}
@@ -2021,7 +2019,11 @@ func certInfoToCertHeader(t *testing.T, certInfo *aggsendertypes.CertificateInfo
 		CertificateID:    certInfo.CertificateID,
 		NewLocalExitRoot: certInfo.NewLocalExitRoot,
 		Status:           agglayer.Pending,
-		Metadata:         createCertificateMetadata(certInfo.ToBlock),
+		Metadata: aggsendertypes.NewCertificateMetadata(
+			certInfo.FromBlock,
+			uint32(certInfo.FromBlock-certInfo.ToBlock),
+			certInfo.CreatedAt,
+		).ToHash(),
 	}
 }
 

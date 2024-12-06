@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"time"
 
@@ -196,6 +195,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		ToBlock:   toBlock,
 		Bridges:   bridges,
 		Claims:    claims,
+		CreatedAt: uint32(time.Now().UTC().Unix()),
 	}
 
 	certificateParams, err = a.limitCertSize(certificateParams)
@@ -229,7 +229,6 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		return nil, fmt.Errorf("error marshalling signed certificate. Cert:%s. Err: %w", signedCertificate.Brief(), err)
 	}
 
-	createdTime := time.Now().UTC().UnixMilli()
 	prevLER := common.BytesToHash(certificate.PrevLocalExitRoot[:])
 	certInfo := types.CertificateInfo{
 		Height:                certificate.Height,
@@ -239,8 +238,8 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		PreviousLocalExitRoot: &prevLER,
 		FromBlock:             fromBlock,
 		ToBlock:               toBlock,
-		CreatedAt:             createdTime,
-		UpdatedAt:             createdTime,
+		CreatedAt:             certificateParams.CreatedAt,
+		UpdatedAt:             certificateParams.CreatedAt,
 		SignedCertificate:     string(raw),
 	}
 	// TODO: Improve this case, if a cert is not save in the storage, we are going to settle a unknown certificate
@@ -382,7 +381,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting imported bridge exits: %w", err)
 	}
 
-	depositCount := certParams.MaxDepoitCount()
+	depositCount := certParams.MaxDepositCount()
 
 	exitRoot, err := a.l2Syncer.GetExitRootByIndex(ctx, depositCount)
 	if err != nil {
@@ -394,6 +393,12 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		return nil, fmt.Errorf("error getting next height and previous LER: %w", err)
 	}
 
+	meta := types.NewCertificateMetadata(
+		certParams.FromBlock,
+		uint32(certParams.ToBlock-certParams.FromBlock),
+		certParams.CreatedAt,
+	)
+
 	return &agglayer.Certificate{
 		NetworkID:           a.l2Syncer.OriginNetwork(),
 		PrevLocalExitRoot:   previousLER,
@@ -401,7 +406,7 @@ func (a *AggSender) buildCertificate(ctx context.Context,
 		BridgeExits:         bridgeExits,
 		ImportedBridgeExits: importedBridgeExits,
 		Height:              height,
-		Metadata:            createCertificateMetadata(certParams.ToBlock),
+		Metadata:            meta.ToHash(),
 	}, nil
 }
 
@@ -677,7 +682,7 @@ func (a *AggSender) updateCertificateStatus(ctx context.Context,
 	}
 
 	localCert.Status = agglayerCert.Status
-	localCert.UpdatedAt = time.Now().UTC().UnixMilli()
+	localCert.UpdatedAt = uint32(time.Now().UTC().Unix())
 	if err := a.storage.UpdateCertificate(ctx, *localCert); err != nil {
 		a.log.Errorf("error updating certificate %s status in storage: %w", agglayerCert.ID(), err)
 		return fmt.Errorf("error updating certificate. Err: %w", err)
@@ -788,28 +793,28 @@ func extractSignatureData(signature []byte) (r, s common.Hash, isOddParity bool,
 	return
 }
 
-// createCertificateMetadata creates a certificate metadata from given input
-func createCertificateMetadata(toBlock uint64) common.Hash {
-	return common.BigToHash(new(big.Int).SetUint64(toBlock))
-}
-
-func extractFromCertificateMetadataToBlock(metadata common.Hash) uint64 {
-	return metadata.Big().Uint64()
-}
-
 func NewCertificateInfoFromAgglayerCertHeader(c *agglayer.CertificateHeader) *types.CertificateInfo {
 	if c == nil {
 		return nil
 	}
-	now := time.Now().UTC().UnixMilli()
+	now := uint32(time.Now().UTC().Unix())
+	meta := types.NewCertificateMetadataFromHash(c.Metadata)
+	toBlock := meta.FromBlock + uint64(meta.Offset)
+	createdAt := meta.CreatedAt
+
+	if meta.Version < 1 {
+		toBlock = meta.ToBlock
+		createdAt = now
+	}
+
 	res := &types.CertificateInfo{
 		Height:            c.Height,
 		CertificateID:     c.CertificateID,
 		NewLocalExitRoot:  c.NewLocalExitRoot,
-		FromBlock:         0,
-		ToBlock:           extractFromCertificateMetadataToBlock(c.Metadata),
+		FromBlock:         meta.FromBlock,
+		ToBlock:           toBlock,
 		Status:            c.Status,
-		CreatedAt:         now,
+		CreatedAt:         createdAt,
 		UpdatedAt:         now,
 		SignedCertificate: "na/agglayer header",
 	}
