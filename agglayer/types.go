@@ -310,20 +310,29 @@ func (b *BridgeExit) Hash() common.Hash {
 
 // MarshalJSON is the implementation of the json.Marshaler interface
 func (b *BridgeExit) MarshalJSON() ([]byte, error) {
+	var metadataString interface{}
+	if b.IsMetadataHashed {
+		metadataString = common.Bytes2Hex(b.Metadata)
+	} else if len(b.Metadata) > 0 {
+		metadataString = bytesToUints(b.Metadata)
+	} else {
+		metadataString = nil
+	}
+
 	return json.Marshal(&struct {
 		LeafType           string         `json:"leaf_type"`
 		TokenInfo          *TokenInfo     `json:"token_info"`
 		DestinationNetwork uint32         `json:"dest_network"`
 		DestinationAddress common.Address `json:"dest_address"`
 		Amount             string         `json:"amount"`
-		Metadata           []uint         `json:"metadata"`
+		Metadata           interface{}    `json:"metadata"`
 	}{
 		LeafType:           b.LeafType.String(),
 		TokenInfo:          b.TokenInfo,
 		DestinationNetwork: b.DestinationNetwork,
 		DestinationAddress: b.DestinationAddress,
 		Amount:             b.Amount.String(),
-		Metadata:           bytesToUints(b.Metadata),
+		Metadata:           metadataString,
 	})
 }
 
