@@ -173,11 +173,11 @@ func TestMarshalJSON(t *testing.T) {
 						ClaimData: &ClaimFromMainnnet{
 							ProofLeafMER: &MerkleProof{
 								Root:  common.HexToHash("0x333"),
-								Proof: generateTestProof(t),
+								Proof: createDummyProof(t),
 							},
 							ProofGERToL1Root: &MerkleProof{
 								Root:  common.HexToHash("0x444"),
-								Proof: generateTestProof(t),
+								Proof: createDummyProof(t),
 							},
 							L1Leaf: &L1InfoTreeLeaf{
 								L1InfoTreeIndex: 1,
@@ -208,15 +208,15 @@ func TestMarshalJSON(t *testing.T) {
 						ClaimData: &ClaimFromRollup{
 							ProofLeafLER: &MerkleProof{
 								Root:  common.HexToHash("0x333"),
-								Proof: generateTestProof(t),
+								Proof: createDummyProof(t),
 							},
 							ProofLERToRER: &MerkleProof{
 								Root:  common.HexToHash("0x444"),
-								Proof: generateTestProof(t),
+								Proof: createDummyProof(t),
 							},
 							ProofGERToL1Root: &MerkleProof{
 								Root:  common.HexToHash("0x555"),
-								Proof: generateTestProof(t),
+								Proof: createDummyProof(t),
 							},
 							L1Leaf: &L1InfoTreeLeaf{
 								L1InfoTreeIndex: 2,
@@ -474,18 +474,6 @@ func TestUnmarshalCertificateHeaderUnknownError(t *testing.T) {
 	require.Equal(t, expectedErr, result.Error)
 }
 
-func generateTestProof(t *testing.T) types.Proof {
-	t.Helper()
-
-	proof := types.Proof{}
-
-	for i := 0; i < int(types.DefaultHeight); i++ {
-		proof[i] = common.HexToHash(fmt.Sprintf("0x%x", i))
-	}
-
-	return proof
-}
-
 func TestConvertNumeric(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -529,49 +517,6 @@ func TestConvertNumeric(t *testing.T) {
 	}
 }
 
-// Helper function to create a dummy TokenInfo (mocking as needed).
-func createDummyTokenInfo() *TokenInfo {
-	return &TokenInfo{
-		OriginNetwork:      1,
-		OriginTokenAddress: common.HexToAddress("0x2345"),
-	}
-}
-
-// Helper function to create a dummy GlobalIndex.
-func createDummyGlobalIndex() *GlobalIndex {
-	return &GlobalIndex{
-		MainnetFlag: false,
-		RollupIndex: 1,
-		LeafIndex:   1,
-	}
-}
-
-// Helper function to create a dummy Claim (mock as needed).
-func createDummyClaim() *ClaimFromMainnnet {
-	return &ClaimFromMainnnet{
-		ProofLeafMER: &MerkleProof{
-			Root: common.HexToHash("0x1234"),
-			Proof: [common.HashLength]common.Hash{
-				common.HexToHash("0x1234"),
-				common.HexToHash("0x5678"),
-			},
-		},
-		ProofGERToL1Root: &MerkleProof{
-			Root: common.HexToHash("0x5678"),
-			Proof: [common.HashLength]common.Hash{
-				common.HexToHash("0x5678"),
-				common.HexToHash("0x1234"),
-			},
-		},
-		L1Leaf: &L1InfoTreeLeaf{
-			L1InfoTreeIndex: 1,
-			RollupExitRoot:  common.HexToHash("0x987654321"),
-			MainnetExitRoot: common.HexToHash("0x123456789"),
-			Inner:           &L1InfoTreeLeafInner{},
-		},
-	}
-}
-
 func TestCertificateHash(t *testing.T) {
 	// Test inputs
 	prevLocalExitRoot := [common.HashLength]byte{}
@@ -583,7 +528,7 @@ func TestCertificateHash(t *testing.T) {
 	bridgeExits := []*BridgeExit{
 		{
 			LeafType:           LeafTypeAsset,
-			TokenInfo:          createDummyTokenInfo(),
+			TokenInfo:          createDummyTokenInfo(t),
 			DestinationNetwork: 1,
 			DestinationAddress: common.HexToAddress("0x0000000000000000000000000000000000000001"),
 			Amount:             big.NewInt(100),
@@ -591,7 +536,7 @@ func TestCertificateHash(t *testing.T) {
 		},
 		{
 			LeafType:           LeafTypeMessage,
-			TokenInfo:          createDummyTokenInfo(),
+			TokenInfo:          createDummyTokenInfo(t),
 			DestinationNetwork: 2,
 			DestinationAddress: common.HexToAddress("0x0000000000000000000000000000000000000002"),
 			Amount:             big.NewInt(200),
@@ -604,26 +549,26 @@ func TestCertificateHash(t *testing.T) {
 		{
 			BridgeExit: &BridgeExit{
 				LeafType:           LeafTypeAsset,
-				TokenInfo:          createDummyTokenInfo(),
+				TokenInfo:          createDummyTokenInfo(t),
 				DestinationNetwork: 3,
 				DestinationAddress: common.HexToAddress("0x0000000000000000000000000000000000000003"),
 				Amount:             big.NewInt(300),
 				Metadata:           []byte("metadata3"),
 			},
-			ClaimData:   createDummyClaim(),
-			GlobalIndex: createDummyGlobalIndex(),
+			ClaimData:   createDummyClaim(t),
+			GlobalIndex: createDummyGlobalIndex(t),
 		},
 		{
 			BridgeExit: &BridgeExit{
 				LeafType:           LeafTypeAsset,
-				TokenInfo:          createDummyTokenInfo(),
+				TokenInfo:          createDummyTokenInfo(t),
 				DestinationNetwork: 4,
 				DestinationAddress: common.HexToAddress("0x0000000000000000000000000000000000000004"),
 				Amount:             big.NewInt(400),
 				Metadata:           []byte("metadata4"),
 			},
-			ClaimData:   createDummyClaim(),
-			GlobalIndex: createDummyGlobalIndex(),
+			ClaimData:   createDummyClaim(t),
+			GlobalIndex: createDummyGlobalIndex(t),
 		},
 	}
 
@@ -749,7 +694,7 @@ func TestBridgeExitString(t *testing.T) {
 			name: "With TokenInfo",
 			bridgeExit: &BridgeExit{
 				LeafType:           LeafTypeAsset,
-				TokenInfo:          createDummyTokenInfo(),
+				TokenInfo:          createDummyTokenInfo(t),
 				DestinationNetwork: 100,
 				DestinationAddress: common.HexToAddress("0x2"),
 				Amount:             big.NewInt(1000),
