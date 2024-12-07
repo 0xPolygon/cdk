@@ -877,3 +877,38 @@ func TestGlobalIndexString(t *testing.T) {
 		})
 	}
 }
+
+func TestL1InfoTreeLeafString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    L1InfoTreeLeaf
+		expected string
+	}{
+		{
+			name: "With valid Inner",
+			input: L1InfoTreeLeaf{
+				L1InfoTreeIndex: 1,
+				RollupExitRoot:  common.HexToHash("0x01"),
+				MainnetExitRoot: common.HexToHash("0x02"),
+				Inner: &L1InfoTreeLeafInner{
+					GlobalExitRoot: common.HexToHash("0x03"),
+					BlockHash:      common.HexToHash("0x04"),
+					Timestamp:      1234567890,
+				},
+			},
+			expected: "L1InfoTreeIndex: 1, RollupExitRoot: 0x0000000000000000000000000000000000000000000000000000000000000001, " +
+				"MainnetExitRoot: 0x0000000000000000000000000000000000000000000000000000000000000002, " +
+				"Inner: GlobalExitRoot: 0x0000000000000000000000000000000000000000000000000000000000000003, " +
+				"BlockHash: 0x0000000000000000000000000000000000000000000000000000000000000004, Timestamp: 1234567890",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.input.String()
+			if result != tt.expected {
+				t.Errorf("L1InfoTreeLeaf.String() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
