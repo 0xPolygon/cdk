@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	timeNowFunc = time.Now
+	timeNowFunc            = time.Now
+	percentForNextInterval = 80
 )
 
 const (
@@ -186,7 +187,7 @@ func (b *BlockNotifierPolling) nextBlockRequestDelay(status *blockNotifierPollin
 	now := timeNowFunc()
 	expectedTimeNextBlock := status.lastBlockTime.Add(*status.previousBlockTime)
 	distanceToNextBlock := expectedTimeNextBlock.Sub(now)
-	interval := distanceToNextBlock * 4 / 5 //nolint:mnd //  80% of for reach the next block
+	interval := distanceToNextBlock * time.Duration(percentForNextInterval) / 100 //nolint:mnd //  80% of for reach the next block
 	return max(minBlockInterval, min(maxBlockInterval, interval))
 }
 
