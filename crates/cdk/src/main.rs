@@ -27,15 +27,15 @@ async fn main() -> anyhow::Result<()> {
 
     println!(
         "{}",
-        r#"🐼
-  _____      _                            _____ _____  _  __
- |  __ \    | |                          / ____|  __ \| |/ /
- | |__) |__ | |_   _  __ _  ___  _ __   | |    | |  | | ' / 
- |  ___/ _ \| | | | |/ _` |/ _ \| '_ \  | |    | |  | |  <  
- | |  | (_) | | |_| | (_| | (_) | | | | | |____| |__| | . \ 
- |_|   \___/|_|\__, |\__, |\___/|_| |_|  \_____|_____/|_|\_\
-                __/ | __/ |                                 
-               |___/ |___/                                  
+        r#"
+#  _____      _                            _____ _____  _  __
+# |  __ \    | |                          / ____|  __ \| |/ /
+# | |__) |__ | |_   _  __ _  ___  _ __   | |    | |  | | ' / 
+# |  ___/ _ \| | | | |/ _` |/ _ \| '_ \  | |    | |  | |  <  
+# | |  | (_) | | |_| | (_| | (_) | | | | | |____| |__| | . \ 
+# |_|   \___/|_|\__, |\__, |\___/|_| |_|  \_____|_____/|_|\_\
+#                __/ | __/ |                                 
+#               |___/ |___/                                  
 "#
         .purple()
     );
@@ -44,6 +44,7 @@ async fn main() -> anyhow::Result<()> {
         cli::Commands::Node { config, components } => node(config, components)?,
         cli::Commands::Erigon { config, chain } => erigon(config, chain).await?,
         cli::Commands::Versions {} => versions::versions(),
+        cli::Commands::Config { min } => config(min)?,
     }
 
     Ok(())
@@ -181,4 +182,32 @@ async fn get_timestamp(url: Url) -> Result<u64, anyhow::Error> {
 #[derive(serde::Deserialize, Debug, Clone)]
 struct Batch {
     timestamp: String,
+}
+
+/// This function simply calls the config subcommand in cdk-node.
+pub fn config(min: bool) -> anyhow::Result<()> {
+    // This is to find the binary when running in development mode
+    // otherwise it will use system path
+    let bin_path = helpers::get_bin_path();
+
+    // Run the node passing the config file path as argument
+    let mut command = Command::new(bin_path.clone());
+    command.args(&["config"]);
+    if min {
+        command.args(&["-min"]);
+    }
+
+    let output_result = command.execute_output();
+    match output_result {
+        Ok(output) => output,
+        Err(e) => {
+            eprintln!(
+                "Failed to execute command, trying to find executable in path: {}",
+                bin_path
+            );
+            return Err(e.into());
+        }
+    };
+
+    Ok(())
 }

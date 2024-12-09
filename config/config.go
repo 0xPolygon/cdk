@@ -58,6 +58,8 @@ const (
 	FlagDisableDefaultConfigVars = "disable-default-config-vars"
 	// FlagAllowDeprecatedFields is the flag to allow deprecated fields
 	FlagAllowDeprecatedFields = "allow-deprecated-fields"
+	// FlagMinConfig is the flag to print minimal configuration
+	FlagMinConfig = "min"
 
 	deprecatedFieldSyncDB = "Aggregator.Synchronizer.DB is deprecated. Use Aggregator.Synchronizer.SQLDB instead."
 
