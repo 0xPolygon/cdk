@@ -22,7 +22,9 @@ const (
 	expectedSignedCertificateMetadataJSON      = `{"network_id":1,"height":1,"prev_local_exit_root":"0x0000000000000000000000000000000000000000000000000000000000000000","new_local_exit_root":"0x0000000000000000000000000000000000000000000000000000000000000000","bridge_exits":[{"leaf_type":"Transfer","token_info":null,"dest_network":0,"dest_address":"0x0000000000000000000000000000000000000000","amount":"1","metadata":[1,2,3]}],"imported_bridge_exits":[{"bridge_exit":{"leaf_type":"Transfer","token_info":null,"dest_network":0,"dest_address":"0x0000000000000000000000000000000000000000","amount":"1","metadata":null},"claim_data":null,"global_index":{"mainnet_flag":false,"rollup_index":1,"leaf_index":1}}],"metadata":"0x0000000000000000000000000000000000000000000000000000000000000000","signature":{"r":"0x0000000000000000000000000000000000000000000000000000000000000000","s":"0x0000000000000000000000000000000000000000000000000000000000000000","odd_y_parity":false}}`
 )
 
-func TestBridgeExitHash(t *testing.T) {
+func TestBridgeExit_Hash(t *testing.T) {
+	t.Parallel()
+
 	MetadaHash := common.HexToHash("0x1234")
 	bridge := BridgeExit{
 		TokenInfo:        &TokenInfo{},
@@ -54,7 +56,7 @@ func TestGenericError_Error(t *testing.T) {
 	require.Equal(t, "[Agglayer Error] test: value", err.Error())
 }
 
-func TestCertificateHeaderID(t *testing.T) {
+func TestCertificateHeader_ID(t *testing.T) {
 	t.Parallel()
 
 	certificate := CertificateHeader{
@@ -440,8 +442,9 @@ func TestGlobalIndex_UnmarshalFromMap(t *testing.T) {
 	}
 }
 
-func TestUnmarshalCertificateHeaderUnknownError(t *testing.T) {
+func TestUnmarshalCertificateHeader_UnknownError(t *testing.T) {
 	t.Parallel()
+
 	rawCertificateHeader := `{
 		"network_id": 14,
 		"height": 0,
@@ -475,6 +478,8 @@ func TestUnmarshalCertificateHeaderUnknownError(t *testing.T) {
 }
 
 func TestConvertNumeric(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		value       float64
@@ -506,6 +511,8 @@ func TestConvertNumeric(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result, err := convertNumeric(tt.value, tt.target)
 			if tt.expectedErr != nil {
 				require.ErrorContains(t, err, tt.expectedErr.Error())
@@ -517,7 +524,9 @@ func TestConvertNumeric(t *testing.T) {
 	}
 }
 
-func TestCertificateHash(t *testing.T) {
+func TestCertificate_Hash(t *testing.T) {
+	t.Parallel()
+
 	// Test inputs
 	prevLocalExitRoot := [common.HashLength]byte{}
 	newLocalExitRoot := [common.HashLength]byte{}
@@ -614,6 +623,8 @@ func TestCertificateHash(t *testing.T) {
 }
 
 func TestCertificate_HashToSign(t *testing.T) {
+	t.Parallel()
+
 	c := &Certificate{
 		NewLocalExitRoot: common.HexToHash("0xabcd"),
 		ImportedBridgeExits: []*ImportedBridgeExit{
@@ -649,6 +660,8 @@ func TestCertificate_HashToSign(t *testing.T) {
 }
 
 func TestClaimFromMainnnet_MarshalJSON(t *testing.T) {
+	t.Parallel()
+
 	// Test data
 	merkleProof := &MerkleProof{
 		Root: common.HexToHash("0x1"),
@@ -684,7 +697,9 @@ func TestClaimFromMainnnet_MarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestBridgeExitString(t *testing.T) {
+func TestBridgeExit_String(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		bridgeExit     *BridgeExit
@@ -717,13 +732,16 @@ func TestBridgeExitString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			actualOutput := tt.bridgeExit.String()
 			require.Equal(t, tt.expectedOutput, actualOutput)
 		})
 	}
 }
 
-func TestCertificateStatusUnmarshalJSON(t *testing.T) {
+func TestCertificateStatus_UnmarshalJSON(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		input       string
@@ -776,6 +794,8 @@ func TestCertificateStatusUnmarshalJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			var status CertificateStatus
 			err := json.Unmarshal([]byte(tt.input), &status)
 
@@ -789,7 +809,9 @@ func TestCertificateStatusUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestMerkleProofString(t *testing.T) {
+func TestMerkleProof_String(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		proof    MerkleProof
@@ -820,15 +842,19 @@ func TestMerkleProofString(t *testing.T) {
 					common.HexToHash("0x123789"),
 				},
 			},
-			expected: fmt.Sprintf("Root: %s, Proof: %v", common.HexToHash("0xabc123").String(), [types.DefaultHeight]common.Hash{
-				common.HexToHash("0xdef456"),
-				common.HexToHash("0x123789"),
-			}),
+			expected: fmt.Sprintf("Root: %s, Proof: %v",
+				common.HexToHash("0xabc123").String(),
+				[types.DefaultHeight]common.Hash{
+					common.HexToHash("0xdef456"),
+					common.HexToHash("0x123789"),
+				}),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result := tt.proof.String()
 			require.Equal(t, tt.expected, result)
 		})
@@ -836,6 +862,8 @@ func TestMerkleProofString(t *testing.T) {
 }
 
 func TestGlobalIndexString(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    GlobalIndex
@@ -872,6 +900,8 @@ func TestGlobalIndexString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result := tt.input.String()
 			require.Equal(t, tt.expected, result)
 		})
@@ -879,6 +909,8 @@ func TestGlobalIndexString(t *testing.T) {
 }
 
 func TestL1InfoTreeLeafString(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    L1InfoTreeLeaf
@@ -905,15 +937,17 @@ func TestL1InfoTreeLeafString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			result := tt.input.String()
-			if result != tt.expected {
-				t.Errorf("L1InfoTreeLeaf.String() = %q, want %q", result, tt.expected)
-			}
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
 
 func TestClaimType(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name         string
 		claim        Claim
@@ -933,6 +967,8 @@ func TestClaimType(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
 			actualType := c.claim.Type()
 			require.Equal(t, c.expectedType, actualType)
 		})
