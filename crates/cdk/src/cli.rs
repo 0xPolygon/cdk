@@ -56,5 +56,13 @@ pub(crate) enum Commands {
     /// Output the corresponding versions of the components
     Versions,
     /// Output the default config template file
-    Config,
+    Config {
+        /// Output minimal config file
+        #[arg(
+            long,
+            short = 'm',
+            env = "CDK_MINIMAL_CONFIG"
+        )]
+        min: bool,
+    },
 }

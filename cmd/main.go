@@ -62,6 +62,13 @@ var (
 		Usage:    "Allow that config-files contains deprecated fields",
 		Required: false,
 	}
+
+	minConfigFlag = cli.BoolFlag{
+		Name:     config.FlagMinConfig,
+		Aliases:  []string{"m"},
+		Usage:    "Output minimal mandatory configuration",
+		Required: false,
+	}
 )
 
 func main() {
@@ -95,6 +102,7 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Output a default configuration file",
 			Action:  configCmd,
+			Flags:   []cli.Flag{&minConfigFlag},
 		},
 	}
 

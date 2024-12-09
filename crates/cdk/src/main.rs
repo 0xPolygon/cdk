@@ -44,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
         cli::Commands::Node { config, components } => node(config, components)?,
         cli::Commands::Erigon { config, chain } => erigon(config, chain).await?,
         cli::Commands::Versions {} => versions::versions(),
-        cli::Commands::Config {} => config()?,
+        cli::Commands::Config { min } => config(min)?,
     }
 
     Ok(())
@@ -185,7 +185,7 @@ struct Batch {
 }
 
 /// This function simply calls the config subcommand in cdk-node.
-pub fn config() -> anyhow::Result<()> {
+pub fn config(min: bool) -> anyhow::Result<()> {
     // This is to find the binary when running in development mode
     // otherwise it will use system path
     let bin_path = helpers::get_bin_path();
@@ -193,6 +193,9 @@ pub fn config() -> anyhow::Result<()> {
     // Run the node passing the config file path as argument
     let mut command = Command::new(bin_path.clone());
     command.args(&["config"]);
+    if min {
+        command.args(&["-min"]);
+    }
 
     let output_result = command.execute_output();
     match output_result {

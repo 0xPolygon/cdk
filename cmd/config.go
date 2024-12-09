@@ -8,12 +8,14 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func configCmd(*cli.Context) error {
+func configCmd(cliCtx *cli.Context) error {
 	// String buffer to concatenate all the default config vars
 	defaultConfig := strings.Builder{}
 	defaultConfig.WriteString(config.DefaultMandatoryVars)
-	defaultConfig.WriteString(config.DefaultVars)
-	defaultConfig.WriteString(config.DefaultValues)
+	if !cliCtx.Bool(config.FlagMinConfig) {
+		defaultConfig.WriteString(config.DefaultVars)
+		defaultConfig.WriteString(config.DefaultValues)
+	}
 
 	_, err := os.Stdout.WriteString(defaultConfig.String())
 	if err != nil {
