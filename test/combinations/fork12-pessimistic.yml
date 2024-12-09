@@ -1,5 +1,5 @@
 args:
-  agglayer_image: ghcr.io/agglayer/agglayer:0.2.0-rc.12
+  agglayer_image: ghcr.io/agglayer/agglayer:0.2.0-rc.21
   cdk_erigon_node_image: hermeznetwork/cdk-erigon:v2.60.0-beta8
   cdk_node_image: cdk
   zkevm_bridge_proxy_image: haproxy:3.0-bookworm
