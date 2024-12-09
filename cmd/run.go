@@ -486,9 +486,9 @@ func newReorgDetector(
 }
 
 func isNeeded(casesWhereNeeded, actualCases []string) bool {
-	for _, actaulCase := range actualCases {
+	for _, actualCase := range actualCases {
 		for _, caseWhereNeeded := range casesWhereNeeded {
-			if actaulCase == caseWhereNeeded {
+			if actualCase == caseWhereNeeded {
 				return true
 			}
 		}
