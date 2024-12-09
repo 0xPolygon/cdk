@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"math/big"
 	"time"
@@ -55,32 +56,44 @@ type Logger interface {
 }
 
 type CertificateInfo struct {
-	Height            uint64                     `meddler:"height"`
-	CertificateID     common.Hash                `meddler:"certificate_id,hash"`
-	NewLocalExitRoot  common.Hash                `meddler:"new_local_exit_root,hash"`
-	FromBlock         uint64                     `meddler:"from_block"`
-	ToBlock           uint64                     `meddler:"to_block"`
-	Status            agglayer.CertificateStatus `meddler:"status"`
-	CreatedAt         int64                      `meddler:"created_at"`
-	UpdatedAt         int64                      `meddler:"updated_at"`
-	SignedCertificate string                     `meddler:"signed_certificate"`
+	Height        uint64      `meddler:"height"`
+	RetryCount    int         `meddler:"retry_count"`
+	CertificateID common.Hash `meddler:"certificate_id,hash"`
+	// PreviousLocalExitRoot if it's nil means no reported
+	PreviousLocalExitRoot *common.Hash               `meddler:"previous_local_exit_root,hash"`
+	NewLocalExitRoot      common.Hash                `meddler:"new_local_exit_root,hash"`
+	FromBlock             uint64                     `meddler:"from_block"`
+	ToBlock               uint64                     `meddler:"to_block"`
+	Status                agglayer.CertificateStatus `meddler:"status"`
+	CreatedAt             int64                      `meddler:"created_at"`
+	UpdatedAt             int64                      `meddler:"updated_at"`
+	SignedCertificate     string                     `meddler:"signed_certificate"`
 }
 
 func (c *CertificateInfo) String() string {
 	if c == nil {
+		//nolint:all
 		return "nil"
 	}
-	return fmt.Sprintf(
+	previousLocalExitRoot := "nil"
+	if c.PreviousLocalExitRoot != nil {
+		previousLocalExitRoot = c.PreviousLocalExitRoot.String()
+	}
+	return fmt.Sprintf("aggsender.CertificateInfo: "+
 		"Height: %d "+
-			"CertificateID: %s "+
-			"NewLocalExitRoot: %s "+
-			"Status: %s "+
-			"FromBlock: %d "+
-			"ToBlock: %d "+
-			"CreatedAt: %s "+
-			"UpdatedAt: %s",
+		"RetryCount: %d "+
+		"CertificateID: %s "+
+		"PreviousLocalExitRoot: %s "+
+		"NewLocalExitRoot: %s "+
+		"Status: %s "+
+		"FromBlock: %d "+
+		"ToBlock: %d "+
+		"CreatedAt: %s "+
+		"UpdatedAt: %s",
 		c.Height,
+		c.RetryCount,
 		c.CertificateID.String(),
+		previousLocalExitRoot,
 		c.NewLocalExitRoot.String(),
 		c.Status.String(),
 		c.FromBlock,
@@ -95,7 +108,7 @@ func (c *CertificateInfo) ID() string {
 	if c == nil {
 		return "nil"
 	}
-	return fmt.Sprintf("%d/%s", c.Height, c.CertificateID.String())
+	return fmt.Sprintf("%d/%s (retry %d)", c.Height, c.CertificateID.String(), c.RetryCount)
 }
 
 // IsClosed returns true if the certificate is closed (settled or inError)
@@ -112,4 +125,48 @@ func (c *CertificateInfo) ElapsedTimeSinceCreation() time.Duration {
 		return 0
 	}
 	return time.Now().UTC().Sub(time.UnixMilli(c.CreatedAt))
+}
+
+type CertificateMetadata struct {
+	FromBlock uint64 `json:"fromBlock"`
+	ToBlock   uint64 `json:"toBlock"`
+	CreatedAt uint64 `json:"createdAt"`
+}
+
+// NewCertificateMetadataFromHash returns a new CertificateMetadata from the given hash
+func NewCertificateMetadata(fromBlock, toBlock, createdAt uint64) *CertificateMetadata {
+	return &CertificateMetadata{
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
+		CreatedAt: createdAt,
+	}
+}
+
+// NewCertificateMetadataFromHash returns a new CertificateMetadata from the given hash
+func NewCertificateMetadataFromHash(hash common.Hash) *CertificateMetadata {
+	b := hash.Bytes()
+
+	return NewCertificateMetadata(
+		binary.BigEndian.Uint64(b[0:8]),
+		binary.BigEndian.Uint64(b[8:16]),
+		binary.BigEndian.Uint64(b[16:24]),
+	)
+}
+
+// ToHash returns the hash of the metadata
+func (c *CertificateMetadata) ToHash() common.Hash {
+	b := make([]byte, common.HashLength) // 32-byte hash
+
+	// Encode fromBlock into first 8 bytes
+	binary.BigEndian.PutUint64(b[0:8], c.FromBlock)
+
+	// Encode toBlock into next 8 bytes
+	binary.BigEndian.PutUint64(b[8:16], c.ToBlock)
+
+	// Encode createdAt into next 8 bytes
+	binary.BigEndian.PutUint64(b[16:24], c.CreatedAt)
+
+	// Last 8 bytes remain as zero padding
+
+	return common.BytesToHash(b)
 }

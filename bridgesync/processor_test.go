@@ -29,7 +29,7 @@ func TestBigIntString(t *testing.T) {
 	_, ok := new(big.Int).SetString(globalIndex.String(), 10)
 	require.True(t, ok)
 
-	dbPath := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	dbPath := path.Join(t.TempDir(), "bridgesyncTestBigIntString.sqlite")
 
 	err := migrationsBridge.RunMigrations(dbPath)
 	require.NoError(t, err)
@@ -78,11 +78,9 @@ func TestBigIntString(t *testing.T) {
 }
 
 func TestProceessor(t *testing.T) {
-	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	log.Debugf("sqlite path: %s", path)
-	err := migrationsBridge.RunMigrations(path)
-	require.NoError(t, err)
-	p, err := newProcessor(path, "foo")
+	path := path.Join(t.TempDir(), "aggsenderTestProceessor.sqlite")
+	logger := log.WithFields("bridge-syncer", "foo")
+	p, err := newProcessor(path, logger)
 	require.NoError(t, err)
 	actions := []processAction{
 		// processed: ~
@@ -731,11 +729,12 @@ func TestDecodeGlobalIndex(t *testing.T) {
 }
 
 func TestInsertAndGetClaim(t *testing.T) {
-	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	path := path.Join(t.TempDir(), "aggsenderTestInsertAndGetClaim.sqlite")
 	log.Debugf("sqlite path: %s", path)
 	err := migrationsBridge.RunMigrations(path)
 	require.NoError(t, err)
-	p, err := newProcessor(path, "foo")
+	logger := log.WithFields("bridge-syncer", "foo")
+	p, err := newProcessor(path, logger)
 	require.NoError(t, err)
 
 	tx, err := p.db.BeginTx(context.Background(), nil)
@@ -771,15 +770,6 @@ func TestInsertAndGetClaim(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, claims, 1)
 	require.Equal(t, testClaim, &claims[0])
-}
-
-type mockBridgeContract struct {
-	lastUpdatedDepositCount uint32
-	err                     error
-}
-
-func (m *mockBridgeContract) LastUpdatedDepositCount(ctx context.Context, blockNumber uint64) (uint32, error) {
-	return m.lastUpdatedDepositCount, m.err
 }
 
 func TestGetBridgesPublished(t *testing.T) {
@@ -826,9 +816,10 @@ func TestGetBridgesPublished(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			path := path.Join(t.TempDir(), "file::memory:?cache=shared")
+			path := path.Join(t.TempDir(), fmt.Sprintf("bridgesyncTestGetBridgesPublished_%s.sqlite", tc.name))
 			require.NoError(t, migrationsBridge.RunMigrations(path))
-			p, err := newProcessor(path, "foo")
+			logger := log.WithFields("bridge-syncer", "foo")
+			p, err := newProcessor(path, logger)
 			require.NoError(t, err)
 
 			tx, err := p.db.BeginTx(context.Background(), nil)
@@ -856,4 +847,21 @@ func TestGetBridgesPublished(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProcessBlockInvalidIndex(t *testing.T) {
+	path := path.Join(t.TempDir(), "aggsenderTestProceessor.sqlite")
+	logger := log.WithFields("bridge-syncer", "foo")
+	p, err := newProcessor(path, logger)
+	require.NoError(t, err)
+	err = p.ProcessBlock(context.Background(), sync.Block{
+		Num: 0,
+		Events: []interface{}{
+			Event{Bridge: &Bridge{DepositCount: 5}},
+		},
+	})
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
+	require.True(t, p.halted)
+	err = p.ProcessBlock(context.Background(), sync.Block{})
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
 }

@@ -242,6 +242,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	shouldRollback := true
 	defer func() {
 		if shouldRollback {
+			log.Debugf("rolling back reorg, first reorged block: %d", firstReorgedBlock)
 			if errRllbck := tx.Rollback(); errRllbck != nil {
 				log.Errorf("error while rolling back tx %v", errRllbck)
 			}
@@ -268,13 +269,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	if rowsAffected > 0 {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		p.halted = false
-		p.haltedReason = ""
-	}
-	shouldRollback = false
+	sync.UnhaltIfAffectedRows(&p.halted, &p.haltedReason, &p.mu, rowsAffected)
 	return nil
 }
 
@@ -289,9 +284,11 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if err != nil {
 		return err
 	}
+	log.Debugf("init block processing for block %d", block.Num)
 	shouldRollback := true
 	defer func() {
 		if shouldRollback {
+			log.Debugf("rolling back block processing for block %d", block.Num)
 			if errRllbck := tx.Rollback(); errRllbck != nil {
 				log.Errorf("error while rolling back tx %v", errRllbck)
 			}
@@ -397,8 +394,11 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		return fmt.Errorf("err: %w", err)
 	}
 	shouldRollback = false
-
-	log.Infof("block %d processed with %d events", block.Num, len(block.Events))
+	logFunc := log.Debugf
+	if len(block.Events) > 0 {
+		logFunc = log.Infof
+	}
+	logFunc("block %d processed with %d events", block.Num, len(block.Events))
 	return nil
 }
 

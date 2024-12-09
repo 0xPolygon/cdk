@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	mutex "sync"
 
 	"github.com/0xPolygon/cdk/bridgesync/migrations"
 	"github.com/0xPolygon/cdk/db"
@@ -98,18 +99,16 @@ type Event struct {
 	Claim  *Claim
 }
 
-type BridgeContractor interface {
-	LastUpdatedDepositCount(ctx context.Context, BlockNumber uint64) (uint32, error)
-}
-
 type processor struct {
-	db             *sql.DB
-	exitTree       *tree.AppendOnlyTree
-	log            *log.Logger
-	bridgeContract BridgeContractor
+	db           *sql.DB
+	exitTree     *tree.AppendOnlyTree
+	log          *log.Logger
+	mu           mutex.RWMutex
+	halted       bool
+	haltedReason string
 }
 
-func newProcessor(dbPath, loggerPrefix string) (*processor, error) {
+func newProcessor(dbPath string, logger *log.Logger) (*processor, error) {
 	err := migrations.RunMigrations(dbPath)
 	if err != nil {
 		return nil, err
@@ -118,7 +117,7 @@ func newProcessor(dbPath, loggerPrefix string) (*processor, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger := log.WithFields("bridge-syncer", loggerPrefix)
+
 	exitTree := tree.NewAppendOnlyTree(db, "")
 	return &processor{
 		db:       db,
@@ -224,7 +223,7 @@ func (p *processor) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
 
 func (p *processor) getLastProcessedBlockWithTx(tx db.Querier) (uint64, error) {
 	var lastProcessedBlock uint64
-	row := tx.QueryRow("SELECT num FROM BLOCK ORDER BY num DESC LIMIT 1;")
+	row := tx.QueryRow("SELECT num FROM block ORDER BY num DESC LIMIT 1;")
 	err := row.Scan(&lastProcessedBlock)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
@@ -247,7 +246,11 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		}
 	}()
 
-	_, err = tx.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
+	res, err := tx.Exec(`DELETE FROM block WHERE num >= $1;`, firstReorgedBlock)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
 	if err != nil {
 		return err
 	}
@@ -258,13 +261,17 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-
+	sync.UnhaltIfAffectedRows(&p.halted, &p.haltedReason, &p.mu, rowsAffected)
 	return nil
 }
 
 // ProcessBlock process the events of the block to build the exit tree
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
+	if p.isHalted() {
+		log.Errorf("processor is halted due to: %s", p.haltedReason)
+		return sync.ErrInconsistentState
+	}
 	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
@@ -291,7 +298,13 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 				Index: event.Bridge.DepositCount,
 				Hash:  event.Bridge.Hash(),
 			}); err != nil {
-				return err
+				if errors.Is(err, tree.ErrInvalidIndex) {
+					p.mu.Lock()
+					p.halted = true
+					p.haltedReason = fmt.Sprintf("error adding leaf to the exit tree: %v", err)
+					p.mu.Unlock()
+				}
+				return sync.ErrInconsistentState
 			}
 			if err = meddler.Insert(tx, "bridge", event.Bridge); err != nil {
 				return err
@@ -377,4 +390,10 @@ func DecodeGlobalIndex(globalIndex *big.Int) (mainnetFlag bool,
 
 func convertBytesToUint32(bytes []byte) uint32 {
 	return uint32(big.NewInt(0).SetBytes(bytes).Uint64())
+}
+
+func (p *processor) isHalted() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.halted
 }

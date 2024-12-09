@@ -7,25 +7,45 @@ on:
 
 
 jobs:
+  build-cdk-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version: 1.22.x
+
+    - name: Build cdk docker image
+      run: make build-docker
+    
+    - name: Save cdk image to archive
+      run: docker save --output /tmp/cdk.tar cdk
+    
+    - name: Upload archive
+      uses: actions/upload-artifact@v4
+      with:
+        name: cdk
+        path: /tmp/cdk.tar
+
   test-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build-cdk-image
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ 1.22.x ]
-        goarch: [ "amd64" ]
         e2e-group:
           - "fork9-validium"
           - "fork11-rollup"
           - "fork12-validium"
           - "fork12-rollup"
           - "fork12-pessimistic"
-    runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
+    - uses: actions/checkout@v4
+    
+    - name: Checkout kurtosis-cdk repository
       uses: actions/checkout@v4
-
-    - name: Install Go
-      uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go-version }}
       env:
@@ -33,26 +53,17 @@ jobs:
 
     - name: Build Docker
       run: make build-docker
- 
-      # this is better to get the action in
-    - name: Install kurtosis
-      shell: bash
-      run: |
-        echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
-        sudo apt update
-        sudo apt install kurtosis-cli=1.4.1
-        kurtosis version
-
-    - name: Disable kurtosis analytics
-      shell: bash
-      run: kurtosis analytics disable
-
-    - name: Install yq
-      shell: bash
-      run: |
-        pip3 install yq
-        yq --version
-
+    
+    - name: Checkout kurtosis-cdk
+      uses: actions/checkout@v4
+      with:
+        repository: 0xPolygon/kurtosis-cdk
+        path: kurtosis-cdk
+        ref: v0.2.24
+    
+    - name: Install Kurtosis CDK tools
+      uses: ./kurtosis-cdk/.github/actions/setup-kurtosis-cdk
+    
     - name: Install polycli
       run: |
         POLYCLI_VERSION="${{ vars.POLYCLI_VERSION }}"
@@ -63,20 +74,21 @@ jobs:
         sudo chmod +x /usr/local/bin/polycli
         /usr/local/bin/polycli version
 
-    - name: Install foundry
-      uses: foundry-rs/foundry-toolchain@v1
-
-    - name: checkout kurtosis-cdk
-      uses: actions/checkout@v4
-      with:
-        repository: 0xPolygon/kurtosis-cdk
-        path: "kurtosis-cdk"
-        ref: "v0.2.21"
-
     - name: Setup Bats and bats libs
       uses: bats-core/bats-action@2.0.0
+    
+    - name: Download cdk archive
+      uses: actions/download-artifact@v4
+      with:
+        name: cdk
+        path: /tmp
+    
+    - name: Load cdk image
+      run: |
+        docker load --input /tmp/cdk.tar
+        docker image ls -a
 
-    - name: Test
+    - name: Run e2e tests
       run: make test-e2e-${{ matrix.e2e-group }}
       working-directory: test
       env:

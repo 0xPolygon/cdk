@@ -158,7 +158,7 @@ func (b *BlockNotifierPolling) step(ctx context.Context,
 	newState := previousState.incommingNewBlock(currentBlock.Number.Uint64())
 	b.logger.Debugf("New block seen [finality:%s]: %d. blockRate:%s",
 		b.config.BlockFinalityType, currentBlock.Number.Uint64(), newState.previousBlockTime)
-
+	eventToEmit.BlockRate = *newState.previousBlockTime
 	return b.nextBlockRequestDelay(newState, nil), newState, eventToEmit
 }
 

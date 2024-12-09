@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -12,6 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+)
+
+const (
+	DefaultWaitPeriodBlockNotFound = time.Millisecond * 100
 )
 
 type EthClienter interface {
@@ -229,6 +234,11 @@ func (d *EVMDownloaderImplementation) GetEventsByBlockRange(ctx context.Context,
 	}
 }
 
+func filterQueryToString(query ethereum.FilterQuery) string {
+	return fmt.Sprintf("FromBlock: %s, ToBlock: %s, Addresses: %s, Topics: %s",
+		query.FromBlock.String(), query.ToBlock.String(), query.Addresses, query.Topics)
+}
+
 func (d *EVMDownloaderImplementation) GetLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log {
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
@@ -249,7 +259,10 @@ func (d *EVMDownloaderImplementation) GetLogs(ctx context.Context, fromBlock, to
 			}
 
 			attempts++
-			d.log.Error("error calling FilterLogs to eth client: ", err)
+			d.log.Errorf("error calling FilterLogs to eth client: filter: %s err:%w ",
+				filterQueryToString(query),
+				err,
+			)
 			d.rh.Handle("getLogs", attempts)
 			continue
 		}
@@ -275,6 +288,17 @@ func (d *EVMDownloaderImplementation) GetBlockHeader(ctx context.Context, blockN
 			if errors.Is(err, context.Canceled) {
 				// context is canceled, we don't want to fatal on max attempts in this case
 				return EVMBlockHeader{}, true
+			}
+			if errors.Is(err, ethereum.NotFound) {
+				// block num can temporary disappear from the execution client due to a reorg,
+				// in this case, we want to wait and not panic
+				log.Warnf("block %d not found on the ethereum client: %v", blockNum, err)
+				if d.rh.RetryAfterErrorPeriod != 0 {
+					time.Sleep(d.rh.RetryAfterErrorPeriod)
+				} else {
+					time.Sleep(DefaultWaitPeriodBlockNotFound)
+				}
+				continue
 			}
 
 			attempts++

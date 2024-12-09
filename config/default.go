@@ -852,6 +852,17 @@ ForkUpgradeNewForkId = 0
   # InitialBlock is the initial block to start the sync
   # ----------------------------------------------------------------------------
   InitialBlock={{rollupManagerCreationBlockNumber}}
+  
+  # ----------------------------------------------------------------------------
+  # RetryAfterErrorPeriod is the time that will be waited when an unexpected error happens before retry
+  # ----------------------------------------------------------------------------
+  RetryAfterErrorPeriod="1s"
+  
+  # ----------------------------------------------------------------------------
+  # MaxRetryAttemptsAfterError is the maximum number of consecutive attempts that will happen before panicking.
+  # Any number smaller than zero will be considered as unlimited retries
+  # ----------------------------------------------------------------------------
+  MaxRetryAttemptsAfterError=-1
 
 # ------------------------------------------------------------------------------
 # AggOracle configuration
@@ -1372,13 +1383,11 @@ ForkUpgradeNewForkId = 0
   # ----------------------------------------------------------------------------
   # BlockGetInterval is the interval at which the AggSender will get the blocks from L1
   # ----------------------------------------------------------------------------
-  BlockGetInterval = "2s"
-  
+    
   # ----------------------------------------------------------------------------
   # CheckSettledInterval is the interval at which the AggSender will check if the blocks are settled
   # ----------------------------------------------------------------------------
-  CheckSettledInterval = "2s"
-  
+    
   # ----------------------------------------------------------------------------
   # AggsenderPrivateKey is the private key which is used to sign certificates
   # ----------------------------------------------------------------------------
@@ -1418,4 +1427,20 @@ ForkUpgradeNewForkId = 0
 	# is used on store Certificate and also in initial check
   # ----------------------------------------------------------------------------
   DelayBeetweenRetries = "60s"
+  
+  # ----------------------------------------------------------------------------
+  # KeepCertificatesHistory is a flag to keep the certificates history on storage
+  # ----------------------------------------------------------------------------
+  KeepCertificatesHistory = true
+  
+  # ----------------------------------------------------------------------------
+  # MaxCertSize is the maximum size of the certificate (the emitted certificate can be bigger that this size)
+	# 0 is infinite
+  # ----------------------------------------------------------------------------
+  MaxCertSize = 8388608
+  
+  # ----------------------------------------------------------------------------
+  # BridgeMetadataAsHash is a flag to import the bridge metadata as hash
+  # ----------------------------------------------------------------------------
+  BridgeMetadataAsHash = true
 `

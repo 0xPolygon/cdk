@@ -23,6 +23,8 @@ const (
 	Candidate
 	InError
 	Settled
+
+	nilStr = "nil"
 )
 
 var (
@@ -110,27 +112,14 @@ type Certificate struct {
 	Metadata            common.Hash           `json:"metadata"`
 }
 
-func (c *Certificate) String() string {
-	res := fmt.Sprintf("NetworkID: %d, Height: %d, PrevLocalExitRoot: %s, NewLocalExitRoot: %s,  Metadata: %s\n",
-		c.NetworkID, c.Height, common.Bytes2Hex(c.PrevLocalExitRoot[:]),
-		common.Bytes2Hex(c.NewLocalExitRoot[:]), common.Bytes2Hex(c.Metadata[:]))
-
-	if c.BridgeExits == nil {
-		res += "    BridgeExits: nil\n"
-	} else {
-		for i, bridgeExit := range c.BridgeExits {
-			res += fmt.Sprintf(", BridgeExit[%d]: %s\n", i, bridgeExit.String())
-		}
+// Brief returns a string with a brief cert
+func (c *Certificate) Brief() string {
+	if c == nil {
+		return nilStr
 	}
-
-	if c.ImportedBridgeExits == nil {
-		res += "    ImportedBridgeExits: nil\n"
-	} else {
-		for i, importedBridgeExit := range c.ImportedBridgeExits {
-			res += fmt.Sprintf("    ImportedBridgeExit[%d]: %s\n", i, importedBridgeExit.String())
-		}
-	}
-
+	res := fmt.Sprintf("agglayer.Cert {height: %d prevLER: %s newLER: %s exits: %d imported_exits: %d}", c.Height,
+		common.Bytes2Hex(c.PrevLocalExitRoot[:]), common.Bytes2Hex(c.NewLocalExitRoot[:]),
+		len(c.BridgeExits), len(c.ImportedBridgeExits))
 	return res
 }
 
@@ -179,8 +168,8 @@ type SignedCertificate struct {
 	Signature *Signature `json:"signature"`
 }
 
-func (s *SignedCertificate) String() string {
-	return fmt.Sprintf("Certificate:%s,\nSignature: %s", s.Certificate.String(), s.Signature.String())
+func (s *SignedCertificate) Brief() string {
+	return fmt.Sprintf("Certificate:%s,\nSignature: %s", s.Certificate.Brief(), s.Signature.String())
 }
 
 // CopyWithDefaulting returns a shallow copy of the signed certificate
@@ -278,6 +267,7 @@ type BridgeExit struct {
 	DestinationNetwork uint32         `json:"dest_network"`
 	DestinationAddress common.Address `json:"dest_address"`
 	Amount             *big.Int       `json:"amount"`
+	IsMetadataHashed   bool           `json:"-"`
 	Metadata           []byte         `json:"metadata"`
 }
 
@@ -300,6 +290,12 @@ func (b *BridgeExit) Hash() common.Hash {
 	if b.Amount == nil {
 		b.Amount = big.NewInt(0)
 	}
+	var metaDataHash []byte
+	if b.IsMetadataHashed {
+		metaDataHash = b.Metadata
+	} else {
+		metaDataHash = crypto.Keccak256(b.Metadata)
+	}
 
 	return crypto.Keccak256Hash(
 		[]byte{b.LeafType.Uint8()},
@@ -308,7 +304,7 @@ func (b *BridgeExit) Hash() common.Hash {
 		cdkcommon.Uint32ToBytes(b.DestinationNetwork),
 		b.DestinationAddress.Bytes(),
 		b.Amount.Bytes(),
-		crypto.Keccak256(b.Metadata),
+		metaDataHash,
 	)
 }
 
@@ -563,38 +559,52 @@ func (c *ImportedBridgeExit) Hash() common.Hash {
 	)
 }
 
+type GenericPPError struct {
+	Key   string
+	Value string
+}
+
+func (p *GenericPPError) String() string {
+	return fmt.Sprintf("Generic error: %s: %s", p.Key, p.Value)
+}
+
 // CertificateHeader is the structure returned by the interop_getCertificateHeader RPC call
 type CertificateHeader struct {
-	NetworkID        uint32            `json:"network_id"`
-	Height           uint64            `json:"height"`
-	EpochNumber      *uint64           `json:"epoch_number"`
-	CertificateIndex *uint64           `json:"certificate_index"`
-	CertificateID    common.Hash       `json:"certificate_id"`
-	NewLocalExitRoot common.Hash       `json:"new_local_exit_root"`
-	Status           CertificateStatus `json:"status"`
-	Metadata         common.Hash       `json:"metadata"`
-	Error            PPError           `json:"-"`
+	NetworkID             uint32            `json:"network_id"`
+	Height                uint64            `json:"height"`
+	EpochNumber           *uint64           `json:"epoch_number"`
+	CertificateIndex      *uint64           `json:"certificate_index"`
+	CertificateID         common.Hash       `json:"certificate_id"`
+	PreviousLocalExitRoot *common.Hash      `json:"prev_local_exit_root,omitempty"`
+	NewLocalExitRoot      common.Hash       `json:"new_local_exit_root"`
+	Status                CertificateStatus `json:"status"`
+	Metadata              common.Hash       `json:"metadata"`
+	Error                 PPError           `json:"-"`
 }
 
 // ID returns a string with the ident of this cert (height/certID)
 func (c *CertificateHeader) ID() string {
 	if c == nil {
-		return "nil"
+		return nilStr
 	}
 	return fmt.Sprintf("%d/%s", c.Height, c.CertificateID.String())
 }
 
 func (c *CertificateHeader) String() string {
 	if c == nil {
-		return "nil"
+		return nilStr
 	}
 	errors := ""
 	if c.Error != nil {
 		errors = c.Error.String()
 	}
-
-	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s. Status: %s. Errors: [%s]",
-		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String(), c.Status.String(), errors)
+	previousLocalExitRoot := nilStr
+	if c.PreviousLocalExitRoot != nil {
+		previousLocalExitRoot = c.PreviousLocalExitRoot.String()
+	}
+	return fmt.Sprintf("Height: %d, CertificateID: %s, previousLocalExitRoot:%s, NewLocalExitRoot: %s. Status: %s."+
+		" Errors: [%s]",
+		c.Height, c.CertificateID.String(), previousLocalExitRoot, c.NewLocalExitRoot.String(), c.Status.String(), errors)
 }
 
 func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
@@ -654,7 +664,12 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 
 				ppError = p
 			default:
-				return fmt.Errorf("invalid error type: %s", key)
+				valueStr, err := json.Marshal(value)
+				if err != nil {
+					ppError = &GenericPPError{Key: key, Value: "error marshalling value"}
+				} else {
+					ppError = &GenericPPError{Key: key, Value: string(valueStr)}
+				}
 			}
 		}
 

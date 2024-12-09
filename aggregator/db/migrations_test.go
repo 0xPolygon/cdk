@@ -1,6 +1,7 @@
 package db
 
 import (
+	"path"
 	"testing"
 
 	migrate "github.com/rubenv/sql-migrate"
@@ -18,7 +19,7 @@ func Test_checkMigrations(t *testing.T) {
 }
 
 func Test_runMigrations(t *testing.T) {
-	dbPath := "file::memory:?cache=shared"
+	dbPath := path.Join(t.TempDir(), "Test_runMigrations.sqlite")
 	err := runMigrations(dbPath, AggregatorMigrationName, migrate.Up)
 	assert.NoError(t, err)
 

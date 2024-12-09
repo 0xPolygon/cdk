@@ -39,7 +39,7 @@ func TestGetEventsByBlockRange(t *testing.T) {
 	}
 	testCases := []testCase{}
 	ctx := context.Background()
-	d, clientMock := NewTestDownloader(t)
+	d, clientMock := NewTestDownloader(t, time.Millisecond*100)
 
 	// case 0: single block, no events
 	case0 := testCase{
@@ -207,7 +207,7 @@ func TestDownload(t *testing.T) {
 	ctx := context.Background()
 	ctx1, cancel := context.WithCancel(ctx)
 	expectedBlocks := []EVMBlock{}
-	dwnldr, _ := NewTestDownloader(t)
+	dwnldr, _ := NewTestDownloader(t, time.Millisecond*100)
 	dwnldr.EVMDownloaderInterface = d
 
 	d.On("WaitForNewBlocks", mock.Anything, uint64(0)).
@@ -323,7 +323,7 @@ func TestDownload(t *testing.T) {
 
 func TestWaitForNewBlocks(t *testing.T) {
 	ctx := context.Background()
-	d, clientMock := NewTestDownloader(t)
+	d, clientMock := NewTestDownloader(t, time.Millisecond*100)
 
 	// at first attempt
 	currentBlock := uint64(5)
@@ -355,7 +355,7 @@ func TestWaitForNewBlocks(t *testing.T) {
 
 func TestGetBlockHeader(t *testing.T) {
 	ctx := context.Background()
-	d, clientMock := NewTestDownloader(t)
+	d, clientMock := NewTestDownloader(t, time.Millisecond)
 
 	blockNum := uint64(5)
 	blockNumBig := big.NewInt(5)
@@ -379,6 +379,59 @@ func TestGetBlockHeader(t *testing.T) {
 	actualBlock, isCanceled = d.GetBlockHeader(ctx, blockNum)
 	assert.Equal(t, expectedBlock, actualBlock)
 	assert.False(t, isCanceled)
+
+	// header not found default
+	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(nil, ethereum.NotFound).Once()
+	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(returnedBlock, nil).Once()
+	actualBlock, isCanceled = d.GetBlockHeader(ctx, 5)
+	assert.Equal(t, expectedBlock, actualBlock)
+	assert.False(t, isCanceled)
+
+	// header not found default TO
+	d, clientMock = NewTestDownloader(t, 0)
+	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(nil, ethereum.NotFound).Once()
+	clientMock.On("HeaderByNumber", ctx, blockNumBig).Return(returnedBlock, nil).Once()
+	actualBlock, isCanceled = d.GetBlockHeader(ctx, 5)
+	assert.Equal(t, expectedBlock, actualBlock)
+	assert.False(t, isCanceled)
+}
+
+func TestFilterQueryToString(t *testing.T) {
+	addr1 := common.HexToAddress("0xf000")
+	addr2 := common.HexToAddress("0xabcd")
+	query := ethereum.FilterQuery{
+		FromBlock: new(big.Int).SetUint64(1000),
+		Addresses: []common.Address{addr1, addr2},
+		ToBlock:   new(big.Int).SetUint64(1100),
+	}
+
+	assert.Equal(t, "FromBlock: 1000, ToBlock: 1100, Addresses: [0x000000000000000000000000000000000000f000 0x000000000000000000000000000000000000ABcD], Topics: []", filterQueryToString(query))
+
+	query = ethereum.FilterQuery{
+		FromBlock: new(big.Int).SetUint64(1000),
+		Addresses: []common.Address{addr1, addr2},
+		ToBlock:   new(big.Int).SetUint64(1100),
+		Topics:    [][]common.Hash{{common.HexToHash("0x1234"), common.HexToHash("0x5678")}},
+	}
+	assert.Equal(t, "FromBlock: 1000, ToBlock: 1100, Addresses: [0x000000000000000000000000000000000000f000 0x000000000000000000000000000000000000ABcD], Topics: [[0x0000000000000000000000000000000000000000000000000000000000001234 0x0000000000000000000000000000000000000000000000000000000000005678]]", filterQueryToString(query))
+}
+
+func TestGetLogs(t *testing.T) {
+	mockEthClient := NewL2Mock(t)
+	sut := EVMDownloaderImplementation{
+		ethClient:        mockEthClient,
+		adressessToQuery: []common.Address{contractAddr},
+		log:              log.WithFields("test", "EVMDownloaderImplementation"),
+		rh: &RetryHandler{
+			RetryAfterErrorPeriod:      time.Millisecond,
+			MaxRetryAttemptsAfterError: 5,
+		},
+	}
+	ctx := context.TODO()
+	mockEthClient.EXPECT().FilterLogs(ctx, mock.Anything).Return(nil, errors.New("foo")).Once()
+	mockEthClient.EXPECT().FilterLogs(ctx, mock.Anything).Return(nil, nil).Once()
+	logs := sut.GetLogs(ctx, 0, 1)
+	require.Equal(t, []types.Log{}, logs)
 }
 
 func buildAppender() LogAppenderMap {
@@ -390,12 +443,12 @@ func buildAppender() LogAppenderMap {
 	return appender
 }
 
-func NewTestDownloader(t *testing.T) (*EVMDownloader, *L2Mock) {
+func NewTestDownloader(t *testing.T, retryPeriod time.Duration) (*EVMDownloader, *L2Mock) {
 	t.Helper()
 
 	rh := &RetryHandler{
 		MaxRetryAttemptsAfterError: 5,
-		RetryAfterErrorPeriod:      time.Millisecond * 100,
+		RetryAfterErrorPeriod:      retryPeriod,
 	}
 	clientMock := NewL2Mock(t)
 	d, err := NewEVMDownloader("test", clientMock, syncBlockChunck, etherman.LatestBlock, time.Millisecond, buildAppender(), []common.Address{contractAddr}, rh)

@@ -5,11 +5,11 @@ args:
   zkevm_bridge_proxy_image: haproxy:3.0-bookworm
   zkevm_bridge_service_image: hermeznetwork/zkevm-bridge-service:v0.6.0-RC1
   zkevm_bridge_ui_image: leovct/zkevm-bridge-ui:multi-network
-  zkevm_contracts_image: nulyjkdhthz/zkevm-contracts:v9.0.0-rc.3-pp-fork.12
+  zkevm_contracts_image: leovct/zkevm-contracts:v9.0.0-rc.3-pp-fork.12-patch.1
   additional_services: []
   consensus_contract_type: pessimistic
   sequencer_type: erigon
   erigon_strict_mode: false
-  zkevm_use_gas_token_contract: true
+  gas_token_enabled: true
   agglayer_prover_sp1_key: {{.agglayer_prover_sp1_key}}
   enable_normalcy: true

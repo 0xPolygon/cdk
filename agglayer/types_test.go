@@ -15,6 +15,59 @@ const (
 	expectedSignedCertificateyMetadataJSON     = `{"network_id":1,"height":1,"prev_local_exit_root":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"new_local_exit_root":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"bridge_exits":[{"leaf_type":"Transfer","token_info":null,"dest_network":0,"dest_address":"0x0000000000000000000000000000000000000000","amount":"1","metadata":[1,2,3]}],"imported_bridge_exits":[{"bridge_exit":{"leaf_type":"Transfer","token_info":null,"dest_network":0,"dest_address":"0x0000000000000000000000000000000000000000","amount":"1","metadata":[]},"claim_data":null,"global_index":{"mainnet_flag":false,"rollup_index":1,"leaf_index":1}}],"metadata":"0x0000000000000000000000000000000000000000000000000000000000000000","signature":{"r":"0x0000000000000000000000000000000000000000000000000000000000000000","s":"0x0000000000000000000000000000000000000000000000000000000000000000","odd_y_parity":false}}`
 )
 
+func TestBridgeExitHash(t *testing.T) {
+	MetadaHash := common.HexToHash("0x1234")
+	bridge := BridgeExit{
+		TokenInfo:        &TokenInfo{},
+		IsMetadataHashed: true,
+		Metadata:         MetadaHash[:],
+	}
+	require.Equal(t, "0x7d344cd1a895c66f0819be6a392d2a5d649c0cd5c8345706e11c757324da2943",
+		bridge.Hash().String(), "use the hashed metadata, instead of calculating hash")
+
+	bridge.IsMetadataHashed = false
+	require.Equal(t, "0xa3ef92d7ca132432b864e424039077556b8757d2da4e01d6040c6ccbb39bef60",
+		bridge.Hash().String(), "metadata is not hashed, calculate hash")
+
+	bridge.IsMetadataHashed = false
+	bridge.Metadata = []byte{}
+	require.Equal(t, "0xad4224e96b39d42026b4795e5be83f43e0df757cdb13e781cd49e1a5363b193c",
+		bridge.Hash().String(), "metadata is not hashed and it's empty, calculate hash")
+
+	bridge.IsMetadataHashed = true
+	bridge.Metadata = []byte{}
+	require.Equal(t, "0x184125b2e3d1ded2ad3f82a383d9b09bd5bac4ccea4d41092f49523399598aca",
+		bridge.Hash().String(), "metadata is a hashed and it's empty,use it")
+}
+
+func TestMGenericPPError(t *testing.T) {
+	err := GenericPPError{"test", "value"}
+	require.Equal(t, "Generic error: test: value", err.String())
+}
+
+func TestCertificateHeaderID(t *testing.T) {
+	certificate := CertificateHeader{
+		Height:        1,
+		CertificateID: common.HexToHash("0x123"),
+	}
+	require.Equal(t, "1/0x0000000000000000000000000000000000000000000000000000000000000123", certificate.ID())
+
+	var certNil *CertificateHeader
+	require.Equal(t, "nil", certNil.ID())
+}
+
+func TestCertificateHeaderString(t *testing.T) {
+	certificate := CertificateHeader{
+		Height:        1,
+		CertificateID: common.HexToHash("0x123"),
+	}
+	require.Equal(t, "Height: 1, CertificateID: 0x0000000000000000000000000000000000000000000000000000000000000123, previousLocalExitRoot:nil, NewLocalExitRoot: 0x0000000000000000000000000000000000000000000000000000000000000000. Status: Pending. Errors: []",
+		certificate.String())
+
+	var certNil *CertificateHeader
+	require.Equal(t, "nil", certNil.String())
+}
+
 func TestMarshalJSON(t *testing.T) {
 	cert := SignedCertificate{
 		Certificate: &Certificate{
@@ -250,4 +303,15 @@ func TestGlobalIndex_UnmarshalFromMap(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUnmarshalCertificateHeaderUnknownError(t *testing.T) {
+	str := "{\"network_id\":14,\"height\":0,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0x3af88c9ca106822bd141fdc680dcb888f4e9d4997fad1645ba3d5d747059eb32\",\"new_local_exit_root\":\"0x625e889ced3c31277c6653229096374d396a2fd3564a8894aaad2ff935d2fc8c\",\"metadata\":\"0x0000000000000000000000000000000000000000000000000000000000002f3d\",\"status\":{\"InError\":{\"error\":{\"ProofVerificationFailed\":{\"Plonk\":\"the verifying key does not match the inner plonk bn254 proof's committed verifying key\"}}}}}"
+	data := []byte(str)
+	var result *CertificateHeader
+	err := json.Unmarshal(data, &result)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	ppError := result.Error.String()
+	require.Equal(t, `Generic error: ProofVerificationFailed: {"Plonk":"the verifying key does not match the inner plonk bn254 proof's committed verifying key"}`, ppError)
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk/etherman"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	tree "github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -43,6 +44,7 @@ func NewL1(
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
+	syncFullClaims bool,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -58,7 +60,7 @@ func NewL1(
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
 		originNetwork,
-		false,
+		syncFullClaims,
 	)
 }
 
@@ -76,6 +78,7 @@ func NewL2(
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
+	syncFullClaims bool,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -91,7 +94,7 @@ func NewL2(
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
 		originNetwork,
-		true,
+		syncFullClaims,
 	)
 }
 
@@ -111,7 +114,8 @@ func newBridgeSync(
 	originNetwork uint32,
 	syncFullClaims bool,
 ) (*BridgeSync, error) {
-	processor, err := newProcessor(dbPath, l1OrL2ID)
+	logger := log.WithFields("bridge-syncer", l1OrL2ID)
+	processor, err := newProcessor(dbPath, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -156,6 +160,13 @@ func newBridgeSync(
 	if err != nil {
 		return nil, err
 	}
+	logger.Infof("BridgeSyncer [%s] created: dbPath: %s initialBlock: %d bridgeAddr: %s, syncFullClaims: %d,"+
+		" maxRetryAttemptsAfterError: %d RetryAfterErrorPeriod: %s"+
+		"syncBlockChunkSize: %d, blockFinalityType: %s waitForNewBlocksPeriod: %s",
+		l1OrL2ID,
+		dbPath, initialBlock, bridge.String(), syncFullClaims,
+		maxRetryAttemptsAfterError, retryAfterErrorPeriod.String(),
+		syncBlockChunkSize, blockFinalityType, waitForNewBlocksPeriod.String())
 
 	return &BridgeSync{
 		processor:     processor,
@@ -171,30 +182,51 @@ func (s *BridgeSync) Start(ctx context.Context) {
 }
 
 func (s *BridgeSync) GetLastProcessedBlock(ctx context.Context) (uint64, error) {
+	if s.processor.isHalted() {
+		return 0, sync.ErrInconsistentState
+	}
 	return s.processor.GetLastProcessedBlock(ctx)
 }
 
 func (s *BridgeSync) GetBridgeRootByHash(ctx context.Context, root common.Hash) (*tree.Root, error) {
+	if s.processor.isHalted() {
+		return nil, sync.ErrInconsistentState
+	}
 	return s.processor.exitTree.GetRootByHash(ctx, root)
 }
 
 func (s *BridgeSync) GetClaims(ctx context.Context, fromBlock, toBlock uint64) ([]Claim, error) {
+	if s.processor.isHalted() {
+		return nil, sync.ErrInconsistentState
+	}
 	return s.processor.GetClaims(ctx, fromBlock, toBlock)
 }
 
 func (s *BridgeSync) GetBridges(ctx context.Context, fromBlock, toBlock uint64) ([]Bridge, error) {
+	if s.processor.isHalted() {
+		return nil, sync.ErrInconsistentState
+	}
 	return s.processor.GetBridges(ctx, fromBlock, toBlock)
 }
 
 func (s *BridgeSync) GetBridgesPublished(ctx context.Context, fromBlock, toBlock uint64) ([]Bridge, error) {
+	if s.processor.isHalted() {
+		return nil, sync.ErrInconsistentState
+	}
 	return s.processor.GetBridgesPublished(ctx, fromBlock, toBlock)
 }
 
 func (s *BridgeSync) GetProof(ctx context.Context, depositCount uint32, localExitRoot common.Hash) (tree.Proof, error) {
+	if s.processor.isHalted() {
+		return tree.Proof{}, sync.ErrInconsistentState
+	}
 	return s.processor.exitTree.GetProof(ctx, depositCount, localExitRoot)
 }
 
 func (s *BridgeSync) GetBlockByLER(ctx context.Context, ler common.Hash) (uint64, error) {
+	if s.processor.isHalted() {
+		return 0, sync.ErrInconsistentState
+	}
 	root, err := s.processor.exitTree.GetRootByHash(ctx, ler)
 	if err != nil {
 		return 0, err
@@ -203,6 +235,9 @@ func (s *BridgeSync) GetBlockByLER(ctx context.Context, ler common.Hash) (uint64
 }
 
 func (s *BridgeSync) GetRootByLER(ctx context.Context, ler common.Hash) (*tree.Root, error) {
+	if s.processor.isHalted() {
+		return nil, sync.ErrInconsistentState
+	}
 	root, err := s.processor.exitTree.GetRootByHash(ctx, ler)
 	if err != nil {
 		return root, err
@@ -212,6 +247,9 @@ func (s *BridgeSync) GetRootByLER(ctx context.Context, ler common.Hash) (*tree.R
 
 // GetExitRootByIndex returns the root of the exit tree at the moment the leaf with the given index was added
 func (s *BridgeSync) GetExitRootByIndex(ctx context.Context, index uint32) (tree.Root, error) {
+	if s.processor.isHalted() {
+		return tree.Root{}, sync.ErrInconsistentState
+	}
 	return s.processor.exitTree.GetRootByIndex(ctx, index)
 }
 
