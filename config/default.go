@@ -298,7 +298,6 @@ SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
-OriginNetwork=0
 
 [BridgeL2Sync]
 DBPath = "{{PathRWData}}/bridgel2sync.sqlite"
@@ -309,7 +308,6 @@ SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
-OriginNetwork=1
 
 [LastGERSync]
 DBPath = "{{PathRWData}}/lastgersync.sqlite"
