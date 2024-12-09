@@ -193,16 +193,16 @@ func newBlockNotifierPollingTestData(t *testing.T, config *ConfigBlockNotifierPo
 	if config == nil {
 		config = &ConfigBlockNotifierPolling{
 			BlockFinalityType:     etherman.LatestBlock,
-			CheckNewBlockInterval: time.Second,
+			CheckNewBlockInterval: 0,
 		}
 	}
-	EthClientMock := mocks.NewEthClient(t)
+	ethClientMock := mocks.NewEthClient(t)
 	logger := log.WithFields("test", "BlockNotifierPolling")
-	sut, err := NewBlockNotifierPolling(EthClientMock, *config, logger, nil)
+	sut, err := NewBlockNotifierPolling(ethClientMock, *config, logger, nil)
 	require.NoError(t, err)
 	return blockNotifierPollingTestData{
 		sut:           sut,
-		ethClientMock: EthClientMock,
+		ethClientMock: ethClientMock,
 		ctx:           context.TODO(),
 	}
 }
