@@ -12,8 +12,7 @@ import (
 )
 
 var (
-	timeNowFunc         = time.Now
-	percentForNextBlock = 80
+	timeNowFunc = time.Now
 )
 
 const (
@@ -22,6 +21,8 @@ const (
 	minBlockInterval = time.Second
 	// maxBlockInterval is the maximum interval at which the AggSender will check for new blocks
 	maxBlockInterval = time.Minute
+	// Percentage period of reach the next block
+	percentForNextBlock = 80
 )
 
 type ConfigBlockNotifierPolling struct {
@@ -187,7 +188,7 @@ func (b *BlockNotifierPolling) nextBlockRequestDelay(status *blockNotifierPollin
 	now := timeNowFunc()
 	expectedTimeNextBlock := status.lastBlockTime.Add(*status.previousBlockTime)
 	distanceToNextBlock := expectedTimeNextBlock.Sub(now)
-	interval := distanceToNextBlock * time.Duration(percentForNextInterval) / 100 //nolint:mnd //  percent periodfor reach the next block
+	interval := distanceToNextBlock * time.Duration(percentForNextInterval) / 100 //nolint:mnd //  percent period for reach the next block
 	return max(minBlockInterval, min(maxBlockInterval, interval))
 }
 
