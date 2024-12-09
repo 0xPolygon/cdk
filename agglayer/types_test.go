@@ -912,3 +912,29 @@ func TestL1InfoTreeLeafString(t *testing.T) {
 		})
 	}
 }
+
+func TestClaimType(t *testing.T) {
+	cases := []struct {
+		name         string
+		claim        Claim
+		expectedType string
+	}{
+		{
+			name:         "Mainnet claim",
+			claim:        &ClaimFromMainnnet{},
+			expectedType: "Mainnet",
+		},
+		{
+			name:         "Rollup claim",
+			claim:        &ClaimFromRollup{},
+			expectedType: "Rollup",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			actualType := c.claim.Type()
+			require.Equal(t, c.expectedType, actualType)
+		})
+	}
+}
