@@ -147,7 +147,7 @@ func (b *BlockNotifierPolling) step(ctx context.Context,
 		BlockNumber:       currentBlock.Number.Uint64(),
 		BlockFinalityType: b.config.BlockFinalityType,
 	}
-	if currentBlock.Number.Uint64()-previousState.lastBlockSeen < 0 {
+	if previousState.lastBlockSeen-currentBlock.Number.Uint64() > 1 {
 		b.logger.Warnf("Block number decreased [finality:%s]: %d -> %d",
 			b.config.BlockFinalityType, previousState.lastBlockSeen, currentBlock.Number.Uint64())
 		// It start from scratch because something fails in calculation of block period
