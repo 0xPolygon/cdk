@@ -188,7 +188,7 @@ func (b *BlockNotifierPolling) nextBlockRequestDelay(status *blockNotifierPollin
 	now := timeNowFunc()
 	expectedTimeNextBlock := status.lastBlockTime.Add(*status.previousBlockTime)
 	distanceToNextBlock := expectedTimeNextBlock.Sub(now)
-	interval := distanceToNextBlock * time.Duration(percentForNextInterval) / 100 //nolint:mnd //  percent period for reach the next block
+	interval := distanceToNextBlock * percentForNextBlock / 100 //nolint:mnd //  percent period for reach the next block
 	return max(minBlockInterval, min(maxBlockInterval, interval))
 }
 
