@@ -164,7 +164,7 @@ func (b *BlockNotifierPolling) step(ctx context.Context,
 
 func (b *BlockNotifierPolling) nextBlockRequestDelay(status *blockNotifierPollingInternalStatus,
 	err error) time.Duration {
-	if b.config.CheckNewBlockInterval == AutomaticBlockInterval {
+	if b.config.CheckNewBlockInterval != AutomaticBlockInterval {
 		return b.config.CheckNewBlockInterval
 	}
 	// Initial stages wait the minimum interval to increas accuracy

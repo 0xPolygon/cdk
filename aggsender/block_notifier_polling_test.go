@@ -193,7 +193,7 @@ func newBlockNotifierPollingTestData(t *testing.T, config *ConfigBlockNotifierPo
 	if config == nil {
 		config = &ConfigBlockNotifierPolling{
 			BlockFinalityType:     etherman.LatestBlock,
-			CheckNewBlockInterval: time.Second,
+			CheckNewBlockInterval: 0,
 		}
 	}
 	EthClientMock := mocks.NewEthClient(t)
