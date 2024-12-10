@@ -544,12 +544,12 @@ func TestGetImportedBridgeExits(t *testing.T) {
 				},
 			},
 		},
-		// {
-		// 	name:          "No claims",
-		// 	claims:        []bridgesync.Claim{},
-		// 	expectedError: false,
-		// 	expectedExits: []*agglayer.ImportedBridgeExit{},
-		// },
+		{
+			name:          "No claims",
+			claims:        []bridgesync.Claim{},
+			expectedError: false,
+			expectedExits: []*agglayer.ImportedBridgeExit{},
+		},
 	}
 
 	for _, tt := range tests {
