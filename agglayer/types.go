@@ -300,7 +300,7 @@ func (b *BridgeExit) Hash() common.Hash {
 		b.TokenInfo.OriginTokenAddress.Bytes(),
 		cdkcommon.Uint32ToBytes(b.DestinationNetwork),
 		b.DestinationAddress.Bytes(),
-		b.Amount.Bytes(),
+		common.BigToHash(b.Amount).Bytes(),
 		metaDataHash,
 	)
 }
