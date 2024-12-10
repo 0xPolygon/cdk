@@ -58,8 +58,12 @@ func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChainEnv {
 	t.Helper()
 
 	ctx := context.Background()
-	l1Client, syncer, gerL1Contract, gerL1Addr, bridgeL1Contract, bridgeL1Addr, authL1, rdL1, bridgeL1Sync := CommonSetup(t)
-	sender, l2Client, gerL2Contract, gerL2Addr, bridgeL2Contract, bridgeL2Addr, authL2, ethTxManMockL2, bridgeL2Sync, rdL2 := L2SetupEVM(t)
+	l1Client, syncer, gerL1Contract, gerL1Addr,
+		bridgeL1Contract, bridgeL1Addr, authL1, rdL1, bridgeL1Sync := CommonSetup(t)
+
+	sender, l2Client, gerL2Contract, gerL2Addr,
+		bridgeL2Contract, bridgeL2Addr, authL2,
+		ethTxManMockL2, bridgeL2Sync, rdL2 := L2SetupEVM(t)
 	oracle, err := aggoracle.New(
 		log.GetDefaultLogger(), sender,
 		l1Client.Client(), syncer,
@@ -137,16 +141,32 @@ func CommonSetup(t *testing.T) (
 		time.Millisecond, 0, periodRetry, retries, l1infotreesync.FlagAllowWrongContractsAddrs,
 	)
 	require.NoError(t, err)
+
 	go l1InfoTreeSync.Start(ctx)
+
+	const (
+		syncBlockChunks        = 10
+		waitForNewBlocksPeriod = 10 * time.Millisecond
+		originNetwork          = 1
+		initialBlock           = 0
+		retryPeriod            = 0
+		retriesCount           = 0
+	)
 
 	// Bridge sync
 	testClient := TestClient{ClientRenamed: l1Client.Client()}
 	dbPathBridgeSyncL1 := path.Join(t.TempDir(), "BridgeSyncL1.sqlite")
-	bridgeL1Sync, err := bridgesync.NewL1(ctx, dbPathBridgeSyncL1, bridgeL1Addr, 10, etherman.LatestBlock, rdL1, testClient, 0, time.Millisecond*10, 0, 0, 1, false) //nolint:mnd
+	bridgeL1Sync, err := bridgesync.NewL1(
+		ctx, dbPathBridgeSyncL1, bridgeL1Addr,
+		syncBlockChunks, etherman.LatestBlock, rdL1, testClient,
+		initialBlock, waitForNewBlocksPeriod, retryPeriod,
+		retriesCount, originNetwork, false)
 	require.NoError(t, err)
+
 	go bridgeL1Sync.Start(ctx)
 
-	return l1Client, l1InfoTreeSync, gerL1Contract, gerL1Addr, bridgeL1Contract, bridgeL1Addr, authL1, rdL1, bridgeL1Sync
+	return l1Client, l1InfoTreeSync, gerL1Contract, gerL1Addr,
+		bridgeL1Contract, bridgeL1Addr, authL1, rdL1, bridgeL1Sync
 }
 
 func L2SetupEVM(t *testing.T) (
@@ -167,7 +187,7 @@ func L2SetupEVM(t *testing.T) (
 	ethTxManMock := NewEthTxManMock(t, l2Client, authL2)
 	sender, err := chaingersender.NewEVMChainGERSender(
 		log.GetDefaultLogger(),
-		gerL2Addr, authL2.From, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50, //nolint:mnd
+		gerL2Addr, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50, //nolint:mnd
 	)
 	require.NoError(t, err)
 	ctx := context.Background()
@@ -181,8 +201,23 @@ func L2SetupEVM(t *testing.T) (
 	// Bridge sync
 	dbPathL2BridgeSync := path.Join(t.TempDir(), "BridgeSyncL2.sqlite")
 	testClient := TestClient{ClientRenamed: l2Client.Client()}
-	bridgeL2Sync, err := bridgesync.NewL2(ctx, dbPathL2BridgeSync, bridgeL2Addr, 10, etherman.LatestBlock, rdL2, testClient, 0, time.Millisecond*10, 0, 0, 1, false) //nolint:mnd
+
+	const (
+		syncBlockChunks        = 10
+		waitForNewBlocksPeriod = 10 * time.Millisecond
+		originNetwork          = 1
+		initialBlock           = 0
+		retryPeriod            = 0
+		retriesCount           = 0
+	)
+
+	bridgeL2Sync, err := bridgesync.NewL2(
+		ctx, dbPathL2BridgeSync, bridgeL2Addr, syncBlockChunks,
+		etherman.LatestBlock, rdL2, testClient,
+		initialBlock, waitForNewBlocksPeriod, retryPeriod,
+		retriesCount, originNetwork, false)
 	require.NoError(t, err)
+
 	go bridgeL2Sync.Start(ctx)
 
 	return sender, l2Client, gerL2Sc, gerL2Addr, bridgeL2Sc, bridgeL2Addr, authL2, ethTxManMock, bridgeL2Sync, rdL2
