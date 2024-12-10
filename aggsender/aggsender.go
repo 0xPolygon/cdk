@@ -16,6 +16,7 @@ import (
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/cdk/tree"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -566,7 +567,8 @@ func (a *AggSender) getImportedBridgeExits(
 					},
 				},
 				ProofLeafLER: &agglayer.MerkleProof{
-					Root:  claim.MainnetExitRoot,
+					Root: tree.CalculateRoot(ibe.BridgeExit.Hash(),
+						claim.ProofLocalExitRoot, ibe.GlobalIndex.LeafIndex),
 					Proof: claim.ProofLocalExitRoot,
 				},
 				ProofLERToRER: &agglayer.MerkleProof{

@@ -31,21 +31,21 @@ func TestBridgeExit_Hash(t *testing.T) {
 		IsMetadataHashed: true,
 		Metadata:         MetadaHash[:],
 	}
-	require.Equal(t, "0x7d344cd1a895c66f0819be6a392d2a5d649c0cd5c8345706e11c757324da2943",
+	require.Equal(t, "0xaa57e4bf430fe25ca5068f9e1a25e8aef15744905cdf7635e0d5a468bd26bb18",
 		bridge.Hash().String(), "use the hashed metadata, instead of calculating hash")
 
 	bridge.IsMetadataHashed = false
-	require.Equal(t, "0xa3ef92d7ca132432b864e424039077556b8757d2da4e01d6040c6ccbb39bef60",
+	require.Equal(t, "0x79d5362ad609e06e022277ede4fd10899dc189c0ed56e1a2c6982d0563fe1be7",
 		bridge.Hash().String(), "metadata is not hashed, calculate hash")
 
 	bridge.IsMetadataHashed = false
 	bridge.Metadata = []byte{}
-	require.Equal(t, "0xad4224e96b39d42026b4795e5be83f43e0df757cdb13e781cd49e1a5363b193c",
+	require.Equal(t, "0xe3e297278c7df4ae4f235be10155ac62c53b08e2a14ed09b7dd6b688952ee883",
 		bridge.Hash().String(), "metadata is not hashed and it's empty, calculate hash")
 
 	bridge.IsMetadataHashed = true
 	bridge.Metadata = []byte{}
-	require.Equal(t, "0x184125b2e3d1ded2ad3f82a383d9b09bd5bac4ccea4d41092f49523399598aca",
+	require.Equal(t, "0x51980562e41978f15369c21f26920284ac6836d53b02cd89edf4fedc97e68215",
 		bridge.Hash().String(), "metadata is a hashed and it's empty,use it")
 }
 
@@ -248,10 +248,10 @@ func TestMarshalJSON(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, expectedJSON, string(data))
 
-		require.Equal(t, "0x46da3ca29098968ffc46ed2b894757671fa73cf7ebd4b82c89e90cc36a2737ae", cert.Hash().String())
-		require.Equal(t, "0xc82b12e7383d2a8c1ec290d575bf6b2ac48363ca824cd51fe9f8cd312d55cd7a", cert.BridgeExits[0].Hash().String())
-		require.Equal(t, "0x23fbdb2d272c9a4ae45135986363363d2e87dd6c2f2494a62b86851396f3fed4", cert.ImportedBridgeExits[0].Hash().String())
-		require.Equal(t, "0x7eb947fcd0ed89ba0f41ec3f85e600d7114ec9349eb99a9478e3dd4e456297b1", cert.ImportedBridgeExits[1].Hash().String())
+		require.Equal(t, "0xda355a601420351a0c950ebb34b6278580978d7b6a215338531d543a8f03574a", cert.Hash().String())
+		require.Equal(t, "0x2f01782930cbf2bc2ab4ec16759a2288ad7df865dea387aadf55f96136269cf4", cert.BridgeExits[0].Hash().String())
+		require.Equal(t, "0xac83b106ad2ca491828d49613c8356a15e3de298c794e1abd9632dc4d03b7c79", cert.ImportedBridgeExits[0].Hash().String())
+		require.Equal(t, "0x6d9dc59396058ef7845fd872a87e77f1a58d010a760957f8814bd3d2ca5914a1", cert.ImportedBridgeExits[1].Hash().String())
 	})
 }
 
@@ -510,6 +510,8 @@ func TestConvertNumeric(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -731,6 +733,8 @@ func TestBridgeExit_String(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			actualOutput := tt.bridgeExit.String()
@@ -793,6 +797,8 @@ func TestCertificateStatus_UnmarshalJSON(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -852,6 +858,8 @@ func TestMerkleProof_String(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -899,6 +907,8 @@ func TestGlobalIndexString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -936,6 +946,8 @@ func TestL1InfoTreeLeafString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -966,6 +978,8 @@ func TestClaimType(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		c := c
+
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -973,4 +987,20 @@ func TestClaimType(t *testing.T) {
 			require.Equal(t, c.expectedType, actualType)
 		})
 	}
+}
+
+func Test_ProblematicBridgeExitHash(t *testing.T) {
+	bridgeExit := &BridgeExit{
+		LeafType: LeafTypeAsset,
+		TokenInfo: &TokenInfo{
+			OriginNetwork:      0,
+			OriginTokenAddress: common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		},
+		DestinationNetwork: 1,
+		DestinationAddress: common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+		Amount:             new(big.Int).SetUint64(10000000000000000000),
+		IsMetadataHashed:   false,
+	}
+
+	require.Equal(t, "0x22ed288677b4c2afd83a6d7d55f7df7f4eaaf60f7310210c030fd27adacbc5e0", bridgeExit.Hash().Hex())
 }

@@ -411,7 +411,7 @@ func TestGetImportedBridgeExits(t *testing.T) {
 							},
 						},
 						ProofLeafLER: &agglayer.MerkleProof{
-							Root:  common.HexToHash("0xbbba"),
+							Root:  common.HexToHash("0xc52019815b51acf67a715cae6794a20083d63fd9af45783b7adf69123dae92c8"),
 							Proof: mockProof,
 						},
 						ProofLERToRER: &agglayer.MerkleProof{
@@ -491,7 +491,7 @@ func TestGetImportedBridgeExits(t *testing.T) {
 							},
 						},
 						ProofLeafLER: &agglayer.MerkleProof{
-							Root:  common.HexToHash("0xbbb"),
+							Root:  common.HexToHash("0x105e0f1144e57f6fb63f1dfc5083b1f59be3512be7cf5e63523779ad14a4d987"),
 							Proof: mockProof,
 						},
 						ProofLERToRER: &agglayer.MerkleProof{
@@ -675,7 +675,7 @@ func TestBuildCertificate(t *testing.T) {
 								},
 							},
 							ProofLeafLER: &agglayer.MerkleProof{
-								Root:  common.HexToHash("0xbbba"),
+								Root:  common.HexToHash("0xc52019815b51acf67a715cae6794a20083d63fd9af45783b7adf69123dae92c8"),
 								Proof: mockProof,
 							},
 							ProofLERToRER: &agglayer.MerkleProof{
