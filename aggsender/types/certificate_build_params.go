@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	EstimatedSizeBridgeExit = 250
-	EstimatedSizeClaim      = 44000
+	EstimatedSizeBridgeExit = 230
+	EstimatedSizeClaim      = 8000
 	byteArrayJSONSizeFactor = 1.5
 )
 
