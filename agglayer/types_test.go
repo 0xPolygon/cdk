@@ -532,6 +532,8 @@ func TestConvertNumeric(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -753,6 +755,8 @@ func TestBridgeExit_String(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			actualOutput := tt.bridgeExit.String()
@@ -815,6 +819,8 @@ func TestCertificateStatus_UnmarshalJSON(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -874,6 +880,8 @@ func TestMerkleProof_String(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -921,6 +929,8 @@ func TestGlobalIndexString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -958,6 +968,8 @@ func TestL1InfoTreeLeafString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -988,6 +1000,8 @@ func TestClaimType(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		c := c
+
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -995,4 +1009,20 @@ func TestClaimType(t *testing.T) {
 			require.Equal(t, c.expectedType, actualType)
 		})
 	}
+}
+
+func Test_ProblematicBridgeExitHash(t *testing.T) {
+	bridgeExit := &BridgeExit{
+		LeafType: LeafTypeAsset,
+		TokenInfo: &TokenInfo{
+			OriginNetwork:      0,
+			OriginTokenAddress: common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		},
+		DestinationNetwork: 1,
+		DestinationAddress: common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+		Amount:             new(big.Int).SetUint64(10000000000000000000),
+		IsMetadataHashed:   false,
+	}
+
+	require.Equal(t, "0x22ed288677b4c2afd83a6d7d55f7df7f4eaaf60f7310210c030fd27adacbc5e0", bridgeExit.Hash().Hex())
 }
