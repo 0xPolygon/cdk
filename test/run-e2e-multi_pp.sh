@@ -1,6 +1,15 @@
 #!/bin/bash
 source $(dirname $0)/scripts/env.sh
 
+function log_error() {
+    echo -e "\033[0;31mError: $*" "\033[0m"
+}
+
+function log_fatal() {
+    log_error $*
+    exit 1
+}
+
 function ok_or_fatal(){
     if [ $? -ne 0 ]; then
         log_fatal $*
@@ -27,6 +36,10 @@ function resolve_template(){
     echo "rendering $_TEMPLATE_FILE to temp file $_TEMP_FILE"
     go run ../scripts/run_template.go $_TEMPLATE_FILE > $_TEMP_FILE
     ok_or_fatal "Failed to render template $_TEMPLATE_FILE"
+    grep "<no value>" "$_TEMP_FILE"
+    if [ $? -eq 0 ]; then
+        log_fatal "Failed to render template $_TEMPLATE_FILE. missing values"
+    fi
     eval $_RESULT_VARNAME="$_TEMP_FILE"
 }
 
