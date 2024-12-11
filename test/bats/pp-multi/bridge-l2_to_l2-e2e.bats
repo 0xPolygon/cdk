@@ -6,9 +6,9 @@ setup() {
     load '../../helpers/common'
     load '../../helpers/lxly-bridge-test'
 
-    #add_cdk_network2_to_agglayer
-    #fund_claim_tx_manager
-    #mint_pol_token
+    add_cdk_network2_to_agglayer
+    fund_claim_tx_manager
+    mint_pol_token
 
     ether_value=${ETHER_VALUE:-"0.0200000054"}
     amount=$(cast to-wei $ether_value ether)
@@ -21,7 +21,7 @@ setup() {
     meta_bytes=${META_BYTES:-"0x1234"}
     destination_addr=$target_address
     timeout="120"
-    claim_frequency="10"
+    claim_frequency="30"
 
     gas_price=$(cast gas-price --rpc-url "$l2_rpc_url")
 }

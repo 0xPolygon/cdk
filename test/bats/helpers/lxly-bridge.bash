@@ -146,9 +146,14 @@ function claim_tx_hash() {
     local ready_for_claim="false"
 
     local current_time=$(date +%s)
-    local end_time=$((start_time + timeout))
+    local end_time=$((current_time + timeout))
     while true; do
-        #echo "claim_tx_hash: curl -s \"$bridge_provide_merkel_proof/bridges/$destination_addr?limit=100&offset=0\" | jq  \"[.deposits[] | select(.tx_hash == \\"$tx_hash\\" )]\""
+        current_time=$(date +%s)
+        if ((current_time > end_time)); then
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Exiting... Timeout reached waiting for tx_hash [$tx_hash] timeout: $timeout!"
+            echo "     $current_time > $end_time" >&3
+            exit 1
+        fi
         curl -s "$bridge_provide_merkel_proof/bridges/$destination_addr?limit=100&offset=0" | jq  "[.deposits[] | select(.tx_hash == \"$tx_hash\" )]" > $bridge_deposit_file
         deposit_count=$(jq '. | length' $bridge_deposit_file)
         if [[ $deposit_count == 0 ]]; then
