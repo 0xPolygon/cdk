@@ -46,6 +46,7 @@ jobs:
         git clone https://github.com/0xPolygon/polygon-cli -b jhilliard/alonso
         cd polygon-cli
         make install
+        cp ~/go/bin/polycli /usr/local/bin/polycli
         /usr/local/bin/polycli version
 
     - name: Setup Bats and bats libs
