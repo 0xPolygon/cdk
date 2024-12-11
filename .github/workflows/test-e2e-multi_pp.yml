@@ -53,7 +53,7 @@ jobs:
       uses: bats-core/bats-action@2.0.0
 
     - name: Test
-      run: make test-e2e-multi-pessimistic
+      run: make test-e2e-fork12-multi-pessimistic
 
       working-directory: test
       env:
