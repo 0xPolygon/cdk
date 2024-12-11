@@ -49,7 +49,7 @@ function resolve_template(){
 BASE_FOLDER=$(dirname $0)
 PP1_ORIGIN_CONFIG_FILE=combinations/fork12-pessimistic-multi.yml
 PP2_ORIGIN_CONFIG_FILE=combinations/fork12-pessimistic-multi-attach-second-cdk.yml
-KURTOSIS_ENCLAVE=pp
+KURTOSIS_ENCLAVE=cdk
 
 [ -z  $KURTOSIS_FOLDER ] &&  echo "KURTOSIS_FOLDER is not set" && exit 1
 [ ! -d $KURTOSIS_FOLDER ] &&  echo "KURTOSIS_FOLDER is not a directory ($KURTOSIS_FOLDER)" && exit 1

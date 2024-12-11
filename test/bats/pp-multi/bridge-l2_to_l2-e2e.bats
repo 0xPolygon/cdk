@@ -46,4 +46,12 @@ setup() {
     run claim_tx_hash "$timeout" "$bridge_tx_hash" "$destination_addr" "$l2_pp2_url"  "$l2_pp1b_url"
     assert_success
     
+    # Now a need to do a bridge on L2 to trigger a certificate: 
+    echo "=== Running LxLy bridge eth L2(PP2) to L1 (trigger a certificate on PP2)" >&3
+    destination_net=$l1_rpc_network_id
+    bridge_asset "$native_token_addr" "$l2_pp2_url"
+    
+    echo "=== Running LxLy claim L2(PP2) to L1 for $bridge_tx_hash" >&3
+    run claim_tx_hash "$timeout" "$bridge_tx_hash" "$destination_addr" "$l1_rpc_url"  "$l2_pp2b_url"
+    assert_success
 }
