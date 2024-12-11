@@ -82,16 +82,16 @@ func NewEVMChainGERSender(
 	}, nil
 }
 
-func (c *EVMChainGERSender) IsGERAlreadyInjected(ger common.Hash) (bool, error) {
+func (c *EVMChainGERSender) IsGERInjected(ger common.Hash) (bool, error) {
 	timestamp, err := c.gerContract.GlobalExitRootMap(&bind.CallOpts{Pending: false}, ger)
 	if err != nil {
 		return false, fmt.Errorf("error calling gerContract.GlobalExitRootMap: %w", err)
 	}
 
-	return timestamp.Cmp(big.NewInt(0)) != 0, nil
+	return timestamp.Cmp(common.Big0) != 0, nil
 }
 
-func (c *EVMChainGERSender) UpdateGERWaitUntilMined(ctx context.Context, ger common.Hash) error {
+func (c *EVMChainGERSender) InjectGER(ctx context.Context, ger common.Hash) error {
 	ticker := time.NewTicker(c.waitPeriodMonitorTx)
 	defer ticker.Stop()
 

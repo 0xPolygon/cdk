@@ -20,8 +20,8 @@ type L1InfoTreer interface {
 }
 
 type ChainSender interface {
-	IsGERAlreadyInjected(ger common.Hash) (bool, error)
-	UpdateGERWaitUntilMined(ctx context.Context, ger common.Hash) error
+	IsGERInjected(ger common.Hash) (bool, error)
+	InjectGER(ctx context.Context, ger common.Hash) error
 }
 
 type AggOracle struct {
@@ -85,7 +85,7 @@ func (a *AggOracle) processLatestGER(ctx context.Context, blockNumToFetch *uint6
 	// Update the block number for the next iteration
 	*blockNumToFetch = blockNum
 
-	alreadyInjected, err := a.chainSender.IsGERAlreadyInjected(gerToInject)
+	alreadyInjected, err := a.chainSender.IsGERInjected(gerToInject)
 	if err != nil {
 		return fmt.Errorf("error checking if GER is already injected: %w", err)
 	}
@@ -95,7 +95,7 @@ func (a *AggOracle) processLatestGER(ctx context.Context, blockNumToFetch *uint6
 	}
 
 	a.logger.Infof("injecting new GER: %s", gerToInject.Hex())
-	if err := a.chainSender.UpdateGERWaitUntilMined(ctx, gerToInject); err != nil {
+	if err := a.chainSender.InjectGER(ctx, gerToInject); err != nil {
 		return fmt.Errorf("error injecting GER %s: %w", gerToInject.Hex(), err)
 	}
 
