@@ -3,6 +3,7 @@ package aggoracle
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -56,61 +57,69 @@ func New(
 }
 
 func (a *AggOracle) Start(ctx context.Context) {
-	var (
-		blockNumToFetch uint64
-		gerToInject     common.Hash
-		err             error
-	)
-
 	ticker := time.NewTicker(a.waitPeriodNextGER)
 	defer ticker.Stop()
+
+	var blockNumToFetch uint64
 
 	for {
 		select {
 		case <-ticker.C:
-			blockNumToFetch, gerToInject, err = a.getLastFinalisedGER(ctx, blockNumToFetch)
-			if err != nil {
-				switch {
-				case errors.Is(err, l1infotreesync.ErrBlockNotProcessed):
-					a.logger.Debugf("syncer is not ready for the block %d", blockNumToFetch)
-
-				case errors.Is(err, db.ErrNotFound):
-					blockNumToFetch = 0
-					a.logger.Debugf("syncer has not found any GER until block %d", blockNumToFetch)
-
-				default:
-					a.logger.Error("error calling getLastFinalisedGER: ", err)
-				}
-
-				continue
+			if err := a.processLatestGER(ctx, &blockNumToFetch); err != nil {
+				a.handleGERProcessingError(err, blockNumToFetch)
 			}
-
-			if alreadyInjected, err := a.chainSender.IsGERAlreadyInjected(gerToInject); err != nil {
-				a.logger.Error("error calling isGERAlreadyInjected: ", err)
-				continue
-			} else if alreadyInjected {
-				a.logger.Debugf("GER %s already injected", gerToInject.Hex())
-				continue
-			}
-
-			a.logger.Infof("injecting new GER: %s", gerToInject.Hex())
-			if err := a.chainSender.UpdateGERWaitUntilMined(ctx, gerToInject); err != nil {
-				a.logger.Errorf("error calling updateGERWaitUntilMined, when trying to inject GER %s: %v", gerToInject.Hex(), err)
-				continue
-			}
-
-			a.logger.Infof("GER %s injected", gerToInject.Hex())
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-// getLastFinalisedGER tries to return a finalised GER:
+// processLatestGER fetches the latest finalized GER, checks if it is already injected and injects it if not
+func (a *AggOracle) processLatestGER(ctx context.Context, blockNumToFetch *uint64) error {
+	// Fetch the latest GER
+	blockNum, gerToInject, err := a.getLastFinalizedGER(ctx, *blockNumToFetch)
+	if err != nil {
+		return err
+	}
+
+	// Update the block number for the next iteration
+	*blockNumToFetch = blockNum
+
+	alreadyInjected, err := a.chainSender.IsGERAlreadyInjected(gerToInject)
+	if err != nil {
+		return fmt.Errorf("error checking if GER is already injected: %w", err)
+	}
+	if alreadyInjected {
+		a.logger.Debugf("GER %s already injected", gerToInject.Hex())
+		return nil
+	}
+
+	a.logger.Infof("injecting new GER: %s", gerToInject.Hex())
+	if err := a.chainSender.UpdateGERWaitUntilMined(ctx, gerToInject); err != nil {
+		return fmt.Errorf("error injecting GER %s: %w", gerToInject.Hex(), err)
+	}
+
+	a.logger.Infof("GER %s is injected successfully", gerToInject.Hex())
+	return nil
+}
+
+// handleGERProcessingError handles global exit root processing error
+func (a *AggOracle) handleGERProcessingError(err error, blockNumToFetch uint64) {
+	switch {
+	case errors.Is(err, l1infotreesync.ErrBlockNotProcessed):
+		a.logger.Debugf("syncer is not ready for the block %d", blockNumToFetch)
+	case errors.Is(err, db.ErrNotFound):
+		a.logger.Debugf("syncer has not found any GER until block %d", blockNumToFetch)
+	default:
+		a.logger.Error("unexpected error processing GER: ", err)
+	}
+}
+
+// getLastFinalizedGER tries to return a finalised GER:
 // If targetBlockNum != 0: it will try to fetch it until the given block
 // Else it will ask the L1 client for the latest finalised block and use that.
 // If it fails to get the GER from the syncer, it will return the block number that used to query
-func (a *AggOracle) getLastFinalisedGER(ctx context.Context, targetBlockNum uint64) (uint64, common.Hash, error) {
+func (a *AggOracle) getLastFinalizedGER(ctx context.Context, targetBlockNum uint64) (uint64, common.Hash, error) {
 	if targetBlockNum == 0 {
 		header, err := a.l1Client.HeaderByNumber(ctx, a.blockFinality)
 		if err != nil {
