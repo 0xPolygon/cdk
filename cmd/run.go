@@ -343,7 +343,6 @@ func createAggoracle(
 		sender, err = chaingersender.NewEVMChainGERSender(
 			logger,
 			cfg.AggOracle.EVMSender.GlobalExitRootL2Addr,
-			cfg.AggOracle.EVMSender.SenderAddr,
 			l2Client,
 			ethTxManager,
 			cfg.AggOracle.EVMSender.GasOffset,

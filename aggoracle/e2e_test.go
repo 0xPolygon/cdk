@@ -36,7 +36,7 @@ func runTest(
 		time.Sleep(time.Millisecond * 150)
 		expectedGER, err := gerL1Contract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		isInjected, err := sender.IsGERAlreadyInjected(expectedGER)
+		isInjected, err := sender.IsGERInjected(expectedGER)
 		require.NoError(t, err)
 		require.True(t, isInjected, fmt.Sprintf("iteration %d, GER: %s", i, common.Bytes2Hex(expectedGER[:])))
 	}

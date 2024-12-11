@@ -44,7 +44,7 @@ func TestE2E(t *testing.T) {
 		time.Sleep(time.Millisecond * 150)
 		expectedGER, err := env.GERL1Contract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		isInjected, err := env.AggOracleSender.IsGERAlreadyInjected(expectedGER)
+		isInjected, err := env.AggOracleSender.IsGERInjected(expectedGER)
 		require.NoError(t, err)
 		require.True(t, isInjected, fmt.Sprintf("iteration %d, GER: %s", i, common.Bytes2Hex(expectedGER[:])))
 

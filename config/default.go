@@ -228,7 +228,6 @@ WaitPeriodNextGER="100ms"
 		ChainIDL2=1337
 		GasOffset=0
 		WaitPeriodMonitorTx="100ms"
-		SenderAddr="0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
 		[AggOracle.EVMSender.EthTxManager]
 				FrequencyToMonitorTxs = "1s"
 				WaitTxToBeMined = "2s"
