@@ -182,10 +182,28 @@ func (a *AggSenderSQLStorage) moveCertificateToHistoryOrDelete(tx db.Querier,
 
 // DeleteCertificate deletes a certificate from the storage
 func (a *AggSenderSQLStorage) DeleteCertificate(ctx context.Context, certificateID common.Hash) error {
-	if err := deleteCertificate(tx, certificateID); err != nil {
+	tx, err := db.NewTx(ctx, a.db)
+	if err != nil {
 		return err
 	}
+	defer func() {
+		if err != nil {
+			if errRllbck := tx.Rollback(); errRllbck != nil {
+				a.logger.Errorf(errWhileRollbackFormat, errRllbck)
+			}
+		}
+	}()
+
+	if err = deleteCertificate(tx, certificateID); err != nil {
+		return err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+
 	a.logger.Debugf("deleted certificate - CertificateID: %s", certificateID)
+
 	return nil
 }
 
