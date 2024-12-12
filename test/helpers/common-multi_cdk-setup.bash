@@ -50,7 +50,6 @@ add_cdk_network2_to_agglayer(){
         return
     fi
     echo "=== Adding network 2 to agglayer === ($_prev)" >&3
-    exit 1
     kurtosis service exec $enclave agglayer "sed -i 's/\[proof\-signers\]/2 = \"http:\/\/cdk-erigon-rpc-002:8123\"\n\[proof-signers\]/i' /etc/zkevm/agglayer-config.toml"
     kurtosis service stop $enclave agglayer
     kurtosis service start $enclave agglayer
