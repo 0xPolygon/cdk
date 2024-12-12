@@ -95,6 +95,8 @@ jobs:
         KURTOSIS_FOLDER: ${{ github.workspace }}/kurtosis-cdk
         BATS_LIB_PATH: /usr/lib/
         agglayer_prover_sp1_key: ${{ secrets.SP1_PRIVATE_KEY }}
+        TARGET_CERTIFICATE: 2
+        DEPOSIT_COUNT: 2
     
     - name: Dump enclave logs
       if: failure()
