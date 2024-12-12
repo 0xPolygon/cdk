@@ -214,6 +214,8 @@ BlockFinality="LatestBlock"
 URLRPCL1="{{L1URL}}"
 WaitForNewBlocksPeriod="100ms"
 InitialBlock={{genesisBlockNumber}}
+RetryAfterErrorPeriod="1s"
+MaxRetryAttemptsAfterError=-1
 
 [AggOracle]
 TargetChainType="EVM"
@@ -226,7 +228,6 @@ WaitPeriodNextGER="100ms"
 		ChainIDL2=1337
 		GasOffset=0
 		WaitPeriodMonitorTx="100ms"
-		SenderAddr="0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
 		[AggOracle.EVMSender.EthTxManager]
 				FrequencyToMonitorTxs = "1s"
 				WaitTxToBeMined = "2s"
@@ -296,7 +297,6 @@ SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
-OriginNetwork=0
 
 [BridgeL2Sync]
 DBPath = "{{PathRWData}}/bridgel2sync.sqlite"
@@ -307,7 +307,6 @@ SyncBlockChunkSize = 100
 RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
-OriginNetwork=1
 
 [LastGERSync]
 DBPath = "{{PathRWData}}/lastgersync.sqlite"
@@ -331,13 +330,14 @@ GlobalExitRootManagerAddr = "{{L1Config.polygonZkEVMGlobalExitRootAddress}}"
 StoragePath = "{{PathRWData}}/aggsender.sqlite"
 AggLayerURL = "{{AggLayerURL}}"
 AggsenderPrivateKey = {Path = "{{SequencerPrivateKeyPath}}", Password = "{{SequencerPrivateKeyPassword}}"}
-BlockGetInterval = "2s"
 URLRPCL2="{{L2URL}}"
-CheckSettledInterval = "2s"
 BlockFinality = "LatestBlock"
 EpochNotificationPercentage = 50
 SaveCertificatesToFilesPath = ""
 MaxRetriesStoreCertificate = 3
 DelayBeetweenRetries = "60s"
 KeepCertificatesHistory = true
+# MaxSize of the certificate to 8Mb
+MaxCertSize = 8388608
+BridgeMetadataAsHash = true
 `

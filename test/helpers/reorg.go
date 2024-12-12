@@ -11,7 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// commitBlocks commits the specified number of blocks with the given client and waits for the specified duration after each block
+// commitBlocks commits the specified number of blocks with the given client
+// and waits for the specified duration after each block
 func CommitBlocks(t *testing.T, client *simulated.Backend, numBlocks int, waitDuration time.Duration) {
 	t.Helper()
 

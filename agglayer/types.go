@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -58,14 +59,10 @@ func (c CertificateStatus) IsOpen() bool {
 }
 
 // UnmarshalJSON is the implementation of the json.Unmarshaler interface
-func (c *CertificateStatus) UnmarshalJSON(data []byte) error {
-	dataStr := string(data)
-
-	var status string
-	if strings.Contains(dataStr, "InError") {
+func (c *CertificateStatus) UnmarshalJSON(rawStatus []byte) error {
+	status := strings.Trim(string(rawStatus), "\"")
+	if strings.Contains(status, "InError") {
 		status = "InError"
-	} else {
-		status = string(data)
 	}
 
 	switch status {
@@ -105,8 +102,8 @@ const (
 type Certificate struct {
 	NetworkID           uint32                `json:"network_id"`
 	Height              uint64                `json:"height"`
-	PrevLocalExitRoot   [32]byte              `json:"prev_local_exit_root"`
-	NewLocalExitRoot    [32]byte              `json:"new_local_exit_root"`
+	PrevLocalExitRoot   common.Hash           `json:"prev_local_exit_root"`
+	NewLocalExitRoot    common.Hash           `json:"new_local_exit_root"`
 	BridgeExits         []*BridgeExit         `json:"bridge_exits"`
 	ImportedBridgeExits []*ImportedBridgeExit `json:"imported_bridge_exits"`
 	Metadata            common.Hash           `json:"metadata"`
@@ -118,7 +115,7 @@ func (c *Certificate) Brief() string {
 		return nilStr
 	}
 	res := fmt.Sprintf("agglayer.Cert {height: %d prevLER: %s newLER: %s exits: %d imported_exits: %d}", c.Height,
-		common.Bytes2Hex(c.PrevLocalExitRoot[:]), common.Bytes2Hex(c.NewLocalExitRoot[:]),
+		c.PrevLocalExitRoot.String(), c.NewLocalExitRoot.String(),
 		len(c.BridgeExits), len(c.ImportedBridgeExits))
 	return res
 }
@@ -141,8 +138,8 @@ func (c *Certificate) Hash() common.Hash {
 	return crypto.Keccak256Hash(
 		cdkcommon.Uint32ToBytes(c.NetworkID),
 		cdkcommon.Uint64ToBytes(c.Height),
-		c.PrevLocalExitRoot[:],
-		c.NewLocalExitRoot[:],
+		c.PrevLocalExitRoot.Bytes(),
+		c.NewLocalExitRoot.Bytes(),
 		bridgeExitsPart,
 		importedBridgeExitsPart,
 	)
@@ -157,7 +154,7 @@ func (c *Certificate) HashToSign() common.Hash {
 	}
 
 	return crypto.Keccak256Hash(
-		c.NewLocalExitRoot[:],
+		c.NewLocalExitRoot.Bytes(),
 		crypto.Keccak256Hash(globalIndexHashes...).Bytes(),
 	)
 }
@@ -267,11 +264,12 @@ type BridgeExit struct {
 	DestinationNetwork uint32         `json:"dest_network"`
 	DestinationAddress common.Address `json:"dest_address"`
 	Amount             *big.Int       `json:"amount"`
+	IsMetadataHashed   bool           `json:"-"`
 	Metadata           []byte         `json:"metadata"`
 }
 
 func (b *BridgeExit) String() string {
-	res := fmt.Sprintf("LeafType: %s,  DestinationNetwork: %d, DestinationAddress: %s, Amount: %s, Metadata: %s",
+	res := fmt.Sprintf("LeafType: %s, DestinationNetwork: %d, DestinationAddress: %s, Amount: %s, Metadata: %s",
 		b.LeafType.String(), b.DestinationNetwork, b.DestinationAddress.String(),
 		b.Amount.String(), common.Bytes2Hex(b.Metadata))
 
@@ -289,6 +287,12 @@ func (b *BridgeExit) Hash() common.Hash {
 	if b.Amount == nil {
 		b.Amount = big.NewInt(0)
 	}
+	var metaDataHash []byte
+	if b.IsMetadataHashed {
+		metaDataHash = b.Metadata
+	} else {
+		metaDataHash = crypto.Keccak256(b.Metadata)
+	}
 
 	return crypto.Keccak256Hash(
 		[]byte{b.LeafType.Uint8()},
@@ -297,26 +301,35 @@ func (b *BridgeExit) Hash() common.Hash {
 		cdkcommon.Uint32ToBytes(b.DestinationNetwork),
 		b.DestinationAddress.Bytes(),
 		b.Amount.Bytes(),
-		crypto.Keccak256(b.Metadata),
+		metaDataHash,
 	)
 }
 
 // MarshalJSON is the implementation of the json.Marshaler interface
 func (b *BridgeExit) MarshalJSON() ([]byte, error) {
+	var metadataString interface{}
+	if b.IsMetadataHashed {
+		metadataString = common.Bytes2Hex(b.Metadata)
+	} else if len(b.Metadata) > 0 {
+		metadataString = bytesToUints(b.Metadata)
+	} else {
+		metadataString = nil
+	}
+
 	return json.Marshal(&struct {
 		LeafType           string         `json:"leaf_type"`
 		TokenInfo          *TokenInfo     `json:"token_info"`
 		DestinationNetwork uint32         `json:"dest_network"`
 		DestinationAddress common.Address `json:"dest_address"`
 		Amount             string         `json:"amount"`
-		Metadata           []uint         `json:"metadata"`
+		Metadata           interface{}    `json:"metadata"`
 	}{
 		LeafType:           b.LeafType.String(),
 		TokenInfo:          b.TokenInfo,
 		DestinationNetwork: b.DestinationNetwork,
 		DestinationAddress: b.DestinationAddress,
 		Amount:             b.Amount.String(),
-		Metadata:           bytesToUints(b.Metadata),
+		Metadata:           metadataString,
 	})
 }
 
@@ -337,18 +350,13 @@ type MerkleProof struct {
 
 // MarshalJSON is the implementation of the json.Marshaler interface
 func (m *MerkleProof) MarshalJSON() ([]byte, error) {
-	proofsAsBytes := [types.DefaultHeight][types.DefaultHeight]byte{}
-	for i, proof := range m.Proof {
-		proofsAsBytes[i] = proof
-	}
-
 	return json.Marshal(&struct {
-		Root  [types.DefaultHeight]byte                                 `json:"root"`
-		Proof map[string][types.DefaultHeight][types.DefaultHeight]byte `json:"proof"`
+		Root  common.Hash                                 `json:"root"`
+		Proof map[string][types.DefaultHeight]common.Hash `json:"proof"`
 	}{
 		Root: m.Root,
-		Proof: map[string][types.DefaultHeight][types.DefaultHeight]byte{
-			"siblings": proofsAsBytes,
+		Proof: map[string][types.DefaultHeight]common.Hash{
+			"siblings": m.Proof,
 		},
 	})
 }
@@ -387,19 +395,6 @@ func (l *L1InfoTreeLeafInner) Hash() common.Hash {
 	)
 }
 
-// MarshalJSON is the implementation of the json.Marshaler interface
-func (l *L1InfoTreeLeafInner) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		GlobalExitRoot [types.DefaultHeight]byte `json:"global_exit_root"`
-		BlockHash      [types.DefaultHeight]byte `json:"block_hash"`
-		Timestamp      uint64                    `json:"timestamp"`
-	}{
-		GlobalExitRoot: l.GlobalExitRoot,
-		BlockHash:      l.BlockHash,
-		Timestamp:      l.Timestamp,
-	})
-}
-
 func (l *L1InfoTreeLeafInner) String() string {
 	return fmt.Sprintf("GlobalExitRoot: %s, BlockHash: %s, Timestamp: %d",
 		l.GlobalExitRoot.String(), l.BlockHash.String(), l.Timestamp)
@@ -408,8 +403,8 @@ func (l *L1InfoTreeLeafInner) String() string {
 // L1InfoTreeLeaf represents the leaf of the L1 info tree
 type L1InfoTreeLeaf struct {
 	L1InfoTreeIndex uint32               `json:"l1_info_tree_index"`
-	RollupExitRoot  [32]byte             `json:"rer"`
-	MainnetExitRoot [32]byte             `json:"mer"`
+	RollupExitRoot  common.Hash          `json:"rer"`
+	MainnetExitRoot common.Hash          `json:"mer"`
 	Inner           *L1InfoTreeLeafInner `json:"inner"`
 }
 
@@ -421,8 +416,8 @@ func (l *L1InfoTreeLeaf) Hash() common.Hash {
 func (l *L1InfoTreeLeaf) String() string {
 	return fmt.Sprintf("L1InfoTreeIndex: %d, RollupExitRoot: %s, MainnetExitRoot: %s, Inner: %s",
 		l.L1InfoTreeIndex,
-		common.Bytes2Hex(l.RollupExitRoot[:]),
-		common.Bytes2Hex(l.MainnetExitRoot[:]),
+		l.RollupExitRoot.String(),
+		l.MainnetExitRoot.String(),
 		l.Inner.String(),
 	)
 }
@@ -552,13 +547,15 @@ func (c *ImportedBridgeExit) Hash() common.Hash {
 	)
 }
 
-type GenericPPError struct {
+var _ error = (*GenericError)(nil)
+
+type GenericError struct {
 	Key   string
 	Value string
 }
 
-func (p *GenericPPError) String() string {
-	return fmt.Sprintf("Generic error: %s: %s", p.Key, p.Value)
+func (p *GenericError) Error() string {
+	return fmt.Sprintf("[Agglayer Error] %s: %s", p.Key, p.Value)
 }
 
 // CertificateHeader is the structure returned by the interop_getCertificateHeader RPC call
@@ -572,7 +569,7 @@ type CertificateHeader struct {
 	NewLocalExitRoot      common.Hash       `json:"new_local_exit_root"`
 	Status                CertificateStatus `json:"status"`
 	Metadata              common.Hash       `json:"metadata"`
-	Error                 PPError           `json:"-"`
+	Error                 error             `json:"-"`
 }
 
 // ID returns a string with the ident of this cert (height/certID)
@@ -589,7 +586,7 @@ func (c *CertificateHeader) String() string {
 	}
 	errors := ""
 	if c.Error != nil {
-		errors = c.Error.String()
+		errors = c.Error.Error()
 	}
 	previousLocalExitRoot := nilStr
 	if c.PreviousLocalExitRoot != nil {
@@ -631,48 +628,89 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 			return err
 		}
 
-		var ppError PPError
+		var agglayerErr error
 
-		for key, value := range inErrDataMap {
-			switch key {
-			case "ProofGenerationError":
-				p := &ProofGenerationError{}
-				if err := p.Unmarshal(value); err != nil {
-					return err
+		for errKey, errValueRaw := range inErrDataMap {
+			errValueJSON, err := json.Marshal(errValueRaw)
+			if err != nil {
+				agglayerErr = &GenericError{
+					Key: errKey,
+					Value: fmt.Sprintf("failed to marshal the agglayer error to the JSON. Raw value: %+v\nReason: %+v",
+						errValueRaw, err),
 				}
-
-				ppError = p
-			case "TypeConversionError":
-				t := &TypeConversionError{}
-				if err := t.Unmarshal(value); err != nil {
-					return err
-				}
-
-				ppError = t
-			case "ProofVerificationError":
-				p := &ProofVerificationError{}
-				if err := p.Unmarshal(value); err != nil {
-					return err
-				}
-
-				ppError = p
-			default:
-				valueStr, err := json.Marshal(value)
-				if err != nil {
-					ppError = &GenericPPError{Key: key, Value: "error marshalling value"}
-				} else {
-					ppError = &GenericPPError{Key: key, Value: string(valueStr)}
-				}
+			} else {
+				agglayerErr = &GenericError{Key: errKey, Value: string(errValueJSON)}
 			}
 		}
 
 		c.Status = InError
-		c.Error = ppError
+		c.Error = agglayerErr
 	default:
 		return errors.New("invalid status type")
 	}
 
 	return nil
+}
+
+// convertMapValue converts the value of a key in a map to a target type.
+func convertMapValue[T any](data map[string]interface{}, key string) (T, error) {
+	value, ok := data[key]
+	if !ok {
+		var zero T
+		return zero, fmt.Errorf("key %s not found in map", key)
+	}
+
+	// Try a direct type assertion
+	if convertedValue, ok := value.(T); ok {
+		return convertedValue, nil
+	}
+
+	// If direct assertion fails, handle numeric type conversions
+	var target T
+	targetType := reflect.TypeOf(target)
+
+	// Check if value is a float64 (default JSON number type) and target is a numeric type
+	if floatValue, ok := value.(float64); ok && targetType.Kind() >= reflect.Int && targetType.Kind() <= reflect.Uint64 {
+		convertedValue, err := convertNumeric(floatValue, targetType)
+		if err != nil {
+			return target, fmt.Errorf("conversion error for key %s: %w", key, err)
+		}
+		return convertedValue.(T), nil //nolint:forcetypeassert
+	}
+
+	return target, fmt.Errorf("value of key %s is not of type %T", key, target)
+}
+
+// convertNumeric converts a float64 to the specified numeric type.
+func convertNumeric(value float64, targetType reflect.Type) (interface{}, error) {
+	switch targetType.Kind() {
+	case reflect.Int:
+		return int(value), nil
+	case reflect.Int8:
+		return int8(value), nil
+	case reflect.Int16:
+		return int16(value), nil
+	case reflect.Int32:
+		return int32(value), nil
+	case reflect.Int64:
+		return int64(value), nil
+	case reflect.Uint:
+		return uint(value), nil
+	case reflect.Uint8:
+		return uint8(value), nil
+	case reflect.Uint16:
+		return uint16(value), nil
+	case reflect.Uint32:
+		return uint32(value), nil
+	case reflect.Uint64:
+		return uint64(value), nil
+	case reflect.Float32:
+		return float32(value), nil
+	case reflect.Float64:
+		return value, nil
+	default:
+		return nil, fmt.Errorf("unsupported target type %v", targetType)
+	}
 }
 
 // ClockConfiguration represents the configuration of the epoch clock
