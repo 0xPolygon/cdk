@@ -182,7 +182,7 @@ function claim_tx_hash() {
     readonly current_deposit=$(mktemp)
     jq '.[(0|tonumber)]' $bridge_deposit_file | tee $current_deposit
     readonly current_proof=$(mktemp)
-    echo ".... requesting merkel proof for $tx_hash deposit_cnt=$curr_deposit_cnt" >&3
+    echo ".... requesting merkel proof for $tx_hash deposit_cnt=$curr_deposit_cnt network_id: $curr_network_id" >&3
     request_merkel_proof "$curr_deposit_cnt" "$curr_network_id" "$bridge_provide_merkel_proof" "$current_proof"
     echo ".... requesting claim for $tx_hash" >&3
     request_claim $current_deposit $current_proof $destination_rpc_url
@@ -239,14 +239,13 @@ function request_claim(){
                 echo "Failed to calculate gas price" >&3
                 exit 1
             fi
-            
+            echo "... Claiming deposit: global_index: $in_global_index orig_net: $in_orig_net dest_net: $in_dest_net  amount:$in_amount" >&3
             echo "cast send --legacy --gas-price $comp_gas_price --rpc-url $destination_rpc_url --private-key $sender_private_key $bridge_addr \"$claim_sig\" \"$in_merkle_proof\" \"$in_rollup_merkle_proof\" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata" 
             local tmp_response=$(mktemp)
             cast send --legacy --gas-price $comp_gas_price \
                         --rpc-url $destination_rpc_url \
                         --private-key $sender_private_key \
                         $bridge_addr "$claim_sig" "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata 2> $tmp_response ||  check_claim_revert_code $tmp_response
-            echo "finish $tmp_res" >&3
         fi
 }
 
