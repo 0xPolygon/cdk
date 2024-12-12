@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	gerContractL1 "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/globalexitrootnopush0"
+	gerContractL1 "github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain-paris/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk/aggoracle"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -22,7 +22,7 @@ func TestEVM(t *testing.T) {
 
 func runTest(
 	t *testing.T,
-	gerL1Contract *gerContractL1.Globalexitrootnopush0,
+	gerL1Contract *gerContractL1.Polygonzkevmglobalexitrootv2,
 	sender aggoracle.ChainSender,
 	l1Client *simulated.Backend,
 	authL1 *bind.TransactOpts,
@@ -30,6 +30,8 @@ func runTest(
 	t.Helper()
 
 	for i := 0; i < 10; i++ {
+		// TODO: @Stefan-Ethernal this should be invoked either from rollup manager or bridge
+		// https://github.com/0xPolygonHermez/zkevm-contracts/blob/2b279bbe712e3d396dcafad4be63b663dd647476/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol#L85-L95
 		_, err := gerL1Contract.UpdateExitRoot(authL1, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
 		l1Client.Commit()
