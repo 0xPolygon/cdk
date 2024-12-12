@@ -38,23 +38,22 @@ function bridge_asset() {
     local bridge_sig='bridgeAsset(uint32,address,uint256,address,bool,bytes)'
 
     if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
-        echo "The ETH balance for sender "$sender_addr":" >&3
-        cast balance -e --rpc-url $rpc_url $sender_addr >&3
+        echo "...The ETH balance for sender "$sender_addr":" $(cast balance -e --rpc-url $rpc_url $sender_addr) >&3
     else
         echo "The "$token_addr" token balance for sender "$sender_addr":" >&3
-        echo "cast call --rpc-url $rpc_url $token_addr \"$balance_of_fn_sig\" $sender_addr" >&3
+        echo "cast call --rpc-url $rpc_url $token_addr \"$balance_of_fn_sig\" $sender_addr"
         balance_wei=$(cast call --rpc-url "$rpc_url" "$token_addr" "$balance_of_fn_sig" "$sender_addr" | awk '{print $1}')
         echo "$(cast --from-wei "$balance_wei")" >&3
     fi
 
-    echo "Attempting to deposit $amount [wei] using bridgeAsset to $destination_addr, token $token_addr (sender=$sender_addr, network id=$destination_net, rpc url=$rpc_url)" >&3
+    echo "....Attempting to deposit $amount [wei] using bridgeAsset to $destination_addr, token $token_addr (sender=$sender_addr, network id=$destination_net, rpc url=$rpc_url)" >&3
 
     if [[ $dry_run == "true" ]]; then
         cast calldata $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes
     else
         local tmp_response_file=$(mktemp)
         if [[ $token_addr == "0x0000000000000000000000000000000000000000" ]]; then
-            echo "cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes" >&3
+            echo "cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes" 
             cast send --legacy --private-key $sender_private_key --value $amount --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes > $tmp_response_file
         else
             echo "cast send --legacy --private-key $sender_private_key --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes"
@@ -62,7 +61,7 @@ function bridge_asset() {
             cast send --legacy --private-key $sender_private_key                 --rpc-url $rpc_url $bridge_addr $bridge_sig $destination_net $destination_addr $amount $token_addr $is_forced $meta_bytes > $tmp_response_file
         fi
         export bridge_tx_hash=$(grep "^transactionHash" $tmp_response_file | cut -f 2- -d ' ' | sed 's/ //g')
-        echo "bridge_tx_hash=$bridge_tx_hash" >&3
+        echo "bridge_tx_hash=$bridge_tx_hash" 
     fi
 }
 
@@ -144,26 +143,27 @@ function claim_tx_hash() {
     
     readonly bridge_deposit_file=$(mktemp)
     local ready_for_claim="false"
-
+    local start_time=$(date +%s)
     local current_time=$(date +%s)
     local end_time=$((current_time + timeout))
     while true; do
         current_time=$(date +%s)
+        elpased_time=$((current_time - start_time))
         if ((current_time > end_time)); then
-            echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Exiting... Timeout reached waiting for tx_hash [$tx_hash] timeout: $timeout!"
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Exiting... Timeout reached waiting for tx_hash [$tx_hash] timeout: $timeout! (elapsed: $elpased_time)"
             echo "     $current_time > $end_time" >&3
             exit 1
         fi
         curl -s "$bridge_provide_merkel_proof/bridges/$destination_addr?limit=100&offset=0" | jq  "[.deposits[] | select(.tx_hash == \"$tx_hash\" )]" > $bridge_deposit_file
         deposit_count=$(jq '. | length' $bridge_deposit_file)
         if [[ $deposit_count == 0 ]]; then
-            echo "...[$(date '+%Y-%m-%d %H:%M:%S')] ❌  the tx_hash [$tx_hash] not found" >&3   
+            echo "...[$(date '+%Y-%m-%d %H:%M:%S')] ❌  the tx_hash [$tx_hash] not found (elapsed: $elpased_time / timeout:$timeout)" >&3   
             sleep "$claim_frequency"
             continue
         fi
         local ready_for_claim=$(jq '.[0].ready_for_claim' $bridge_deposit_file)
         if [ $ready_for_claim != "true" ]; then
-            echo ".... [$(date '+%Y-%m-%d %H:%M:%S')] ⏳ the tx_hash $tx_hash is not ready for claim yet" >&3
+            echo ".... [$(date '+%Y-%m-%d %H:%M:%S')] ⏳ the tx_hash $tx_hash is not ready for claim yet (elapsed: $elpased_time / timeout:$timeout)" >&3
             sleep "$claim_frequency"
             continue
         else
@@ -171,7 +171,7 @@ function claim_tx_hash() {
         fi
     done
     # Deposit is ready for claim
-    echo "....[$(date '+%Y-%m-%d %H:%M:%S')] 🎉 the tx_hash $tx_hash is ready for claim!" >&3
+    echo "....[$(date '+%Y-%m-%d %H:%M:%S')] 🎉 the tx_hash $tx_hash is ready for claim! (elapsed: $elpased_time)" >&3
     local curr_claim_tx_hash=$(jq '.[0].claim_tx_hash' $bridge_deposit_file)
     if [ $curr_claim_tx_hash != "\"\"" ]; then
         echo "....[$(date '+%Y-%m-%d %H:%M:%S')] 🎉  the tx_hash $tx_hash is already claimed" >&3
