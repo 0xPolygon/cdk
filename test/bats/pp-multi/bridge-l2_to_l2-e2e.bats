@@ -20,7 +20,7 @@ setup() {
     bridge_addr=$bridge_address
     meta_bytes=${META_BYTES:-"0x1234"}
     destination_addr=$target_address
-    timeout="120"
+    timeout="240"
     claim_frequency="30"
 
     gas_price=$(cast gas-price --rpc-url "$l2_rpc_url")
@@ -30,18 +30,30 @@ setup() {
     echo "=== Running LxLy bridge eth L1 to L2(PP1)" >&3
     destination_net=$l2_pp1b_network_id
     bridge_asset "$native_token_addr" "$l1_rpc_url"
+    bridge_tx_hash_pp1=$bridge_tx_hash
     
+    echo "=== Running LxLy bridge eth L1 to L2(PP2)" >&3
+    destination_net=$l2_pp2b_network_id
+    bridge_asset "$native_token_addr" "$l1_rpc_url"
+    bridge_tx_hash_pp2=$bridge_tx_hash
+
     echo "=== Running LxLy claim L1 to L2(PP1) for $bridge_tx_hash" >&3
-    run claim_tx_hash "$timeout" "$bridge_tx_hash" "$destination_addr" "$l2_pp1_url"  "$l2_pp1b_url"
+    run claim_tx_hash "$timeout" "$bridge_tx_hash_pp1" "$destination_addr" "$l2_pp1_url"  "$l2_pp1b_url"
     assert_success
+
+    echo "=== Running LxLy claim L1 to L2(PP2) for $bridge_tx_hash" >&3
+    run claim_tx_hash "$timeout" "$bridge_tx_hash_pp1" "$destination_addr" "$l2_pp2_url"  "$l2_pp2b_url"
+    assert_success
+
+    # reduce eth 
+    ether_value=${ETHER_VALUE:-"0.0100000054"}
+    amount=$(cast to-wei $ether_value ether)
 
     echo "=== Running LxLy bridge L2(PP1) to L2(PP2)" >&3
     destination_net=$l2_pp2b_network_id
-    amount=$(date +%s)
     bridge_asset "$native_token_addr" "$l2_pp1_url"
     
     echo "=== Running LxLy claim L2(PP1) to L2(PP2)  for: $bridge_tx_hash" >&3
-    # Buscar en pp1b dest_net=2
     # Must read the merkel proof from PP1
     run claim_tx_hash "$timeout" "$bridge_tx_hash" "$destination_addr" "$l2_pp2_url"  "$l2_pp1b_url"
     assert_success

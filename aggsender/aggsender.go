@@ -664,9 +664,9 @@ func (a *AggSender) updateCertificateStatus(ctx context.Context,
 	if localCert.Status == agglayerCert.Status {
 		return nil
 	}
-	a.log.Infof("certificate %s changed status from [%s] to [%s] elapsed time: %s full_cert: %s",
+	a.log.Infof("certificate %s changed status from [%s] to [%s] elapsed time: %s full_cert (agglayer): %s",
 		localCert.ID(), localCert.Status, agglayerCert.Status, localCert.ElapsedTimeSinceCreation(),
-		localCert.String())
+		agglayerCert.String())
 
 	// That is a strange situation
 	if agglayerCert.Status.IsOpen() && localCert.Status.IsClosed() {
