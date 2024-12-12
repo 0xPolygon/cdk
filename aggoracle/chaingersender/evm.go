@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitroot"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain-paris/polygonzkevmglobalexitrootv2"
 	cfgTypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
@@ -41,7 +41,7 @@ type EthTxManager interface {
 
 type EVMChainGERSender struct {
 	logger              *log.Logger
-	gerContract         *pessimisticglobalexitroot.Pessimisticglobalexitroot
+	gerContract         *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
 	gerAddr             common.Address
 	client              EthClienter
 	ethTxMan            EthTxManager
@@ -66,7 +66,7 @@ func NewEVMChainGERSender(
 	gasOffset uint64,
 	waitPeriodMonitorTx time.Duration,
 ) (*EVMChainGERSender, error) {
-	gerContract, err := pessimisticglobalexitroot.NewPessimisticglobalexitroot(l2GlobalExitRoot, l2Client)
+	gerContract, err := polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2(l2GlobalExitRoot, l2Client)
 	if err != nil {
 		return nil, err
 	}
@@ -83,24 +83,25 @@ func NewEVMChainGERSender(
 }
 
 func (c *EVMChainGERSender) IsGERInjected(ger common.Hash) (bool, error) {
-	timestamp, err := c.gerContract.GlobalExitRootMap(&bind.CallOpts{Pending: false}, ger)
+	blockHashBigInt, err := c.gerContract.GlobalExitRootMap(&bind.CallOpts{Pending: false}, ger)
 	if err != nil {
 		return false, fmt.Errorf("error calling gerContract.GlobalExitRootMap: %w", err)
 	}
 
-	return timestamp.Cmp(common.Big0) != 0, nil
+	return common.BigToHash(blockHashBigInt) != common.Hash{}, nil
 }
 
 func (c *EVMChainGERSender) InjectGER(ctx context.Context, ger common.Hash) error {
 	ticker := time.NewTicker(c.waitPeriodMonitorTx)
 	defer ticker.Stop()
 
-	gerABI, err := pessimisticglobalexitroot.PessimisticglobalexitrootMetaData.GetAbi()
+	gerABI, err := polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2MetaData.GetAbi()
 	if err != nil {
 		return err
 	}
 
-	updateGERTxInput, err := gerABI.Pack("updateGlobalExitRoot", ger)
+	// TODO: @Stefan-Ethernal should we invoke the PolygonZkEVMBridgeV2.updateGlobalExitRoot?
+	updateGERTxInput, err := gerABI.Pack("updateExitRoot", ger)
 	if err != nil {
 		return err
 	}

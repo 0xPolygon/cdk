@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitroot"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain-paris/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
@@ -27,7 +27,7 @@ type EthClienter interface {
 type downloader struct {
 	*sync.EVMDownloaderImplementation
 	l2Client       EthClienter
-	gerContract    *pessimisticglobalexitroot.Pessimisticglobalexitroot
+	gerContract    *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
 	l1InfoTreesync *l1infotreesync.L1InfoTreeSync
 	processor      *processor
 	rh             *sync.RetryHandler
@@ -42,7 +42,7 @@ func newDownloader(
 	blockFinality *big.Int,
 	waitForNewBlocksPeriod time.Duration,
 ) (*downloader, error) {
-	gerContract, err := pessimisticglobalexitroot.NewPessimisticglobalexitroot(globalExitRootL2, l2Client)
+	gerContract, err := polygonzkevmglobalexitrootv2.NewPolygonzkevmglobalexitrootv2(globalExitRootL2, l2Client)
 	if err != nil {
 		return nil, err
 	}
