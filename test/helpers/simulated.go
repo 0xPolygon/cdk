@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry-paris/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain-paris/polygonzkevmbridgev2"
 	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -35,8 +35,6 @@ func (tc TestClient) Client() *rpc.Client {
 type SimulatedBackendSetup struct {
 	UserAuth            *bind.TransactOpts
 	DeployerAuth        *bind.TransactOpts
-	BridgeAddr          common.Address
-	BridgeContract      *polygonzkevmbridgev2.Polygonzkevmbridgev2
 	BridgeProxyAddr     common.Address
 	BridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
 }
@@ -45,7 +43,7 @@ type SimulatedBackendSetup struct {
 func SimulatedBackend(
 	t *testing.T,
 	balances map[common.Address]types.Account,
-	ebZkevmBridgeNetwork uint32,
+	rollupID uint32,
 ) (*simulated.Backend, *SimulatedBackendSetup) {
 	t.Helper()
 
@@ -81,13 +79,16 @@ func SimulatedBackend(
 
 	// MUST BE DEPLOYED FIRST
 	// Deploy zkevm bridge contract
-	bridgeAddr, _, bridgeContract, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(deployerAuth, client.Client())
+	bridgeAddr, _, _, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(deployerAuth, client.Client())
 	require.NoError(t, err)
 	client.Commit()
 
 	// Create proxy contract for the bridge
-	var bridgeProxyAddr common.Address
-	var bridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	var (
+		bridgeProxyAddr     common.Address
+		bridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	)
+
 	{
 		precalculatedAddr := crypto.CreateAddress(deployerAuth.From, 2) //nolint:mnd
 
@@ -96,7 +97,7 @@ func SimulatedBackend(
 		require.NotNil(t, bridgeABI)
 
 		dataCallProxy, err := bridgeABI.Pack("initialize",
-			ebZkevmBridgeNetwork,
+			rollupID,
 			common.Address{}, // gasTokenAddressMainnet
 			uint32(0),        // gasTokenNetworkMainnet
 			precalculatedAddr,
@@ -127,8 +128,6 @@ func SimulatedBackend(
 	return client, &SimulatedBackendSetup{
 		UserAuth:            userAuth,
 		DeployerAuth:        deployerAuth,
-		BridgeAddr:          bridgeAddr,
-		BridgeContract:      bridgeContract,
 		BridgeProxyAddr:     bridgeProxyAddr,
 		BridgeProxyContract: bridgeProxyContract,
 	}

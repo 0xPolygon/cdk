@@ -6,9 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry-paris/polygonzkevmbridgev2"
-	gerContractL1 "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/globalexitrootnopush0"
-	gerContractEVMChain "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitrootnopush0"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain-paris/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain-paris/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk/aggoracle"
 	"github.com/0xPolygon/cdk/aggoracle/chaingersender"
 	"github.com/0xPolygon/cdk/bridgesync"
@@ -24,7 +23,7 @@ import (
 )
 
 const (
-	NetworkIDL2        = uint32(1)
+	rollupID           = uint32(1)
 	syncBlockChunkSize = 10
 	retries            = 3
 	periodRetry        = time.Millisecond * 100
@@ -34,9 +33,9 @@ type AggoracleWithEVMChainEnv struct {
 	L1Client         *simulated.Backend
 	L2Client         *simulated.Backend
 	L1InfoTreeSync   *l1infotreesync.L1InfoTreeSync
-	GERL1Contract    *gerContractL1.Globalexitrootnopush0
+	GERL1Contract    *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
 	GERL1Addr        common.Address
-	GERL2Contract    *gerContractEVMChain.Pessimisticglobalexitrootnopush0
+	GERL2Contract    *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
 	GERL2Addr        common.Address
 	AuthL1           *bind.TransactOpts
 	AuthL2           *bind.TransactOpts
@@ -101,7 +100,7 @@ func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChainEnv {
 		BridgeL2Addr:     bridgeL2Addr,
 		BridgeL2Sync:     bridgeL2Sync,
 
-		NetworkIDL2:    NetworkIDL2,
+		NetworkIDL2:    rollupID,
 		EthTxManMockL2: ethTxManMockL2,
 	}
 }
@@ -109,7 +108,7 @@ func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChainEnv {
 func CommonSetup(t *testing.T) (
 	*simulated.Backend,
 	*l1infotreesync.L1InfoTreeSync,
-	*gerContractL1.Globalexitrootnopush0,
+	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
 	common.Address,
 	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
 	common.Address,
@@ -172,7 +171,7 @@ func CommonSetup(t *testing.T) (
 func L2SetupEVM(t *testing.T) (
 	aggoracle.ChainSender,
 	*simulated.Backend,
-	*gerContractEVMChain.Pessimisticglobalexitrootnopush0,
+	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
 	common.Address,
 	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
 	common.Address,
@@ -227,7 +226,7 @@ func newSimulatedL1(t *testing.T) (
 	*simulated.Backend,
 	*bind.TransactOpts,
 	common.Address,
-	*gerContractL1.Globalexitrootnopush0,
+	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
 	common.Address,
 	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
 ) {
@@ -237,7 +236,8 @@ func newSimulatedL1(t *testing.T) (
 
 	precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2) //nolint:mnd
 
-	gerAddr, _, gerContract, err := gerContractL1.DeployGlobalexitrootnopush0(setup.DeployerAuth, client.Client(),
+	gerAddr, _, gerContract, err := polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(
+		setup.DeployerAuth, client.Client(),
 		setup.UserAuth.From, setup.BridgeProxyAddr)
 	require.NoError(t, err)
 	client.Commit()
@@ -251,30 +251,31 @@ func newSimulatedEVMAggSovereignChain(t *testing.T) (
 	*simulated.Backend,
 	*bind.TransactOpts,
 	common.Address,
-	*gerContractEVMChain.Pessimisticglobalexitrootnopush0,
+	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
 	common.Address,
 	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
 ) {
 	t.Helper()
 
-	client, setup := SimulatedBackend(t, nil, NetworkIDL2)
+	client, setup := SimulatedBackend(t, nil, rollupID)
 
-	precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2) //nolint:mnd
-
-	gerAddr, _, gerContract, err := gerContractEVMChain.DeployPessimisticglobalexitrootnopush0(
-		setup.DeployerAuth, client.Client(), setup.UserAuth.From,
-	)
+	// TODO: @Stefan-Ethernal deploy the GlobalExitRootManagerL2SovereignChain here instead?
+	// https://github.com/0xPolygonHermez/zkevm-contracts/blob/feature/audit-remediations/contracts/v2/sovereignChains/GlobalExitRootManagerL2SovereignChain.sol
+	gerAddr, _, gerContract, err := polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(
+		setup.DeployerAuth, client.Client(), setup.UserAuth.From, setup.BridgeProxyAddr)
 	require.NoError(t, err)
 	client.Commit()
 
-	globalExitRootSetterRole := common.HexToHash("0x7b95520991dfda409891be0afa2635b63540f92ee996fda0bf695a166e5c5176")
-	_, err = gerContract.GrantRole(setup.DeployerAuth, globalExitRootSetterRole, setup.UserAuth.From)
-	require.NoError(t, err)
-	client.Commit()
+	// TODO: @Stefan-Ethernal Remove?
+	// globalExitRootSetterRole := common.HexToHash("0x7b95520991dfda409891be0afa2635b63540f92ee996fda0bf695a166e5c5176")
+	// _, err = gerContract.GrantRole(setup.DeployerAuth, globalExitRootSetterRole, setup.UserAuth.From)
+	// require.NoError(t, err)
+	// client.Commit()
 
-	hasRole, _ := gerContract.HasRole(&bind.CallOpts{Pending: false}, globalExitRootSetterRole, setup.UserAuth.From)
-	require.True(t, hasRole)
-	require.Equal(t, precalculatedAddr, gerAddr)
+	// precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2) //nolint:mnd
+	// hasRole, _ := gerContract.HasRole(&bind.CallOpts{Pending: false}, globalExitRootSetterRole, setup.UserAuth.From)
+	// require.True(t, hasRole)
+	// require.Equal(t, precalculatedAddr, gerAddr)
 
 	return client, setup.UserAuth, gerAddr, gerContract, setup.BridgeProxyAddr, setup.BridgeProxyContract
 }
