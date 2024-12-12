@@ -1,16 +1,19 @@
-package bridgesync_test
+package bridgesync
 
 import (
 	"context"
+	"errors"
+	"path"
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk/bridgesync"
 	mocksbridgesync "github.com/0xPolygon/cdk/bridgesync/mocks"
 	"github.com/0xPolygon/cdk/etherman"
+	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // Mock implementations for the interfaces
@@ -24,7 +27,7 @@ type MockBridgeContractor struct {
 
 func TestNewLx(t *testing.T) {
 	ctx := context.Background()
-	dbPath := "test_db_path"
+	dbPath := path.Join(t.TempDir(), "TestNewLx.sqlite")
 	bridge := common.HexToAddress("0x1234567890abcdef1234567890abcdef12345678")
 	syncBlockChunkSize := uint64(100)
 	blockFinalityType := etherman.SafeBlock
@@ -39,7 +42,7 @@ func TestNewLx(t *testing.T) {
 
 	mockReorgDetector.EXPECT().Subscribe(mock.Anything).Return(nil, nil)
 
-	bridgeSync, err := bridgesync.NewL1(
+	bridgeSync, err := NewL1(
 		ctx,
 		dbPath,
 		bridge,
@@ -52,6 +55,7 @@ func TestNewLx(t *testing.T) {
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
 		originNetwork,
+		false,
 	)
 
 	assert.NoError(t, err)
@@ -59,7 +63,7 @@ func TestNewLx(t *testing.T) {
 	assert.Equal(t, originNetwork, bridgeSync.OriginNetwork())
 	assert.Equal(t, blockFinalityType, bridgeSync.BlockFinality())
 
-	bridgeSyncL2, err := bridgesync.NewL2(
+	bridgeSyncL2, err := NewL2(
 		ctx,
 		dbPath,
 		bridge,
@@ -72,10 +76,65 @@ func TestNewLx(t *testing.T) {
 		retryAfterErrorPeriod,
 		maxRetryAttemptsAfterError,
 		originNetwork,
+		false,
 	)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, bridgeSync)
 	assert.Equal(t, originNetwork, bridgeSyncL2.OriginNetwork())
 	assert.Equal(t, blockFinalityType, bridgeSyncL2.BlockFinality())
+}
+
+func TestGetLastProcessedBlock(t *testing.T) {
+	s := BridgeSync{processor: &processor{halted: true}}
+	_, err := s.GetLastProcessedBlock(context.Background())
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
+}
+
+func TestGetBridgeRootByHash(t *testing.T) {
+	s := BridgeSync{processor: &processor{halted: true}}
+	_, err := s.GetBridgeRootByHash(context.Background(), common.Hash{})
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
+}
+
+func TestGetBridges(t *testing.T) {
+	s := BridgeSync{processor: &processor{halted: true}}
+	_, err := s.GetBridges(context.Background(), 0, 0)
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
+}
+
+func TestGetProof(t *testing.T) {
+	s := BridgeSync{processor: &processor{halted: true}}
+	_, err := s.GetProof(context.Background(), 0, common.Hash{})
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
+}
+
+func TestGetBlockByLER(t *testing.T) {
+	s := BridgeSync{processor: &processor{halted: true}}
+	_, err := s.GetBlockByLER(context.Background(), common.Hash{})
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
+}
+
+func TestGetRootByLER(t *testing.T) {
+	s := BridgeSync{processor: &processor{halted: true}}
+	_, err := s.GetRootByLER(context.Background(), common.Hash{})
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
+}
+
+func TestGetExitRootByIndex(t *testing.T) {
+	s := BridgeSync{processor: &processor{halted: true}}
+	_, err := s.GetExitRootByIndex(context.Background(), 0)
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
+}
+
+func TestGetClaims(t *testing.T) {
+	s := BridgeSync{processor: &processor{halted: true}}
+	_, err := s.GetClaims(context.Background(), 0, 0)
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
+}
+
+func TestGetBridgesPublishedTopLevel(t *testing.T) {
+	s := BridgeSync{processor: &processor{halted: true}}
+	_, err := s.GetBridgesPublished(context.Background(), 0, 0)
+	require.True(t, errors.Is(err, sync.ErrInconsistentState))
 }

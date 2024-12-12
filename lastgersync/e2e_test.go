@@ -10,7 +10,6 @@ import (
 
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/lastgersync"
-	"github.com/0xPolygon/cdk/test/aggoraclehelpers"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,12 +18,12 @@ import (
 
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
-	env := aggoraclehelpers.SetupAggoracleWithEVMChain(t)
-	dbPathSyncer := path.Join(t.TempDir(), "file::memory:?cache=shared")
+	env := helpers.NewE2EEnvWithEVML2(t)
+	dbPathSyncer := path.Join(t.TempDir(), "lastgersyncTestE2E.sqlite")
 	syncer, err := lastgersync.New(
 		ctx,
 		dbPathSyncer,
-		env.ReorgDetector,
+		env.ReorgDetectorL2,
 		env.L2Client.Client(),
 		env.GERL2Addr,
 		env.L1InfoTreeSync,

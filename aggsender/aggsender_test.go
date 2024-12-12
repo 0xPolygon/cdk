@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"runtime"
+	"path"
 	"testing"
 	"time"
 
@@ -280,7 +280,7 @@ func TestAggSenderStart(t *testing.T) {
 		ctx,
 		log.WithFields("test", "unittest"),
 		Config{
-			StoragePath:          "file:TestAggSenderStart?mode=memory&cache=shared",
+			StoragePath:          path.Join(t.TempDir(), "aggsenderTestAggSenderStart.sqlite"),
 			DelayBeetweenRetries: types.Duration{Duration: 1 * time.Microsecond},
 		},
 		aggLayerMock,
@@ -312,7 +312,7 @@ func TestAggSenderSendCertificates(t *testing.T) {
 		ctx,
 		log.WithFields("test", "unittest"),
 		Config{
-			StoragePath: "file::memory:?cache=shared",
+			StoragePath: path.Join(t.TempDir(), "aggsenderTestAggSenderSendCertificates.sqlite"),
 		},
 		AggLayerMock,
 		nil,
@@ -2102,9 +2102,7 @@ func newAggsenderTestData(t *testing.T, creationFlags testDataFlags) *aggsenderT
 		storageMock = mocks.NewAggSenderStorage(t)
 		storage = storageMock
 	} else {
-		pc, _, _, _ := runtime.Caller(1)
-		part := runtime.FuncForPC(pc)
-		dbPath := fmt.Sprintf("file:%d?mode=memory&cache=shared", part.Entry())
+		dbPath := path.Join(t.TempDir(), "newAggsenderTestData.sqlite")
 		storageConfig := db.AggSenderSQLStorageConfig{
 			DBPath:                  dbPath,
 			KeepCertificatesHistory: true,
