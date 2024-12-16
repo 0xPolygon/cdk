@@ -27,6 +27,7 @@ setup() {
 }
 
 @test "Test L2 to L2 bridge" {
+   
     echo "=== Running LxLy bridge eth L1 to L2(PP1) amount:$amount" >&3
     destination_net=$l2_pp1b_network_id
     bridge_asset "$native_token_addr" "$l1_rpc_url"
@@ -44,9 +45,9 @@ setup() {
     echo "=== Running LxLy claim L1 to L2(PP2) for $bridge_tx_hash_pp2" >&3
     run claim_tx_hash "$timeout" "$bridge_tx_hash_pp2" "$destination_addr" "$l2_pp2_url"  "$l2_pp2b_url"
     assert_success
-   
-    # reduce eth 
     
+   
+    # reduce eth amount
     amount=1234567
     echo "=== Running LxLy bridge L2(PP2) to L2(PP1) amount:$amount" >&3
     destination_net=$l2_pp1b_network_id

@@ -184,8 +184,35 @@ function claim_tx_hash() {
     readonly current_proof=$(mktemp)
     echo ".... requesting merkel proof for $tx_hash deposit_cnt=$curr_deposit_cnt network_id: $curr_network_id" >&3
     request_merkel_proof "$curr_deposit_cnt" "$curr_network_id" "$bridge_provide_merkel_proof" "$current_proof"
-    echo ".... requesting claim for $tx_hash" >&3
-    request_claim $current_deposit $current_proof $destination_rpc_url
+    echo "current_deposit=$current_deposit" >&3
+    echo "bridge_deposit_file=$bridge_deposit_file" >&3
+    while true; do 
+        echo ".... requesting claim for $tx_hash" >&3
+        request_claim $current_deposit $current_proof $destination_rpc_url
+        request_result=$?
+        echo "....[$(date '+%Y-%m-%d %H:%M:%S')] 🎉  request_claim returns $request_result" >&3
+        if [ $request_result -eq 0 ]; then
+            echo "....[$(date '+%Y-%m-%d %H:%M:%S')] 🎉   claim successful" >&3
+            break
+        fi
+        if [ $request_result -eq 2 ]; then
+            # GlobalExitRootInvalid() let's retry
+            echo "....[$(date '+%Y-%m-%d %H:%M:%S')] ❌  claim failed, let's retry" >&3
+            current_time=$(date +%s)
+            elpased_time=$((current_time - start_time))
+            if ((current_time > end_time)); then
+                echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Exiting... Timeout reached waiting for tx_hash [$tx_hash] timeout: $timeout! (elapsed: $elpased_time)"
+                echo "     $current_time > $end_time" >&3
+                exit 1
+            fi
+            sleep $claim_frequency
+            continue
+        fi
+        if [ $request_result -ne 0 ]; then
+            echo "....[$(date '+%Y-%m-%d %H:%M:%S')] ❌  claim failed" >&3
+            exit 1
+        fi
+    done
     
     # clean up temp files
     rm $current_deposit
@@ -232,6 +259,7 @@ function request_claim(){
     local in_amount=$(jq -r '.amount' $deposit_file)
     local in_metadata=$(jq -r '.metadata' $deposit_file)
     if [[ $dry_run == "true" ]]; then
+            echo "... Not real cleaim (dry_run mode)" >&3
             cast calldata $claim_sig "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata
         else
             local comp_gas_price=$(bc -l <<< "$gas_price * 1.5" | sed 's/\..*//')
@@ -240,12 +268,13 @@ function request_claim(){
                 exit 1
             fi
             echo "... Claiming deposit: global_index: $in_global_index orig_net: $in_orig_net dest_net: $in_dest_net  amount:$in_amount" >&3
+            echo "claim: mainnetExitRoot=$in_main_exit_root  rollupExitRoot=$in_rollup_exit_root"
             echo "cast send --legacy --gas-price $comp_gas_price --rpc-url $destination_rpc_url --private-key $sender_private_key $bridge_addr \"$claim_sig\" \"$in_merkle_proof\" \"$in_rollup_merkle_proof\" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata" 
             local tmp_response=$(mktemp)
             cast send --legacy --gas-price $comp_gas_price \
                         --rpc-url $destination_rpc_url \
                         --private-key $sender_private_key \
-                        $bridge_addr "$claim_sig" "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata 2> $tmp_response ||  check_claim_revert_code $tmp_response
+                        $bridge_addr "$claim_sig" "$in_merkle_proof" "$in_rollup_merkle_proof" $in_global_index $in_main_exit_root $in_rollup_exit_root $in_orig_net $in_orig_addr $in_dest_net $in_dest_addr $in_amount $in_metadata 2> $tmp_response ||  check_claim_revert_code $tmp_response 
         fi
 }
 
@@ -259,6 +288,13 @@ function check_claim_revert_code(){
         echo "....[$(date '+%Y-%m-%d %H:%M:%S')] 🎉  deposit is already claimed (revert code 0x646cf558)" >&3
         return 0
     fi
+    cat $file_curl_reponse | grep "0x002f6fad" > /dev/null
+    if [ $? -eq 0 ]; then
+        echo "....[$(date '+%Y-%m-%d %H:%M:%S')] 🎉  GlobalExitRootInvalid()(revert code 0x002f6fad)" >&3
+        return 2
+    fi
+    echo "....[$(date '+%Y-%m-%d %H:%M:%S')] ❌  claim failed" >&3
+    cat $file_curl_reponse >&3
     return 1
 }
 
