@@ -39,6 +39,11 @@ type Config struct {
 	MaxCertSize uint `mapstructure:"MaxCertSize"`
 	// BridgeMetadataAsHash is a flag to import the bridge metadata as hash
 	BridgeMetadataAsHash bool `mapstructure:"BridgeMetadataAsHash"`
+	// DryRun is a flag to enable the dry run mode
+	// in this mode the AggSender will not send the certificates to Agglayer
+	DryRun bool `mapstructure:"DryRun"`
+	// EnableRPC is a flag to enable the RPC for aggsender
+	EnableRPC bool `mapstructure:"EnableRPC"`
 }
 
 // String returns a string representation of the Config

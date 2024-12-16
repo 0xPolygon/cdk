@@ -9,8 +9,10 @@ import (
 	"os"
 	"time"
 
+	jRPC "github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/agglayer"
 	"github.com/0xPolygon/cdk/aggsender/db"
+	aggsenderrpc "github.com/0xPolygon/cdk/aggsender/rpc"
 	"github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/bridgesync"
 	cdkcommon "github.com/0xPolygon/cdk/common"
@@ -81,6 +83,21 @@ func New(
 		sequencerKey:     sequencerPrivateKey,
 		epochNotifier:    epochNotifier,
 	}, nil
+}
+
+// GetRPCServices returns the list of services that the RPC provider exposes
+func (a *AggSender) GetRPCServices() []jRPC.Service {
+	if !a.cfg.EnableRPC {
+		return []jRPC.Service{}
+	}
+
+	logger := log.WithFields("aggsender-rpc", cdkcommon.BRIDGE)
+	return []jRPC.Service{
+		{
+			Name:    "aggsender",
+			Service: aggsenderrpc.NewAggsenderRPC(logger),
+		},
+	}
 }
 
 // Start starts the AggSender
@@ -209,6 +226,10 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	a.saveCertificateToFile(signedCertificate)
 	a.log.Infof("certificate ready to be send to AggLayer: %s", signedCertificate.Brief())
+	if a.cfg.DryRun {
+		a.log.Warn("dry run mode enabled, skipping sending certificate")
+		return signedCertificate, nil
+	}
 	certificateHash, err := a.aggLayerClient.SendCertificate(signedCertificate)
 	if err != nil {
 		return nil, fmt.Errorf("error sending certificate: %w", err)

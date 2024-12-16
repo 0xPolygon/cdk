@@ -7,8 +7,8 @@ const (
 	AGGREGATOR = "aggregator"
 	// AGGORACLE name to identify the aggoracle component
 	AGGORACLE = "aggoracle"
-	// RPC name to identify the rpc component
-	RPC = "rpc"
+	// BRIDGE name to identify the bridge component (have RPC)
+	BRIDGE = "bridge"
 	// CLAIM_SPONSOR name to identify the claim sponsor component
 	CLAIM_SPONSOR = "claim-sponsor" //nolint:stylecheck
 	// PROVER name to identify the prover component
