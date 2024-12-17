@@ -98,7 +98,7 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 			lastBlock = d.WaitForNewBlocks(ctx, fromBlock-1)
 			continue
 		}
-		d.log.Debugf("getting events from blocks %d to  %d", fromBlock, toBlock)
+		d.log.Debugf("getting events from blocks %d to %d", fromBlock, toBlock)
 		blocks := d.GetEventsByBlockRange(ctx, fromBlock, toBlock)
 		for _, b := range blocks {
 			d.log.Debugf("sending block %d to the driver (with events)", b.Num)

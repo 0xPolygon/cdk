@@ -14,6 +14,10 @@ import (
 	"github.com/iden3/go-iden3-crypto/keccak256"
 )
 
+var (
+	ZeroHash = common.HexToHash("0x0")
+)
+
 // Uint64ToBytes converts a uint64 to a byte slice
 func Uint64ToBytes(num uint64) []byte {
 	const uint64ByteSize = 8
