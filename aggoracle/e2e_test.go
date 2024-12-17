@@ -30,16 +30,18 @@ func runTest(
 	t.Helper()
 
 	for i := 0; i < 10; i++ {
-		// TODO: @Stefan-Ethernal this should be invoked either from rollup manager or bridge
-		// https://github.com/0xPolygonHermez/zkevm-contracts/blob/2b279bbe712e3d396dcafad4be63b663dd647476/contracts/v2/PolygonZkEVMGlobalExitRootV2.sol#L85-L95
 		_, err := gerL1Contract.UpdateExitRoot(authL1, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
 		l1Client.Commit()
-		time.Sleep(time.Millisecond * 150)
+
+		// wait for the GER to be processed by the L1InfoTree syncer
+		time.Sleep(time.Millisecond * 100)
 		expectedGER, err := gerL1Contract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
+
 		isInjected, err := sender.IsGERInjected(expectedGER)
 		require.NoError(t, err)
+
 		require.True(t, isInjected, fmt.Sprintf("iteration %d, GER: %s", i, common.Bytes2Hex(expectedGER[:])))
 	}
 }

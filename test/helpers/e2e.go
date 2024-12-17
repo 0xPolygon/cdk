@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain-paris/globalexitrootmanagerl2sovereignchain"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain-paris/polygonzkevmbridgev2"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain-paris/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk/aggoracle"
@@ -15,6 +16,7 @@ import (
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
+	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -35,7 +37,7 @@ type AggoracleWithEVMChainEnv struct {
 	L1InfoTreeSync   *l1infotreesync.L1InfoTreeSync
 	GERL1Contract    *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
 	GERL1Addr        common.Address
-	GERL2Contract    *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
+	GERL2Contract    *globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain
 	GERL2Addr        common.Address
 	AuthL1           *bind.TransactOpts
 	AuthL2           *bind.TransactOpts
@@ -57,8 +59,10 @@ func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChainEnv {
 	t.Helper()
 
 	ctx := context.Background()
-	l1Client, syncer, gerL1Contract, gerL1Addr,
-		bridgeL1Contract, bridgeL1Addr, authL1, rdL1, bridgeL1Sync := CommonSetup(t)
+	l1Client, syncer,
+		gerL1Contract, gerL1Addr,
+		bridgeL1Contract, bridgeL1Addr,
+		authL1, rdL1, bridgeL1Sync := CommonSetup(t)
 
 	sender, l2Client, gerL2Contract, gerL2Addr,
 		bridgeL2Contract, bridgeL2Addr, authL2,
@@ -137,7 +141,8 @@ func CommonSetup(t *testing.T) (
 		gerL1Addr, common.Address{},
 		syncBlockChunkSize, etherman.LatestBlock,
 		rdL1, l1Client.Client(),
-		time.Millisecond, 0, periodRetry, retries, l1infotreesync.FlagAllowWrongContractsAddrs,
+		time.Millisecond, 0, periodRetry,
+		retries, l1infotreesync.FlagAllowWrongContractsAddrs,
 	)
 	require.NoError(t, err)
 
@@ -171,7 +176,7 @@ func CommonSetup(t *testing.T) (
 func L2SetupEVM(t *testing.T) (
 	aggoracle.ChainSender,
 	*simulated.Backend,
-	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
+	*globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain,
 	common.Address,
 	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
 	common.Address,
@@ -182,7 +187,7 @@ func L2SetupEVM(t *testing.T) (
 ) {
 	t.Helper()
 
-	l2Client, authL2, gerL2Addr, gerL2Sc, bridgeL2Addr, bridgeL2Sc := newSimulatedEVMAggSovereignChain(t)
+	l2Client, authL2, gerL2Addr, gerL2Contract, bridgeL2Addr, bridgeL2Sc := newSimulatedEVML2SovereignChain(t)
 	ethTxManMock := NewEthTxManMock(t, l2Client, authL2)
 	sender, err := chaingersender.NewEVMChainGERSender(
 		log.GetDefaultLogger(),
@@ -219,7 +224,7 @@ func L2SetupEVM(t *testing.T) (
 
 	go bridgeL2Sync.Start(ctx)
 
-	return sender, l2Client, gerL2Sc, gerL2Addr, bridgeL2Sc, bridgeL2Addr, authL2, ethTxManMock, bridgeL2Sync, rdL2
+	return sender, l2Client, gerL2Contract, gerL2Addr, bridgeL2Sc, bridgeL2Addr, authL2, ethTxManMock, bridgeL2Sync, rdL2
 }
 
 func newSimulatedL1(t *testing.T) (
@@ -234,7 +239,7 @@ func newSimulatedL1(t *testing.T) (
 
 	client, setup := SimulatedBackend(t, nil, 0)
 
-	precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2) //nolint:mnd
+	expectedGERAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2) //nolint:mnd
 
 	gerAddr, _, gerContract, err := polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(
 		setup.DeployerAuth, client.Client(),
@@ -242,16 +247,16 @@ func newSimulatedL1(t *testing.T) (
 	require.NoError(t, err)
 	client.Commit()
 
-	require.Equal(t, precalculatedAddr, gerAddr)
+	require.Equal(t, expectedGERAddr, gerAddr)
 
 	return client, setup.UserAuth, gerAddr, gerContract, setup.BridgeProxyAddr, setup.BridgeProxyContract
 }
 
-func newSimulatedEVMAggSovereignChain(t *testing.T) (
+func newSimulatedEVML2SovereignChain(t *testing.T) (
 	*simulated.Backend,
 	*bind.TransactOpts,
 	common.Address,
-	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
+	*globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain,
 	common.Address,
 	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
 ) {
@@ -259,23 +264,31 @@ func newSimulatedEVMAggSovereignChain(t *testing.T) (
 
 	client, setup := SimulatedBackend(t, nil, rollupID)
 
-	// TODO: @Stefan-Ethernal deploy the GlobalExitRootManagerL2SovereignChain here instead?
-	// https://github.com/0xPolygonHermez/zkevm-contracts/blob/feature/audit-remediations/contracts/v2/sovereignChains/GlobalExitRootManagerL2SovereignChain.sol
-	gerAddr, _, gerContract, err := polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(
-		setup.DeployerAuth, client.Client(), setup.UserAuth.From, setup.BridgeProxyAddr)
+	gerL2Addr, _, _, err := globalexitrootmanagerl2sovereignchain.DeployGlobalexitrootmanagerl2sovereignchain(
+		setup.DeployerAuth, client.Client(), setup.BridgeProxyAddr)
 	require.NoError(t, err)
 	client.Commit()
 
-	// TODO: @Stefan-Ethernal Remove?
-	// globalExitRootSetterRole := common.HexToHash("0x7b95520991dfda409891be0afa2635b63540f92ee996fda0bf695a166e5c5176")
-	// _, err = gerContract.GrantRole(setup.DeployerAuth, globalExitRootSetterRole, setup.UserAuth.From)
-	// require.NoError(t, err)
-	// client.Commit()
+	gerL2Abi, err := globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchainMetaData.GetAbi()
+	require.NoError(t, err)
+	require.NotNil(t, gerL2Abi)
 
-	// precalculatedAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2) //nolint:mnd
-	// hasRole, _ := gerContract.HasRole(&bind.CallOpts{Pending: false}, globalExitRootSetterRole, setup.UserAuth.From)
-	// require.True(t, hasRole)
-	// require.Equal(t, precalculatedAddr, gerAddr)
+	gerL2InitData, err := gerL2Abi.Pack("initialize", setup.UserAuth.From, setup.UserAuth.From)
+	require.NoError(t, err)
 
-	return client, setup.UserAuth, gerAddr, gerContract, setup.BridgeProxyAddr, setup.BridgeProxyContract
+	gerProxyAddr, _, _, err := transparentupgradableproxy.DeployTransparentupgradableproxy(
+		setup.DeployerAuth,
+		client.Client(),
+		gerL2Addr,
+		setup.DeployerAuth.From,
+		gerL2InitData,
+	)
+	require.NoError(t, err)
+	client.Commit()
+
+	gerL2Contract, err := globalexitrootmanagerl2sovereignchain.NewGlobalexitrootmanagerl2sovereignchain(
+		gerProxyAddr, client.Client())
+	require.NoError(t, err)
+
+	return client, setup.UserAuth, gerProxyAddr, gerL2Contract, setup.BridgeProxyAddr, setup.BridgeProxyContract
 }
