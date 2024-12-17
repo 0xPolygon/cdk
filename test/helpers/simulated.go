@@ -90,7 +90,7 @@ func SimulatedBackend(
 	)
 
 	{
-		precalculatedAddr := crypto.CreateAddress(deployerAuth.From, 2) //nolint:mnd
+		calculatedGERAddr := crypto.CreateAddress(deployerAuth.From, 2) //nolint:mnd
 
 		bridgeABI, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
 		require.NoError(t, err)
@@ -100,7 +100,7 @@ func SimulatedBackend(
 			rollupID,
 			common.Address{}, // gasTokenAddressMainnet
 			uint32(0),        // gasTokenNetworkMainnet
-			precalculatedAddr,
+			calculatedGERAddr,
 			common.Address{},
 			[]byte{}, // gasTokenMetadata
 		)
@@ -120,15 +120,16 @@ func SimulatedBackend(
 		bridgeProxyContract, err = polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeProxyAddr, client.Client())
 		require.NoError(t, err)
 
-		checkGERAddr, err := bridgeProxyContract.GlobalExitRootManager(&bind.CallOpts{})
+		actualGERAddr, err := bridgeProxyContract.GlobalExitRootManager(&bind.CallOpts{})
 		require.NoError(t, err)
-		require.Equal(t, precalculatedAddr, checkGERAddr)
+		require.Equal(t, calculatedGERAddr, actualGERAddr)
 	}
 
-	return client, &SimulatedBackendSetup{
-		UserAuth:            userAuth,
-		DeployerAuth:        deployerAuth,
-		BridgeProxyAddr:     bridgeProxyAddr,
-		BridgeProxyContract: bridgeProxyContract,
-	}
+	return client,
+		&SimulatedBackendSetup{
+			UserAuth:            userAuth,
+			DeployerAuth:        deployerAuth,
+			BridgeProxyAddr:     bridgeProxyAddr,
+			BridgeProxyContract: bridgeProxyContract,
+		}
 }
