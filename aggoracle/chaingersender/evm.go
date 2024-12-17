@@ -132,10 +132,12 @@ func (c *EVMChainGERSender) InjectGER(ctx context.Context, ger common.Hash) erro
 			ethtxtypes.MonitoredTxStatusSent:
 			continue
 		case ethtxtypes.MonitoredTxStatusFailed:
-			return fmt.Errorf("tx %s failed", id.Hex())
+			return fmt.Errorf("inject GER tx %s failed", id.Hex())
 		case ethtxtypes.MonitoredTxStatusMined,
 			ethtxtypes.MonitoredTxStatusSafe,
 			ethtxtypes.MonitoredTxStatusFinalized:
+			c.logger.Debugf("inject GER tx %s was successfully mined at block %d", id.Hex(), res.MinedAtBlockNumber)
+
 			return nil
 		default:
 			c.logger.Error("unexpected tx status:", res.Status)
