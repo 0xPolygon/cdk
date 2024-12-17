@@ -46,6 +46,8 @@ type AggSender struct {
 	cfg Config
 
 	sequencerKey *ecdsa.PrivateKey
+
+	status types.AggsenderStatus
 }
 
 // New returns a new AggSender
@@ -82,7 +84,12 @@ func New(
 		l1infoTreeSyncer: l1InfoTreeSyncer,
 		sequencerKey:     sequencerPrivateKey,
 		epochNotifier:    epochNotifier,
+		status:           types.AggsenderStatus{Status: types.StatusNone},
 	}, nil
+}
+
+func (a *AggSender) Status() types.AggsenderStatus {
+	return a.status
 }
 
 // GetRPCServices returns the list of services that the RPC provider exposes
@@ -95,7 +102,7 @@ func (a *AggSender) GetRPCServices() []jRPC.Service {
 	return []jRPC.Service{
 		{
 			Name:    "aggsender",
-			Service: aggsenderrpc.NewAggsenderRPC(logger),
+			Service: aggsenderrpc.NewAggsenderRPC(logger, a.storage, a),
 		},
 	}
 }
@@ -103,6 +110,8 @@ func (a *AggSender) GetRPCServices() []jRPC.Service {
 // Start starts the AggSender
 func (a *AggSender) Start(ctx context.Context) {
 	a.log.Info("AggSender started")
+	a.status.Running = true
+	a.status.StartTime = time.Now().UTC()
 	a.checkInitialStatus(ctx)
 	a.sendCertificates(ctx)
 }
@@ -111,11 +120,13 @@ func (a *AggSender) Start(ctx context.Context) {
 func (a *AggSender) checkInitialStatus(ctx context.Context) {
 	ticker := time.NewTicker(a.cfg.DelayBeetweenRetries.Duration)
 	defer ticker.Stop()
-
+	a.status.Status = types.StatusCheckingInitialStage
 	for {
 		if err := a.checkLastCertificateFromAgglayer(ctx); err != nil {
+			a.status.SetLastError(err)
 			a.log.Errorf("error checking initial status: %w, retrying in %s", err, a.cfg.DelayBeetweenRetries.String())
 		} else {
+			a.status.SetLastError(err)
 			a.log.Info("Initial status checked successfully")
 			return
 		}
@@ -130,13 +141,16 @@ func (a *AggSender) checkInitialStatus(ctx context.Context) {
 // sendCertificates sends certificates to the aggLayer
 func (a *AggSender) sendCertificates(ctx context.Context) {
 	chEpoch := a.epochNotifier.Subscribe("aggsender")
+	a.status.Status = types.StatusCertificateStage
 	for {
 		select {
 		case epoch := <-chEpoch:
 			a.log.Infof("Epoch received: %s", epoch.String())
 			thereArePendingCerts := a.checkPendingCertificatesStatus(ctx)
 			if !thereArePendingCerts {
-				if _, err := a.sendCertificate(ctx); err != nil {
+				_, err := a.sendCertificate(ctx)
+				a.status.SetLastError(err)
+				if err != nil {
 					a.log.Error(err)
 				}
 			} else {

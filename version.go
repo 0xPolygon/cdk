@@ -23,3 +23,25 @@ func PrintVersion(w io.Writer) {
 	fmt.Fprintf(w, "Built:        %s\n", BuildDate)
 	fmt.Fprintf(w, "OS/Arch:      %s/%s\n", runtime.GOOS, runtime.GOARCH)
 }
+
+type FullVersion struct {
+	Version   string `json:"version"`
+	GitRev    string
+	GitBranch string
+	BuildDate string
+	GoVersion string
+	OS        string
+	Arch      string
+}
+
+func GetVersion() FullVersion {
+	return FullVersion{
+		Version:   Version,
+		GitRev:    GitRev,
+		GitBranch: GitBranch,
+		BuildDate: BuildDate,
+		GoVersion: runtime.Version(),
+		OS:        runtime.GOOS,
+		Arch:      runtime.GOARCH,
+	}
+}
