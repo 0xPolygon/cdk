@@ -80,7 +80,7 @@ setup() {
         assert_success
 
         echo "Waiting for agglayer certificate to settle before sending another transaction..." >&3
-        settle_certificates_target=1
+        settle_certificates_target=$i
         agglayer_timeout=600
         run $PROJECT_ROOT/../scripts/agglayer_certificates_monitor.sh "$settle_certificates_target" "$agglayer_timeout" "$l2_rpc_network_id"
         assert_success
