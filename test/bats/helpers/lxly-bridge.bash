@@ -184,8 +184,10 @@ function claim_tx_hash() {
     readonly current_proof=$(mktemp)
     echo ".... requesting merkel proof for $tx_hash deposit_cnt=$curr_deposit_cnt network_id: $curr_network_id" >&3
     request_merkel_proof "$curr_deposit_cnt" "$curr_network_id" "$bridge_provide_merkel_proof" "$current_proof"
-    echo "current_deposit=$current_deposit" >&3
-    echo "bridge_deposit_file=$bridge_deposit_file" >&3
+    echo "FILE current_deposit=$current_deposit" 
+    echo "FILE bridge_deposit_file=$bridge_deposit_file" 
+    echo "FILE current_proof=$current_proof" 
+
     while true; do 
         echo ".... requesting claim for $tx_hash" >&3
         request_claim $current_deposit $current_proof $destination_rpc_url
@@ -209,11 +211,11 @@ function claim_tx_hash() {
             continue
         fi
         if [ $request_result -ne 0 ]; then
-            echo "....[$(date '+%Y-%m-%d %H:%M:%S')] ❌  claim failed" >&3
+            echo "....[$(date '+%Y-%m-%d %H:%M:%S')] ✅  claim successful tx_hash [$tx_hash]" >&3
             exit 1
         fi
     done
-    
+    echo "....[$(date '+%Y-%m-%d %H:%M:%S')]   claimed" >&3
     # clean up temp files
     rm $current_deposit
     rm $current_proof
