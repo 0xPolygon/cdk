@@ -148,11 +148,10 @@ func (d *downloader) getGERsFromIndex(ctx context.Context, fromL1InfoTreeIndex u
 		if err != nil {
 			return nil, fmt.Errorf("error calling GetInfoByIndex: %w", err)
 		}
-		gers = append(gers,
-			Event{
-				L1InfoTreeIndex: i,
-				GlobalExitRoot:  info.GlobalExitRoot,
-			})
+		gers = append(gers, Event{
+			L1InfoTreeIndex: i,
+			GlobalExitRoot:  info.GlobalExitRoot,
+		})
 	}
 
 	return gers, nil

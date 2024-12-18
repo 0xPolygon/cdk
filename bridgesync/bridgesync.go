@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	bridgeSyncL1       = "bridgesyncl1"
-	bridgeSyncL2       = "bridgesyncl2"
+	bridgeSyncL1       = "L1"
+	bridgeSyncL2       = "L2"
 	downloadBufferSize = 1000
 )
 
@@ -107,14 +107,14 @@ func newBridgeSync(
 	rd ReorgDetector,
 	ethClient EthClienter,
 	initialBlock uint64,
-	l1OrL2ID string,
+	layerID string,
 	waitForNewBlocksPeriod time.Duration,
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
 	syncFullClaims bool,
 ) (*BridgeSync, error) {
-	logger := log.WithFields("bridge-syncer", l1OrL2ID)
+	logger := log.WithFields("bridge-syncer", layerID)
 	processor, err := newProcessor(dbPath, logger)
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func newBridgeSync(
 		return nil, err
 	}
 	downloader, err := sync.NewEVMDownloader(
-		l1OrL2ID,
+		layerID,
 		ethClient,
 		syncBlockChunkSize,
 		blockFinalityType,
@@ -156,17 +156,33 @@ func newBridgeSync(
 		return nil, err
 	}
 
-	driver, err := sync.NewEVMDriver(rd, processor, downloader, l1OrL2ID, downloadBufferSize, rh)
+	driver, err := sync.NewEVMDriver(rd, processor, downloader, layerID, downloadBufferSize, rh)
 	if err != nil {
 		return nil, err
 	}
-	logger.Infof("BridgeSyncer [%s] created: dbPath: %s initialBlock: %d bridgeAddr: %s, syncFullClaims: %d,"+
-		" maxRetryAttemptsAfterError: %d, retryAfterErrorPeriod: %s,"+
-		" syncBlockChunkSize: %d, blockFinalityType: %s, waitForNewBlocksPeriod: %s",
-		l1OrL2ID,
-		dbPath, initialBlock, bridge.String(), syncFullClaims,
-		maxRetryAttemptsAfterError, retryAfterErrorPeriod.String(),
-		syncBlockChunkSize, blockFinalityType, waitForNewBlocksPeriod.String())
+
+	logger.Infof(
+		"BridgeSyncer [%s] created:\n"+
+			"  dbPath: %s\n"+
+			"  initialBlock: %d\n"+
+			"  bridgeAddr: %s\n"+
+			"  syncFullClaims: %t\n"+
+			"  maxRetryAttemptsAfterError: %d\n"+
+			"  retryAfterErrorPeriod: %s\n"+
+			"  syncBlockChunkSize: %d\n"+
+			"  blockFinalityType: %s\n"+
+			"  waitForNewBlocksPeriod: %s",
+		layerID,
+		dbPath,
+		initialBlock,
+		bridge.String(),
+		syncFullClaims,
+		maxRetryAttemptsAfterError,
+		retryAfterErrorPeriod.String(),
+		syncBlockChunkSize,
+		blockFinalityType,
+		waitForNewBlocksPeriod.String(),
+	)
 
 	return &BridgeSync{
 		processor:     processor,

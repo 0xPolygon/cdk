@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"context"
+	"encoding/hex"
 	"testing"
 
 	"github.com/0xPolygon/cdk/log"
@@ -36,23 +37,36 @@ func NewEthTxManMock(
 				log.Error(err)
 				return
 			}
-			gas, err := client.Client().EstimateGas(ctx, ethereum.CallMsg{
-				From:  auth.From,
-				To:    args.Get(argReceiverIdx).(*common.Address),
-				Value: common.Big0,
-				Data:  args.Get(argTxInputIdx).([]byte),
-			})
+
+			to, ok := args.Get(argReceiverIdx).(*common.Address)
+			if !ok {
+				log.Error("expected *common.Address for tx receiver arg")
+				return
+			}
+
+			data, ok := args.Get(argTxInputIdx).([]byte)
+			if !ok {
+				log.Error("expected []byte for tx input data arg")
+				return
+			}
+
+			log.Debugf("receiver %s, data: %s", to, hex.EncodeToString(data))
+
+			msg := ethereum.CallMsg{
+				From: auth.From,
+				To:   to,
+				Data: data,
+			}
+
+			gas, err := client.Client().EstimateGas(ctx, msg)
 			if err != nil {
-				log.Error(err)
-				res, err := client.Client().CallContract(ctx, ethereum.CallMsg{
-					From:  auth.From,
-					To:    args.Get(argReceiverIdx).(*common.Address),
-					Value: common.Big0,
-					Data:  args.Get(argTxInputIdx).([]byte),
-				}, nil)
-				log.Debugf("contract call: %s", res)
+				log.Errorf("eth_estimateGas invocation failed: %s", err)
+
+				res, err := client.Client().CallContract(ctx, msg, nil)
 				if err != nil {
-					log.Errorf("%+v", err)
+					log.Errorf("eth_call invocation failed: %s", err)
+				} else {
+					log.Debugf("contract call result: %s", hex.EncodeToString(res))
 				}
 				return
 			}
@@ -61,16 +75,6 @@ func NewEthTxManMock(
 				log.Error(err)
 			}
 
-			to, ok := args.Get(argReceiverIdx).(*common.Address)
-			if !ok {
-				log.Error("expected *common.Address for ArgToIndex")
-				return
-			}
-			data, ok := args.Get(argTxInputIdx).([]byte)
-			if !ok {
-				log.Error("expected []byte for ArgDataIndex")
-				return
-			}
 			tx := types.NewTx(&types.LegacyTx{
 				To:       to,
 				Nonce:    nonce,
@@ -79,7 +83,6 @@ func NewEthTxManMock(
 				Gas:      gas,
 				GasPrice: price,
 			})
-			tx.Gas()
 			signedTx, err := auth.Signer(auth.From, tx)
 			if err != nil {
 				log.Error(err)

@@ -101,17 +101,22 @@ func newClaimSponsor(
 }
 
 func (c *ClaimSponsor) Start(ctx context.Context) {
-	var (
-		attempts int
-	)
+	attempts := 0
+
 	for {
-		err := c.claim(ctx)
-		if err != nil {
-			attempts++
-			c.logger.Error(err)
-			c.rh.Handle("claimsponsor main loop", attempts)
-		} else {
-			attempts = 0
+		select {
+		case <-ctx.Done():
+			return
+
+		default:
+			err := c.claim(ctx)
+			if err != nil {
+				attempts++
+				c.logger.Error(err)
+				c.rh.Handle("claimsponsor main loop", attempts)
+			} else {
+				attempts = 0
+			}
 		}
 	}
 }
@@ -207,12 +212,14 @@ func (c *ClaimSponsor) updateClaimStatus(globalIndex *big.Int, status ClaimStatu
 }
 
 func (c *ClaimSponsor) waitTxToBeSuccessOrFail(ctx context.Context, txID string) (ClaimStatus, error) {
-	t := time.NewTicker(c.waitTxToBeMinedPeriod)
+	ticker := time.NewTicker(c.waitTxToBeMinedPeriod)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return "", errors.New("context cancelled")
-		case <-t.C:
+		case <-ticker.C:
 			status, err := c.sender.claimStatus(ctx, txID)
 			if err != nil {
 				return "", err
