@@ -161,7 +161,7 @@ func newBridgeSync(
 		return nil, err
 	}
 	logger.Infof("BridgeSyncer [%s] created: dbPath: %s initialBlock: %d bridgeAddr: %s, syncFullClaims: %d,"+
-		" maxRetryAttemptsAfterError: %d RetryAfterErrorPeriod: %s"+
+		" maxRetryAttemptsAfterError: %d, retryAfterErrorPeriod: %s,"+
 		" syncBlockChunkSize: %d, blockFinalityType: %s, waitForNewBlocksPeriod: %s",
 		l1OrL2ID,
 		dbPath, initialBlock, bridge.String(), syncFullClaims,

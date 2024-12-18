@@ -187,11 +187,15 @@ func L2SetupEVM(t *testing.T) (
 ) {
 	t.Helper()
 
-	l2Client, authL2, gerL2Addr, gerL2Contract, bridgeL2Addr, bridgeL2Sc := newSimulatedEVML2SovereignChain(t)
+	l2Client, authL2, gerL2Addr, gerL2Contract,
+		bridgeL2Addr, bridgeL2Contract := newSimulatedEVML2SovereignChain(t)
+
 	ethTxManMock := NewEthTxManMock(t, l2Client, authL2)
+
+	const gerCheckFrequency = time.Millisecond * 50
 	sender, err := chaingersender.NewEVMChainGERSender(
-		log.GetDefaultLogger(),
-		gerL2Addr, l2Client.Client(), ethTxManMock, 0, time.Millisecond*50, //nolint:mnd
+		log.GetDefaultLogger(), gerL2Addr, l2Client.Client(),
+		ethTxManMock, 0, gerCheckFrequency,
 	)
 	require.NoError(t, err)
 	ctx := context.Background()
@@ -224,7 +228,10 @@ func L2SetupEVM(t *testing.T) (
 
 	go bridgeL2Sync.Start(ctx)
 
-	return sender, l2Client, gerL2Contract, gerL2Addr, bridgeL2Sc, bridgeL2Addr, authL2, ethTxManMock, bridgeL2Sync, rdL2
+	return sender, l2Client,
+		gerL2Contract, gerL2Addr,
+		bridgeL2Contract, bridgeL2Addr,
+		authL2, ethTxManMock, bridgeL2Sync, rdL2
 }
 
 func newSimulatedL1(t *testing.T) (
