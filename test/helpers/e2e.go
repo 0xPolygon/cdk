@@ -67,6 +67,7 @@ func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChainEnv {
 	sender, l2Client, gerL2Contract, gerL2Addr,
 		bridgeL2Contract, bridgeL2Addr, authL2,
 		ethTxManMockL2, bridgeL2Sync, rdL2 := L2SetupEVM(t)
+
 	oracle, err := aggoracle.New(
 		log.GetDefaultLogger(), sender,
 		l1Client.Client(), syncer,
