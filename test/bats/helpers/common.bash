@@ -365,6 +365,7 @@ function run_with_timeout(){
         echo "....[$(date '+%Y-%m-%d %H:%M:%S')] ⏳Running [$name] ..." >&3
         echo "executing: $*"
         run $* 
+        echo "output: $output"
         echo "result: $status"
         if [ $status -eq 0 ]; then
             echo "....[$(date '+%Y-%m-%d %H:%M:%S')] ✅  successful [$name] " >&3

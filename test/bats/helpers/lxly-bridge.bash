@@ -218,7 +218,7 @@ function claim_tx_hash() {
         fi
     done
     echo "....[$(date '+%Y-%m-%d %H:%M:%S')]   claimed" >&3
-    export global_index=$(jq '.global_index' $current_deposit)
+    export global_index=$(jq '.global_index' $current_deposit | sed -e 's/\x1b\[[0-9;]*m//g' | tr -d '"')
     # clean up temp files
     rm $current_deposit
     rm $current_proof
