@@ -192,8 +192,8 @@ function claim_tx_hash() {
 
     while true; do 
         echo ".... requesting claim for $tx_hash" >&3
-        request_claim $current_deposit $current_proof $destination_rpc_url
-        request_result=$?
+        run request_claim $current_deposit $current_proof $destination_rpc_url
+        request_result=$status
         echo "....[$(date '+%Y-%m-%d %H:%M:%S')] 🎉  request_claim returns $request_result" >&3
         if [ $request_result -eq 0 ]; then
             echo "....[$(date '+%Y-%m-%d %H:%M:%S')] 🎉   claim successful" >&3

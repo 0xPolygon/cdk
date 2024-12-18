@@ -12,9 +12,9 @@ setup() {
         return 1
     fi
     
-    #add_cdk_network2_to_agglayer
-    #fund_claim_tx_manager
-    #mint_pol_token
+    add_cdk_network2_to_agglayer
+    fund_claim_tx_manager
+    mint_pol_token
 
     ether_value=${ETHER_VALUE:-"0.0200000054"}
     amount=$(cast to-wei $ether_value ether)
@@ -36,6 +36,8 @@ setup() {
 }
 
 @test "Test L2 to L2 bridge" {
+    
+
     echo "=== Running LxLy bridge eth L1 to L2(PP1) amount:$amount" >&3
     destination_net=$l2_pp1b_network_id
     bridge_asset "$native_token_addr" "$l1_rpc_url"
@@ -80,9 +82,6 @@ setup() {
     run claim_tx_hash "$timeout" "$bridge_tx_hash" "$destination_addr" "$l1_rpc_url"  "$l2_pp1b_url"
     assert_success
 
-    echo "=== Check if deposit is in a settled certificate"
-    echo "$aggsender_find_imported_bridge $l2_pp1_cdk_node_url $global_index_pp2_to_pp1"
-    
     echo "=== Waiting to settled certificate with imported bridge for global_index: $global_index_pp2_to_pp1"
     wait_to_settled_certificate_containing_global_index $l2_pp1_cdk_node_url  $global_index_pp2_to_pp1
     

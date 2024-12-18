@@ -19,6 +19,8 @@ const (
 	errLevelComms              = 3
 	errLevelNotFound           = 4
 	errLevelFoundButNotSettled = 5
+
+	base10 = 10
 )
 
 func unmarshalGlobalIndex(globalIndex string) (*agglayer.GlobalIndex, error) {
@@ -27,7 +29,7 @@ func unmarshalGlobalIndex(globalIndex string) (*agglayer.GlobalIndex, error) {
 	err := json.Unmarshal([]byte(globalIndex), &globalIndexParsed)
 	if err != nil {
 		bigInt := new(big.Int)
-		_, ok := bigInt.SetString(globalIndex, 10)
+		_, ok := bigInt.SetString(globalIndex, base10)
 		if !ok {
 			return nil, fmt.Errorf("invalid global index: %v", globalIndex)
 		}
@@ -58,7 +60,6 @@ func certContainsGlobalIndex(cert *types.CertificateInfo, globalIndex *agglayer.
 		if *importedBridge.GlobalIndex == *globalIndex {
 			return true, nil
 		}
-
 	}
 	return false, nil
 }
@@ -89,7 +90,7 @@ func main() {
 		if found {
 			log.Infof("Found certificate for global index: %v", globalIndex)
 			if cert.Status.IsSettled() {
-				log.Infof("Certificate is settled")
+				log.Infof("Certificate is settled: %s status:%s", cert.ID(), cert.Status.String())
 				os.Exit(0)
 			}
 			log.Errorf("Certificate is not settled")
@@ -110,5 +111,4 @@ func main() {
 		}
 		currentHeight--
 	}
-
 }
