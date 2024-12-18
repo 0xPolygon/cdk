@@ -206,8 +206,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 	a.log.Infof("building certificate for %s estimatedSize=%d",
 		certificateParams.String(), certificateParams.EstimatedSize())
 
-	createdTime := time.Now().UTC().UnixMilli()
-	certificate, err := a.buildCertificate(ctx, certificateParams, lastSentCertificateInfo, createdTime)
+	certificate, err := a.buildCertificate(ctx, certificateParams, lastSentCertificateInfo)
 	if err != nil {
 		return nil, fmt.Errorf("error building certificate: %w", err)
 	}
@@ -372,7 +371,7 @@ func (a *AggSender) getNextHeightAndPreviousLER(
 // buildCertificate builds a certificate from the bridge events
 func (a *AggSender) buildCertificate(ctx context.Context,
 	certParams *types.CertificateBuildParams,
-	lastSentCertificateInfo *types.CertificateInfo, createdAt int64) (*agglayer.Certificate, error) {
+	lastSentCertificateInfo *types.CertificateInfo) (*agglayer.Certificate, error) {
 	if certParams.IsEmpty() {
 		return nil, errNoBridgesAndClaims
 	}
