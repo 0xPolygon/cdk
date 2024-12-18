@@ -3,6 +3,7 @@ package l1infotreesync_test
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"path"
 	"strconv"
 	"testing"
@@ -35,7 +36,11 @@ func newSimulatedClient(t *testing.T) (
 ) {
 	t.Helper()
 	ctx := context.Background()
-	client, setup := helpers.NewSimulatedBackend(t, nil)
+
+	deployerAuth, err := helpers.CreateAccount(big.NewInt(1337))
+	require.NoError(t, err)
+
+	client, setup := helpers.NewSimulatedBackend(t, nil, deployerAuth)
 
 	nonce, err := client.Client().PendingNonceAt(ctx, setup.UserAuth.From)
 	require.NoError(t, err)

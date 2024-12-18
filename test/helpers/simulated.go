@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"testing"
@@ -18,8 +19,10 @@ import (
 
 const (
 	defaultBlockGasLimit = uint64(999999999999999999)
-	defaultBalance       = "10000000000000000000000000"
+	defaultBalance       = "100000000000000000000000000"
 	chainID              = 1337
+
+	base10 = 10
 )
 
 type ClientRenamed simulated.Client
@@ -61,7 +64,6 @@ func (s *SimulatedBackendSetup) DeployBridge(client *simulated.Backend,
 		return err
 	}
 
-	// TODO: @Stefan-Ethernal parameterize gasTokenAddress and gasTokenNetwork if necessary
 	dataCallProxy, err := bridgeABI.Pack("initialize",
 		networkID,
 		common.Address{}, // gasTokenAddressMainnet
@@ -92,6 +94,10 @@ func (s *SimulatedBackendSetup) DeployBridge(client *simulated.Backend,
 	}
 
 	actualGERAddr, err := bridgeProxyContract.GlobalExitRootManager(&bind.CallOpts{})
+	if err != nil {
+		return err
+	}
+
 	if gerAddr != actualGERAddr {
 		return fmt.Errorf("mismatch between expected %s and actual %s GER addresses on bridge contract (%s)",
 			gerAddr, actualGERAddr, bridgeProxyAddr)
@@ -100,12 +106,20 @@ func (s *SimulatedBackendSetup) DeployBridge(client *simulated.Backend,
 	s.BridgeProxyAddr = bridgeProxyAddr
 	s.BridgeProxyContract = bridgeProxyContract
 
-	return err
+	bridgeBalance, err := client.Client().BalanceAt(context.Background(), bridgeProxyAddr, nil)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Bridge balance (%s)=%d\n", bridgeProxyAddr, bridgeBalance)
+
+	return nil
 }
 
 // NewSimulatedBackend creates a simulated backend with two accounts: user and deployer.
-func NewSimulatedBackend(t *testing.T, balances map[common.Address]types.Account,
-) (*simulated.Backend, *SimulatedBackendSetup) {
+func NewSimulatedBackend(t *testing.T,
+	balances map[common.Address]types.Account,
+	deployerAuth *bind.TransactOpts) (*simulated.Backend, *SimulatedBackendSetup) {
 	t.Helper()
 
 	// Define default balance
@@ -119,10 +133,6 @@ func NewSimulatedBackend(t *testing.T, balances map[common.Address]types.Account
 	require.NoError(t, err)
 
 	// Create deployer account
-	deployerPK, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	deployerAuth, err := bind.NewKeyedTransactorWithChainID(deployerPK, big.NewInt(chainID))
-	require.NoError(t, err)
 	precalculatedBridgeAddr := crypto.CreateAddress(deployerAuth.From, 1)
 
 	// Define balances map
@@ -144,4 +154,13 @@ func NewSimulatedBackend(t *testing.T, balances map[common.Address]types.Account
 	}
 
 	return client, setup
+}
+
+func CreateAccount(chainID *big.Int) (*bind.TransactOpts, error) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		return nil, err
+	}
+
+	return bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 }

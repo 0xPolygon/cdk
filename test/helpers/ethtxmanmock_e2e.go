@@ -3,6 +3,8 @@ package helpers
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
+	big "math/big"
 	"testing"
 
 	"github.com/0xPolygon/cdk/log"
@@ -32,12 +34,6 @@ func NewEthTxManMock(
 		"Add", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			ctx := context.Background()
-			nonce, err := client.Client().PendingNonceAt(ctx, auth.From)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-
 			to, ok := args.Get(argReceiverIdx).(*common.Address)
 			if !ok {
 				log.Error("expected *common.Address for tx receiver arg")
@@ -58,7 +54,7 @@ func NewEthTxManMock(
 				Data: data,
 			}
 
-			gas, err := client.Client().EstimateGas(ctx, msg)
+			_, err := client.Client().EstimateGas(ctx, msg)
 			if err != nil {
 				log.Errorf("eth_estimateGas invocation failed: %+v", err)
 
@@ -70,29 +66,13 @@ func NewEthTxManMock(
 				}
 				return
 			}
-			price, err := client.Client().SuggestGasPrice(ctx)
+
+			err = SendTx(ctx, client, auth, to, data, common.Big0)
 			if err != nil {
-				log.Error(err)
+				log.Errorf("failed to send transaction: %s", err)
+				return
 			}
 
-			tx := types.NewTx(&types.LegacyTx{
-				To:       to,
-				Nonce:    nonce,
-				Value:    common.Big0,
-				Data:     data,
-				Gas:      gas,
-				GasPrice: price,
-			})
-			signedTx, err := auth.Signer(auth.From, tx)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			err = client.Client().SendTransaction(ctx, signedTx)
-			if err != nil {
-				log.Error(err)
-				return
-			}
 			client.Commit()
 		}).
 		Return(common.Hash{}, nil)
@@ -100,4 +80,74 @@ func NewEthTxManMock(
 		Return(ethtxtypes.MonitoredTxResult{Status: ethtxtypes.MonitoredTxStatusMined}, nil)
 
 	return ethTxMock
+}
+
+// SendTx is a helper function that creates the legacy transaction, sings it and sends against simulated environment
+func SendTx(ctx context.Context, client *simulated.Backend, auth *bind.TransactOpts,
+	to *common.Address, data []byte, value *big.Int) error {
+	nonce, err := client.Client().PendingNonceAt(ctx, auth.From)
+	if err != nil {
+		return err
+	}
+
+	gas := uint64(21000) //nolint:mnd
+
+	if len(data) > 0 {
+		msg := ethereum.CallMsg{
+			From:  auth.From,
+			To:    to,
+			Data:  data,
+			Value: value,
+		}
+
+		gas, err = client.Client().EstimateGas(ctx, msg)
+		if err != nil {
+			return err
+		}
+	}
+
+	price, err := client.Client().SuggestGasPrice(ctx)
+	if err != nil {
+		return err
+	}
+
+	senderBalance, err := client.Client().BalanceAt(ctx, auth.From, nil)
+	if err != nil {
+		return err
+	}
+
+	required := new(big.Int).Add(value, new(big.Int).Mul(big.NewInt(int64(gas)), price))
+	if senderBalance.Cmp(required) < 0 {
+		return fmt.Errorf("insufficient balance: have %s, need %s", senderBalance, required)
+	}
+
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: price,
+		Gas:      gas,
+		To:       to,
+		Value:    value,
+		Data:     data,
+	})
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	if err != nil {
+		return err
+	}
+
+	err = client.Client().SendTransaction(ctx, signedTx)
+	if err != nil {
+		return err
+	}
+
+	client.Commit()
+
+	receipt, err := client.Client().TransactionReceipt(ctx, signedTx.Hash())
+	if err != nil {
+		return fmt.Errorf("transaction failed: %w", err)
+	}
+
+	fmt.Printf("Transaction status: %d\n", receipt.Status)
+
+	return nil
 }
