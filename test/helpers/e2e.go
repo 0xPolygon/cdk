@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"context"
+	"math/big"
 	"path"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/stretchr/testify/require"
@@ -246,7 +248,10 @@ func newSimulatedL1(t *testing.T) (
 ) {
 	t.Helper()
 
-	client, setup := NewSimulatedBackend(t, nil)
+	deployerAuth, err := CreateAccount(big.NewInt(chainID))
+	require.NoError(t, err)
+
+	client, setup := NewSimulatedBackend(t, nil, deployerAuth)
 
 	ctx := context.Background()
 	nonce, err := client.Client().PendingNonceAt(ctx, setup.DeployerAuth.From)
@@ -279,13 +284,25 @@ func newSimulatedEVML2SovereignChain(t *testing.T) (
 ) {
 	t.Helper()
 
-	client, setup := NewSimulatedBackend(t, nil)
+	deployerAuth, err := CreateAccount(big.NewInt(chainID))
+	require.NoError(t, err)
 
+	premineBalance, ok := new(big.Int).SetString(defaultBalance, base10)
+	require.True(t, ok)
+
+	const deployedContractsCount = 3
+	l2BridgeAddr := crypto.CreateAddress(deployerAuth.From, deployedContractsCount)
+
+	genesisAllocMap := map[common.Address]types.Account{l2BridgeAddr: {Balance: premineBalance}}
+	client, setup := NewSimulatedBackend(t, genesisAllocMap, deployerAuth)
+
+	// Deploy L2 GER manager contract
 	gerL2Addr, _, _, err := globalexitrootmanagerl2sovereignchain.DeployGlobalexitrootmanagerl2sovereignchain(
 		setup.DeployerAuth, client.Client(), setup.BridgeProxyAddr)
 	require.NoError(t, err)
 	client.Commit()
 
+	// Prepare initialize data that are going to be called by the L2 GER proxy contract
 	gerL2Abi, err := globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchainMetaData.GetAbi()
 	require.NoError(t, err)
 	require.NotNil(t, gerL2Abi)
@@ -293,6 +310,7 @@ func newSimulatedEVML2SovereignChain(t *testing.T) (
 	gerL2InitData, err := gerL2Abi.Pack("initialize", setup.UserAuth.From, setup.UserAuth.From)
 	require.NoError(t, err)
 
+	// Deploy L2 GER manager proxy contract
 	gerProxyAddr, _, _, err := transparentupgradableproxy.DeployTransparentupgradableproxy(
 		setup.DeployerAuth,
 		client.Client(),
@@ -303,16 +321,18 @@ func newSimulatedEVML2SovereignChain(t *testing.T) (
 	require.NoError(t, err)
 	client.Commit()
 
+	// Create L2 GER manager contract binding
 	gerL2Contract, err := globalexitrootmanagerl2sovereignchain.NewGlobalexitrootmanagerl2sovereignchain(
 		gerProxyAddr, client.Client())
 	require.NoError(t, err)
 
 	err = setup.DeployBridge(client, gerProxyAddr, rollupID)
 	require.NoError(t, err)
+	require.Equal(t, l2BridgeAddr, setup.BridgeProxyAddr)
 
-	actualGERAddr, err := setup.BridgeProxyContract.GlobalExitRootManager(nil)
+	bridgeGERAddr, err := setup.BridgeProxyContract.GlobalExitRootManager(nil)
 	require.NoError(t, err)
-	require.Equal(t, gerProxyAddr, actualGERAddr)
+	require.Equal(t, gerProxyAddr, bridgeGERAddr)
 
 	return client, setup.UserAuth, gerProxyAddr, gerL2Contract, setup.BridgeProxyAddr, setup.BridgeProxyContract
 }

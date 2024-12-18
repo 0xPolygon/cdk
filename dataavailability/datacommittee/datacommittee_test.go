@@ -73,7 +73,10 @@ func newSimulatedDACBackend(t *testing.T) (
 ) {
 	t.Helper()
 
-	ethBackend, setup := helpers.NewSimulatedBackend(t, nil)
+	deployerAuth, err := helpers.CreateAccount(big.NewInt(1337))
+	require.NoError(t, err)
+
+	ethBackend, setup := helpers.NewSimulatedBackend(t, nil, deployerAuth)
 
 	// DAC Setup
 	addr, _, _, err := scparis.DeployPolygondatacommittee(setup.UserAuth, ethBackend.Client())
