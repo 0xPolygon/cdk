@@ -21,6 +21,8 @@ const (
 	minBlockInterval = time.Second
 	// maxBlockInterval is the maximum interval at which the AggSender will check for new blocks
 	maxBlockInterval = time.Minute
+	// Percentage period of reach the next block
+	percentForNextBlock = 80
 )
 
 type ConfigBlockNotifierPolling struct {
@@ -147,6 +149,13 @@ func (b *BlockNotifierPolling) step(ctx context.Context,
 		BlockNumber:       currentBlock.Number.Uint64(),
 		BlockFinalityType: b.config.BlockFinalityType,
 	}
+	if previousState.lastBlockSeen > currentBlock.Number.Uint64() {
+		b.logger.Warnf("Block number decreased [finality:%s]: %d -> %d",
+			b.config.BlockFinalityType, previousState.lastBlockSeen, currentBlock.Number.Uint64())
+		// It start from scratch because something fails in calculation of block period
+		newState := previousState.intialBlock(currentBlock.Number.Uint64())
+		return b.nextBlockRequestDelay(nil, nil), newState, eventToEmit
+	}
 
 	if currentBlock.Number.Uint64()-previousState.lastBlockSeen != 1 {
 		b.logger.Warnf("Missed block(s) [finality:%s]: %d -> %d",
@@ -164,7 +173,7 @@ func (b *BlockNotifierPolling) step(ctx context.Context,
 
 func (b *BlockNotifierPolling) nextBlockRequestDelay(status *blockNotifierPollingInternalStatus,
 	err error) time.Duration {
-	if b.config.CheckNewBlockInterval == AutomaticBlockInterval {
+	if b.config.CheckNewBlockInterval != AutomaticBlockInterval {
 		return b.config.CheckNewBlockInterval
 	}
 	// Initial stages wait the minimum interval to increas accuracy
@@ -179,7 +188,7 @@ func (b *BlockNotifierPolling) nextBlockRequestDelay(status *blockNotifierPollin
 	now := timeNowFunc()
 	expectedTimeNextBlock := status.lastBlockTime.Add(*status.previousBlockTime)
 	distanceToNextBlock := expectedTimeNextBlock.Sub(now)
-	interval := distanceToNextBlock * 4 / 5 //nolint:mnd //  80% of for reach the next block
+	interval := distanceToNextBlock * percentForNextBlock / 100 //nolint:mnd //  percent period for reach the next block
 	return max(minBlockInterval, min(maxBlockInterval, interval))
 }
 

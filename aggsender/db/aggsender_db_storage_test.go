@@ -29,7 +29,7 @@ func Test_Storage(t *testing.T) {
 	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), cfg)
 	require.NoError(t, err)
 
-	updateTime := time.Now().UTC().UnixMilli()
+	updateTime := uint32(time.Now().UTC().UnixMilli())
 
 	t.Run("SaveLastSentCertificate", func(t *testing.T) {
 		certificate := types.CertificateInfo{
@@ -242,7 +242,7 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), cfg)
 	require.NoError(t, err)
 
-	updateTime := time.Now().UTC().UnixMilli()
+	updateTime := uint32(time.Now().UTC().UnixMilli())
 
 	t.Run("SaveNewCertificate", func(t *testing.T) {
 		certificate := types.CertificateInfo{

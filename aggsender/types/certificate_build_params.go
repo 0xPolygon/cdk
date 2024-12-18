@@ -18,11 +18,12 @@ type CertificateBuildParams struct {
 	ToBlock   uint64
 	Bridges   []bridgesync.Bridge
 	Claims    []bridgesync.Claim
+	CreatedAt uint32
 }
 
 func (c *CertificateBuildParams) String() string {
-	return fmt.Sprintf("FromBlock: %d, ToBlock: %d, numBridges: %d, numClaims: %d",
-		c.FromBlock, c.ToBlock, c.NumberOfBridges(), c.NumberOfClaims())
+	return fmt.Sprintf("FromBlock: %d, ToBlock: %d, numBridges: %d, numClaims: %d, createdAt: %d",
+		c.FromBlock, c.ToBlock, c.NumberOfBridges(), c.NumberOfClaims(), c.CreatedAt)
 }
 
 // Range create a new CertificateBuildParams with the given range
@@ -103,7 +104,7 @@ func (c *CertificateBuildParams) IsEmpty() bool {
 }
 
 // MaxDepoitCount returns the maximum deposit count in the certificate
-func (c *CertificateBuildParams) MaxDepoitCount() uint32 {
+func (c *CertificateBuildParams) MaxDepositCount() uint32 {
 	if c == nil || c.NumberOfBridges() == 0 {
 		return 0
 	}

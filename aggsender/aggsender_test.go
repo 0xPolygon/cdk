@@ -411,7 +411,7 @@ func TestGetImportedBridgeExits(t *testing.T) {
 							},
 						},
 						ProofLeafLER: &agglayer.MerkleProof{
-							Root:  common.HexToHash("0xbbba"),
+							Root:  common.HexToHash("0xc52019815b51acf67a715cae6794a20083d63fd9af45783b7adf69123dae92c8"),
 							Proof: mockProof,
 						},
 						ProofLERToRER: &agglayer.MerkleProof{
@@ -491,7 +491,7 @@ func TestGetImportedBridgeExits(t *testing.T) {
 							},
 						},
 						ProofLeafLER: &agglayer.MerkleProof{
-							Root:  common.HexToHash("0xbbb"),
+							Root:  common.HexToHash("0x105e0f1144e57f6fb63f1dfc5083b1f59be3512be7cf5e63523779ad14a4d987"),
 							Proof: mockProof,
 						},
 						ProofLERToRER: &agglayer.MerkleProof{
@@ -677,7 +677,7 @@ func TestBuildCertificate(t *testing.T) {
 								},
 							},
 							ProofLeafLER: &agglayer.MerkleProof{
-								Root:  common.HexToHash("0xbbba"),
+								Root:  common.HexToHash("0xc52019815b51acf67a715cae6794a20083d63fd9af45783b7adf69123dae92c8"),
 								Proof: mockProof,
 							},
 							ProofLERToRER: &agglayer.MerkleProof{
@@ -790,7 +790,7 @@ func TestBuildCertificate(t *testing.T) {
 				Bridges: tt.bridges,
 				Claims:  tt.claims,
 			}
-			cert, err := aggSender.buildCertificate(context.Background(), certParam, &tt.lastSentCertificateInfo, 0)
+			cert, err := aggSender.buildCertificate(context.Background(), certParam, &tt.lastSentCertificateInfo)
 
 			if tt.expectedError {
 				require.Error(t, err)
@@ -1705,18 +1705,6 @@ func TestSendCertificate_NoClaims(t *testing.T) {
 	mockL1InfoTreeSyncer.AssertExpectations(t)
 }
 
-func TestMetadataConversions(t *testing.T) {
-	fromBlock := uint64(123567890)
-	toBlock := uint64(123567890)
-	createdAt := uint64(0)
-	meta := aggsendertypes.NewCertificateMetadata(fromBlock, toBlock, createdAt)
-	c := meta.ToHash()
-	extractBlock := aggsendertypes.NewCertificateMetadataFromHash(c)
-	require.Equal(t, fromBlock, extractBlock.FromBlock)
-	require.Equal(t, toBlock, extractBlock.ToBlock)
-	require.Equal(t, createdAt, extractBlock.CreatedAt)
-}
-
 func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 	t.Parallel()
 
@@ -1727,10 +1715,11 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 	}{
 		{
 			name:     "Valid metadata",
-			metadata: aggsendertypes.NewCertificateMetadata(0, 123567890, 123567890).ToHash(),
+			metadata: aggsendertypes.NewCertificateMetadata(0, 1000, 123567890).ToHash(),
 			expected: aggsendertypes.CertificateMetadata{
+				Version:   1,
 				FromBlock: 0,
-				ToBlock:   123567890,
+				Offset:    1000,
 				CreatedAt: 123567890,
 			},
 		},
@@ -1738,8 +1727,9 @@ func TestExtractFromCertificateMetadataToBlock(t *testing.T) {
 			name:     "Zero metadata",
 			metadata: aggsendertypes.NewCertificateMetadata(0, 0, 0).ToHash(),
 			expected: aggsendertypes.CertificateMetadata{
+				Version:   1,
 				FromBlock: 0,
-				ToBlock:   0,
+				Offset:    0,
 				CreatedAt: 0,
 			},
 		},
@@ -2033,8 +2023,8 @@ func certInfoToCertHeader(t *testing.T, certInfo *aggsendertypes.CertificateInfo
 		Status:           agglayer.Pending,
 		Metadata: aggsendertypes.NewCertificateMetadata(
 			certInfo.FromBlock,
-			certInfo.ToBlock,
-			uint64(certInfo.CreatedAt),
+			uint32(certInfo.FromBlock-certInfo.ToBlock),
+			certInfo.CreatedAt,
 		).ToHash(),
 	}
 }
