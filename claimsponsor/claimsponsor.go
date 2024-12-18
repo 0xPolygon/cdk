@@ -141,7 +141,7 @@ func (c *ClaimSponsor) claim(ctx context.Context) error {
 		}
 	}
 
-	c.logger.Infof("waiting for tx %s with global index %s to succeed or fail", claim.TxID, claim.GlobalIndex.String())
+	c.logger.Infof("waiting for tx %s with global index %s", claim.TxID, claim.GlobalIndex.String())
 	status, err := c.waitTxToBeSuccessOrFail(ctx, claim.TxID)
 	if err != nil {
 		return fmt.Errorf("error calling waitTxToBeSuccessOrFail for tx %s: %w", claim.TxID, err)

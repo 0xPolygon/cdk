@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"context"
-	"math/big"
 	"testing"
 
 	"github.com/0xPolygon/cdk/log"
@@ -23,9 +22,8 @@ func NewEthTxManMock(
 	t.Helper()
 
 	const (
-		ArgToIndex   = 1
-		ArgDataIndex = 3
-		ZeroValue    = 0
+		argReceiverIdx = 1
+		argTxInputIdx  = 3
 	)
 
 	ethTxMock := NewEthTxManagerMock(t)
@@ -40,17 +38,17 @@ func NewEthTxManMock(
 			}
 			gas, err := client.Client().EstimateGas(ctx, ethereum.CallMsg{
 				From:  auth.From,
-				To:    args.Get(ArgToIndex).(*common.Address),
-				Value: big.NewInt(ZeroValue),
-				Data:  args.Get(ArgDataIndex).([]byte),
+				To:    args.Get(argReceiverIdx).(*common.Address),
+				Value: common.Big0,
+				Data:  args.Get(argTxInputIdx).([]byte),
 			})
 			if err != nil {
 				log.Error(err)
 				res, err := client.Client().CallContract(ctx, ethereum.CallMsg{
 					From:  auth.From,
-					To:    args.Get(ArgToIndex).(*common.Address),
-					Value: big.NewInt(ZeroValue),
-					Data:  args.Get(ArgDataIndex).([]byte),
+					To:    args.Get(argReceiverIdx).(*common.Address),
+					Value: common.Big0,
+					Data:  args.Get(argTxInputIdx).([]byte),
 				}, nil)
 				log.Debugf("contract call: %s", res)
 				if err != nil {
@@ -63,12 +61,12 @@ func NewEthTxManMock(
 				log.Error(err)
 			}
 
-			to, ok := args.Get(ArgToIndex).(*common.Address)
+			to, ok := args.Get(argReceiverIdx).(*common.Address)
 			if !ok {
 				log.Error("expected *common.Address for ArgToIndex")
 				return
 			}
-			data, ok := args.Get(ArgDataIndex).([]byte)
+			data, ok := args.Get(argTxInputIdx).([]byte)
 			if !ok {
 				log.Error("expected []byte for ArgDataIndex")
 				return
@@ -76,7 +74,7 @@ func NewEthTxManMock(
 			tx := types.NewTx(&types.LegacyTx{
 				To:       to,
 				Nonce:    nonce,
-				Value:    big.NewInt(ZeroValue),
+				Value:    common.Big0,
 				Data:     data,
 				Gas:      gas,
 				GasPrice: price,
@@ -95,7 +93,6 @@ func NewEthTxManMock(
 			client.Commit()
 		}).
 		Return(common.Hash{}, nil)
-	// res, err := c.ethTxMan.Result(ctx, id)
 	ethTxMock.On("Result", mock.Anything, mock.Anything).
 		Return(ethtxtypes.MonitoredTxResult{Status: ethtxtypes.MonitoredTxStatusMined}, nil)
 

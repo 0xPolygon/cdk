@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
@@ -110,7 +109,7 @@ func (a *AggOracle) handleGERProcessingError(err error, blockNumToFetch uint64) 
 	switch {
 	case errors.Is(err, l1infotreesync.ErrBlockNotProcessed):
 		a.logger.Debugf("syncer is not ready for the block %d", blockNumToFetch)
-	case errors.Is(err, db.ErrNotFound):
+	case errors.Is(err, l1infotreesync.ErrNotFound):
 		a.logger.Debugf("syncer has not found any GER until block %d", blockNumToFetch)
 	default:
 		a.logger.Error("unexpected error processing GER: ", err)
