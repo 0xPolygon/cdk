@@ -3,6 +3,7 @@ setup() {
     
     _common_setup
 
+    local target_certificate=${TARGET_CERTIFICATE:-1}
     if [ -z "$BRIDGE_ADDRESS" ]; then
         local combined_json_file="/opt/zkevm/combined.json"
         echo "BRIDGE_ADDRESS env variable is not provided, resolving the bridge address from the Kurtosis CDK '$combined_json_file'" >&3
@@ -21,6 +22,7 @@ setup() {
     readonly bridge_addr=$BRIDGE_ADDRESS
     readonly l2_rpc_network_id=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'networkID() (uint32)')
 
-    run $PROJECT_ROOT/../scripts/agglayer_certificates_monitor.sh 1 600 $l2_rpc_network_id
+    run $PROJECT_ROOT/../scripts/agglayer_certificates_monitor.sh \
+    $target_certificate 600 $l2_rpc_network_id
     assert_success
 }
