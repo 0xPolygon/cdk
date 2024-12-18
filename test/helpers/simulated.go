@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain-paris/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -111,7 +112,7 @@ func (s *SimulatedBackendSetup) DeployBridge(client *simulated.Backend,
 		return err
 	}
 
-	fmt.Printf("Bridge balance (%s)=%d\n", bridgeProxyAddr, bridgeBalance)
+	log.Debugf("Bridge@%s, balance=%d\n", bridgeProxyAddr, bridgeBalance)
 
 	return nil
 }

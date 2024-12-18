@@ -199,7 +199,6 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 	actualRollupExitRoot, err := syncer.GetLastRollupExitRoot(ctx)
 	require.NoError(t, err)
-	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 
 	// Assert L1 Info tree root
@@ -230,7 +229,6 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 	actualRollupExitRoot, err = syncer.GetLastRollupExitRoot(ctx)
 	require.ErrorContains(t, err, "not found") // rollup exit tree reorged, it does not have any exits in it
-	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 
 	// Forking from block 3 again
@@ -252,7 +250,6 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 	actualRollupExitRoot, err = syncer.GetLastRollupExitRoot(ctx)
 	require.NoError(t, err)
-	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 }
 
