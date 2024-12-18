@@ -60,11 +60,11 @@ func NewEthTxManMock(
 
 			gas, err := client.Client().EstimateGas(ctx, msg)
 			if err != nil {
-				log.Errorf("eth_estimateGas invocation failed: %s", err)
+				log.Errorf("eth_estimateGas invocation failed: %+v", err)
 
 				res, err := client.Client().CallContract(ctx, msg, nil)
 				if err != nil {
-					log.Errorf("eth_call invocation failed: %s", err)
+					log.Errorf("eth_call invocation failed: %+v", err)
 				} else {
 					log.Debugf("contract call result: %s", hex.EncodeToString(res))
 				}

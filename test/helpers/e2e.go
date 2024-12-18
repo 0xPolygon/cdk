@@ -59,11 +59,13 @@ func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChainEnv {
 	t.Helper()
 
 	ctx := context.Background()
+	// Setup L1
 	l1Client, syncer,
 		gerL1Contract, gerL1Addr,
 		bridgeL1Contract, bridgeL1Addr,
 		authL1, rdL1, bridgeL1Sync := CommonSetup(t)
 
+	// Setup L2 EVM
 	sender, l2Client, gerL2Contract, gerL2Addr,
 		bridgeL2Contract, bridgeL2Addr, authL2,
 		ethTxManMockL2, bridgeL2Sync, rdL2 := L2SetupEVM(t)
@@ -123,7 +125,6 @@ func CommonSetup(t *testing.T) (
 ) {
 	t.Helper()
 
-	// Config and spin up
 	ctx := context.Background()
 
 	// Simulated L1
@@ -245,9 +246,17 @@ func newSimulatedL1(t *testing.T) (
 ) {
 	t.Helper()
 
-	client, setup := SimulatedBackend(t, nil, 0)
+	client, setup := NewSimulatedBackend(t, nil)
 
-	expectedGERAddr := crypto.CreateAddress(setup.DeployerAuth.From, 2) //nolint:mnd
+	ctx := context.Background()
+	nonce, err := client.Client().PendingNonceAt(ctx, setup.DeployerAuth.From)
+	require.NoError(t, err)
+
+	// DeployBridge function sends two transactions (bridge and proxy contract deployment)
+	calculatedGERAddr := crypto.CreateAddress(setup.DeployerAuth.From, nonce+2) //nolint:mnd
+
+	err = setup.DeployBridge(client, calculatedGERAddr, 0)
+	require.NoError(t, err)
 
 	gerAddr, _, gerContract, err := polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(
 		setup.DeployerAuth, client.Client(),
@@ -255,7 +264,7 @@ func newSimulatedL1(t *testing.T) (
 	require.NoError(t, err)
 	client.Commit()
 
-	require.Equal(t, expectedGERAddr, gerAddr)
+	require.Equal(t, calculatedGERAddr, gerAddr)
 
 	return client, setup.UserAuth, gerAddr, gerContract, setup.BridgeProxyAddr, setup.BridgeProxyContract
 }
@@ -270,7 +279,7 @@ func newSimulatedEVML2SovereignChain(t *testing.T) (
 ) {
 	t.Helper()
 
-	client, setup := SimulatedBackend(t, nil, rollupID)
+	client, setup := NewSimulatedBackend(t, nil)
 
 	gerL2Addr, _, _, err := globalexitrootmanagerl2sovereignchain.DeployGlobalexitrootmanagerl2sovereignchain(
 		setup.DeployerAuth, client.Client(), setup.BridgeProxyAddr)
@@ -297,6 +306,13 @@ func newSimulatedEVML2SovereignChain(t *testing.T) (
 	gerL2Contract, err := globalexitrootmanagerl2sovereignchain.NewGlobalexitrootmanagerl2sovereignchain(
 		gerProxyAddr, client.Client())
 	require.NoError(t, err)
+
+	err = setup.DeployBridge(client, gerProxyAddr, rollupID)
+	require.NoError(t, err)
+
+	actualGERAddr, err := setup.BridgeProxyContract.GlobalExitRootManager(nil)
+	require.NoError(t, err)
+	require.Equal(t, gerProxyAddr, actualGERAddr)
 
 	return client, setup.UserAuth, gerProxyAddr, gerL2Contract, setup.BridgeProxyAddr, setup.BridgeProxyContract
 }

@@ -24,7 +24,6 @@ func TestBridgeEventE2E(t *testing.T) {
 	)
 	env := helpers.NewE2EEnvWithEVML2(t)
 	ctx := context.Background()
-
 	// Send bridge txs
 	bridgesSent := 0
 	reorgs := 0
@@ -35,7 +34,7 @@ func TestBridgeEventE2E(t *testing.T) {
 		bridge := bridgesync.Bridge{
 			Amount:             big.NewInt(0),
 			DepositCount:       lastDepositCount,
-			DestinationNetwork: uint32(i),
+			DestinationNetwork: uint32(i + 1),
 			DestinationAddress: common.HexToAddress("f00"),
 			Metadata:           []byte{},
 		}
@@ -48,6 +47,7 @@ func TestBridgeEventE2E(t *testing.T) {
 			bridge.OriginAddress,
 			true, nil,
 		)
+		t.Logf("BridgeAsset err: %+v", err)
 		require.NoError(t, err)
 		helpers.CommitBlocks(t, env.L1Client, 1, blockTime)
 		bn, err := env.L1Client.Client().BlockNumber(ctx)

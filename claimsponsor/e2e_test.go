@@ -67,21 +67,20 @@ func TestE2EL1toEVML2(t *testing.T) {
 
 		// Request to sponsor claim
 		globalIndex := bridgesync.GenerateGlobalIndex(true, 0, i)
-		err = claimer.AddClaimToQueue(
-			&claimsponsor.Claim{
-				LeafType:            claimsponsor.LeafTypeAsset,
-				ProofLocalExitRoot:  localProof,
-				ProofRollupExitRoot: rollupProof,
-				GlobalIndex:         globalIndex,
-				MainnetExitRoot:     info.MainnetExitRoot,
-				RollupExitRoot:      info.RollupExitRoot,
-				OriginNetwork:       0,
-				OriginTokenAddress:  common.Address{},
-				DestinationNetwork:  env.NetworkIDL2,
-				DestinationAddress:  env.AuthL2.From,
-				Amount:              amount,
-				Metadata:            nil,
-			})
+		err = claimer.AddClaimToQueue(&claimsponsor.Claim{
+			LeafType:            claimsponsor.LeafTypeAsset,
+			ProofLocalExitRoot:  localProof,
+			ProofRollupExitRoot: rollupProof,
+			GlobalIndex:         globalIndex,
+			MainnetExitRoot:     info.MainnetExitRoot,
+			RollupExitRoot:      info.RollupExitRoot,
+			OriginNetwork:       0,
+			OriginTokenAddress:  common.Address{},
+			DestinationNetwork:  env.NetworkIDL2,
+			DestinationAddress:  env.AuthL2.From,
+			Amount:              amount,
+			Metadata:            nil,
+		})
 		require.NoError(t, err)
 
 		// Wait until success
