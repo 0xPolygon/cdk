@@ -5,10 +5,10 @@ import (
 	"math/big"
 	"testing"
 
-	smcparis "github.com/0xPolygon/cdk-contracts-tooling/contracts/banana-paris/polygondatacommittee"
+	scparis "github.com/0xPolygon/cdk-contracts-tooling/contracts/banana-paris/polygondatacommittee"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygondatacommittee"
 	"github.com/0xPolygon/cdk/log"
-	erc1967proxy "github.com/0xPolygon/cdk/test/contracts/erc1967proxy"
+	"github.com/0xPolygon/cdk/test/contracts/erc1967proxy"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -20,7 +20,7 @@ import (
 
 func TestUpdateDataCommitteeEvent(t *testing.T) {
 	// Set up testing environment
-	dac, ethBackend, da, auth := newSimulatedDacman(t)
+	dac, ethBackend, da, auth := newSimulatedDACBackend(t)
 
 	// Update the committee
 	requiredAmountOfSignatures := big.NewInt(2)
@@ -65,7 +65,7 @@ func init() {
 
 // NewSimulatedEtherman creates an etherman that uses a simulated blockchain. It's important to notice that the ChainID of the auth
 // must be 1337. The address that holds the auth will have an initial balance of 10 ETH
-func newSimulatedDacman(t *testing.T) (
+func newSimulatedDACBackend(t *testing.T) (
 	*Backend,
 	*simulated.Backend,
 	*polygondatacommittee.Polygondatacommittee,
@@ -73,10 +73,10 @@ func newSimulatedDacman(t *testing.T) (
 ) {
 	t.Helper()
 
-	ethBackend, setup := helpers.SimulatedBackend(t, nil, 0)
+	ethBackend, setup := helpers.NewSimulatedBackend(t, nil)
 
 	// DAC Setup
-	addr, _, _, err := smcparis.DeployPolygondatacommittee(setup.UserAuth, ethBackend.Client())
+	addr, _, _, err := scparis.DeployPolygondatacommittee(setup.UserAuth, ethBackend.Client())
 	require.NoError(t, err)
 	ethBackend.Commit()
 

@@ -35,21 +35,23 @@ func newSimulatedClient(t *testing.T) (
 ) {
 	t.Helper()
 	ctx := context.Background()
-	client, setup := helpers.SimulatedBackend(t, nil, 0)
+	client, setup := helpers.NewSimulatedBackend(t, nil)
 
 	nonce, err := client.Client().PendingNonceAt(ctx, setup.UserAuth.From)
 	require.NoError(t, err)
 
-	precalculatedAddr := crypto.CreateAddress(setup.UserAuth.From, nonce+1)
-	verifyAddr, _, verifyContract, err := verifybatchesmock.DeployVerifybatchesmock(setup.UserAuth, client.Client(), precalculatedAddr)
+	precalculatedGERAddr := crypto.CreateAddress(setup.UserAuth.From, nonce+1)
+	verifyAddr, _, verifyContract, err := verifybatchesmock.DeployVerifybatchesmock(setup.UserAuth, client.Client(), precalculatedGERAddr)
 	require.NoError(t, err)
 	client.Commit()
 
 	gerAddr, _, gerContract, err := polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(setup.UserAuth, client.Client(), verifyAddr, setup.UserAuth.From)
 	require.NoError(t, err)
+	require.Equal(t, precalculatedGERAddr, gerAddr)
 	client.Commit()
 
-	require.Equal(t, precalculatedAddr, gerAddr)
+	err = setup.DeployBridge(client, gerAddr, 0)
+	require.NoError(t, err)
 
 	return client, setup.UserAuth, gerAddr, verifyAddr, gerContract, verifyContract
 }

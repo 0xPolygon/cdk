@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -39,11 +40,71 @@ type SimulatedBackendSetup struct {
 	BridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
 }
 
-// SimulatedBackend creates a simulated backend with two accounts: user and deployer.
-func SimulatedBackend(
-	t *testing.T,
-	balances map[common.Address]types.Account,
-	rollupID uint32,
+// DeployBridge deploys the bridge contract
+func (s *SimulatedBackendSetup) DeployBridge(client *simulated.Backend,
+	gerAddr common.Address, networkID uint32) error {
+	// Deploy zkevm bridge contract
+	bridgeAddr, _, _, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(s.DeployerAuth, client.Client())
+	if err != nil {
+		return err
+	}
+	client.Commit()
+
+	// Create proxy contract for the bridge
+	var (
+		bridgeProxyAddr     common.Address
+		bridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	)
+
+	bridgeABI, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
+	if err != nil {
+		return err
+	}
+
+	// TODO: @Stefan-Ethernal parameterize gasTokenAddress and gasTokenNetwork if necessary
+	dataCallProxy, err := bridgeABI.Pack("initialize",
+		networkID,
+		common.Address{}, // gasTokenAddressMainnet
+		uint32(0),        // gasTokenNetworkMainnet
+		gerAddr,          // global exit root manager
+		common.Address{}, // rollup manager
+		[]byte{},         // gasTokenMetadata
+	)
+	if err != nil {
+		return err
+	}
+
+	bridgeProxyAddr, _, _, err = transparentupgradableproxy.DeployTransparentupgradableproxy(
+		s.DeployerAuth,
+		client.Client(),
+		bridgeAddr,
+		s.DeployerAuth.From,
+		dataCallProxy,
+	)
+	if err != nil {
+		return err
+	}
+	client.Commit()
+
+	bridgeProxyContract, err = polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeProxyAddr, client.Client())
+	if err != nil {
+		return err
+	}
+
+	actualGERAddr, err := bridgeProxyContract.GlobalExitRootManager(&bind.CallOpts{})
+	if gerAddr != actualGERAddr {
+		return fmt.Errorf("mismatch between expected %s and actual %s GER addresses on bridge contract (%s)",
+			gerAddr, actualGERAddr, bridgeProxyAddr)
+	}
+
+	s.BridgeProxyAddr = bridgeProxyAddr
+	s.BridgeProxyContract = bridgeProxyContract
+
+	return err
+}
+
+// NewSimulatedBackend creates a simulated backend with two accounts: user and deployer.
+func NewSimulatedBackend(t *testing.T, balances map[common.Address]types.Account,
 ) (*simulated.Backend, *SimulatedBackendSetup) {
 	t.Helper()
 
@@ -51,13 +112,13 @@ func SimulatedBackend(
 	balance, ok := new(big.Int).SetString(defaultBalance, 10) //nolint:mnd
 	require.Truef(t, ok, "failed to set balance")
 
-	// Create user
+	// Create user account
 	userPK, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	userAuth, err := bind.NewKeyedTransactorWithChainID(userPK, big.NewInt(chainID))
 	require.NoError(t, err)
 
-	// Create deployer
+	// Create deployer account
 	deployerPK, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	deployerAuth, err := bind.NewKeyedTransactorWithChainID(deployerPK, big.NewInt(chainID))
@@ -77,59 +138,10 @@ func SimulatedBackend(
 	// Mine the first block
 	client.Commit()
 
-	// MUST BE DEPLOYED FIRST
-	// Deploy zkevm bridge contract
-	bridgeAddr, _, _, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(deployerAuth, client.Client())
-	require.NoError(t, err)
-	client.Commit()
-
-	// Create proxy contract for the bridge
-	var (
-		bridgeProxyAddr     common.Address
-		bridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
-	)
-
-	{
-		calculatedGERAddr := crypto.CreateAddress(deployerAuth.From, 2) //nolint:mnd
-
-		bridgeABI, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
-		require.NoError(t, err)
-		require.NotNil(t, bridgeABI)
-
-		dataCallProxy, err := bridgeABI.Pack("initialize",
-			rollupID,
-			common.Address{}, // gasTokenAddressMainnet
-			uint32(0),        // gasTokenNetworkMainnet
-			calculatedGERAddr,
-			common.Address{},
-			[]byte{}, // gasTokenMetadata
-		)
-		require.NoError(t, err)
-
-		bridgeProxyAddr, _, _, err = transparentupgradableproxy.DeployTransparentupgradableproxy(
-			deployerAuth,
-			client.Client(),
-			bridgeAddr,
-			deployerAuth.From,
-			dataCallProxy,
-		)
-		require.NoError(t, err)
-		require.Equal(t, precalculatedBridgeAddr, bridgeProxyAddr)
-		client.Commit()
-
-		bridgeProxyContract, err = polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeProxyAddr, client.Client())
-		require.NoError(t, err)
-
-		actualGERAddr, err := bridgeProxyContract.GlobalExitRootManager(&bind.CallOpts{})
-		require.NoError(t, err)
-		require.Equal(t, calculatedGERAddr, actualGERAddr)
+	setup := &SimulatedBackendSetup{
+		UserAuth:     userAuth,
+		DeployerAuth: deployerAuth,
 	}
 
-	return client,
-		&SimulatedBackendSetup{
-			UserAuth:            userAuth,
-			DeployerAuth:        deployerAuth,
-			BridgeProxyAddr:     bridgeProxyAddr,
-			BridgeProxyContract: bridgeProxyContract,
-		}
+	return client, setup
 }
