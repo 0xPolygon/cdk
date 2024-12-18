@@ -21,13 +21,16 @@ _common_multi_setup() {
     readonly gas_token_address=$(<gas-token-address.json)
     readonly l2_pp1b_url=$(kurtosis port print $enclave zkevm-bridge-service-001 rpc)
     readonly l2_pp2b_url=$(kurtosis port print $enclave zkevm-bridge-service-002 rpc)
-    
+    readonly l2_pp1_cdk_node_url=$(kurtosis port print $enclave cdk-node-001 rpc)
+    readonly l2_pp2_cdk_node_url=$(kurtosis port print $enclave cdk-node-002 rpc)
+
     #readonly l1_rpc_network_id=$(cast call --rpc-url $l1_rpc_url $bridge_addr 'networkID() (uint32)')
     #readonly l2_pp1b_network_id=$(cast call --rpc-url $l2_pp1_url $bridge_addr 'networkID() (uint32)')
     #readonly l2_pp2b_network_id=$(cast call --rpc-url $l2_pp2_url $bridge_addr 'networkID() (uint32)')
     readonly l1_rpc_network_id=0
     readonly l2_pp1b_network_id=1
     readonly l2_pp2b_network_id=2
+    readonly aggsender_find_imported_bridge="../target/aggsender_find_imported_bridge"
     echo "=== Bridge address=$bridge_address ===" >&3
     echo "=== POL address=$pol_address ===" >&3
     echo "=== Gas token address=$gas_token_address ===" >&3

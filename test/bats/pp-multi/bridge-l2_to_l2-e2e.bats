@@ -5,10 +5,16 @@ setup() {
     _common_multi_setup
     load '../../helpers/common'
     load '../../helpers/lxly-bridge-test'
+    load '../../helpers/aggsender'
 
-    add_cdk_network2_to_agglayer
-    fund_claim_tx_manager
-    mint_pol_token
+    if [ ! -f $aggsender_find_imported_bridge ]; then
+        echo "missing required tool: $aggsender_find_imported_bridge" >&3
+        return 1
+    fi
+    
+    #add_cdk_network2_to_agglayer
+    #fund_claim_tx_manager
+    #mint_pol_token
 
     ether_value=${ETHER_VALUE:-"0.0200000054"}
     amount=$(cast to-wei $ether_value ether)
@@ -24,6 +30,9 @@ setup() {
     claim_frequency="30"
 
     gas_price=$(cast gas-price --rpc-url "$l2_rpc_url")
+    
+    
+
 }
 
 @test "Test L2 to L2 bridge" {
@@ -72,7 +81,9 @@ setup() {
     assert_success
 
     echo "=== Check if deposit is in a settled certificate"
-
-    aggsender_pp1_url=http://localhost:5576/
-   ../../../../target/aggsender_find_imported_bridge $aggsender_pp1_url $global_index_pp2_to_pp1
+    echo "$aggsender_find_imported_bridge $l2_pp1_cdk_node_url $global_index_pp2_to_pp1"
+    
+    echo "=== Waiting to settled certificate with imported bridge for global_index: $global_index_pp2_to_pp1"
+    wait_to_settled_certificate_containing_global_index $l2_pp1_cdk_node_url  $global_index_pp2_to_pp1
+    
 }

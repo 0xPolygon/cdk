@@ -51,7 +51,8 @@ func certContainsGlobalIndex(cert *types.CertificateInfo, globalIndex *agglayer.
 	var certSigned agglayer.SignedCertificate
 	err := json.Unmarshal([]byte(cert.SignedCertificate), &certSigned)
 	if err != nil {
-		return false, err
+		log.Debugf("cert: %v", cert.SignedCertificate)
+		return false, fmt.Errorf("error Unmarshal cert. Err: %w", err)
 	}
 	for _, importedBridge := range certSigned.ImportedBridgeExits {
 		if *importedBridge.GlobalIndex == *globalIndex {
@@ -77,6 +78,7 @@ func main() {
 		log.Errorf("Error: %v", err)
 		os.Exit(errLevelComms)
 	}
+
 	currentHeight := cert.Height
 	for cert != nil {
 		found, err := certContainsGlobalIndex(cert, decodedGlobalIndex)

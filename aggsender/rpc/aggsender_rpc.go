@@ -68,5 +68,8 @@ func (b *AggsenderRPC) GetCertificateHeaderPerHeight(height *uint64) (interface{
 	if err != nil {
 		return nil, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("error getting certificate by height: %v", err))
 	}
+	if certInfo == nil {
+		return nil, rpc.NewRPCError(rpc.NotFoundErrorCode, "certificate not found")
+	}
 	return certInfo, nil
 }
