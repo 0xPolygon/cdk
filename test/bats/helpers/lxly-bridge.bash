@@ -133,6 +133,8 @@ function claim() {
 # This function is used to claim a concrete tx hash
 # global vars:
 # - destination_addr
+# export:
+# - global_index
 
 function claim_tx_hash() {
     local timeout="$1" 
@@ -216,6 +218,7 @@ function claim_tx_hash() {
         fi
     done
     echo "....[$(date '+%Y-%m-%d %H:%M:%S')]   claimed" >&3
+    export global_index=$(jq '.global_index' $current_deposit)
     # clean up temp files
     rm $current_deposit
     rm $current_proof

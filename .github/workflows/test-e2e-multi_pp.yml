@@ -27,10 +27,14 @@ jobs:
         go-version: ${{ matrix.go-version }}
       env:
         GOARCH: ${{ matrix.goarch }}
+      
 
     - name: Build Docker
       run: make build-docker
     
+    - name: Build Tools
+      run: make build-tools
+      
     - name: Checkout kurtosis-cdk
       uses: actions/checkout@v4
       with:

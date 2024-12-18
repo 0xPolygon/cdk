@@ -9,7 +9,7 @@ RUN go mod download
 
 # BUILD BINARY
 COPY . .
-RUN make build-go
+RUN make build-go build-tools
 
 # BUILD RUST BIN
 FROM --platform=${BUILDPLATFORM} rust:slim-bookworm AS chef
@@ -45,5 +45,7 @@ FROM --platform=${BUILDPLATFORM} debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates sqlite3 procps libssl-dev && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/cdk /usr/local/bin/
 COPY --from=build /go/src/github.com/0xPolygon/cdk/target/cdk-node /usr/local/bin/
+
+EXPOSE 5576/tcp
 
 CMD ["/bin/sh", "-c", "cdk"]

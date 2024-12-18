@@ -55,9 +55,10 @@ setup() {
     bridge_asset "$native_token_addr" "$l2_pp2_url"
     
     echo "=== Running LxLy claim L2(PP2) to L2(PP1)  for: $bridge_tx_hash" >&3
-    run claim_tx_hash "$timeout" "$bridge_tx_hash" "$destination_addr" "$l2_pp1_url"  "$l2_pp2b_url"
-    assert_success
-    
+    claim_tx_hash "$timeout" "$bridge_tx_hash" "$destination_addr" "$l2_pp1_url"  "$l2_pp2b_url"
+    echo "... deposit $global_index"
+    global_index_pp2_to_pp1=$global_index
+
     # Now a need to do a bridge on L2(PP1) to trigger a certificate: 
     ether_value=${ETHER_VALUE:-"0.0100000054"}
     amount=$(cast to-wei $ether_value ether)
@@ -69,4 +70,9 @@ setup() {
     echo "=== Running LxLy claim L2(PP1) to L1 for $bridge_tx_hash" >&3
     run claim_tx_hash "$timeout" "$bridge_tx_hash" "$destination_addr" "$l1_rpc_url"  "$l2_pp1b_url"
     assert_success
+
+    echo "=== Check if deposit is in a settled certificate"
+
+    aggsender_pp1_url=http://localhost:5576/
+   ../../../../target/aggsender_find_imported_bridge $aggsender_pp1_url $global_index_pp2_to_pp1
 }
