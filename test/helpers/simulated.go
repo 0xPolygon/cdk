@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain-paris/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/polygonzkevmbridgev2"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"

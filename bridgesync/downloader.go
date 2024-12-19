@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridge"
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain-paris/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/polygonzkevmbridgev2"
 	rpcTypes "github.com/0xPolygon/cdk-rpc/types"
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/sync"
