@@ -57,7 +57,6 @@ func TestAggsenderRPCGetCertificateHeaderPerHeight(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-
 			if tt.height == nil {
 				testData.mockStore.EXPECT().GetLastSentCertificate().Return(tt.certResult, tt.certError).Once()
 			} else {

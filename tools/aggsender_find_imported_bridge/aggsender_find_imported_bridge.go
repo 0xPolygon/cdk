@@ -20,7 +20,8 @@ const (
 	errLevelNotFound           = 4
 	errLevelFoundButNotSettled = 5
 
-	base10 = 10
+	base10         = 10
+	minimumNumArgs = 3
 )
 
 func unmarshalGlobalIndex(globalIndex string) (*agglayer.GlobalIndex, error) {
@@ -65,8 +66,9 @@ func certContainsGlobalIndex(cert *types.CertificateInfo, globalIndex *agglayer.
 }
 
 func main() {
-	if len(os.Args) != 3 {
-		log.Errorf("Usage: %v <aggsenderRPC> <globalIndex>", os.Args[0])
+	if len(os.Args) != minimumNumArgs {
+		fmt.Printf("Wrong number of arguments\n")
+		fmt.Printf(" Usage: %v <aggsenderRPC> <globalIndex>\n", os.Args[0])
 		os.Exit(errLevelWrongParams)
 	}
 	aggsenderRPC := os.Args[1]
@@ -76,6 +78,7 @@ func main() {
 		log.Errorf("Error unmarshalGlobalIndex: %v", err)
 		os.Exit(errLevelWrongParams)
 	}
+	log.Debugf("decodedGlobalIndex: %v", decodedGlobalIndex)
 	aggsenderClient := rpcclient.NewClient(aggsenderRPC)
 	// Get first certificate
 	cert, err := aggsenderClient.GetCertificateHeaderPerHeight(nil)
