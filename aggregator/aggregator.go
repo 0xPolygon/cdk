@@ -336,10 +336,14 @@ func (a *Aggregator) Start() error {
 		grpchealth.RegisterHealthServer(a.srv, healthService)
 
 		// Get last verified batch number to set the starting point for verifications
-		lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
-		if err != nil {
-			return err
-		}
+		/*
+			lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
+			if err != nil {
+				return err
+			}
+		*/
+
+		lastVerifiedBatchNumber := uint64(134459)
 
 		a.logger.Infof("Last Verified Batch Number:%v", lastVerifiedBatchNumber)
 
@@ -680,11 +684,14 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover ProverInterf
 		return false, nil
 	}
 	tmpLogger.Debug("Send final proof time reached")
-
-	lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
-	if err != nil {
-		return false, err
-	}
+	/*
+		lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
+		if err != nil {
+			return false, err
+		}
+	*/
+	lastVerifiedBatchNumber := uint64(134459)
+	var err error
 
 	if proof == nil {
 		// we don't have a proof generating at the moment, check if we
@@ -1077,10 +1084,15 @@ func (a *Aggregator) getAndLockBatchToProve(
 	defer a.stateDBMutex.Unlock()
 
 	// Get last virtual batch number from L1
-	lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
-	if err != nil {
-		return nil, nil, nil, err
-	}
+	/*
+		lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	*/
+
+	lastVerifiedBatchNumber := uint64(134459)
+	var err error
 
 	proofExists := true
 	batchNumberToVerify := lastVerifiedBatchNumber
