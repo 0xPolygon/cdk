@@ -110,11 +110,10 @@ func (l *LeafType) UnmarshalJSON(raw []byte) error {
 		*l = LeafTypeMessage
 	default:
 		var value int
-		if _, err := fmt.Sscanf(rawStr, "%d", &value); err == nil {
-			*l = LeafType(value)
-		} else {
+		if _, err := fmt.Sscanf(rawStr, "%d", &value); err != nil {
 			return fmt.Errorf("invalid LeafType: %s", rawStr)
 		}
+		*l = LeafType(value)
 	}
 	return nil
 }
@@ -377,7 +376,11 @@ func (b *BridgeExit) UnmarshalJSON(data []byte) error {
 	b.TokenInfo = aux.TokenInfo
 	b.DestinationNetwork = aux.DestinationNetwork
 	b.DestinationAddress = aux.DestinationAddress
-	b.Amount, _ = new(big.Int).SetString(aux.Amount, base10)
+	var ok bool
+	b.Amount, ok = new(big.Int).SetString(aux.Amount, base10)
+	if !ok {
+		return fmt.Errorf("failed to convert amount to big.Int: %s", aux.Amount)
+	}
 	if s, ok := aux.Metadata.(string); ok {
 		b.IsMetadataHashed = true
 		b.Metadata = common.Hex2Bytes(s)

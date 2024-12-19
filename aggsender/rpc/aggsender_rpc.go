@@ -49,8 +49,10 @@ func (b *AggsenderRPC) Status() (interface{}, rpc.Error) {
 // latest: curl -X POST http://localhost:5576/ -H "Con -application/json" \
 // -d '{"method":"aggsender_getCertificateHeaderPerHeight", "params":[], "id":1}'
 func (b *AggsenderRPC) GetCertificateHeaderPerHeight(height *uint64) (interface{}, rpc.Error) {
-	var certInfo *types.CertificateInfo
-	var err error
+	var (
+		certInfo *types.CertificateInfo
+		err      error
+	)
 	if height == nil {
 		certInfo, err = b.storage.GetLastSentCertificate()
 	} else {

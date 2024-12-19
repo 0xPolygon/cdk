@@ -26,3 +26,20 @@ func TestGetCertificateHeaderPerHeight(t *testing.T) {
 	require.NotNil(t, cert)
 	require.Equal(t, responseCert, *cert)
 }
+
+func TestGetStatus(t *testing.T) {
+	sut := NewClient("url")
+	responseData := types.AggsenderInfo{}
+	responseDataJSON, err := json.Marshal(responseData)
+	require.NoError(t, err)
+	response := rpc.Response{
+		Result: responseDataJSON,
+	}
+	jSONRPCCall = func(_, _ string, _ ...interface{}) (rpc.Response, error) {
+		return response, nil
+	}
+	result, err := sut.GetStatus()
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, responseData, *result)
+}

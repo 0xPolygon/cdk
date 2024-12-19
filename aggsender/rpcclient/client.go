@@ -21,6 +21,24 @@ func NewClient(url string) *Client {
 	}
 }
 
+func (c *Client) GetStatus() (*types.AggsenderInfo, error) {
+	response, err := jSONRPCCall(c.url, "aggsender_status")
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the response is an error
+	if response.Error != nil {
+		return nil, fmt.Errorf("error in the response calling aggsender_status: %w", response.Error)
+	}
+	result := types.AggsenderInfo{}
+	err = json.Unmarshal(response.Result, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 func (c *Client) GetCertificateHeaderPerHeight(height *uint64) (*types.CertificateInfo, error) {
 	response, err := jSONRPCCall(c.url, "aggsender_getCertificateHeaderPerHeight", height)
 	if err != nil {
@@ -29,10 +47,9 @@ func (c *Client) GetCertificateHeaderPerHeight(height *uint64) (*types.Certifica
 
 	// Check if the response is an error
 	if response.Error != nil {
-		return nil, fmt.Errorf("error in the response calling aggsender_getCertificateHeaderPerHeight: %v", response.Error)
+		return nil, fmt.Errorf("error in the response calling aggsender_getCertificateHeaderPerHeight: %w", response.Error)
 	}
 	cert := types.CertificateInfo{}
-	// Get the batch number from the response hex string
 	err = json.Unmarshal(response.Result, &cert)
 	if err != nil {
 		return nil, err

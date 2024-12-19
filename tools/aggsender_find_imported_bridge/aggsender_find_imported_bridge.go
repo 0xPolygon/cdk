@@ -80,7 +80,7 @@ func main() {
 	}
 	log.Debugf("decodedGlobalIndex: %v", decodedGlobalIndex)
 	aggsenderClient := rpcclient.NewClient(aggsenderRPC)
-	// Get first certificate
+	// Get latest certificate
 	cert, err := aggsenderClient.GetCertificateHeaderPerHeight(nil)
 	if err != nil {
 		log.Errorf("Error: %v", err)
@@ -92,7 +92,7 @@ func main() {
 		found, err := certContainsGlobalIndex(cert, decodedGlobalIndex)
 		if err != nil {
 			log.Errorf("Error: %v", err)
-			os.Exit(1)
+			os.Exit(errLevelUnexpected)
 		}
 		if found {
 			log.Infof("Found certificate for global index: %v", globalIndex)
