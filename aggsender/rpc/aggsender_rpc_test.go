@@ -11,7 +11,7 @@ import (
 
 func TestAggsenderRPCStatus(t *testing.T) {
 	testData := newAggsenderData(t)
-	testData.mockAggsender.EXPECT().Status().Return(types.AggsenderStatus{})
+	testData.mockAggsender.EXPECT().Info().Return(types.AggsenderInfo{})
 	res, err := testData.sut.Status()
 	require.NoError(t, err)
 	require.NotNil(t, res)
@@ -81,13 +81,13 @@ func TestAggsenderRPCGetCertificateHeaderPerHeight(t *testing.T) {
 type aggsenderRPCTestData struct {
 	sut           *AggsenderRPC
 	mockStore     *mocks.AggsenderStorer
-	mockAggsender *mocks.AggsenderStatuser
+	mockAggsender *mocks.AggsenderInterface
 }
 
 func newAggsenderData(t *testing.T) *aggsenderRPCTestData {
 	t.Helper()
 	mockStore := mocks.NewAggsenderStorer(t)
-	mockAggsender := mocks.NewAggsenderStatuser(t)
+	mockAggsender := mocks.NewAggsenderInterface(t)
 	sut := NewAggsenderRPC(nil, mockStore, mockAggsender)
 	return &aggsenderRPCTestData{sut, mockStore, mockAggsender}
 }

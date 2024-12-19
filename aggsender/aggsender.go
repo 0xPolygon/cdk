@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	zkevm "github.com/0xPolygon/cdk"
 	jRPC "github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/agglayer"
 	"github.com/0xPolygon/cdk/aggsender/db"
@@ -88,8 +89,14 @@ func New(
 	}, nil
 }
 
-func (a *AggSender) Status() types.AggsenderStatus {
-	return a.status
+func (a *AggSender) Info() types.AggsenderInfo {
+	res := types.AggsenderInfo{
+		AggsenderStatus:          a.status,
+		Version:                  zkevm.GetVersion(),
+		EpochNotifierDescription: a.epochNotifier.String(),
+		NetworkID:                a.l2Syncer.OriginNetwork(),
+	}
+	return res
 }
 
 // GetRPCServices returns the list of services that the RPC provider exposes

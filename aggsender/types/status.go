@@ -1,6 +1,10 @@
 package types
 
-import "time"
+import (
+	"time"
+
+	zkevm "github.com/0xPolygon/cdk"
+)
 
 type AggsenderStatusType string
 
@@ -15,6 +19,13 @@ type AggsenderStatus struct {
 	StartTime time.Time           `json:"start_time"`
 	Status    AggsenderStatusType `json:"status"`
 	LastError string              `json:"last_error"`
+}
+
+type AggsenderInfo struct {
+	AggsenderStatus          AggsenderStatus `json:"aggsender_status"`
+	Version                  zkevm.FullVersion
+	EpochNotifierDescription string `json:"epoch_notifier_description"`
+	NetworkID                uint32 `json:"network_id"`
 }
 
 func (a *AggsenderStatus) SetLastError(err error) {

@@ -3,7 +3,6 @@ package aggsenderrpc
 import (
 	"fmt"
 
-	zkevm "github.com/0xPolygon/cdk"
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/log"
@@ -18,20 +17,20 @@ type aggsenderStorer interface {
 	GetLastSentCertificate() (*types.CertificateInfo, error)
 }
 
-type aggsenderStatuser interface {
-	Status() types.AggsenderStatus
+type aggsenderInterface interface {
+	Info() types.AggsenderInfo
 }
 
 type AggsenderRPC struct {
 	logger    *log.Logger
 	storage   aggsenderStorer
-	aggsender aggsenderStatuser
+	aggsender aggsenderInterface
 }
 
 func NewAggsenderRPC(
 	logger *log.Logger,
 	storage aggsenderStorer,
-	aggsender aggsenderStatuser,
+	aggsender aggsenderInterface,
 ) *AggsenderRPC {
 	return &AggsenderRPC{
 		logger:    logger,
@@ -43,16 +42,8 @@ func NewAggsenderRPC(
 // curl -X POST http://localhost:5576/ -H "Con -application/json" \
 // -d '{"method":"aggsender_status", "params":[], "id":1}'
 func (b *AggsenderRPC) Status() (interface{}, rpc.Error) {
-	status := b.aggsender.Status()
-	res := struct {
-		Version       zkevm.FullVersion     `json:"version"`
-		Status        types.AggsenderStatus `json:"status"`
-		EpochNotifier string                `json:"epoch_notifier"`
-	}{
-		Version: zkevm.GetVersion(),
-		Status:  status,
-	}
-	return res, nil
+	info := b.aggsender.Info()
+	return info, nil
 }
 
 // latest: curl -X POST http://localhost:5576/ -H "Con -application/json" \
