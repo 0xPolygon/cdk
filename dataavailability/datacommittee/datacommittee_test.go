@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"testing"
 
-	scparis "github.com/0xPolygon/cdk-contracts-tooling/contracts/banana-paris/polygondatacommittee"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygondatacommittee"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/test/contracts/erc1967proxy"
@@ -79,7 +78,7 @@ func newSimulatedDACBackend(t *testing.T) (
 	ethBackend, setup := helpers.NewSimulatedBackend(t, nil, deployerAuth)
 
 	// DAC Setup
-	addr, _, _, err := scparis.DeployPolygondatacommittee(setup.UserAuth, ethBackend.Client())
+	addr, _, _, err := polygondatacommittee.DeployPolygondatacommittee(setup.UserAuth, ethBackend.Client())
 	require.NoError(t, err)
 	ethBackend.Commit()
 
