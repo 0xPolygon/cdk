@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 _common_multi_setup() {
-    load '../../helpers/common-setup'
+    load '../helpers/common-setup'
     _common_setup
      # generated with cast wallet new
     readonly target_address=0xbecE3a31343c6019CDE0D5a4dF2AF8Df17ebcB0f

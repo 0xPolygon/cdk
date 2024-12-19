@@ -1,11 +1,11 @@
 # based on: https://github.com/0xPolygon/kurtosis-cdk/blob/jhilliard/multi-pp-testing/multi-pp-test.sh.md
 
 setup() {
-    load '../../helpers/common-multi_cdk-setup'
+    load '../helpers/common-multi_cdk-setup'
     _common_multi_setup
-    load '../../helpers/common'
-    load '../../helpers/lxly-bridge-test'
-    load '../../helpers/aggsender'
+    load '../helpers/common'
+    load '../helpers/lxly-bridge'
+    load '../helpers/aggsender'
 
     if [ ! -f $aggsender_find_imported_bridge ]; then
         echo "missing required tool: $aggsender_find_imported_bridge" >&3
