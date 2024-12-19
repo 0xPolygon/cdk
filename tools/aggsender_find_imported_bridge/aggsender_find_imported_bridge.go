@@ -65,6 +65,10 @@ func certContainsGlobalIndex(cert *types.CertificateInfo, globalIndex *agglayer.
 }
 
 func main() {
+	if len(os.Args) != 3 {
+		log.Errorf("Usage: %v <aggsenderRPC> <globalIndex>", os.Args[0])
+		os.Exit(errLevelWrongParams)
+	}
 	aggsenderRPC := os.Args[1]
 	globalIndex := os.Args[2]
 	decodedGlobalIndex, err := unmarshalGlobalIndex(globalIndex)
