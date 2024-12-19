@@ -56,11 +56,11 @@ func NewEthTxManMock(
 
 			_, err := client.Client().EstimateGas(ctx, msg)
 			if err != nil {
-				log.Errorf("eth_estimateGas invocation failed: %+v", err)
+				log.Errorf("eth_estimateGas invocation failed: %w", ExtractRPCErrorData(err))
 
 				res, err := client.Client().CallContract(ctx, msg, nil)
 				if err != nil {
-					log.Errorf("eth_call invocation failed: %+v", err)
+					log.Errorf("eth_call invocation failed: %w", ExtractRPCErrorData(err))
 				} else {
 					log.Debugf("contract call result: %s", hex.EncodeToString(res))
 				}
@@ -69,11 +69,9 @@ func NewEthTxManMock(
 
 			err = SendTx(ctx, client, auth, to, data, common.Big0)
 			if err != nil {
-				log.Errorf("failed to send transaction: %s", err)
+				log.Errorf("failed to send transaction: %w", err)
 				return
 			}
-
-			client.Commit()
 		}).
 		Return(common.Hash{}, nil)
 	ethTxMock.On("Result", mock.Anything, mock.Anything).
@@ -102,7 +100,7 @@ func SendTx(ctx context.Context, client *simulated.Backend, auth *bind.TransactO
 
 		gas, err = client.Client().EstimateGas(ctx, msg)
 		if err != nil {
-			return err
+			return ExtractRPCErrorData(err)
 		}
 	}
 
@@ -141,13 +139,6 @@ func SendTx(ctx context.Context, client *simulated.Backend, auth *bind.TransactO
 	}
 
 	client.Commit()
-
-	receipt, err := client.Client().TransactionReceipt(ctx, signedTx.Hash())
-	if err != nil {
-		return fmt.Errorf("transaction failed: %w", err)
-	}
-
-	fmt.Printf("Transaction status: %d\n", receipt.Status)
 
 	return nil
 }

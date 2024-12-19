@@ -47,7 +47,6 @@ func TestBridgeEventE2E(t *testing.T) {
 			bridge.OriginAddress,
 			true, nil,
 		)
-		t.Logf("BridgeAsset err: %+v", err)
 		require.NoError(t, err)
 		helpers.CommitBlocks(t, env.L1Client, 1, blockTime)
 		bn, err := env.L1Client.Client().BlockNumber(ctx)
