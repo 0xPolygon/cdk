@@ -33,32 +33,16 @@ const (
 	periodRetry        = time.Millisecond * 100
 )
 
-type AggoracleWithEVMChainEnv struct {
-	L1Client         *simulated.Backend
-	L2Client         *simulated.Backend
-	L1InfoTreeSync   *l1infotreesync.L1InfoTreeSync
-	GERL1Contract    *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
-	GERL1Addr        common.Address
-	GERL2Contract    *globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain
-	GERL2Addr        common.Address
-	AuthL1           *bind.TransactOpts
-	AuthL2           *bind.TransactOpts
-	AggOracle        *aggoracle.AggOracle
-	AggOracleSender  aggoracle.ChainSender
-	ReorgDetectorL1  *reorgdetector.ReorgDetector
-	ReorgDetectorL2  *reorgdetector.ReorgDetector
-	BridgeL1Contract *polygonzkevmbridgev2.Polygonzkevmbridgev2
-	BridgeL1Addr     common.Address
-	BridgeL1Sync     *bridgesync.BridgeSync
-	BridgeL2Contract *polygonzkevmbridgev2.Polygonzkevmbridgev2
-	BridgeL2Addr     common.Address
-	BridgeL2Sync     *bridgesync.BridgeSync
-	NetworkIDL2      uint32
-	EthTxManMockL2   *EthTxManagerMock
+type AggoracleWithEVMChain struct {
+	L1Environment
+	L2Environment
+	AggOracle   *aggoracle.AggOracle
+	NetworkIDL2 uint32
 }
 
-type SetupResult struct {
-	Client         *simulated.Backend
+// CommonEnvironment contains common setup results used in both L1 and L2 network setups.
+type CommonEnvironment struct {
+	SimBackend     *simulated.Backend
 	GERAddr        common.Address
 	BridgeContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
 	BridgeAddr     common.Address
@@ -67,20 +51,23 @@ type SetupResult struct {
 	BridgeSync     *bridgesync.BridgeSync
 }
 
-type L1SetupResult struct {
-	SetupResult
+// L1Environment contains setup results for L1 network.
+type L1Environment struct {
+	CommonEnvironment
 	GERContract  *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
 	InfoTreeSync *l1infotreesync.L1InfoTreeSync
 }
 
-type L2SetupResult struct {
-	SetupResult
-	GERContract     *globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain
-	AggoracleSender aggoracle.ChainSender
-	EthTxManMock    *EthTxManagerMock
+// L2Environment contains setup results for L1 network.
+type L2Environment struct {
+	CommonEnvironment
+	GERContract      *globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain
+	AggoracleSender  aggoracle.ChainSender
+	EthTxManagerMock *EthTxManagerMock
 }
 
-func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChainEnv {
+// NewE2EEnvWithEVML2 creates a new E2E environment with EVM L1 and L2 chains.
+func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChain {
 	t.Helper()
 
 	ctx := context.Background()
@@ -92,47 +79,22 @@ func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChainEnv {
 
 	oracle, err := aggoracle.New(
 		log.GetDefaultLogger(), l2Setup.AggoracleSender,
-		l1Setup.Client.Client(), l1Setup.InfoTreeSync,
+		l1Setup.SimBackend.Client(), l1Setup.InfoTreeSync,
 		etherman.LatestBlock, time.Millisecond*20, //nolint:mnd
 	)
 	require.NoError(t, err)
 	go oracle.Start(ctx)
 
-	return &AggoracleWithEVMChainEnv{
-		L1Client: l1Setup.Client,
-		L2Client: l2Setup.Client,
-
-		L1InfoTreeSync: l1Setup.InfoTreeSync,
-
-		GERL1Contract: l1Setup.GERContract,
-		GERL1Addr:     l1Setup.GERAddr,
-
-		GERL2Contract: l2Setup.GERContract,
-		GERL2Addr:     l2Setup.GERAddr,
-
-		AuthL1: l1Setup.Auth,
-		AuthL2: l2Setup.Auth,
-
-		AggOracle:       oracle,
-		AggOracleSender: l2Setup.AggoracleSender,
-
-		ReorgDetectorL1: l1Setup.ReorgDetector,
-		ReorgDetectorL2: l2Setup.ReorgDetector,
-
-		BridgeL1Contract: l1Setup.BridgeContract,
-		BridgeL1Addr:     l1Setup.BridgeAddr,
-		BridgeL1Sync:     l1Setup.BridgeSync,
-
-		BridgeL2Contract: l2Setup.BridgeContract,
-		BridgeL2Addr:     l2Setup.BridgeAddr,
-		BridgeL2Sync:     l2Setup.BridgeSync,
-
-		NetworkIDL2:    rollupID,
-		EthTxManMockL2: l2Setup.EthTxManMock,
+	return &AggoracleWithEVMChain{
+		L1Environment: *l1Setup,
+		L2Environment: *l2Setup,
+		AggOracle:     oracle,
+		NetworkIDL2:   rollupID,
 	}
 }
 
-func L1Setup(t *testing.T) *L1SetupResult {
+// L1Setup creates a new L1 environment.
+func L1Setup(t *testing.T) *L1Environment {
 	t.Helper()
 
 	ctx := context.Background()
@@ -181,9 +143,9 @@ func L1Setup(t *testing.T) *L1SetupResult {
 
 	go bridgeL1Sync.Start(ctx)
 
-	return &L1SetupResult{
-		SetupResult: SetupResult{
-			Client:         l1Client,
+	return &L1Environment{
+		CommonEnvironment: CommonEnvironment{
+			SimBackend:     l1Client,
 			GERAddr:        gerL1Addr,
 			BridgeContract: bridgeL1Contract,
 			BridgeAddr:     bridgeL1Addr,
@@ -196,18 +158,19 @@ func L1Setup(t *testing.T) *L1SetupResult {
 	}
 }
 
-func L2Setup(t *testing.T) *L2SetupResult {
+// L2Setup creates a new L2 environment.
+func L2Setup(t *testing.T) *L2Environment {
 	t.Helper()
 
 	l2Client, authL2, gerL2Addr, gerL2Contract,
 		bridgeL2Addr, bridgeL2Contract := newSimulatedEVML2SovereignChain(t)
 
-	ethTxManMock := NewEthTxManMock(t, l2Client, authL2)
+	ethTxManagerMock := NewEthTxManMock(t, l2Client, authL2)
 
 	const gerCheckFrequency = time.Millisecond * 50
 	sender, err := chaingersender.NewEVMChainGERSender(
 		log.GetDefaultLogger(), gerL2Addr, l2Client.Client(),
-		ethTxManMock, 0, gerCheckFrequency,
+		ethTxManagerMock, 0, gerCheckFrequency,
 	)
 	require.NoError(t, err)
 	ctx := context.Background()
@@ -240,9 +203,9 @@ func L2Setup(t *testing.T) *L2SetupResult {
 
 	go bridgeL2Sync.Start(ctx)
 
-	return &L2SetupResult{
-		SetupResult: SetupResult{
-			Client:         l2Client,
+	return &L2Environment{
+		CommonEnvironment: CommonEnvironment{
+			SimBackend:     l2Client,
 			GERAddr:        gerL2Addr,
 			BridgeContract: bridgeL2Contract,
 			BridgeAddr:     bridgeL2Addr,
@@ -250,9 +213,9 @@ func L2Setup(t *testing.T) *L2SetupResult {
 			ReorgDetector:  rdL2,
 			BridgeSync:     bridgeL2Sync,
 		},
-		GERContract:     gerL2Contract,
-		AggoracleSender: sender,
-		EthTxManMock:    ethTxManMock,
+		GERContract:      gerL2Contract,
+		AggoracleSender:  sender,
+		EthTxManagerMock: ethTxManagerMock,
 	}
 }
 
