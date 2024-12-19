@@ -377,9 +377,11 @@ func (b *BridgeExit) UnmarshalJSON(data []byte) error {
 	b.DestinationNetwork = aux.DestinationNetwork
 	b.DestinationAddress = aux.DestinationAddress
 	var ok bool
-	b.Amount, ok = new(big.Int).SetString(aux.Amount, base10)
-	if !ok {
-		return fmt.Errorf("failed to convert amount to big.Int: %s", aux.Amount)
+	if !strings.Contains(aux.Amount, nilStr) {
+		b.Amount, ok = new(big.Int).SetString(aux.Amount, base10)
+		if !ok {
+			return fmt.Errorf("failed to convert amount to big.Int: %s", aux.Amount)
+		}
 	}
 	if s, ok := aux.Metadata.(string); ok {
 		b.IsMetadataHashed = true

@@ -29,7 +29,7 @@ func (c *Client) GetStatus() (*types.AggsenderInfo, error) {
 
 	// Check if the response is an error
 	if response.Error != nil {
-		return nil, fmt.Errorf("error in the response calling aggsender_status: %w", response.Error)
+		return nil, fmt.Errorf("error in the response calling aggsender_status: %v", response.Error)
 	}
 	result := types.AggsenderInfo{}
 	err = json.Unmarshal(response.Result, &result)
@@ -47,7 +47,7 @@ func (c *Client) GetCertificateHeaderPerHeight(height *uint64) (*types.Certifica
 
 	// Check if the response is an error
 	if response.Error != nil {
-		return nil, fmt.Errorf("error in the response calling aggsender_getCertificateHeaderPerHeight: %w", response.Error)
+		return nil, fmt.Errorf("error in the response calling aggsender_getCertificateHeaderPerHeight: %v", response.Error)
 	}
 	cert := types.CertificateInfo{}
 	err = json.Unmarshal(response.Result, &cert)
