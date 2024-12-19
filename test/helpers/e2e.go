@@ -57,74 +57,82 @@ type AggoracleWithEVMChainEnv struct {
 	EthTxManMockL2   *EthTxManagerMock
 }
 
+type SetupResult struct {
+	Client         *simulated.Backend
+	GERAddr        common.Address
+	BridgeContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	BridgeAddr     common.Address
+	Auth           *bind.TransactOpts
+	ReorgDetector  *reorgdetector.ReorgDetector
+	BridgeSync     *bridgesync.BridgeSync
+}
+
+type L1SetupResult struct {
+	SetupResult
+	GERContract  *polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2
+	InfoTreeSync *l1infotreesync.L1InfoTreeSync
+}
+
+type L2SetupResult struct {
+	SetupResult
+	GERContract     *globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain
+	AggoracleSender aggoracle.ChainSender
+	EthTxManMock    *EthTxManagerMock
+}
+
 func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChainEnv {
 	t.Helper()
 
 	ctx := context.Background()
 	// Setup L1
-	l1Client, syncer,
-		gerL1Contract, gerL1Addr,
-		bridgeL1Contract, bridgeL1Addr,
-		authL1, rdL1, bridgeL1Sync := CommonSetup(t)
+	l1Setup := L1Setup(t)
 
 	// Setup L2 EVM
-	sender, l2Client, gerL2Contract, gerL2Addr,
-		bridgeL2Contract, bridgeL2Addr, authL2,
-		ethTxManMockL2, bridgeL2Sync, rdL2 := L2SetupEVM(t)
+	l2Setup := L2Setup(t)
 
 	oracle, err := aggoracle.New(
-		log.GetDefaultLogger(), sender,
-		l1Client.Client(), syncer,
+		log.GetDefaultLogger(), l2Setup.AggoracleSender,
+		l1Setup.Client.Client(), l1Setup.InfoTreeSync,
 		etherman.LatestBlock, time.Millisecond*20, //nolint:mnd
 	)
 	require.NoError(t, err)
 	go oracle.Start(ctx)
 
 	return &AggoracleWithEVMChainEnv{
-		L1Client: l1Client,
-		L2Client: l2Client,
+		L1Client: l1Setup.Client,
+		L2Client: l2Setup.Client,
 
-		L1InfoTreeSync: syncer,
+		L1InfoTreeSync: l1Setup.InfoTreeSync,
 
-		GERL1Contract: gerL1Contract,
-		GERL1Addr:     gerL1Addr,
+		GERL1Contract: l1Setup.GERContract,
+		GERL1Addr:     l1Setup.GERAddr,
 
-		GERL2Contract: gerL2Contract,
-		GERL2Addr:     gerL2Addr,
+		GERL2Contract: l2Setup.GERContract,
+		GERL2Addr:     l2Setup.GERAddr,
 
-		AuthL1: authL1,
-		AuthL2: authL2,
+		AuthL1: l1Setup.Auth,
+		AuthL2: l2Setup.Auth,
 
 		AggOracle:       oracle,
-		AggOracleSender: sender,
+		AggOracleSender: l2Setup.AggoracleSender,
 
-		ReorgDetectorL1: rdL1,
-		ReorgDetectorL2: rdL2,
+		ReorgDetectorL1: l1Setup.ReorgDetector,
+		ReorgDetectorL2: l2Setup.ReorgDetector,
 
-		BridgeL1Contract: bridgeL1Contract,
-		BridgeL1Addr:     bridgeL1Addr,
-		BridgeL1Sync:     bridgeL1Sync,
+		BridgeL1Contract: l1Setup.BridgeContract,
+		BridgeL1Addr:     l1Setup.BridgeAddr,
+		BridgeL1Sync:     l1Setup.BridgeSync,
 
-		BridgeL2Contract: bridgeL2Contract,
-		BridgeL2Addr:     bridgeL2Addr,
-		BridgeL2Sync:     bridgeL2Sync,
+		BridgeL2Contract: l2Setup.BridgeContract,
+		BridgeL2Addr:     l2Setup.BridgeAddr,
+		BridgeL2Sync:     l2Setup.BridgeSync,
 
 		NetworkIDL2:    rollupID,
-		EthTxManMockL2: ethTxManMockL2,
+		EthTxManMockL2: l2Setup.EthTxManMock,
 	}
 }
 
-func CommonSetup(t *testing.T) (
-	*simulated.Backend,
-	*l1infotreesync.L1InfoTreeSync,
-	*polygonzkevmglobalexitrootv2.Polygonzkevmglobalexitrootv2,
-	common.Address,
-	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
-	common.Address,
-	*bind.TransactOpts,
-	*reorgdetector.ReorgDetector,
-	*bridgesync.BridgeSync,
-) {
+func L1Setup(t *testing.T) *L1SetupResult {
 	t.Helper()
 
 	ctx := context.Background()
@@ -173,22 +181,22 @@ func CommonSetup(t *testing.T) (
 
 	go bridgeL1Sync.Start(ctx)
 
-	return l1Client, l1InfoTreeSync, gerL1Contract, gerL1Addr,
-		bridgeL1Contract, bridgeL1Addr, authL1, rdL1, bridgeL1Sync
+	return &L1SetupResult{
+		SetupResult: SetupResult{
+			Client:         l1Client,
+			GERAddr:        gerL1Addr,
+			BridgeContract: bridgeL1Contract,
+			BridgeAddr:     bridgeL1Addr,
+			Auth:           authL1,
+			ReorgDetector:  rdL1,
+			BridgeSync:     bridgeL1Sync,
+		},
+		GERContract:  gerL1Contract,
+		InfoTreeSync: l1InfoTreeSync,
+	}
 }
 
-func L2SetupEVM(t *testing.T) (
-	aggoracle.ChainSender,
-	*simulated.Backend,
-	*globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain,
-	common.Address,
-	*polygonzkevmbridgev2.Polygonzkevmbridgev2,
-	common.Address,
-	*bind.TransactOpts,
-	*EthTxManagerMock,
-	*bridgesync.BridgeSync,
-	*reorgdetector.ReorgDetector,
-) {
+func L2Setup(t *testing.T) *L2SetupResult {
 	t.Helper()
 
 	l2Client, authL2, gerL2Addr, gerL2Contract,
@@ -232,10 +240,20 @@ func L2SetupEVM(t *testing.T) (
 
 	go bridgeL2Sync.Start(ctx)
 
-	return sender, l2Client,
-		gerL2Contract, gerL2Addr,
-		bridgeL2Contract, bridgeL2Addr,
-		authL2, ethTxManMock, bridgeL2Sync, rdL2
+	return &L2SetupResult{
+		SetupResult: SetupResult{
+			Client:         l2Client,
+			GERAddr:        gerL2Addr,
+			BridgeContract: bridgeL2Contract,
+			BridgeAddr:     bridgeL2Addr,
+			Auth:           authL2,
+			ReorgDetector:  rdL2,
+			BridgeSync:     bridgeL2Sync,
+		},
+		GERContract:     gerL2Contract,
+		AggoracleSender: sender,
+		EthTxManMock:    ethTxManMock,
+	}
 }
 
 func newSimulatedL1(t *testing.T) (
