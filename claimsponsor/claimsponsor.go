@@ -146,12 +146,12 @@ func (c *ClaimSponsor) claim(ctx context.Context) error {
 		}
 	}
 
-	c.logger.Infof("waiting for tx %s with global index %s", claim.TxID, claim.GlobalIndex.String())
-	status, err := c.waitTxToBeSuccessOrFail(ctx, claim.TxID)
+	c.logger.Infof("waiting for tx %s with global index %s to be processed", claim.TxID, claim.GlobalIndex.String())
+	status, err := c.waitForTxResult(ctx, claim.TxID)
 	if err != nil {
-		return fmt.Errorf("error calling waitTxToBeSuccessOrFail for tx %s: %w", claim.TxID, err)
+		return fmt.Errorf("error calling waitForTxResult for tx %s: %w", claim.TxID, err)
 	}
-	c.logger.Infof("tx %s with global index %s concluded with status: %s", claim.TxID, claim.GlobalIndex.String(), status)
+	c.logger.Infof("tx %s with global index %s is processed, status: %s", claim.TxID, claim.GlobalIndex.String(), status)
 	return c.updateClaimStatus(claim.GlobalIndex, status)
 }
 
@@ -211,7 +211,7 @@ func (c *ClaimSponsor) updateClaimStatus(globalIndex *big.Int, status ClaimStatu
 	return nil
 }
 
-func (c *ClaimSponsor) waitTxToBeSuccessOrFail(ctx context.Context, txID string) (ClaimStatus, error) {
+func (c *ClaimSponsor) waitForTxResult(ctx context.Context, txID string) (ClaimStatus, error) {
 	ticker := time.NewTicker(c.waitTxToBeMinedPeriod)
 	defer ticker.Stop()
 
@@ -224,6 +224,7 @@ func (c *ClaimSponsor) waitTxToBeSuccessOrFail(ctx context.Context, txID string)
 			if err != nil {
 				return "", err
 			}
+
 			if status == FailedClaimStatus || status == SuccessClaimStatus {
 				return status, nil
 			}
