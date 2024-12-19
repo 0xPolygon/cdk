@@ -103,7 +103,7 @@ func (c *CertificateInfo) String() string {
 	)
 }
 
-// ID returns a string with the ident of this cert (height/certID)
+// ID returns a string with the unique identifier of the cerificate (height+certificateID)
 func (c *CertificateInfo) ID() string {
 	if c == nil {
 		return "nil"

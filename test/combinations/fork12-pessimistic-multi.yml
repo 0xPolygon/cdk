@@ -1,0 +1,15 @@
+args:
+  cdk_node_image: cdk:latest
+  agglayer_image: ghcr.io/agglayer/agglayer:0.2.0-rc.20
+  cdk_erigon_node_image: hermeznetwork/cdk-erigon:v2.60.0
+  zkevm_contracts_image: leovct/zkevm-contracts:v9.0.0-rc.3-pp-fork.12-patch.1
+  additional_services: []
+  consensus_contract_type: pessimistic
+  sequencer_type: erigon
+  erigon_strict_mode: false
+  gas_token_enabled: false
+  zkevm_use_real_verifier: true
+  enable_normalcy: true
+  verifier_program_vkey: 0x00766aa16a6efe4ac05c0fe21d4b50f9631dbd1a2663a982da861427085ea2ea
+  agglayer_prover_sp1_key: {{.agglayer_prover_sp1_key}}
+
