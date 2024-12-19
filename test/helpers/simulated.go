@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"testing"
@@ -157,6 +158,7 @@ func NewSimulatedBackend(t *testing.T,
 	return client, setup
 }
 
+// CreateAccount creates new private key and corresponding transaction signer
 func CreateAccount(chainID *big.Int) (*bind.TransactOpts, error) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
@@ -164,4 +166,16 @@ func CreateAccount(chainID *big.Int) (*bind.TransactOpts, error) {
 	}
 
 	return bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+}
+
+// ExtractRPCErrorData tries to extract the error data from the provided error
+func ExtractRPCErrorData(err error) error {
+	var ed rpc.DataError
+	if errors.As(err, &ed) {
+		if eds, ok := ed.ErrorData().(string); ok {
+			return fmt.Errorf("%w (error data: %s)", err, eds)
+		}
+	}
+
+	return err
 }
