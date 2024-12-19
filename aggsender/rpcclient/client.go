@@ -8,6 +8,8 @@ import (
 	"github.com/0xPolygon/cdk/aggsender/types"
 )
 
+var jSONRPCCall = rpc.JSONRPCCall
+
 // Client wraps all the available endpoints of the data abailability committee node server
 type Client struct {
 	url string
@@ -20,7 +22,7 @@ func NewClient(url string) *Client {
 }
 
 func (c *Client) GetCertificateHeaderPerHeight(height *uint64) (*types.CertificateInfo, error) {
-	response, err := rpc.JSONRPCCall(c.url, "aggsender_getCertificateHeaderPerHeight", height)
+	response, err := jSONRPCCall(c.url, "aggsender_getCertificateHeaderPerHeight", height)
 	if err != nil {
 		return nil, err
 	}
