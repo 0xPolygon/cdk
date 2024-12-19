@@ -1961,6 +1961,68 @@ func TestLimitSize_MinNumBlocks(t *testing.T) {
 	require.Equal(t, uint64(1), newCert.ToBlock)
 }
 
+func TestGetLastSentBlockAndRetryCount(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                    string
+		lastSentCertificateInfo *aggsendertypes.CertificateInfo
+		expectedBlock           uint64
+		expectedRetryCount      int
+	}{
+		{
+			name:                    "No last sent certificate",
+			lastSentCertificateInfo: nil,
+			expectedBlock:           0,
+			expectedRetryCount:      0,
+		},
+		{
+			name: "Last sent certificate with no error",
+			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
+				ToBlock: 10,
+				Status:  agglayer.Settled,
+			},
+			expectedBlock:      10,
+			expectedRetryCount: 0,
+		},
+		{
+			name: "Last sent certificate with error and non-zero FromBlock",
+			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
+				FromBlock:  5,
+				ToBlock:    10,
+				Status:     agglayer.InError,
+				RetryCount: 1,
+			},
+			expectedBlock:      4,
+			expectedRetryCount: 2,
+		},
+		{
+			name: "Last sent certificate with error and zero FromBlock",
+			lastSentCertificateInfo: &aggsendertypes.CertificateInfo{
+				FromBlock:  0,
+				ToBlock:    10,
+				Status:     agglayer.InError,
+				RetryCount: 1,
+			},
+			expectedBlock:      10,
+			expectedRetryCount: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			block, retryCount := getLastSentBlockAndRetryCount(tt.lastSentCertificateInfo)
+
+			require.Equal(t, tt.expectedBlock, block)
+			require.Equal(t, tt.expectedRetryCount, retryCount)
+		})
+	}
+}
+
 type testDataFlags = int
 
 const (
