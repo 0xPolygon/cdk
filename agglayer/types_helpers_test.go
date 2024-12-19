@@ -1,8 +1,10 @@
 package agglayer
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/0xPolygon/cdk/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -53,4 +55,17 @@ func createDummyClaim(t *testing.T) *ClaimFromMainnnet {
 			Inner:           &L1InfoTreeLeafInner{},
 		},
 	}
+}
+
+// Helper function to create a dummy proof
+func createDummyProof(t *testing.T) types.Proof {
+	t.Helper()
+
+	proof := types.Proof{}
+
+	for i := 0; i < int(types.DefaultHeight); i++ {
+		proof[i] = common.HexToHash(fmt.Sprintf("0x%x", i))
+	}
+
+	return proof
 }

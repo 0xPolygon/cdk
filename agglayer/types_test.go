@@ -465,28 +465,6 @@ func TestUnmarshalCertificateHeader_UnknownError(t *testing.T) {
 		}
 	}`
 
-func TestUnmarshalCertificateHeaderUnknownError(t *testing.T) {
-	t.Parallel()
-
-	rawCertificateHeader := `{
-		"network_id": 14,
-		"height": 0,
-		"epoch_number": null,
-		"certificate_index": null,
-		"certificate_id": "0x3af88c9ca106822bd141fdc680dcb888f4e9d4997fad1645ba3d5d747059eb32",
-		"new_local_exit_root": "0x625e889ced3c31277c6653229096374d396a2fd3564a8894aaad2ff935d2fc8c",
-		"metadata": "0x0000000000000000000000000000000000000000000000000000000000002f3d",
-		"status": {
-			"InError": {
-				"error": {
-					"ProofVerificationFailed": {
-						"Plonk": "the verifying key does not match the inner plonk bn254 proof's committed verifying key"
-					}
-				}
-			}
-		}
-	}`
-
 	var result *CertificateHeader
 	err := json.Unmarshal([]byte(rawCertificateHeader), &result)
 	require.NoError(t, err)
