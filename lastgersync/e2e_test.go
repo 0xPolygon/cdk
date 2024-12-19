@@ -18,15 +18,15 @@ import (
 
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
-	env := helpers.NewE2EEnvWithEVML2(t)
+	setup := helpers.NewE2EEnvWithEVML2(t)
 	dbPathSyncer := path.Join(t.TempDir(), "lastgersyncTestE2E.sqlite")
 	syncer, err := lastgersync.New(
 		ctx,
 		dbPathSyncer,
-		env.ReorgDetectorL2,
-		env.L2Client.Client(),
-		env.GERL2Addr,
-		env.L1InfoTreeSync,
+		setup.L2Environment.ReorgDetector,
+		setup.L2Environment.SimBackend.Client(),
+		setup.L2Environment.GERAddr,
+		setup.InfoTreeSync,
 		0,
 		0,
 		etherman.LatestBlock,
@@ -38,18 +38,18 @@ func TestE2E(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		// Update GER on L1
-		_, err := env.GERL1Contract.UpdateExitRoot(env.AuthL1, common.HexToHash(strconv.Itoa(i)))
+		_, err := setup.L1Environment.GERContract.UpdateExitRoot(setup.L1Environment.Auth, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
-		env.L1Client.Commit()
+		setup.L1Environment.SimBackend.Commit()
 		time.Sleep(time.Millisecond * 150)
-		expectedGER, err := env.GERL1Contract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
+		expectedGER, err := setup.L1Environment.GERContract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		isInjected, err := env.AggOracleSender.IsGERInjected(expectedGER)
+		isInjected, err := setup.AggoracleSender.IsGERInjected(expectedGER)
 		require.NoError(t, err)
 		require.True(t, isInjected, fmt.Sprintf("iteration %d, GER: %s", i, common.Bytes2Hex(expectedGER[:])))
 
 		// Wait for syncer to catch up
-		lb, err := env.L2Client.Client().BlockNumber(ctx)
+		lb, err := setup.L2Environment.SimBackend.Client().BlockNumber(ctx)
 		require.NoError(t, err)
 		helpers.RequireProcessorUpdated(t, syncer, lb)
 

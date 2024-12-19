@@ -1,10 +1,14 @@
 package helpers
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry-paris/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,8 +21,10 @@ import (
 
 const (
 	defaultBlockGasLimit = uint64(999999999999999999)
-	defaultBalance       = "10000000000000000000000000"
+	defaultBalance       = "100000000000000000000000000"
 	chainID              = 1337
+
+	base10 = 10
 )
 
 type ClientRenamed simulated.Client
@@ -35,35 +41,100 @@ func (tc TestClient) Client() *rpc.Client {
 type SimulatedBackendSetup struct {
 	UserAuth            *bind.TransactOpts
 	DeployerAuth        *bind.TransactOpts
-	BridgeAddr          common.Address
-	BridgeContract      *polygonzkevmbridgev2.Polygonzkevmbridgev2
 	BridgeProxyAddr     common.Address
 	BridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
 }
 
-// SimulatedBackend creates a simulated backend with two accounts: user and deployer.
-func SimulatedBackend(
-	t *testing.T,
+// DeployBridge deploys the bridge contract
+func (s *SimulatedBackendSetup) DeployBridge(client *simulated.Backend,
+	gerAddr common.Address, networkID uint32) error {
+	// Deploy zkevm bridge contract
+	bridgeAddr, _, _, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(s.DeployerAuth, client.Client())
+	if err != nil {
+		return err
+	}
+	client.Commit()
+
+	// Create proxy contract for the bridge
+	var (
+		bridgeProxyAddr     common.Address
+		bridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
+	)
+
+	bridgeABI, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
+	if err != nil {
+		return err
+	}
+
+	dataCallProxy, err := bridgeABI.Pack("initialize",
+		networkID,
+		common.Address{}, // gasTokenAddressMainnet
+		uint32(0),        // gasTokenNetworkMainnet
+		gerAddr,          // global exit root manager
+		common.Address{}, // rollup manager
+		[]byte{},         // gasTokenMetadata
+	)
+	if err != nil {
+		return err
+	}
+
+	bridgeProxyAddr, _, _, err = transparentupgradableproxy.DeployTransparentupgradableproxy(
+		s.DeployerAuth,
+		client.Client(),
+		bridgeAddr,
+		s.DeployerAuth.From,
+		dataCallProxy,
+	)
+	if err != nil {
+		return err
+	}
+	client.Commit()
+
+	bridgeProxyContract, err = polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeProxyAddr, client.Client())
+	if err != nil {
+		return err
+	}
+
+	actualGERAddr, err := bridgeProxyContract.GlobalExitRootManager(&bind.CallOpts{})
+	if err != nil {
+		return err
+	}
+
+	if gerAddr != actualGERAddr {
+		return fmt.Errorf("mismatch between expected %s and actual %s GER addresses on bridge contract (%s)",
+			gerAddr, actualGERAddr, bridgeProxyAddr)
+	}
+
+	s.BridgeProxyAddr = bridgeProxyAddr
+	s.BridgeProxyContract = bridgeProxyContract
+
+	bridgeBalance, err := client.Client().BalanceAt(context.Background(), bridgeProxyAddr, nil)
+	if err != nil {
+		return err
+	}
+
+	log.Debugf("Bridge@%s, balance=%d\n", bridgeProxyAddr, bridgeBalance)
+
+	return nil
+}
+
+// NewSimulatedBackend creates a simulated backend with two accounts: user and deployer.
+func NewSimulatedBackend(t *testing.T,
 	balances map[common.Address]types.Account,
-	ebZkevmBridgeNetwork uint32,
-) (*simulated.Backend, *SimulatedBackendSetup) {
+	deployerAuth *bind.TransactOpts) (*simulated.Backend, *SimulatedBackendSetup) {
 	t.Helper()
 
 	// Define default balance
 	balance, ok := new(big.Int).SetString(defaultBalance, 10) //nolint:mnd
 	require.Truef(t, ok, "failed to set balance")
 
-	// Create user
+	// Create user account
 	userPK, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	userAuth, err := bind.NewKeyedTransactorWithChainID(userPK, big.NewInt(chainID))
 	require.NoError(t, err)
 
-	// Create deployer
-	deployerPK, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	deployerAuth, err := bind.NewKeyedTransactorWithChainID(deployerPK, big.NewInt(chainID))
-	require.NoError(t, err)
+	// Create deployer account
 	precalculatedBridgeAddr := crypto.CreateAddress(deployerAuth.From, 1)
 
 	// Define balances map
@@ -79,57 +150,32 @@ func SimulatedBackend(
 	// Mine the first block
 	client.Commit()
 
-	// MUST BE DEPLOYED FIRST
-	// Deploy zkevm bridge contract
-	bridgeAddr, _, bridgeContract, err := polygonzkevmbridgev2.DeployPolygonzkevmbridgev2(deployerAuth, client.Client())
-	require.NoError(t, err)
-	client.Commit()
-
-	// Create proxy contract for the bridge
-	var bridgeProxyAddr common.Address
-	var bridgeProxyContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
-	{
-		precalculatedAddr := crypto.CreateAddress(deployerAuth.From, 2) //nolint:mnd
-
-		bridgeABI, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
-		require.NoError(t, err)
-		require.NotNil(t, bridgeABI)
-
-		dataCallProxy, err := bridgeABI.Pack("initialize",
-			ebZkevmBridgeNetwork,
-			common.Address{}, // gasTokenAddressMainnet
-			uint32(0),        // gasTokenNetworkMainnet
-			precalculatedAddr,
-			common.Address{},
-			[]byte{}, // gasTokenMetadata
-		)
-		require.NoError(t, err)
-
-		bridgeProxyAddr, _, _, err = transparentupgradableproxy.DeployTransparentupgradableproxy(
-			deployerAuth,
-			client.Client(),
-			bridgeAddr,
-			deployerAuth.From,
-			dataCallProxy,
-		)
-		require.NoError(t, err)
-		require.Equal(t, precalculatedBridgeAddr, bridgeProxyAddr)
-		client.Commit()
-
-		bridgeProxyContract, err = polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridgeProxyAddr, client.Client())
-		require.NoError(t, err)
-
-		checkGERAddr, err := bridgeProxyContract.GlobalExitRootManager(&bind.CallOpts{})
-		require.NoError(t, err)
-		require.Equal(t, precalculatedAddr, checkGERAddr)
+	setup := &SimulatedBackendSetup{
+		UserAuth:     userAuth,
+		DeployerAuth: deployerAuth,
 	}
 
-	return client, &SimulatedBackendSetup{
-		UserAuth:            userAuth,
-		DeployerAuth:        deployerAuth,
-		BridgeAddr:          bridgeAddr,
-		BridgeContract:      bridgeContract,
-		BridgeProxyAddr:     bridgeProxyAddr,
-		BridgeProxyContract: bridgeProxyContract,
+	return client, setup
+}
+
+// CreateAccount creates new private key and corresponding transaction signer
+func CreateAccount(chainID *big.Int) (*bind.TransactOpts, error) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		return nil, err
 	}
+
+	return bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+}
+
+// ExtractRPCErrorData tries to extract the error data from the provided error
+func ExtractRPCErrorData(err error) error {
+	var ed rpc.DataError
+	if errors.As(err, &ed) {
+		if eds, ok := ed.ErrorData().(string); ok {
+			return fmt.Errorf("%w (error data: %s)", err, eds)
+		}
+	}
+
+	return err
 }

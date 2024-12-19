@@ -101,17 +101,22 @@ func newClaimSponsor(
 }
 
 func (c *ClaimSponsor) Start(ctx context.Context) {
-	var (
-		attempts int
-	)
+	attempts := 0
+
 	for {
-		err := c.claim(ctx)
-		if err != nil {
-			attempts++
-			c.logger.Error(err)
-			c.rh.Handle("claimsponsor main loop", attempts)
-		} else {
-			attempts = 0
+		select {
+		case <-ctx.Done():
+			return
+
+		default:
+			err := c.claim(ctx)
+			if err != nil {
+				attempts++
+				c.logger.Error(err)
+				c.rh.Handle("claimsponsor main loop", attempts)
+			} else {
+				attempts = 0
+			}
 		}
 	}
 }
@@ -141,12 +146,12 @@ func (c *ClaimSponsor) claim(ctx context.Context) error {
 		}
 	}
 
-	c.logger.Infof("waiting for tx %s with global index %s to succeed or fail", claim.TxID, claim.GlobalIndex.String())
-	status, err := c.waitTxToBeSuccessOrFail(ctx, claim.TxID)
+	c.logger.Infof("waiting for tx %s with global index %s to be processed", claim.TxID, claim.GlobalIndex.String())
+	status, err := c.waitForTxResult(ctx, claim.TxID)
 	if err != nil {
-		return fmt.Errorf("error calling waitTxToBeSuccessOrFail for tx %s: %w", claim.TxID, err)
+		return fmt.Errorf("error calling waitForTxResult for tx %s: %w", claim.TxID, err)
 	}
-	c.logger.Infof("tx %s with global index %s concluded with status: %s", claim.TxID, claim.GlobalIndex.String(), status)
+	c.logger.Infof("tx %s with global index %s is processed, status: %s", claim.TxID, claim.GlobalIndex.String(), status)
 	return c.updateClaimStatus(claim.GlobalIndex, status)
 }
 
@@ -206,17 +211,20 @@ func (c *ClaimSponsor) updateClaimStatus(globalIndex *big.Int, status ClaimStatu
 	return nil
 }
 
-func (c *ClaimSponsor) waitTxToBeSuccessOrFail(ctx context.Context, txID string) (ClaimStatus, error) {
-	t := time.NewTicker(c.waitTxToBeMinedPeriod)
+func (c *ClaimSponsor) waitForTxResult(ctx context.Context, txID string) (ClaimStatus, error) {
+	ticker := time.NewTicker(c.waitTxToBeMinedPeriod)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return "", errors.New("context cancelled")
-		case <-t.C:
+		case <-ticker.C:
 			status, err := c.sender.claimStatus(ctx, txID)
 			if err != nil {
 				return "", err
 			}
+
 			if status == FailedClaimStatus || status == SuccessClaimStatus {
 				return status, nil
 			}

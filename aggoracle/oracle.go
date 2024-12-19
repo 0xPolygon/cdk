@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
@@ -68,6 +67,7 @@ func (a *AggOracle) Start(ctx context.Context) {
 			if err := a.processLatestGER(ctx, &blockNumToFetch); err != nil {
 				a.handleGERProcessingError(err, blockNumToFetch)
 			}
+
 		case <-ctx.Done():
 			return
 		}
@@ -85,12 +85,13 @@ func (a *AggOracle) processLatestGER(ctx context.Context, blockNumToFetch *uint6
 	// Update the block number for the next iteration
 	*blockNumToFetch = blockNum
 
-	alreadyInjected, err := a.chainSender.IsGERInjected(gerToInject)
+	isGERInjected, err := a.chainSender.IsGERInjected(gerToInject)
 	if err != nil {
 		return fmt.Errorf("error checking if GER is already injected: %w", err)
 	}
-	if alreadyInjected {
-		a.logger.Debugf("GER %s already injected", gerToInject.Hex())
+
+	if isGERInjected {
+		a.logger.Debugf("GER %s is already injected", gerToInject.Hex())
 		return nil
 	}
 
@@ -108,7 +109,7 @@ func (a *AggOracle) handleGERProcessingError(err error, blockNumToFetch uint64) 
 	switch {
 	case errors.Is(err, l1infotreesync.ErrBlockNotProcessed):
 		a.logger.Debugf("syncer is not ready for the block %d", blockNumToFetch)
-	case errors.Is(err, db.ErrNotFound):
+	case errors.Is(err, l1infotreesync.ErrNotFound):
 		a.logger.Debugf("syncer has not found any GER until block %d", blockNumToFetch)
 	default:
 		a.logger.Error("unexpected error processing GER: ", err)

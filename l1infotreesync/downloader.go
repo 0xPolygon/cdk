@@ -3,8 +3,8 @@ package l1infotreesync
 import (
 	"fmt"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonrollupmanager"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sync"
 	"github.com/ethereum/go-ethereum"

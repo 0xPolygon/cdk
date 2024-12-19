@@ -7,7 +7,8 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/pessimisticglobalexitroot"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/globalexitrootmanagerl2sovereignchain"
+	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
@@ -26,8 +27,7 @@ type EthClienter interface {
 
 type downloader struct {
 	*sync.EVMDownloaderImplementation
-	l2Client       EthClienter
-	gerContract    *pessimisticglobalexitroot.Pessimisticglobalexitroot
+	l2GERManager   *globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain
 	l1InfoTreesync *l1infotreesync.L1InfoTreeSync
 	processor      *processor
 	rh             *sync.RetryHandler
@@ -35,14 +35,15 @@ type downloader struct {
 
 func newDownloader(
 	l2Client EthClienter,
-	globalExitRootL2 common.Address,
-	l1InfoTreesync *l1infotreesync.L1InfoTreeSync,
+	l2GERAddr common.Address,
+	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
 	processor *processor,
 	rh *sync.RetryHandler,
 	blockFinality *big.Int,
 	waitForNewBlocksPeriod time.Duration,
 ) (*downloader, error) {
-	gerContract, err := pessimisticglobalexitroot.NewPessimisticglobalexitroot(globalExitRootL2, l2Client)
+	gerContract, err := globalexitrootmanagerl2sovereignchain.NewGlobalexitrootmanagerl2sovereignchain(
+		l2GERAddr, l2Client)
 	if err != nil {
 		return nil, err
 	}
@@ -51,9 +52,8 @@ func newDownloader(
 		EVMDownloaderImplementation: sync.NewEVMDownloaderImplementation(
 			"lastgersync", l2Client, blockFinality, waitForNewBlocksPeriod, nil, nil, nil, rh,
 		),
-		l2Client:       l2Client,
-		gerContract:    gerContract,
-		l1InfoTreesync: l1InfoTreesync,
+		l2GERManager:   gerContract,
+		l1InfoTreesync: l1InfoTreeSync,
 		processor:      processor,
 		rh:             rh,
 	}, nil
@@ -161,20 +161,16 @@ func (d *downloader) setGreatestGERInjectedFromList(b *sync.EVMBlock, list []Eve
 	for _, event := range list {
 		var attempts int
 		for {
-			timestamp, err := d.gerContract.GlobalExitRootMap(
-				&bind.CallOpts{Pending: false}, event.GlobalExitRoot,
-			)
+			blockHashBigInt, err := d.l2GERManager.GlobalExitRootMap(&bind.CallOpts{Pending: false}, event.GlobalExitRoot)
 			if err != nil {
 				attempts++
-				log.Errorf(
-					"error calling contract function GlobalExitRootMap with ger %s: %v",
-					event.GlobalExitRoot.Hex(), err,
-				)
+				log.Errorf("failed to check if global exit root %s is injected on L2: %s", event.GlobalExitRoot.Hex(), err)
 				d.rh.Handle("GlobalExitRootMap", attempts)
 
 				continue
 			}
-			if timestamp.Cmp(big.NewInt(0)) == 1 {
+
+			if common.BigToHash(blockHashBigInt) != cdkcommon.ZeroHash {
 				b.Events = []interface{}{event}
 			}
 
