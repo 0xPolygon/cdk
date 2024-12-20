@@ -45,7 +45,8 @@ generate-mocks-helpers: ## Generates mocks for helpers, using mockery tool
 
 .PHONY: generate-mocks-aggoracle
 generate-mocks-aggoracle: ## Generates mocks for aggoracle, using mockery tool
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --dir ../aggoracle/chaingersender --output ../aggoracle/chaingersender/mocks --outpkg mocks ${COMMON_MOCKERY_PARAMS}
+	rm -Rf ../aggoracle/mocks
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager --dir ../aggoracle/chaingersender --output ../aggoracle/mocks --outpkg mocks --structname=EthTxManagerMock --filename=mock_ethtxmanager.go ${COMMON_MOCKERY_PARAMS}
 
 .PHONY: generate-mocks-sync
 generate-mocks-sync: ## Generates mocks for sync, using mockery tool
