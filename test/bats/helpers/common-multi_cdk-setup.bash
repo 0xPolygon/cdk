@@ -24,12 +24,10 @@ _common_multi_setup() {
     readonly l2_pp1_cdk_node_url=$(kurtosis port print $enclave cdk-node-001 rpc)
     readonly l2_pp2_cdk_node_url=$(kurtosis port print $enclave cdk-node-002 rpc)
 
-    #readonly l1_rpc_network_id=$(cast call --rpc-url $l1_rpc_url $bridge_addr 'networkID() (uint32)')
-    #readonly l2_pp1b_network_id=$(cast call --rpc-url $l2_pp1_url $bridge_addr 'networkID() (uint32)')
-    #readonly l2_pp2b_network_id=$(cast call --rpc-url $l2_pp2_url $bridge_addr 'networkID() (uint32)')
-    readonly l1_rpc_network_id=0
-    readonly l2_pp1b_network_id=1
-    readonly l2_pp2b_network_id=2
+    readonly l1_rpc_network_id=$(cast call --rpc-url $l1_rpc_url $bridge_address 'networkID() (uint32)')
+    readonly l2_pp1b_network_id=$(cast call --rpc-url $l2_pp1_url $bridge_address 'networkID() (uint32)')
+    readonly l2_pp2b_network_id=$(cast call --rpc-url $l2_pp2_url $bridge_address 'networkID() (uint32)')
+    
     readonly aggsender_find_imported_bridge="../target/aggsender_find_imported_bridge"
     echo "=== Bridge address=$bridge_address ===" >&3
     echo "=== POL address=$pol_address ===" >&3
@@ -66,18 +64,18 @@ fund_claim_tx_manager(){
 
 
 mint_pol_token(){
-     echo "=== Mining POL  ===" >&3
+     echo "=== Minting POL  ===" >&3
     cast send \
      --rpc-url $l1_rpc_url \
      --private-key $private_key \
      $pol_address \
-     'mint(address,uint256)' \
+     "$mint_fn_sig" \
      $eth_address 10000000000000000000000
     # Allow bridge to spend it
     cast send \
      --rpc-url $l1_rpc_url \
      --private-key $private_key \
      $pol_address \
-     'approve(address,uint256)' \
+     "$approve_fn_sig" \
      $bridge_address 10000000000000000000000
 }

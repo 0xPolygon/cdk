@@ -141,7 +141,7 @@ function claim_tx_hash() {
     tx_hash="$2"
     local destination_addr="$3"
     local destination_rpc_url="$4"
-    local bridge_provide_merkel_proof="$5"
+    local bridge_merkle_proof_url="$5"
     
     readonly bridge_deposit_file=$(mktemp)
     local ready_for_claim="false"
@@ -156,7 +156,7 @@ function claim_tx_hash() {
             echo "     $current_time > $end_time" >&3
             exit 1
         fi
-        curl -s "$bridge_provide_merkel_proof/bridges/$destination_addr?limit=100&offset=0" | jq  "[.deposits[] | select(.tx_hash == \"$tx_hash\" )]" > $bridge_deposit_file
+        curl -s "$bridge_merkle_proof_url/bridges/$destination_addr?limit=100&offset=0" | jq  "[.deposits[] | select(.tx_hash == \"$tx_hash\" )]" > $bridge_deposit_file
         deposit_count=$(jq '. | length' $bridge_deposit_file)
         if [[ $deposit_count == 0 ]]; then
             echo "...[$(date '+%Y-%m-%d %H:%M:%S')] ❌  the tx_hash [$tx_hash] not found (elapsed: $elpased_time / timeout:$timeout)" >&3   
@@ -185,7 +185,7 @@ function claim_tx_hash() {
     jq '.[(0|tonumber)]' $bridge_deposit_file | tee $current_deposit
     readonly current_proof=$(mktemp)
     echo ".... requesting merkel proof for $tx_hash deposit_cnt=$curr_deposit_cnt network_id: $curr_network_id" >&3
-    request_merkel_proof "$curr_deposit_cnt" "$curr_network_id" "$bridge_provide_merkel_proof" "$current_proof"
+    request_merkle_proof "$curr_deposit_cnt" "$curr_network_id" "$bridge_merkle_proof_url" "$current_proof"
     echo "FILE current_deposit=$current_deposit" 
     echo "FILE bridge_deposit_file=$bridge_deposit_file" 
     echo "FILE current_proof=$current_proof" 
@@ -225,13 +225,13 @@ function claim_tx_hash() {
     rm $bridge_deposit_file
     
 }
-function request_merkel_proof(){
+function request_merkle_proof(){
     local curr_deposit_cnt="$1"
     local curr_network_id="$2"
-    local bridge_provide_merkel_proof="$3"
+    local bridge_merkle_proof_url="$3"
     local result_proof_file="$4"
-    curl -s "$bridge_provide_merkel_proof/merkle-proof?deposit_cnt=$curr_deposit_cnt&net_id=$curr_network_id" | jq '.' > $result_proof_file
-    echo "request_merkel_proof: $result_proof_file"
+    curl -s "$bridge_merkle_proof_url/merkle-proof?deposit_cnt=$curr_deposit_cnt&net_id=$curr_network_id" | jq '.' > $result_proof_file
+    echo "request_merkle_proof: $result_proof_file"
 }
 
 # This function is used to claim a concrete tx hash

@@ -67,7 +67,7 @@ setup() {
     echo "... deposit [$global_index]"
     global_index_pp2_to_pp1="$global_index"
 
-    # Now a need to do a bridge on L2(PP1) to trigger a certificate: 
+    # Now we need to do a bridge on L2(PP1) to trigger a certificate: 
     ether_value=${ETHER_VALUE:-"0.0100000054"}
     amount=$(cast to-wei $ether_value ether)
     echo "=== Running LxLy bridge eth L2(PP1) to L1 (trigger a certificate on PP1) amount:$amount" >&3

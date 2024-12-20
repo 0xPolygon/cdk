@@ -185,7 +185,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		return nil, nil
 	}
 
-	lasL2BlockSynced, err := a.l2Syncer.GetLastProcessedBlock(ctx)
+	lastL2BlockSynced, err := a.l2Syncer.GetLastProcessedBlock(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting last processed block from l2: %w", err)
 	}
@@ -197,14 +197,14 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 
 	previousToBlock, retryCount := getLastSentBlockAndRetryCount(lastSentCertificateInfo)
 
-	if previousToBlock >= lasL2BlockSynced {
+	if previousToBlock >= lastL2BlockSynced {
 		a.log.Infof("no new blocks to send a certificate, last certificate block: %d, last L2 block: %d",
-			previousToBlock, lasL2BlockSynced)
+			previousToBlock, lastL2BlockSynced)
 		return nil, nil
 	}
 
 	fromBlock := previousToBlock + 1
-	toBlock := lasL2BlockSynced
+	toBlock := lastL2BlockSynced
 
 	bridges, err := a.l2Syncer.GetBridgesPublished(ctx, fromBlock, toBlock)
 	if err != nil {
@@ -867,17 +867,17 @@ func getLastSentBlockAndRetryCount(lastSentCertificateInfo *types.CertificateInf
 	}
 
 	retryCount := 0
-	previousToBlock := lastSentCertificateInfo.ToBlock
+	lastSentBlock := lastSentCertificateInfo.ToBlock
 
 	if lastSentCertificateInfo.Status == agglayer.InError {
 		// if the last certificate was in error, we need to resend it
 		// from the block before the error
 		if lastSentCertificateInfo.FromBlock > 0 {
-			previousToBlock = lastSentCertificateInfo.FromBlock - 1
+			lastSentBlock = lastSentCertificateInfo.FromBlock - 1
 		}
 
 		retryCount = lastSentCertificateInfo.RetryCount + 1
 	}
 
-	return previousToBlock, retryCount
+	return lastSentBlock, retryCount
 }
