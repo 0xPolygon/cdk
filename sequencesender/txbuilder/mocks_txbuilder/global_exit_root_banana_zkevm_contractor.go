@@ -79,7 +79,7 @@ func (_c *GlobalExitRootBananaZKEVMContractor_L1InfoRootMap_Call) RunAndReturn(r
 	return _c
 }
 
-// String provides a mock function with given fields:
+// String provides a mock function with no fields
 func (_m *GlobalExitRootBananaZKEVMContractor) String() string {
 	ret := _m.Called()
 

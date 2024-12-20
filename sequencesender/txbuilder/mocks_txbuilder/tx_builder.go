@@ -307,7 +307,7 @@ func (_c *TxBuilder_SetCondNewSeq_Call) RunAndReturn(run func(txbuilder.CondNewS
 	return _c
 }
 
-// String provides a mock function with given fields:
+// String provides a mock function with no fields
 func (_m *TxBuilder) String() string {
 	ret := _m.Called()
 

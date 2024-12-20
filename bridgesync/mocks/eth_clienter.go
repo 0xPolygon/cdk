@@ -265,7 +265,7 @@ func (_c *EthClienter_CallContract_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
-// Client provides a mock function with given fields:
+// Client provides a mock function with no fields
 func (_m *EthClienter) Client() *rpc.Client {
 	ret := _m.Called()
 

@@ -189,7 +189,7 @@ func (_c *AggSenderStorage_GetCertificatesByStatus_Call) RunAndReturn(run func([
 	return _c
 }
 
-// GetLastSentCertificate provides a mock function with given fields:
+// GetLastSentCertificate provides a mock function with no fields
 func (_m *AggSenderStorage) GetLastSentCertificate() (*types.CertificateInfo, error) {
 	ret := _m.Called()
 

@@ -85,7 +85,7 @@ func (_c *DABackender_GetSequence_Call) RunAndReturn(run func(context.Context, [
 	return _c
 }
 
-// Init provides a mock function with given fields:
+// Init provides a mock function with no fields
 func (_m *DABackender) Init() error {
 	ret := _m.Called()
 

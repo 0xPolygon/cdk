@@ -55,7 +55,7 @@ func (_c *Logger_Debug_Call) Return() *Logger_Debug_Call {
 }
 
 func (_c *Logger_Debug_Call) RunAndReturn(run func(...interface{})) *Logger_Debug_Call {
-	_c.Call.Return(run)
+	_c.Run(run)
 	return _c
 }
 
@@ -99,7 +99,7 @@ func (_c *Logger_Debugf_Call) Return() *Logger_Debugf_Call {
 }
 
 func (_c *Logger_Debugf_Call) RunAndReturn(run func(string, ...interface{})) *Logger_Debugf_Call {
-	_c.Call.Return(run)
+	_c.Run(run)
 	return _c
 }
 
@@ -141,7 +141,7 @@ func (_c *Logger_Error_Call) Return() *Logger_Error_Call {
 }
 
 func (_c *Logger_Error_Call) RunAndReturn(run func(...interface{})) *Logger_Error_Call {
-	_c.Call.Return(run)
+	_c.Run(run)
 	return _c
 }
 
@@ -185,7 +185,7 @@ func (_c *Logger_Errorf_Call) Return() *Logger_Errorf_Call {
 }
 
 func (_c *Logger_Errorf_Call) RunAndReturn(run func(string, ...interface{})) *Logger_Errorf_Call {
-	_c.Call.Return(run)
+	_c.Run(run)
 	return _c
 }
 
@@ -229,7 +229,7 @@ func (_c *Logger_Fatalf_Call) Return() *Logger_Fatalf_Call {
 }
 
 func (_c *Logger_Fatalf_Call) RunAndReturn(run func(string, ...interface{})) *Logger_Fatalf_Call {
-	_c.Call.Return(run)
+	_c.Run(run)
 	return _c
 }
 
@@ -271,7 +271,7 @@ func (_c *Logger_Info_Call) Return() *Logger_Info_Call {
 }
 
 func (_c *Logger_Info_Call) RunAndReturn(run func(...interface{})) *Logger_Info_Call {
-	_c.Call.Return(run)
+	_c.Run(run)
 	return _c
 }
 
@@ -315,7 +315,7 @@ func (_c *Logger_Infof_Call) Return() *Logger_Infof_Call {
 }
 
 func (_c *Logger_Infof_Call) RunAndReturn(run func(string, ...interface{})) *Logger_Infof_Call {
-	_c.Call.Return(run)
+	_c.Run(run)
 	return _c
 }
 
@@ -357,7 +357,7 @@ func (_c *Logger_Warn_Call) Return() *Logger_Warn_Call {
 }
 
 func (_c *Logger_Warn_Call) RunAndReturn(run func(...interface{})) *Logger_Warn_Call {
-	_c.Call.Return(run)
+	_c.Run(run)
 	return _c
 }
 
@@ -401,7 +401,7 @@ func (_c *Logger_Warnf_Call) Return() *Logger_Warnf_Call {
 }
 
 func (_c *Logger_Warnf_Call) RunAndReturn(run func(string, ...interface{})) *Logger_Warnf_Call {
-	_c.Call.Return(run)
+	_c.Run(run)
 	return _c
 }
 

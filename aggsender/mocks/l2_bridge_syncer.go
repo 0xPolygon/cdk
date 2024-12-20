@@ -28,7 +28,7 @@ func (_m *L2BridgeSyncer) EXPECT() *L2BridgeSyncer_Expecter {
 	return &L2BridgeSyncer_Expecter{mock: &_m.Mock}
 }
 
-// BlockFinality provides a mock function with given fields:
+// BlockFinality provides a mock function with no fields
 func (_m *L2BridgeSyncer) BlockFinality() etherman.BlockNumberFinality {
 	ret := _m.Called()
 
@@ -363,7 +363,7 @@ func (_c *L2BridgeSyncer_GetLastProcessedBlock_Call) RunAndReturn(run func(conte
 	return _c
 }
 
-// OriginNetwork provides a mock function with given fields:
+// OriginNetwork provides a mock function with no fields
 func (_m *L2BridgeSyncer) OriginNetwork() uint32 {
 	ret := _m.Called()
 

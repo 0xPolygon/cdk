@@ -46,7 +46,7 @@ func (_c *GenericSubscriber_Publish_Call[T]) Return() *GenericSubscriber_Publish
 }
 
 func (_c *GenericSubscriber_Publish_Call[T]) RunAndReturn(run func(T)) *GenericSubscriber_Publish_Call[T] {
-	_c.Call.Return(run)
+	_c.Run(run)
 	return _c
 }
 

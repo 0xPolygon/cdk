@@ -79,7 +79,7 @@ func (_c *GlobalExitRootBananaContractor_L1InfoRootMap_Call) RunAndReturn(run fu
 	return _c
 }
 
-// String provides a mock function with given fields:
+// String provides a mock function with no fields
 func (_m *GlobalExitRootBananaContractor) String() string {
 	ret := _m.Called()
 
