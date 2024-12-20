@@ -35,8 +35,6 @@ func TestEVMChainGERSender_InjectGER(t *testing.T) {
 	l2GERManagerAbi, err := abi.JSON(strings.NewReader(insertGERFuncABI))
 	require.NoError(t, err)
 
-	gasOffset := uint64(1000)
-
 	ger := common.HexToHash("0x456")
 	txID := common.HexToHash("0x789")
 
@@ -88,15 +86,18 @@ func TestEVMChainGERSender_InjectGER(t *testing.T) {
 			defer cancelFn()
 
 			ethTxMan := new(mocks.EthTxManagerMock)
-			ethTxMan.On("Add", ctx, &l2GERManagerAddr, common.Big0, mock.Anything, gasOffset, mock.Anything).Return(tt.addReturnTxID, tt.addReturnErr)
-			ethTxMan.On("Result", ctx, tt.addReturnTxID).Return(tt.resultReturn, tt.resultReturnErr)
+			ethTxMan.
+				On("Add", ctx, &l2GERManagerAddr, common.Big0, mock.Anything, mock.Anything, mock.Anything).
+				Return(tt.addReturnTxID, tt.addReturnErr)
+			ethTxMan.
+				On("Result", ctx, tt.addReturnTxID).
+				Return(tt.resultReturn, tt.resultReturnErr)
 
 			sender := &EVMChainGERSender{
 				logger:              log.GetDefaultLogger(),
 				l2GERManagerAddr:    l2GERManagerAddr,
 				l2GERManagerAbi:     &l2GERManagerAbi,
 				ethTxMan:            ethTxMan,
-				gasOffset:           gasOffset,
 				waitPeriodMonitorTx: time.Millisecond * 10,
 			}
 
@@ -107,6 +108,61 @@ func TestEVMChainGERSender_InjectGER(t *testing.T) {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.expectedErr)
 			}
+		})
+	}
+}
+
+func TestEVMChainGERSender_IsGERInjected(t *testing.T) {
+	tests := []struct {
+		name           string
+		mockReturn     *big.Int
+		mockError      error
+		expectedResult bool
+		expectedErrMsg string
+	}{
+		{
+			name:           "GER is injected",
+			mockReturn:     big.NewInt(1),
+			mockError:      nil,
+			expectedResult: true,
+			expectedErrMsg: "",
+		},
+		{
+			name:           "GER is not injected",
+			mockReturn:     big.NewInt(0),
+			mockError:      nil,
+			expectedResult: false,
+			expectedErrMsg: "",
+		},
+		{
+			name:           "Error checking GER injection",
+			mockReturn:     nil,
+			mockError:      errors.New("some error"),
+			expectedResult: false,
+			expectedErrMsg: "failed to check if global exit root is injected",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockL2GERManager := new(mocks.L2GERManagerMock)
+			mockL2GERManager.On("GlobalExitRootMap", mock.Anything, mock.Anything).
+				Return(tt.mockReturn, tt.mockError)
+
+			evmChainGERSender := &EVMChainGERSender{
+				l2GERManager: mockL2GERManager,
+			}
+
+			ger := common.HexToHash("0x12345")
+			result, err := evmChainGERSender.IsGERInjected(ger)
+			if tt.expectedErrMsg != "" {
+				require.ErrorContains(t, err, tt.expectedErrMsg)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tt.expectedResult, result)
+
+			mockL2GERManager.AssertExpectations(t)
 		})
 	}
 }
