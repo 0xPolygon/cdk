@@ -6,38 +6,28 @@ import (
 	"testing"
 	"time"
 
-	gerContractL1 "github.com/0xPolygon/cdk-contracts-tooling/contracts/manual/globalexitrootnopush0"
-	"github.com/0xPolygon/cdk/aggoracle"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient/simulated"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEVM(t *testing.T) {
-	env := helpers.NewE2EEnvWithEVML2(t)
-	runTest(t, env.GERL1Contract, env.AggOracleSender, env.L1Client, env.AuthL1)
-}
-
-func runTest(
-	t *testing.T,
-	gerL1Contract *gerContractL1.Globalexitrootnopush0,
-	sender aggoracle.ChainSender,
-	l1Client *simulated.Backend,
-	authL1 *bind.TransactOpts,
-) {
-	t.Helper()
+	setup := helpers.NewE2EEnvWithEVML2(t)
 
 	for i := 0; i < 10; i++ {
-		_, err := gerL1Contract.UpdateExitRoot(authL1, common.HexToHash(strconv.Itoa(i)))
+		_, err := setup.L1Environment.GERContract.UpdateExitRoot(setup.L1Environment.Auth, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
-		l1Client.Commit()
-		time.Sleep(time.Millisecond * 150)
-		expectedGER, err := gerL1Contract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
+		setup.L1Environment.SimBackend.Commit()
+
+		// wait for the GER to be processed by the InfoTree syncer
+		time.Sleep(time.Millisecond * 100)
+		expectedGER, err := setup.L1Environment.GERContract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		isInjected, err := sender.IsGERInjected(expectedGER)
+
+		isInjected, err := setup.L2Environment.AggoracleSender.IsGERInjected(expectedGER)
 		require.NoError(t, err)
+
 		require.True(t, isInjected, fmt.Sprintf("iteration %d, GER: %s", i, common.Bytes2Hex(expectedGER[:])))
 	}
 }

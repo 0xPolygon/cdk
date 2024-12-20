@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/etrog/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/polygonzkevmbridgev2"
 	configTypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
@@ -22,8 +22,9 @@ const (
 	// LeafTypeAsset represents a bridge asset
 	LeafTypeAsset uint8 = 0
 	// LeafTypeMessage represents a bridge message
-	LeafTypeMessage       uint8 = 1
-	gasTooHighErrTemplate       = "Claim tx estimated to consume more gas than the maximum allowed by the service. " +
+	LeafTypeMessage uint8 = 1
+
+	gasTooHighErrTemplate = "Claim tx estimated to consume more gas than the maximum allowed by the service. " +
 		"Estimated %d, maximum allowed: %d"
 )
 
@@ -41,15 +42,13 @@ type EthTxManager interface {
 }
 
 type EVMClaimSponsor struct {
-	*ClaimSponsor
-	l2Client       EthClienter
-	bridgeABI      *abi.ABI
-	bridgeAddr     common.Address
-	bridgeContract *polygonzkevmbridgev2.Polygonzkevmbridgev2
-	ethTxManager   EthTxManager
-	sender         common.Address
-	gasOffest      uint64
-	maxGas         uint64
+	l2Client     EthClienter
+	bridgeABI    *abi.ABI
+	bridgeAddr   common.Address
+	ethTxManager EthTxManager
+	sender       common.Address
+	gasOffest    uint64
+	maxGas       uint64
 }
 
 type EVMClaimSponsorConfig struct {
@@ -83,7 +82,7 @@ func NewEVMClaimSponsor(
 	logger *log.Logger,
 	dbPath string,
 	l2Client EthClienter,
-	bridge common.Address,
+	bridgeAddr common.Address,
 	sender common.Address,
 	maxGas, gasOffset uint64,
 	ethTxManager EthTxManager,
@@ -92,24 +91,21 @@ func NewEVMClaimSponsor(
 	waitTxToBeMinedPeriod time.Duration,
 	waitOnEmptyQueue time.Duration,
 ) (*ClaimSponsor, error) {
-	contract, err := polygonzkevmbridgev2.NewPolygonzkevmbridgev2(bridge, l2Client)
-	if err != nil {
-		return nil, err
-	}
 	abi, err := polygonzkevmbridgev2.Polygonzkevmbridgev2MetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
+
 	evmSponsor := &EVMClaimSponsor{
-		l2Client:       l2Client,
-		bridgeABI:      abi,
-		bridgeAddr:     bridge,
-		bridgeContract: contract,
-		sender:         sender,
-		gasOffest:      gasOffset,
-		maxGas:         maxGas,
-		ethTxManager:   ethTxManager,
+		l2Client:     l2Client,
+		bridgeABI:    abi,
+		bridgeAddr:   bridgeAddr,
+		sender:       sender,
+		gasOffest:    gasOffset,
+		maxGas:       maxGas,
+		ethTxManager: ethTxManager,
 	}
+
 	baseSponsor, err := newClaimSponsor(
 		logger,
 		dbPath,
@@ -122,7 +118,6 @@ func NewEVMClaimSponsor(
 	if err != nil {
 		return nil, err
 	}
-	evmSponsor.ClaimSponsor = baseSponsor
 
 	return baseSponsor, nil
 }
@@ -152,7 +147,7 @@ func (c *EVMClaimSponsor) sendClaim(ctx context.Context, claim *Claim) (string, 
 	if err != nil {
 		return "", err
 	}
-	id, err := c.ethTxManager.Add(ctx, &c.bridgeAddr, big.NewInt(0), data, c.gasOffest, nil)
+	id, err := c.ethTxManager.Add(ctx, &c.bridgeAddr, common.Big0, data, c.gasOffest, nil)
 	if err != nil {
 		return "", err
 	}
@@ -174,6 +169,8 @@ func (c *EVMClaimSponsor) claimStatus(ctx context.Context, id string) (ClaimStat
 	case ethtxtypes.MonitoredTxStatusMined,
 		ethtxtypes.MonitoredTxStatusSafe,
 		ethtxtypes.MonitoredTxStatusFinalized:
+		log.Infof("claim tx with id %s mined at block %d", id, res.MinedAtBlockNumber)
+
 		return SuccessClaimStatus, nil
 	default:
 		return "", fmt.Errorf("unexpected tx status: %v", res.Status)

@@ -81,7 +81,7 @@ func (_c *AgglayerClientMock_GetCertificateHeader_Call) RunAndReturn(run func(co
 	return _c
 }
 
-// GetEpochConfiguration provides a mock function with given fields:
+// GetEpochConfiguration provides a mock function with no fields
 func (_m *AgglayerClientMock) GetEpochConfiguration() (*ClockConfiguration, error) {
 	ret := _m.Called()
 

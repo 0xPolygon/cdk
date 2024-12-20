@@ -51,11 +51,11 @@ func (_c *EpochNotifier_Start_Call) Return() *EpochNotifier_Start_Call {
 }
 
 func (_c *EpochNotifier_Start_Call) RunAndReturn(run func(context.Context)) *EpochNotifier_Start_Call {
-	_c.Call.Return(run)
+	_c.Run(run)
 	return _c
 }
 
-// String provides a mock function with given fields:
+// String provides a mock function with no fields
 func (_m *EpochNotifier) String() string {
 	ret := _m.Called()
 

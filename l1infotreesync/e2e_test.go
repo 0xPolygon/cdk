@@ -3,12 +3,13 @@ package l1infotreesync_test
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"path"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana-paris/polygonzkevmglobalexitrootv2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/polygonzkevmglobalexitrootv2"
 	cdktypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
@@ -35,21 +36,27 @@ func newSimulatedClient(t *testing.T) (
 ) {
 	t.Helper()
 	ctx := context.Background()
-	client, setup := helpers.SimulatedBackend(t, nil, 0)
+
+	deployerAuth, err := helpers.CreateAccount(big.NewInt(1337))
+	require.NoError(t, err)
+
+	client, setup := helpers.NewSimulatedBackend(t, nil, deployerAuth)
 
 	nonce, err := client.Client().PendingNonceAt(ctx, setup.UserAuth.From)
 	require.NoError(t, err)
 
-	precalculatedAddr := crypto.CreateAddress(setup.UserAuth.From, nonce+1)
-	verifyAddr, _, verifyContract, err := verifybatchesmock.DeployVerifybatchesmock(setup.UserAuth, client.Client(), precalculatedAddr)
+	precalculatedGERAddr := crypto.CreateAddress(setup.UserAuth.From, nonce+1)
+	verifyAddr, _, verifyContract, err := verifybatchesmock.DeployVerifybatchesmock(setup.UserAuth, client.Client(), precalculatedGERAddr)
 	require.NoError(t, err)
 	client.Commit()
 
 	gerAddr, _, gerContract, err := polygonzkevmglobalexitrootv2.DeployPolygonzkevmglobalexitrootv2(setup.UserAuth, client.Client(), verifyAddr, setup.UserAuth.From)
 	require.NoError(t, err)
+	require.Equal(t, precalculatedGERAddr, gerAddr)
 	client.Commit()
 
-	require.Equal(t, precalculatedAddr, gerAddr)
+	err = setup.DeployBridge(client, gerAddr, 0)
+	require.NoError(t, err)
 
 	return client, setup.UserAuth, gerAddr, verifyAddr, gerContract, verifyContract
 }
@@ -192,7 +199,6 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 	actualRollupExitRoot, err := syncer.GetLastRollupExitRoot(ctx)
 	require.NoError(t, err)
-	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 
 	// Assert L1 Info tree root
@@ -223,7 +229,6 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 	actualRollupExitRoot, err = syncer.GetLastRollupExitRoot(ctx)
 	require.ErrorContains(t, err, "not found") // rollup exit tree reorged, it does not have any exits in it
-	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 
 	// Forking from block 3 again
@@ -245,7 +250,6 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 	actualRollupExitRoot, err = syncer.GetLastRollupExitRoot(ctx)
 	require.NoError(t, err)
-	t.Log("exit roots", common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 }
 

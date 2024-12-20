@@ -20,7 +20,7 @@ func (_m *BlockNotifier) EXPECT() *BlockNotifier_Expecter {
 	return &BlockNotifier_Expecter{mock: &_m.Mock}
 }
 
-// String provides a mock function with given fields:
+// String provides a mock function with no fields
 func (_m *BlockNotifier) String() string {
 	ret := _m.Called()
 
