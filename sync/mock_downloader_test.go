@@ -53,7 +53,7 @@ func (_c *EVMDownloaderMock_Download_Call) Return() *EVMDownloaderMock_Download_
 }
 
 func (_c *EVMDownloaderMock_Download_Call) RunAndReturn(run func(context.Context, uint64, chan EVMBlock)) *EVMDownloaderMock_Download_Call {
-	_c.Call.Return(run)
+	_c.Run(run)
 	return _c
 }
 
