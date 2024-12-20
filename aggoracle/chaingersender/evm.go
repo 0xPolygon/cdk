@@ -118,29 +118,34 @@ func (c *EVMChainGERSender) InjectGER(ctx context.Context, ger common.Hash) erro
 	}
 
 	for {
-		<-ticker.C
-
-		c.logger.Debugf("waiting for tx %s to be mined", id.Hex())
-		res, err := c.ethTxMan.Result(ctx, id)
-		if err != nil {
-			c.logger.Errorf("failed to check the transaction %s status: %s", id.Hex(), err)
-			continue
-		}
-
-		switch res.Status {
-		case ethtxtypes.MonitoredTxStatusCreated,
-			ethtxtypes.MonitoredTxStatusSent:
-			continue
-		case ethtxtypes.MonitoredTxStatusFailed:
-			return fmt.Errorf("inject GER tx %s failed", id.Hex())
-		case ethtxtypes.MonitoredTxStatusMined,
-			ethtxtypes.MonitoredTxStatusSafe,
-			ethtxtypes.MonitoredTxStatusFinalized:
-			c.logger.Debugf("inject GER tx %s was successfully mined at block %d", id.Hex(), res.MinedAtBlockNumber)
-
+		select {
+		case <-ctx.Done():
+			c.logger.Infof("context cancelled")
 			return nil
-		default:
-			c.logger.Error("unexpected tx status:", res.Status)
+
+		case <-ticker.C:
+			c.logger.Debugf("waiting for tx %s to be mined", id.Hex())
+			res, err := c.ethTxMan.Result(ctx, id)
+			if err != nil {
+				c.logger.Errorf("failed to check the transaction %s status: %s", id.Hex(), err)
+				return err
+			}
+
+			switch res.Status {
+			case ethtxtypes.MonitoredTxStatusCreated,
+				ethtxtypes.MonitoredTxStatusSent:
+				continue
+			case ethtxtypes.MonitoredTxStatusFailed:
+				return fmt.Errorf("inject GER tx %s failed", id.Hex())
+			case ethtxtypes.MonitoredTxStatusMined,
+				ethtxtypes.MonitoredTxStatusSafe,
+				ethtxtypes.MonitoredTxStatusFinalized:
+				c.logger.Debugf("inject GER tx %s was successfully mined at block %d", id.Hex(), res.MinedAtBlockNumber)
+
+				return nil
+			default:
+				c.logger.Error("unexpected tx status:", res.Status)
+			}
 		}
 	}
 }
