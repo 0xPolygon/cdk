@@ -154,29 +154,34 @@ func (b HashMeddler) PreRead(fieldAddr interface{}) (scanTarget interface{}, err
 
 // PostRead is called after a Scan operation for fields that have the HashMeddler
 func (b HashMeddler) PostRead(fieldPtr, scanTarget interface{}) error {
-	ptr, ok := scanTarget.(*string)
+	rawHashPtr, ok := scanTarget.(*string)
 	if !ok {
 		return errors.New("scanTarget is not *string")
 	}
-	if ptr == nil {
-		return fmt.Errorf("HashMeddler.PostRead: nil pointer")
-	}
+
+	// Handle the case where fieldPtr is a *common.Hash
 	field, ok := fieldPtr.(*common.Hash)
-	if !ok {
-		hashPtr, ok := fieldPtr.(**common.Hash)
-		if ok {
-			if ptr == nil || len(*ptr) == 0 {
-				*hashPtr = nil
-			} else {
-				tmp := common.HexToHash(*ptr)
-				*hashPtr = &tmp
-			}
-			return nil
-		}
-		return errors.New("fieldPtr is not common.Hash")
+	if ok {
+		*field = common.HexToHash(*rawHashPtr)
+		return nil
 	}
-	*field = common.HexToHash(*ptr)
-	return nil
+
+	// Handle the case where fieldPtr is a **common.Hash (nullable field)
+	hashPtr, ok := fieldPtr.(**common.Hash)
+	if ok {
+		// If the string is empty, set the hash to nil
+		if len(*rawHashPtr) == 0 {
+			*hashPtr = nil
+			// Otherwise, convert the string to a common.Hash and assign it
+		} else {
+			tmp := common.HexToHash(*rawHashPtr)
+			*hashPtr = &tmp
+		}
+		return nil
+	}
+
+	// If fieldPtr is neither a *common.Hash nor a **common.Hash, return an error
+	return errors.New("fieldPtr is not *common.Hash or **common.Hash")
 }
 
 // PreWrite is called before an Insert or Update operation for fields that have the HashMeddler

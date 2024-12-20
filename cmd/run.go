@@ -85,7 +85,7 @@ func start(cliCtx *cli.Context) error {
 	lastGERSync := runLastGERSyncIfNeeded(
 		cliCtx.Context, components, cfg.LastGERSync, reorgDetectorL2, l2Client, l1InfoTreeSync,
 	)
-
+	var rpcServices []jRPC.Service
 	for _, component := range components {
 		switch component {
 		case cdkcommon.SEQUENCE_SENDER:
@@ -106,8 +106,8 @@ func start(cliCtx *cli.Context) error {
 		case cdkcommon.AGGORACLE:
 			aggOracle := createAggoracle(*cfg, l1Client, l2Client, l1InfoTreeSync)
 			go aggOracle.Start(cliCtx.Context)
-		case cdkcommon.RPC:
-			server := createRPC(
+		case cdkcommon.BRIDGE:
+			rpcBridge := createBridgeRPC(
 				cfg.RPC,
 				cfg.Common.NetworkID,
 				claimSponsor,
@@ -116,11 +116,8 @@ func start(cliCtx *cli.Context) error {
 				l1BridgeSync,
 				l2BridgeSync,
 			)
-			go func() {
-				if err := server.Start(); err != nil {
-					log.Fatal(err)
-				}
-			}()
+			rpcServices = append(rpcServices, rpcBridge...)
+
 		case cdkcommon.AGGSENDER:
 			aggsender, err := createAggSender(
 				cliCtx.Context,
@@ -132,11 +129,19 @@ func start(cliCtx *cli.Context) error {
 			if err != nil {
 				log.Fatal(err)
 			}
+			rpcServices = append(rpcServices, aggsender.GetRPCServices()...)
 
 			go aggsender.Start(cliCtx.Context)
 		}
 	}
-
+	if len(rpcServices) > 0 {
+		rpcServer := createRPC(cfg.RPC, rpcServices)
+		go func() {
+			if err := rpcServer.Start(); err != nil {
+				log.Fatal(err)
+			}
+		}()
+	}
 	waitSignal(nil)
 
 	return nil
@@ -503,7 +508,7 @@ func runL1InfoTreeSyncerIfNeeded(
 	l1Client *ethclient.Client,
 	reorgDetector *reorgdetector.ReorgDetector,
 ) *l1infotreesync.L1InfoTreeSync {
-	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC,
+	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.BRIDGE,
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGSENDER, cdkcommon.L1INFOTREESYNC}, components) {
 		return nil
 	}
@@ -533,7 +538,7 @@ func runL1InfoTreeSyncerIfNeeded(
 func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client {
 	if !isNeeded([]string{
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
-		cdkcommon.AGGORACLE, cdkcommon.RPC,
+		cdkcommon.AGGORACLE, cdkcommon.BRIDGE,
 		cdkcommon.AGGSENDER,
 		cdkcommon.L1INFOTREESYNC,
 	}, components) {
@@ -563,7 +568,7 @@ func getRollUpIDIfNeeded(components []string, networkConfig ethermanconfig.L1Con
 }
 
 func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client {
-	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
+	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.BRIDGE, cdkcommon.AGGSENDER}, components) {
 		return nil
 	}
 
@@ -584,7 +589,7 @@ func runReorgDetectorL1IfNeeded(
 ) (*reorgdetector.ReorgDetector, chan error) {
 	if !isNeeded([]string{
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
-		cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER,
+		cdkcommon.AGGORACLE, cdkcommon.BRIDGE, cdkcommon.AGGSENDER,
 		cdkcommon.L1INFOTREESYNC},
 		components) {
 		return nil, nil
@@ -608,7 +613,7 @@ func runReorgDetectorL2IfNeeded(
 	l2Client *ethclient.Client,
 	cfg *reorgdetector.Config,
 ) (*reorgdetector.ReorgDetector, chan error) {
-	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
+	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.BRIDGE, cdkcommon.AGGSENDER}, components) {
 		return nil, nil
 	}
 	rd := newReorgDetector(cfg, l2Client)
@@ -630,7 +635,7 @@ func runClaimSponsorIfNeeded(
 	l2Client *ethclient.Client,
 	cfg claimsponsor.EVMClaimSponsorConfig,
 ) *claimsponsor.ClaimSponsor {
-	if !isNeeded([]string{cdkcommon.RPC}, components) || !cfg.Enabled {
+	if !isNeeded([]string{cdkcommon.BRIDGE}, components) || !cfg.Enabled {
 		return nil
 	}
 
@@ -672,7 +677,7 @@ func runLastGERSyncIfNeeded(
 	l2Client *ethclient.Client,
 	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
 ) *lastgersync.LastGERSync {
-	if !isNeeded([]string{cdkcommon.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.BRIDGE}, components) {
 		return nil
 	}
 	lastGERSync, err := lastgersync.New(
@@ -704,7 +709,7 @@ func runBridgeSyncL1IfNeeded(
 	l1Client *ethclient.Client,
 	rollupID uint32,
 ) *bridgesync.BridgeSync {
-	if !isNeeded([]string{cdkcommon.RPC}, components) {
+	if !isNeeded([]string{cdkcommon.BRIDGE}, components) {
 		return nil
 	}
 
@@ -739,7 +744,7 @@ func runBridgeSyncL2IfNeeded(
 	l2Client *ethclient.Client,
 	rollupID uint32,
 ) *bridgesync.BridgeSync {
-	if !isNeeded([]string{cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
+	if !isNeeded([]string{cdkcommon.BRIDGE, cdkcommon.AGGSENDER}, components) {
 		return nil
 	}
 
@@ -766,7 +771,7 @@ func runBridgeSyncL2IfNeeded(
 	return bridgeSyncL2
 }
 
-func createRPC(
+func createBridgeRPC(
 	cfg jRPC.Config,
 	cdkNetworkID uint32,
 	sponsor *claimsponsor.ClaimSponsor,
@@ -774,8 +779,8 @@ func createRPC(
 	injectedGERs *lastgersync.LastGERSync,
 	bridgeL1 *bridgesync.BridgeSync,
 	bridgeL2 *bridgesync.BridgeSync,
-) *jRPC.Server {
-	logger := log.WithFields("module", cdkcommon.RPC)
+) []jRPC.Service {
+	logger := log.WithFields("module", cdkcommon.BRIDGE)
 	services := []jRPC.Service{
 		{
 			Name: rpc.BRIDGE,
@@ -792,7 +797,11 @@ func createRPC(
 			),
 		},
 	}
+	return services
+}
 
+func createRPC(cfg jRPC.Config, services []jRPC.Service) *jRPC.Server {
+	logger := log.WithFields("module", "RPC")
 	return jRPC.NewServer(cfg, services, jRPC.WithLogger(logger.GetSugaredLogger()))
 }
 

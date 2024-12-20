@@ -25,7 +25,9 @@ const (
 	InError
 	Settled
 
-	nilStr = "nil"
+	nilStr  = "nil"
+	nullStr = "null"
+	base10  = 10
 )
 
 var (
@@ -77,7 +79,13 @@ func (c *CertificateStatus) UnmarshalJSON(rawStatus []byte) error {
 	case "Settled":
 		*c = Settled
 	default:
-		return fmt.Errorf("invalid status: %s", status)
+		// Maybe the status is numeric:
+		var statusInt int
+		if _, err := fmt.Sscanf(status, "%d", &statusInt); err == nil {
+			*c = CertificateStatus(statusInt)
+		} else {
+			return fmt.Errorf("invalid status: %s", status)
+		}
 	}
 
 	return nil
@@ -91,6 +99,23 @@ func (l LeafType) Uint8() uint8 {
 
 func (l LeafType) String() string {
 	return [...]string{"Transfer", "Message"}[l]
+}
+
+func (l *LeafType) UnmarshalJSON(raw []byte) error {
+	rawStr := strings.Trim(string(raw), "\"")
+	switch rawStr {
+	case "Transfer":
+		*l = LeafTypeAsset
+	case "Message":
+		*l = LeafTypeMessage
+	default:
+		var value int
+		if _, err := fmt.Sscanf(rawStr, "%d", &value); err != nil {
+			return fmt.Errorf("invalid LeafType: %s", rawStr)
+		}
+		*l = LeafType(value)
+	}
+	return nil
 }
 
 const (
@@ -333,6 +358,49 @@ func (b *BridgeExit) MarshalJSON() ([]byte, error) {
 	})
 }
 
+func (b *BridgeExit) UnmarshalJSON(data []byte) error {
+	aux := &struct {
+		LeafType           LeafType       `json:"leaf_type"`
+		TokenInfo          *TokenInfo     `json:"token_info"`
+		DestinationNetwork uint32         `json:"dest_network"`
+		DestinationAddress common.Address `json:"dest_address"`
+		Amount             string         `json:"amount"`
+		Metadata           interface{}    `json:"metadata"`
+	}{}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	b.LeafType = aux.LeafType
+	b.TokenInfo = aux.TokenInfo
+	b.DestinationNetwork = aux.DestinationNetwork
+	b.DestinationAddress = aux.DestinationAddress
+	var ok bool
+	if !strings.Contains(aux.Amount, nilStr) {
+		b.Amount, ok = new(big.Int).SetString(aux.Amount, base10)
+		if !ok {
+			return fmt.Errorf("failed to convert amount to big.Int: %s", aux.Amount)
+		}
+	}
+	if s, ok := aux.Metadata.(string); ok {
+		b.IsMetadataHashed = true
+		b.Metadata = common.Hex2Bytes(s)
+	} else if uints, ok := aux.Metadata.([]interface{}); ok {
+		b.IsMetadataHashed = false
+		b.Metadata = make([]byte, len(uints))
+		for k, v := range uints {
+			value, ok := v.(float64)
+			if !ok {
+				return fmt.Errorf("failed to convert metadata to byte: %v", v)
+			}
+			b.Metadata[k] = byte(value)
+		}
+	} else {
+		b.Metadata = nil
+	}
+	return nil
+}
+
 // bytesToUints converts a byte slice to a slice of uints
 func bytesToUints(data []byte) []uint {
 	uints := make([]uint, len(data))
@@ -359,6 +427,20 @@ func (m *MerkleProof) MarshalJSON() ([]byte, error) {
 			"siblings": m.Proof,
 		},
 	})
+}
+
+func (m *MerkleProof) UnmarshalJSON(data []byte) error {
+	aux := &struct {
+		Root  common.Hash                                 `json:"root"`
+		Proof map[string][types.DefaultHeight]common.Hash `json:"proof"`
+	}{}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	m.Root = aux.Root
+	m.Proof = aux.Proof["siblings"]
+	return nil
 }
 
 // Hash returns the hash of the Merkle proof struct
@@ -455,6 +537,28 @@ func (c *ClaimFromMainnnet) MarshalJSON() ([]byte, error) {
 	})
 }
 
+func (c *ClaimFromMainnnet) UnmarshalJSON(data []byte) error {
+	if string(data) == nullStr {
+		return nil
+	}
+
+	claimData := &struct {
+		Child struct {
+			ProofLeafMER     *MerkleProof    `json:"proof_leaf_mer"`
+			ProofGERToL1Root *MerkleProof    `json:"proof_ger_l1root"`
+			L1Leaf           *L1InfoTreeLeaf `json:"l1_leaf"`
+		} `json:"Mainnet"`
+	}{}
+	if err := json.Unmarshal(data, &claimData); err != nil {
+		return fmt.Errorf("failed to unmarshal the subobject: %w", err)
+	}
+	c.ProofLeafMER = claimData.Child.ProofLeafMER
+	c.ProofGERToL1Root = claimData.Child.ProofGERToL1Root
+	c.L1Leaf = claimData.Child.L1Leaf
+
+	return nil
+}
+
 // Hash is the implementation of Claim interface
 func (c *ClaimFromMainnnet) Hash() common.Hash {
 	return crypto.Keccak256Hash(
@@ -496,6 +600,31 @@ func (c *ClaimFromRollup) MarshalJSON() ([]byte, error) {
 	})
 }
 
+func (c *ClaimFromRollup) UnmarshalJSON(data []byte) error {
+	if string(data) == nullStr {
+		return nil
+	}
+
+	claimData := &struct {
+		Child struct {
+			ProofLeafLER     *MerkleProof    `json:"proof_leaf_ler"`
+			ProofLERToRER    *MerkleProof    `json:"proof_ler_rer"`
+			ProofGERToL1Root *MerkleProof    `json:"proof_ger_l1root"`
+			L1Leaf           *L1InfoTreeLeaf `json:"l1_leaf"`
+		} `json:"Rollup"`
+	}{}
+
+	if err := json.Unmarshal(data, &claimData); err != nil {
+		return fmt.Errorf("failed to unmarshal the subobject: %w", err)
+	}
+	c.ProofLeafLER = claimData.Child.ProofLeafLER
+	c.ProofLERToRER = claimData.Child.ProofLERToRER
+	c.ProofGERToL1Root = claimData.Child.ProofGERToL1Root
+	c.L1Leaf = claimData.Child.L1Leaf
+
+	return nil
+}
+
 // Hash is the implementation of Claim interface
 func (c *ClaimFromRollup) Hash() common.Hash {
 	return crypto.Keccak256Hash(
@@ -509,6 +638,35 @@ func (c *ClaimFromRollup) Hash() common.Hash {
 func (c *ClaimFromRollup) String() string {
 	return fmt.Sprintf("ProofLeafLER: %s, ProofLERToRER: %s, ProofGERToL1Root: %s, L1Leaf: %s",
 		c.ProofLeafLER.String(), c.ProofLERToRER.String(), c.ProofGERToL1Root.String(), c.L1Leaf.String())
+}
+
+// ClaimSelector is a helper struct that allow to decice which type of claim to unmarshal
+type ClaimSelector struct {
+	obj Claim
+}
+
+func (c *ClaimSelector) GetObject() Claim {
+	return c.obj
+}
+
+func (c *ClaimSelector) UnmarshalJSON(data []byte) error {
+	var obj map[string]interface{}
+	if string(data) == nullStr {
+		return nil
+	}
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return err
+	}
+	var ok bool
+	if _, ok = obj["Mainnet"]; ok {
+		c.obj = &ClaimFromMainnnet{}
+	} else if _, ok = obj["Rollup"]; ok {
+		c.obj = &ClaimFromRollup{}
+	} else {
+		return errors.New("invalid claim type")
+	}
+
+	return json.Unmarshal(data, &c.obj)
 }
 
 // ImportedBridgeExit represents a token bridge exit originating on another network but claimed on the current network.
@@ -536,6 +694,21 @@ func (c *ImportedBridgeExit) String() string {
 	res += fmt.Sprintf("ClaimData: %s", c.ClaimData.String())
 
 	return res
+}
+
+func (c *ImportedBridgeExit) UnmarshalJSON(data []byte) error {
+	aux := &struct {
+		BridgeExit  *BridgeExit   `json:"bridge_exit"`
+		ClaimData   ClaimSelector `json:"claim_data"`
+		GlobalIndex *GlobalIndex  `json:"global_index"`
+	}{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	c.BridgeExit = aux.BridgeExit
+	c.ClaimData = aux.ClaimData.GetObject()
+	c.GlobalIndex = aux.GlobalIndex
+	return nil
 }
 
 // Hash returns a hash that uniquely identifies the imported bridge exit
@@ -592,7 +765,7 @@ func (c *CertificateHeader) String() string {
 	if c.PreviousLocalExitRoot != nil {
 		previousLocalExitRoot = c.PreviousLocalExitRoot.String()
 	}
-	return fmt.Sprintf("Height: %d, CertificateID: %s, previousLocalExitRoot:%s, NewLocalExitRoot: %s. Status: %s."+
+	return fmt.Sprintf("Height: %d, CertificateID: %s, PreviousLocalExitRoot: %s, NewLocalExitRoot: %s. Status: %s."+
 		" Errors: [%s]",
 		c.Height, c.CertificateID.String(), previousLocalExitRoot, c.NewLocalExitRoot.String(), c.Status.String(), errors)
 }
@@ -631,8 +804,7 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 		var agglayerErr error
 
 		for errKey, errValueRaw := range inErrDataMap {
-			errValueJSON, err := json.Marshal(errValueRaw)
-			if err != nil {
+			if errValueJSON, err := json.Marshal(errValueRaw); err != nil {
 				agglayerErr = &GenericError{
 					Key: errKey,
 					Value: fmt.Sprintf("failed to marshal the agglayer error to the JSON. Raw value: %+v\nReason: %+v",

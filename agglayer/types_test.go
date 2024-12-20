@@ -20,6 +20,7 @@ import (
 const (
 	expectedSignedCertificateEmptyMetadataJSON = `{"network_id":1,"height":1,"prev_local_exit_root":"0x0000000000000000000000000000000000000000000000000000000000000000","new_local_exit_root":"0x0000000000000000000000000000000000000000000000000000000000000000","bridge_exits":[{"leaf_type":"Transfer","token_info":null,"dest_network":0,"dest_address":"0x0000000000000000000000000000000000000000","amount":"1","metadata":null}],"imported_bridge_exits":[{"bridge_exit":{"leaf_type":"Transfer","token_info":null,"dest_network":0,"dest_address":"0x0000000000000000000000000000000000000000","amount":"1","metadata":null},"claim_data":null,"global_index":{"mainnet_flag":false,"rollup_index":1,"leaf_index":1}}],"metadata":"0x0000000000000000000000000000000000000000000000000000000000000000","signature":{"r":"0x0000000000000000000000000000000000000000000000000000000000000000","s":"0x0000000000000000000000000000000000000000000000000000000000000000","odd_y_parity":false}}`
 	expectedSignedCertificateMetadataJSON      = `{"network_id":1,"height":1,"prev_local_exit_root":"0x0000000000000000000000000000000000000000000000000000000000000000","new_local_exit_root":"0x0000000000000000000000000000000000000000000000000000000000000000","bridge_exits":[{"leaf_type":"Transfer","token_info":null,"dest_network":0,"dest_address":"0x0000000000000000000000000000000000000000","amount":"1","metadata":[1,2,3]}],"imported_bridge_exits":[{"bridge_exit":{"leaf_type":"Transfer","token_info":null,"dest_network":0,"dest_address":"0x0000000000000000000000000000000000000000","amount":"1","metadata":null},"claim_data":null,"global_index":{"mainnet_flag":false,"rollup_index":1,"leaf_index":1}}],"metadata":"0x0000000000000000000000000000000000000000000000000000000000000000","signature":{"r":"0x0000000000000000000000000000000000000000000000000000000000000000","s":"0x0000000000000000000000000000000000000000000000000000000000000000","odd_y_parity":false}}`
+	fullCertificateJSON                        = `{"network_id":1,"height":0,"prev_local_exit_root":"0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757","new_local_exit_root":"0x79011be874bf6f229d8473eb251aa932210bc3ab843a316492d5bc0e4b9e945b","bridge_exits":[{"leaf_type":"Transfer","token_info":{"origin_network":0,"origin_token_address":"0x0000000000000000000000000000000000000000"},"dest_network":0,"dest_address":"0xbece3a31343c6019cde0d5a4df2af8df17ebcb0f","amount":"10000005400000000","metadata":null}],"imported_bridge_exits":[{"bridge_exit":{"leaf_type":"Transfer","token_info":{"origin_network":0,"origin_token_address":"0x0000000000000000000000000000000000000000"},"dest_network":1,"dest_address":"0xbece3a31343c6019cde0d5a4df2af8df17ebcb0f","amount":"20000005400000000","metadata":null},"claim_data":{"Mainnet":{"l1_leaf":{"l1_info_tree_index":3,"rer":"0x0000000000000000000000000000000000000000000000000000000000000000","mer":"0x34c7e5206c4c793171805029b5a3a5c6f2d3e5344731cd69912142dc083768bf","inner":{"global_exit_root":"0xefb4efc883a8d7ab7c414684a4f44fac0f522d5eef9144dbad85a6b7756d770d","block_hash":"0x02224ad091ae2762001610174fb70885734761b3518aca77b8af63308f3c0b67","timestamp":1734434917}},"proof_ger_l1root":{"root":"0x73011c89c4cb976b1feeec2185dba22ecdac6d424afeb83ed5cacfdaae735e95","proof":{"siblings":["0x628d0adbb4d8c80a15f0743fa32385efd0798189228dd83c73e09409d94c2273","0x0ffee9fcedabc3f74d1b86e97c2b3039f7b2c617a100d6ca1ad5c0e613939b05","0xe7dcc1ef21d4705f16b0c2976a5358719a60361f2435bd342e3f97c287ae5040","0x21ddb9a356815c3fac1026b6dec5df3124afbadb485c9ba5a3e3398a04b7ba85","0xe58769b32a1beaf1ea27375a44095a0d1fb664ce2dd358e7fcbfb78c26a19344","0x0eb01ebfc9ed27500cd4dfc979272d1f0913cc9f66540d7e8005811109e1cf2d","0x887c22bd8750d34016ac3c66b5ff102dacdd73f6b014e710b51e8022af9a1968","0xffd70157e48063fc33c97a050f7f640233bf646cc98d9524c6b92bcf3ab56f83","0x9867cc5f7f196b93bae1e27e6320742445d290f2263827498b54fec539f756af","0xcefad4e508c098b9a7e1d8feb19955fb02ba9675585078710969d3440f5054e0","0xf9dc3e7fe016e050eff260334f18a5d4fe391d82092319f5964f2e2eb7c1c3a5","0xf8b13a49e282f609c317a833fb8d976d11517c571d1221a265d25af778ecf892","0x3490c6ceeb450aecdc82e28293031d10c7d73bf85e57bf041a97360aa2c5d99c","0xc1df82d9c4b87413eae2ef048f94b4d3554cea73d92b0f7af96e0271c691e2bb","0x5c67add7c6caf302256adedf7ab114da0acfe870d449a3a489f781d659e8becc","0xda7bce9f4e8618b6bd2f4132ce798cdc7a60e7e1460a7299e3c6342a579626d2","0x2733e50f526ec2fa19a22b31e8ed50f23cd1fdf94c9154ed3a7609a2f1ff981f","0xe1d3b5c807b281e4683cc6d6315cf95b9ade8641defcb32372f1c126e398ef7a","0x5a2dce0a8a7f68bb74560f8f71837c2c2ebbcbf7fffb42ae1896f13f7c7479a0","0xb46a28b6f55540f89444f63de0378e3d121be09e06cc9ded1c20e65876d36aa0","0xc65e9645644786b620e2dd2ad648ddfcbf4a7e5b1a3a4ecfe7f64667a3f0b7e2","0xf4418588ed35a2458cffeb39b93d26f18d2ab13bdce6aee58e7b99359ec2dfd9","0x5a9c16dc00d6ef18b7933a6f8dc65ccb55667138776f7dea101070dc8796e377","0x4df84f40ae0c8229d0d6069e5c8f39a7c299677a09d367fc7b05e3bc380ee652","0xcdc72595f74c7b1043d0e1ffbab734648c838dfb0527d971b602bc216c9619ef","0x0abf5ac974a1ed57f4050aa510dd9c74f508277b39d7973bb2dfccc5eeb0618d","0xb8cd74046ff337f0a7bf2c8e03e10f642c1886798d71806ab1e888d9e5ee87d0","0x838c5655cb21c6cb83313b5a631175dff4963772cce9108188b34ac87c81c41e","0x662ee4dd2dd7b2bc707961b1e646c4047669dcb6584f0d8d770daf5d7e7deb2e","0x388ab20e2573d171a88108e79d820e98f26c0b84aa8b2f4aa4968dbb818ea322","0x93237c50ba75ee485f4c22adf2f741400bdf8d6a9cc7df7ecae576221665d735","0x8448818bb4ae4562849e949e17ac16e0be16688e156b5cf15e098c627c0056a9"]}},"proof_leaf_mer":{"root":"0x34c7e5206c4c793171805029b5a3a5c6f2d3e5344731cd69912142dc083768bf","proof":{"siblings":["0x7e5dddb55a966fa6ccd6d470bb326a4fcef563567d6897c45b7ed885de710757","0x4b274df9344e005bfd46536d791100a85234bef4fab0348d1b2ffc0e7a709d33","0xb4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30","0x21ddb9a356815c3fac1026b6dec5df3124afbadb485c9ba5a3e3398a04b7ba85","0xe58769b32a1beaf1ea27375a44095a0d1fb664ce2dd358e7fcbfb78c26a19344","0x0eb01ebfc9ed27500cd4dfc979272d1f0913cc9f66540d7e8005811109e1cf2d","0x887c22bd8750d34016ac3c66b5ff102dacdd73f6b014e710b51e8022af9a1968","0xffd70157e48063fc33c97a050f7f640233bf646cc98d9524c6b92bcf3ab56f83","0x9867cc5f7f196b93bae1e27e6320742445d290f2263827498b54fec539f756af","0xcefad4e508c098b9a7e1d8feb19955fb02ba9675585078710969d3440f5054e0","0xf9dc3e7fe016e050eff260334f18a5d4fe391d82092319f5964f2e2eb7c1c3a5","0xf8b13a49e282f609c317a833fb8d976d11517c571d1221a265d25af778ecf892","0x3490c6ceeb450aecdc82e28293031d10c7d73bf85e57bf041a97360aa2c5d99c","0xc1df82d9c4b87413eae2ef048f94b4d3554cea73d92b0f7af96e0271c691e2bb","0x5c67add7c6caf302256adedf7ab114da0acfe870d449a3a489f781d659e8becc","0xda7bce9f4e8618b6bd2f4132ce798cdc7a60e7e1460a7299e3c6342a579626d2","0x2733e50f526ec2fa19a22b31e8ed50f23cd1fdf94c9154ed3a7609a2f1ff981f","0xe1d3b5c807b281e4683cc6d6315cf95b9ade8641defcb32372f1c126e398ef7a","0x5a2dce0a8a7f68bb74560f8f71837c2c2ebbcbf7fffb42ae1896f13f7c7479a0","0xb46a28b6f55540f89444f63de0378e3d121be09e06cc9ded1c20e65876d36aa0","0xc65e9645644786b620e2dd2ad648ddfcbf4a7e5b1a3a4ecfe7f64667a3f0b7e2","0xf4418588ed35a2458cffeb39b93d26f18d2ab13bdce6aee58e7b99359ec2dfd9","0x5a9c16dc00d6ef18b7933a6f8dc65ccb55667138776f7dea101070dc8796e377","0x4df84f40ae0c8229d0d6069e5c8f39a7c299677a09d367fc7b05e3bc380ee652","0xcdc72595f74c7b1043d0e1ffbab734648c838dfb0527d971b602bc216c9619ef","0x0abf5ac974a1ed57f4050aa510dd9c74f508277b39d7973bb2dfccc5eeb0618d","0xb8cd74046ff337f0a7bf2c8e03e10f642c1886798d71806ab1e888d9e5ee87d0","0x838c5655cb21c6cb83313b5a631175dff4963772cce9108188b34ac87c81c41e","0x662ee4dd2dd7b2bc707961b1e646c4047669dcb6584f0d8d770daf5d7e7deb2e","0x388ab20e2573d171a88108e79d820e98f26c0b84aa8b2f4aa4968dbb818ea322","0x93237c50ba75ee485f4c22adf2f741400bdf8d6a9cc7df7ecae576221665d735","0x8448818bb4ae4562849e949e17ac16e0be16688e156b5cf15e098c627c0056a9"]}}}},"global_index":{"mainnet_flag":true,"rollup_index":0,"leaf_index":2}},{"bridge_exit":{"leaf_type":"Transfer","token_info":{"origin_network":0,"origin_token_address":"0x0000000000000000000000000000000000000000"},"dest_network":1,"dest_address":"0xbece3a31343c6019cde0d5a4df2af8df17ebcb0f","amount":"1234567","metadata":null},"claim_data":{"Rollup":{"l1_leaf":{"l1_info_tree_index":4,"rer":"0x33267c0646fee979e59af1cd62f9e46cd0917f62aba82658e1a92a50e1d7b4d1","mer":"0x34c7e5206c4c793171805029b5a3a5c6f2d3e5344731cd69912142dc083768bf","inner":{"global_exit_root":"0x6df4684b75569ffa9c0d352d1293c5d98950ecc1ea34226194842d10b14f47d0","block_hash":"0x52bbc4079dcaaac2f6e950a0fe5aed613473faf48a721709ce347c4ddfe0b50d","timestamp":1734435263}},"proof_ger_l1root":{"root":"0x73011c89c4cb976b1feeec2185dba22ecdac6d424afeb83ed5cacfdaae735e95","proof":{"siblings":["0x0000000000000000000000000000000000000000000000000000000000000000","0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5","0x20a8c649fbea68114dca04c42bf16e23c6b39d4eafcc54378c5b7516c3a3c9d2","0x21ddb9a356815c3fac1026b6dec5df3124afbadb485c9ba5a3e3398a04b7ba85","0xe58769b32a1beaf1ea27375a44095a0d1fb664ce2dd358e7fcbfb78c26a19344","0x0eb01ebfc9ed27500cd4dfc979272d1f0913cc9f66540d7e8005811109e1cf2d","0x887c22bd8750d34016ac3c66b5ff102dacdd73f6b014e710b51e8022af9a1968","0xffd70157e48063fc33c97a050f7f640233bf646cc98d9524c6b92bcf3ab56f83","0x9867cc5f7f196b93bae1e27e6320742445d290f2263827498b54fec539f756af","0xcefad4e508c098b9a7e1d8feb19955fb02ba9675585078710969d3440f5054e0","0xf9dc3e7fe016e050eff260334f18a5d4fe391d82092319f5964f2e2eb7c1c3a5","0xf8b13a49e282f609c317a833fb8d976d11517c571d1221a265d25af778ecf892","0x3490c6ceeb450aecdc82e28293031d10c7d73bf85e57bf041a97360aa2c5d99c","0xc1df82d9c4b87413eae2ef048f94b4d3554cea73d92b0f7af96e0271c691e2bb","0x5c67add7c6caf302256adedf7ab114da0acfe870d449a3a489f781d659e8becc","0xda7bce9f4e8618b6bd2f4132ce798cdc7a60e7e1460a7299e3c6342a579626d2","0x2733e50f526ec2fa19a22b31e8ed50f23cd1fdf94c9154ed3a7609a2f1ff981f","0xe1d3b5c807b281e4683cc6d6315cf95b9ade8641defcb32372f1c126e398ef7a","0x5a2dce0a8a7f68bb74560f8f71837c2c2ebbcbf7fffb42ae1896f13f7c7479a0","0xb46a28b6f55540f89444f63de0378e3d121be09e06cc9ded1c20e65876d36aa0","0xc65e9645644786b620e2dd2ad648ddfcbf4a7e5b1a3a4ecfe7f64667a3f0b7e2","0xf4418588ed35a2458cffeb39b93d26f18d2ab13bdce6aee58e7b99359ec2dfd9","0x5a9c16dc00d6ef18b7933a6f8dc65ccb55667138776f7dea101070dc8796e377","0x4df84f40ae0c8229d0d6069e5c8f39a7c299677a09d367fc7b05e3bc380ee652","0xcdc72595f74c7b1043d0e1ffbab734648c838dfb0527d971b602bc216c9619ef","0x0abf5ac974a1ed57f4050aa510dd9c74f508277b39d7973bb2dfccc5eeb0618d","0xb8cd74046ff337f0a7bf2c8e03e10f642c1886798d71806ab1e888d9e5ee87d0","0x838c5655cb21c6cb83313b5a631175dff4963772cce9108188b34ac87c81c41e","0x662ee4dd2dd7b2bc707961b1e646c4047669dcb6584f0d8d770daf5d7e7deb2e","0x388ab20e2573d171a88108e79d820e98f26c0b84aa8b2f4aa4968dbb818ea322","0x93237c50ba75ee485f4c22adf2f741400bdf8d6a9cc7df7ecae576221665d735","0x8448818bb4ae4562849e949e17ac16e0be16688e156b5cf15e098c627c0056a9"]}},"proof_leaf_ler":{"root":"0x156ab7795d0bb31ed548c43f90e71b8f06f71e5776a5ba444f3f3cb0935b4647","proof":{"siblings":["0x0000000000000000000000000000000000000000000000000000000000000000","0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5","0xb4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30","0x21ddb9a356815c3fac1026b6dec5df3124afbadb485c9ba5a3e3398a04b7ba85","0xe58769b32a1beaf1ea27375a44095a0d1fb664ce2dd358e7fcbfb78c26a19344","0x0eb01ebfc9ed27500cd4dfc979272d1f0913cc9f66540d7e8005811109e1cf2d","0x887c22bd8750d34016ac3c66b5ff102dacdd73f6b014e710b51e8022af9a1968","0xffd70157e48063fc33c97a050f7f640233bf646cc98d9524c6b92bcf3ab56f83","0x9867cc5f7f196b93bae1e27e6320742445d290f2263827498b54fec539f756af","0xcefad4e508c098b9a7e1d8feb19955fb02ba9675585078710969d3440f5054e0","0xf9dc3e7fe016e050eff260334f18a5d4fe391d82092319f5964f2e2eb7c1c3a5","0xf8b13a49e282f609c317a833fb8d976d11517c571d1221a265d25af778ecf892","0x3490c6ceeb450aecdc82e28293031d10c7d73bf85e57bf041a97360aa2c5d99c","0xc1df82d9c4b87413eae2ef048f94b4d3554cea73d92b0f7af96e0271c691e2bb","0x5c67add7c6caf302256adedf7ab114da0acfe870d449a3a489f781d659e8becc","0xda7bce9f4e8618b6bd2f4132ce798cdc7a60e7e1460a7299e3c6342a579626d2","0x2733e50f526ec2fa19a22b31e8ed50f23cd1fdf94c9154ed3a7609a2f1ff981f","0xe1d3b5c807b281e4683cc6d6315cf95b9ade8641defcb32372f1c126e398ef7a","0x5a2dce0a8a7f68bb74560f8f71837c2c2ebbcbf7fffb42ae1896f13f7c7479a0","0xb46a28b6f55540f89444f63de0378e3d121be09e06cc9ded1c20e65876d36aa0","0xc65e9645644786b620e2dd2ad648ddfcbf4a7e5b1a3a4ecfe7f64667a3f0b7e2","0xf4418588ed35a2458cffeb39b93d26f18d2ab13bdce6aee58e7b99359ec2dfd9","0x5a9c16dc00d6ef18b7933a6f8dc65ccb55667138776f7dea101070dc8796e377","0x4df84f40ae0c8229d0d6069e5c8f39a7c299677a09d367fc7b05e3bc380ee652","0xcdc72595f74c7b1043d0e1ffbab734648c838dfb0527d971b602bc216c9619ef","0x0abf5ac974a1ed57f4050aa510dd9c74f508277b39d7973bb2dfccc5eeb0618d","0xb8cd74046ff337f0a7bf2c8e03e10f642c1886798d71806ab1e888d9e5ee87d0","0x838c5655cb21c6cb83313b5a631175dff4963772cce9108188b34ac87c81c41e","0x662ee4dd2dd7b2bc707961b1e646c4047669dcb6584f0d8d770daf5d7e7deb2e","0x388ab20e2573d171a88108e79d820e98f26c0b84aa8b2f4aa4968dbb818ea322","0x93237c50ba75ee485f4c22adf2f741400bdf8d6a9cc7df7ecae576221665d735","0x8448818bb4ae4562849e949e17ac16e0be16688e156b5cf15e098c627c0056a9"]}},"proof_ler_rer":{"root":"0x33267c0646fee979e59af1cd62f9e46cd0917f62aba82658e1a92a50e1d7b4d1","proof":{"siblings":["0x0000000000000000000000000000000000000000000000000000000000000000","0xad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5","0xb4c11951957c6f8f642c4af61cd6b24640fec6dc7fc607ee8206a99e92410d30","0x21ddb9a356815c3fac1026b6dec5df3124afbadb485c9ba5a3e3398a04b7ba85","0xe58769b32a1beaf1ea27375a44095a0d1fb664ce2dd358e7fcbfb78c26a19344","0x0eb01ebfc9ed27500cd4dfc979272d1f0913cc9f66540d7e8005811109e1cf2d","0x887c22bd8750d34016ac3c66b5ff102dacdd73f6b014e710b51e8022af9a1968","0xffd70157e48063fc33c97a050f7f640233bf646cc98d9524c6b92bcf3ab56f83","0x9867cc5f7f196b93bae1e27e6320742445d290f2263827498b54fec539f756af","0xcefad4e508c098b9a7e1d8feb19955fb02ba9675585078710969d3440f5054e0","0xf9dc3e7fe016e050eff260334f18a5d4fe391d82092319f5964f2e2eb7c1c3a5","0xf8b13a49e282f609c317a833fb8d976d11517c571d1221a265d25af778ecf892","0x3490c6ceeb450aecdc82e28293031d10c7d73bf85e57bf041a97360aa2c5d99c","0xc1df82d9c4b87413eae2ef048f94b4d3554cea73d92b0f7af96e0271c691e2bb","0x5c67add7c6caf302256adedf7ab114da0acfe870d449a3a489f781d659e8becc","0xda7bce9f4e8618b6bd2f4132ce798cdc7a60e7e1460a7299e3c6342a579626d2","0x2733e50f526ec2fa19a22b31e8ed50f23cd1fdf94c9154ed3a7609a2f1ff981f","0xe1d3b5c807b281e4683cc6d6315cf95b9ade8641defcb32372f1c126e398ef7a","0x5a2dce0a8a7f68bb74560f8f71837c2c2ebbcbf7fffb42ae1896f13f7c7479a0","0xb46a28b6f55540f89444f63de0378e3d121be09e06cc9ded1c20e65876d36aa0","0xc65e9645644786b620e2dd2ad648ddfcbf4a7e5b1a3a4ecfe7f64667a3f0b7e2","0xf4418588ed35a2458cffeb39b93d26f18d2ab13bdce6aee58e7b99359ec2dfd9","0x5a9c16dc00d6ef18b7933a6f8dc65ccb55667138776f7dea101070dc8796e377","0x4df84f40ae0c8229d0d6069e5c8f39a7c299677a09d367fc7b05e3bc380ee652","0xcdc72595f74c7b1043d0e1ffbab734648c838dfb0527d971b602bc216c9619ef","0x0abf5ac974a1ed57f4050aa510dd9c74f508277b39d7973bb2dfccc5eeb0618d","0xb8cd74046ff337f0a7bf2c8e03e10f642c1886798d71806ab1e888d9e5ee87d0","0x838c5655cb21c6cb83313b5a631175dff4963772cce9108188b34ac87c81c41e","0x662ee4dd2dd7b2bc707961b1e646c4047669dcb6584f0d8d770daf5d7e7deb2e","0x388ab20e2573d171a88108e79d820e98f26c0b84aa8b2f4aa4968dbb818ea322","0x93237c50ba75ee485f4c22adf2f741400bdf8d6a9cc7df7ecae576221665d735","0x8448818bb4ae4562849e949e17ac16e0be16688e156b5cf15e098c627c0056a9"]}}}},"global_index":{"mainnet_flag":false,"rollup_index":1,"leaf_index":0}}],"metadata":"0x0100000000000000010000047867616580000000000000000000000000000000","signature":{"r":"0x4798dc4c299dfa4299c1992624271e2f1953cac3a909742ec4ca9549582c9273","s":"0x29762f0418ab0fc6019c1ea4c0722fe19477708e29e3d1416727339deba5660e","odd_y_parity":false}}`
 )
 
 func TestBridgeExit_Hash(t *testing.T) {
@@ -76,7 +77,7 @@ func TestCertificateHeaderString(t *testing.T) {
 		Height:        1,
 		CertificateID: common.HexToHash("0x123"),
 	}
-	require.Equal(t, "Height: 1, CertificateID: 0x0000000000000000000000000000000000000000000000000000000000000123, previousLocalExitRoot:nil, NewLocalExitRoot: 0x0000000000000000000000000000000000000000000000000000000000000000. Status: Pending. Errors: []",
+	require.Equal(t, "Height: 1, CertificateID: 0x0000000000000000000000000000000000000000000000000000000000000123, PreviousLocalExitRoot: nil, NewLocalExitRoot: 0x0000000000000000000000000000000000000000000000000000000000000000. Status: Pending. Errors: []",
 		certificate.String())
 
 	var certNil *CertificateHeader
@@ -175,11 +176,11 @@ func TestMarshalJSON(t *testing.T) {
 						ClaimData: &ClaimFromMainnnet{
 							ProofLeafMER: &MerkleProof{
 								Root:  common.HexToHash("0x333"),
-								Proof: generateTestProof(t),
+								Proof: createDummyProof(t),
 							},
 							ProofGERToL1Root: &MerkleProof{
 								Root:  common.HexToHash("0x444"),
-								Proof: generateTestProof(t),
+								Proof: createDummyProof(t),
 							},
 							L1Leaf: &L1InfoTreeLeaf{
 								L1InfoTreeIndex: 1,
@@ -210,15 +211,15 @@ func TestMarshalJSON(t *testing.T) {
 						ClaimData: &ClaimFromRollup{
 							ProofLeafLER: &MerkleProof{
 								Root:  common.HexToHash("0x333"),
-								Proof: generateTestProof(t),
+								Proof: createDummyProof(t),
 							},
 							ProofLERToRER: &MerkleProof{
 								Root:  common.HexToHash("0x444"),
-								Proof: generateTestProof(t),
+								Proof: createDummyProof(t),
 							},
 							ProofGERToL1Root: &MerkleProof{
 								Root:  common.HexToHash("0x555"),
-								Proof: generateTestProof(t),
+								Proof: createDummyProof(t),
 							},
 							L1Leaf: &L1InfoTreeLeaf{
 								L1InfoTreeIndex: 2,
@@ -1005,14 +1006,198 @@ func Test_ProblematicBridgeExitHash(t *testing.T) {
 	require.Equal(t, "0x22ed288677b4c2afd83a6d7d55f7df7f4eaaf60f7310210c030fd27adacbc5e0", bridgeExit.Hash().Hex())
 }
 
-func generateTestProof(t *testing.T) types.Proof {
-	t.Helper()
+func Test_UnmarshalCertificate(t *testing.T) {
+	var cert SignedCertificate
+	err := json.Unmarshal([]byte(fullCertificateJSON), &cert)
+	require.NoError(t, err)
+	marshalData, err := json.Marshal(cert)
+	require.NoError(t, err)
+	require.JSONEq(t, fullCertificateJSON, string(marshalData))
+}
 
-	proof := types.Proof{}
+func Test_UnmarshalImportedBridgeExit(t *testing.T) {
+	cases := []struct {
+		name           string
+		importedBridge ImportedBridgeExit
+	}{
+		{
+			name:           "Empty",
+			importedBridge: ImportedBridgeExit{},
+		},
+		{
+			name: "Empty/BridgeExit",
+			importedBridge: ImportedBridgeExit{
+				BridgeExit: &BridgeExit{},
+			},
+		},
+		{
+			name: "Empty/GlobalIndex",
+			importedBridge: ImportedBridgeExit{
+				GlobalIndex: &GlobalIndex{},
+			},
+		},
+		{
+			name: "Empty/ClaimFromRollup",
+			importedBridge: ImportedBridgeExit{
+				GlobalIndex: &GlobalIndex{},
+				ClaimData:   &ClaimFromRollup{},
+			},
+		},
+		{
+			name: "Empty/ClaimFromMainnnet",
+			importedBridge: ImportedBridgeExit{
+				ClaimData: &ClaimFromMainnnet{
+					ProofLeafMER: &MerkleProof{
+						Root:  common.HexToHash("0x1"),
+						Proof: [types.DefaultHeight]common.Hash{common.HexToHash("0x2"), common.HexToHash("0x3")},
+					},
+					ProofGERToL1Root: &MerkleProof{},
+					L1Leaf:           &L1InfoTreeLeaf{},
+				},
+			},
+		},
 
-	for i := 0; i < int(types.DefaultHeight); i++ {
-		proof[i] = common.HexToHash(fmt.Sprintf("0x%x", i))
+		{
+			name: "Mainnet claim",
+			importedBridge: ImportedBridgeExit{
+				BridgeExit: &BridgeExit{
+					LeafType: LeafTypeAsset,
+					TokenInfo: &TokenInfo{
+						OriginNetwork:      0,
+						OriginTokenAddress: common.HexToAddress("0x1234"),
+					},
+					DestinationNetwork: 1,
+					DestinationAddress: common.HexToAddress("0x1234"),
+					Amount:             big.NewInt(1000),
+					IsMetadataHashed:   false,
+					Metadata:           []byte{0x01, 0x02, 0x03},
+				},
+				ClaimData: &ClaimFromMainnnet{},
+				GlobalIndex: &GlobalIndex{
+					MainnetFlag: true,
+					RollupIndex: 1,
+					LeafIndex:   2,
+				},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ser, err := json.Marshal(tt.importedBridge)
+			require.NoError(t, err)
+			unmarshallBridge := &ImportedBridgeExit{}
+			err = json.Unmarshal(ser, unmarshallBridge)
+			require.NoError(t, err)
+			require.Equal(t, tt.importedBridge, *unmarshallBridge)
+		})
+	}
+}
+
+func Test_UnmarshalMerkleProof(t *testing.T) {
+	mp := &MerkleProof{
+		Root:  common.HexToHash("0x1"),
+		Proof: [types.DefaultHeight]common.Hash{common.HexToHash("0x2"), common.HexToHash("0x3")},
+	}
+	ser, err := json.Marshal(mp)
+	require.NoError(t, err)
+	unmarshallMp := &MerkleProof{}
+	err = json.Unmarshal(ser, unmarshallMp)
+	require.NoError(t, err)
+	require.Equal(t, mp, unmarshallMp)
+}
+
+func Test_UnmarshalL1InfoTreeLeaf(t *testing.T) {
+	data := L1InfoTreeLeaf{
+		L1InfoTreeIndex: 1,
+		RollupExitRoot:  [common.HashLength]byte{0xaa, 0xbb, 0xcc},
+		MainnetExitRoot: [common.HashLength]byte{0xdd, 0xee, 0xff},
+		Inner: &L1InfoTreeLeafInner{
+			GlobalExitRoot: common.HexToHash("0x1"),
+			BlockHash:      common.HexToHash("0x2"),
+			Timestamp:      1672531200, // Example timestamp
+		},
+	}
+	ser, err := json.Marshal(data)
+	require.NoError(t, err)
+	unmarshalled := &L1InfoTreeLeaf{}
+	err = json.Unmarshal(ser, unmarshalled)
+	require.NoError(t, err)
+	require.Equal(t, data, *unmarshalled)
+}
+
+func Test_UnmarshalBridgeExit(t *testing.T) {
+	cases := []struct {
+		name string
+		data *BridgeExit
+	}{
+		{
+			name: "metadataHashed",
+			data: &BridgeExit{
+				LeafType:         LeafTypeAsset,
+				IsMetadataHashed: true,
+				Metadata:         []byte{0x01, 0x02, 0x03},
+			},
+		},
+		{
+			name: "metadata no hashed",
+			data: &BridgeExit{
+				LeafType:         LeafTypeAsset,
+				IsMetadataHashed: false,
+				Metadata:         []byte{0x01, 0x02, 0x03},
+			},
+		},
 	}
 
-	return proof
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ser, err := json.Marshal(tt.data)
+			require.NoError(t, err)
+			unmarshalled := &BridgeExit{}
+			err = json.Unmarshal(ser, unmarshalled)
+			require.NoError(t, err)
+			require.Equal(t, tt.data, unmarshalled)
+		})
+	}
+}
+
+func Test_UnmarshalClaimFromMainnnet(t *testing.T) {
+	claim := &ClaimFromMainnnet{
+		ProofLeafMER: &MerkleProof{
+			Root:  common.HexToHash("0x1"),
+			Proof: [types.DefaultHeight]common.Hash{common.HexToHash("0x2"), common.HexToHash("0x3")},
+		},
+		ProofGERToL1Root: &MerkleProof{},
+		L1Leaf:           &L1InfoTreeLeaf{},
+	}
+	ser, err := json.Marshal(claim)
+	require.NoError(t, err)
+	unmarshalled := &ClaimFromMainnnet{}
+	err = json.Unmarshal(ser, unmarshalled)
+	require.NoError(t, err)
+	require.Equal(t, claim, unmarshalled)
+}
+
+func Test_UnmarshalClaimFromRollup(t *testing.T) {
+	claim := &ClaimFromRollup{
+		ProofLeafLER: &MerkleProof{
+			Root:  common.HexToHash("0x1"),
+			Proof: [types.DefaultHeight]common.Hash{common.HexToHash("0x2"), common.HexToHash("0x3")},
+		},
+		ProofLERToRER: &MerkleProof{
+			Root: common.HexToHash("0x4"),
+		},
+		ProofGERToL1Root: &MerkleProof{
+			Root: common.HexToHash("0x5"),
+		},
+
+		L1Leaf: &L1InfoTreeLeaf{
+			L1InfoTreeIndex: 1,
+		},
+	}
+	ser, err := json.Marshal(claim)
+	require.NoError(t, err)
+	unmarshalled := &ClaimFromRollup{}
+	err = json.Unmarshal(ser, unmarshalled)
+	require.NoError(t, err)
+	require.Equal(t, claim, unmarshalled)
 }
