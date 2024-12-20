@@ -643,6 +643,7 @@ func (c *ClaimFromRollup) String() string {
 		c.ProofLeafLER.String(), c.ProofLERToRER.String(), c.ProofGERToL1Root.String(), c.L1Leaf.String())
 }
 
+// ClaimSelector is a helper struct that allow to decice which type of claim to unmarshal
 type ClaimSelector struct {
 	obj Claim
 }

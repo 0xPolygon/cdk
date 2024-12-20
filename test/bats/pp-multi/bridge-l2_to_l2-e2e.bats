@@ -30,9 +30,6 @@ setup() {
     claim_frequency="30"
 
     gas_price=$(cast gas-price --rpc-url "$l2_rpc_url")
-    
-    
-
 }
 
 @test "Test L2 to L2 bridge" {

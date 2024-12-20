@@ -117,8 +117,7 @@ func (a *AggSender) GetRPCServices() []jRPC.Service {
 // Start starts the AggSender
 func (a *AggSender) Start(ctx context.Context) {
 	a.log.Info("AggSender started")
-	a.status.Running = true
-	a.status.StartTime = time.Now().UTC()
+	a.status.Start(time.Now().UTC())
 	a.checkInitialStatus(ctx)
 	a.sendCertificates(ctx)
 }
@@ -129,11 +128,11 @@ func (a *AggSender) checkInitialStatus(ctx context.Context) {
 	defer ticker.Stop()
 	a.status.Status = types.StatusCheckingInitialStage
 	for {
-		if err := a.checkLastCertificateFromAgglayer(ctx); err != nil {
-			a.status.SetLastError(err)
+		err := a.checkLastCertificateFromAgglayer(ctx)
+		a.status.SetLastError(err)
+		if err != nil {
 			a.log.Errorf("error checking initial status: %w, retrying in %s", err, a.cfg.DelayBeetweenRetries.String())
 		} else {
-			a.status.SetLastError(err)
 			a.log.Info("Initial status checked successfully")
 			return
 		}

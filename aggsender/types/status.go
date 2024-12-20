@@ -28,6 +28,11 @@ type AggsenderInfo struct {
 	NetworkID                uint32 `json:"network_id"`
 }
 
+func (a *AggsenderStatus) Start(startTime time.Time) {
+	a.Running = true
+	a.StartTime = startTime
+}
+
 func (a *AggsenderStatus) SetLastError(err error) {
 	if err == nil {
 		a.LastError = ""

@@ -21,6 +21,7 @@ type aggsenderInterface interface {
 	Info() types.AggsenderInfo
 }
 
+// AggsenderRPC is the RPC interface for the aggsender
 type AggsenderRPC struct {
 	logger    *log.Logger
 	storage   aggsenderStorer
@@ -39,6 +40,7 @@ func NewAggsenderRPC(
 	}
 }
 
+// Status returns the status of the aggsender
 // curl -X POST http://localhost:5576/ -H "Con -application/json" \
 // -d '{"method":"aggsender_status", "params":[], "id":1}'
 func (b *AggsenderRPC) Status() (interface{}, rpc.Error) {
@@ -46,8 +48,17 @@ func (b *AggsenderRPC) Status() (interface{}, rpc.Error) {
 	return info, nil
 }
 
-// latest: curl -X POST http://localhost:5576/ -H "Con -application/json" \
-// -d '{"method":"aggsender_getCertificateHeaderPerHeight", "params":[], "id":1}'
+// GetCertificateHeaderPerHeight returns the certificate header for the given height
+// if param is `nil` it returns the last sent certificate
+// latest:
+//
+//	curl -X POST http://localhost:5576/ -H "Con -application/json" \
+//	 -d '{"method":"aggsender_getCertificateHeaderPerHeight", "params":[], "id":1}'
+//
+// specific height:
+//
+// curl -X POST http://localhost:5576/ -H "Con -application/json" \
+// -d '{"method":"aggsender_getCertificateHeaderPerHeight", "params":[$height], "id":1}'
 func (b *AggsenderRPC) GetCertificateHeaderPerHeight(height *uint64) (interface{}, rpc.Error) {
 	var (
 		certInfo *types.CertificateInfo
