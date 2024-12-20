@@ -43,6 +43,10 @@ type EthTxManager interface {
 	) (common.Hash, error)
 }
 
+type L2GERManager interface {
+	GlobalExitRootMap(opts *bind.CallOpts, ger [common.HashLength]byte) (*big.Int, error)
+}
+
 type EVMConfig struct {
 	GlobalExitRootL2Addr common.Address      `mapstructure:"GlobalExitRootL2"`
 	URLRPCL2             string              `mapstructure:"URLRPCL2"`
@@ -55,7 +59,7 @@ type EVMConfig struct {
 type EVMChainGERSender struct {
 	logger *log.Logger
 
-	l2GERManager     *globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain
+	l2GERManager     L2GERManager
 	l2GERManagerAddr common.Address
 	l2GERManagerAbi  *abi.ABI
 
