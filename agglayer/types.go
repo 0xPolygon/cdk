@@ -368,8 +368,7 @@ func (b *BridgeExit) UnmarshalJSON(data []byte) error {
 		Metadata           interface{}    `json:"metadata"`
 	}{}
 
-	err := json.Unmarshal(data, &aux)
-	if err != nil {
+	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
 	b.LeafType = aux.LeafType
@@ -436,8 +435,7 @@ func (m *MerkleProof) UnmarshalJSON(data []byte) error {
 		Proof map[string][types.DefaultHeight]common.Hash `json:"proof"`
 	}{}
 
-	err := json.Unmarshal(data, &aux)
-	if err != nil {
+	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
 	m.Root = aux.Root
@@ -551,8 +549,7 @@ func (c *ClaimFromMainnnet) UnmarshalJSON(data []byte) error {
 			L1Leaf           *L1InfoTreeLeaf `json:"l1_leaf"`
 		} `json:"Mainnet"`
 	}{}
-	err := json.Unmarshal(data, &claimData)
-	if err != nil {
+	if err := json.Unmarshal(data, &claimData); err != nil {
 		return fmt.Errorf("failed to unmarshal the subobject: %w", err)
 	}
 	c.ProofLeafMER = claimData.Child.ProofLeafMER
@@ -616,8 +613,8 @@ func (c *ClaimFromRollup) UnmarshalJSON(data []byte) error {
 			L1Leaf           *L1InfoTreeLeaf `json:"l1_leaf"`
 		} `json:"Rollup"`
 	}{}
-	err := json.Unmarshal(data, &claimData)
-	if err != nil {
+
+	if err := json.Unmarshal(data, &claimData); err != nil {
 		return fmt.Errorf("failed to unmarshal the subobject: %w", err)
 	}
 	c.ProofLeafLER = claimData.Child.ProofLeafLER
@@ -657,8 +654,7 @@ func (c *ClaimSelector) UnmarshalJSON(data []byte) error {
 	if string(data) == nullStr {
 		return nil
 	}
-	err := json.Unmarshal(data, &obj)
-	if err != nil {
+	if err := json.Unmarshal(data, &obj); err != nil {
 		return err
 	}
 	var ok bool
@@ -706,8 +702,7 @@ func (c *ImportedBridgeExit) UnmarshalJSON(data []byte) error {
 		ClaimData   ClaimSelector `json:"claim_data"`
 		GlobalIndex *GlobalIndex  `json:"global_index"`
 	}{}
-	err := json.Unmarshal(data, &aux)
-	if err != nil {
+	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
 	c.BridgeExit = aux.BridgeExit
@@ -809,8 +804,7 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 		var agglayerErr error
 
 		for errKey, errValueRaw := range inErrDataMap {
-			errValueJSON, err := json.Marshal(errValueRaw)
-			if err != nil {
+			if errValueJSON, err := json.Marshal(errValueRaw); err != nil {
 				agglayerErr = &GenericError{
 					Key: errKey,
 					Value: fmt.Sprintf("failed to marshal the agglayer error to the JSON. Raw value: %+v\nReason: %+v",

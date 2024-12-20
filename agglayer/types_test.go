@@ -1010,6 +1010,9 @@ func Test_UnmarshalCertificate(t *testing.T) {
 	var cert SignedCertificate
 	err := json.Unmarshal([]byte(fullCertificateJSON), &cert)
 	require.NoError(t, err)
+	marshalData, err := json.Marshal(cert)
+	require.NoError(t, err)
+	require.JSONEq(t, fullCertificateJSON, string(marshalData))
 }
 
 func Test_UnmarshalImportedBridgeExit(t *testing.T) {
