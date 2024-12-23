@@ -7,7 +7,6 @@ generate-mocks:	generate-mocks-bridgesync generate-mocks-reorgdetector \
 
 .PHONY: generate-mocks-bridgesync
 generate-mocks-bridgesync: ## Generates mocks for bridgesync, using mockery tool
-	rm -Rf ../bridgesync/mocks
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../bridgesync --output ../bridgesync/mocks --outpkg mocks_bridgesync ${COMMON_MOCKERY_PARAMS}
 	
 .PHONY: generate-mocks-reorgdetector
@@ -17,7 +16,6 @@ generate-mocks-reorgdetector: ## Generates mocks for reorgdetector, using mocker
 COMMON_MOCKERY_PARAMS=--disable-version-string --with-expecter --exported
 .PHONY: generate-mocks-sequencesender
 generate-mocks-sequencesender: ## Generates mocks for sequencesender, using mockery tool
-	rm -Rf ../sequencesender/txbuilder/mocks_txbuilder
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../sequencesender/txbuilder --output ../sequencesender/txbuilder/mocks_txbuilder --outpkg mocks_txbuilder ${COMMON_MOCKERY_PARAMS}
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=EthTxManagerMock --filename=mock_ethtxmanager.go ${COMMON_MOCKERY_PARAMS}
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Etherman --dir=../sequencesender --output=../sequencesender/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go ${COMMON_MOCKERY_PARAMS}
@@ -25,17 +23,14 @@ generate-mocks-sequencesender: ## Generates mocks for sequencesender, using mock
 
 .PHONY: generate-mocks-da
 generate-mocks-da: ## Generates mocks for dataavailability, using mockery tool
-	rm -Rf ../dataavailability/mocks_da
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../dataavailability --output ../dataavailability/mocks_da --outpkg mocks_da ${COMMON_MOCKERY_PARAMS}
 	
 .PHONY: generate-mocks-rpc
 generate-mocks-rpc: ## Generates mocks for rpc, using mockery tool
-	rm -Rf ../rpc/mocks
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../rpc --output ../rpc/mocks --outpkg mocks ${COMMON_MOCKERY_PARAMS}
 
 .PHONY: generate-mocks-l1infotreesync
 generate-mocks-l1infotreesync: ## Generates mocks for l1infotreesync, using mockery tool
-	rm -Rf ../l1infotreesync/mocks
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../l1infotreesync --output ../l1infotreesync/mocks --outpkg mocks_l1infotreesync ${COMMON_MOCKERY_PARAMS}
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../l1infotreesync/mocks --outpkg=mocks_l1infotreesync --structname=ReorgDetectorMock --filename=mock_reorgdetector.go ${COMMON_MOCKERY_PARAMS}
 	
@@ -45,7 +40,6 @@ generate-mocks-helpers: ## Generates mocks for helpers, using mockery tool
 
 .PHONY: generate-mocks-aggoracle
 generate-mocks-aggoracle: ## Generates mocks for aggoracle, using mockery tool
-	rm -Rf ../aggoracle/mocks
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager --dir ../aggoracle/chaingersender --output ../aggoracle/mocks --outpkg mocks --structname=EthTxManagerMock --filename=mock_ethtxmanager.go ${COMMON_MOCKERY_PARAMS}
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=L2GERManager --dir ../aggoracle/chaingersender --output ../aggoracle/mocks --outpkg mocks --structname=L2GERManagerMock --filename=mock_l2germanager.go ${COMMON_MOCKERY_PARAMS}
 
@@ -71,7 +65,6 @@ generate-mocks-aggregator: ## Generates mocks for aggregator, using mockery tool
 
 .PHONY: generate-mocks-aggsender
 generate-mocks-aggsender: ## Generates mocks for aggsender, using mockery tool
-	rm -Rf ../aggsender/mocks
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../aggsender --output ../aggsender/mocks --outpkg mocks ${COMMON_MOCKERY_PARAMS}
 
 .PHONY: generate-mocks-agglayer
