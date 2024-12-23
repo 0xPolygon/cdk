@@ -272,9 +272,11 @@ func newSimulatedEVML2SovereignChain(t *testing.T) (
 	require.True(t, ok)
 
 	const deployedContractsCount = 3
-	l2BridgeAddr := crypto.CreateAddress(deployerAuth.From, deployedContractsCount)
+	l2BridgeProxyAddr := crypto.CreateAddress(deployerAuth.From, deployedContractsCount)
 
-	genesisAllocMap := map[common.Address]types.Account{l2BridgeAddr: {Balance: premineBalance}}
+	genesisAllocMap := map[common.Address]types.Account{
+		l2BridgeProxyAddr: {Balance: premineBalance},
+	}
 	client, setup := NewSimulatedBackend(t, genesisAllocMap, deployerAuth)
 
 	// Deploy L2 GER manager contract
@@ -309,7 +311,7 @@ func newSimulatedEVML2SovereignChain(t *testing.T) (
 
 	err = setup.DeployBridge(client, gerProxyAddr, rollupID)
 	require.NoError(t, err)
-	require.Equal(t, l2BridgeAddr, setup.BridgeProxyAddr)
+	require.Equal(t, l2BridgeProxyAddr, setup.BridgeProxyAddr)
 
 	bridgeGERAddr, err := setup.BridgeProxyContract.GlobalExitRootManager(nil)
 	require.NoError(t, err)
