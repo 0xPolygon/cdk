@@ -111,6 +111,9 @@ type Config struct {
 	// RPCURL is the URL of the RPC server
 	RPCURL string `mapstructure:"RPCURL"`
 
+	// RPCTimeout is the timeout for the L2 RPC calls
+	RPCTimeout types.Duration `mapstructure:"RPCTimeout"`
+
 	// WitnessURL is the URL of the witness server
 	WitnessURL string `mapstructure:"WitnessURL"`
 

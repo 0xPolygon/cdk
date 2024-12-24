@@ -1,10 +1,12 @@
 package rpc
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/log"
@@ -21,11 +23,15 @@ var (
 const busyResponse = "busy"
 
 type BatchEndpoints struct {
-	url string
+	url         string
+	readTimeout time.Duration
 }
 
-func NewBatchEndpoints(url string) *BatchEndpoints {
-	return &BatchEndpoints{url: url}
+func NewBatchEndpoints(url string, readTimeout time.Duration) *BatchEndpoints {
+	return &BatchEndpoints{
+		url:         url,
+		readTimeout: readTimeout,
+	}
 }
 
 func (b *BatchEndpoints) GetBatch(batchNumber uint64) (*types.RPCBatch, error) {
@@ -45,7 +51,9 @@ func (b *BatchEndpoints) GetBatch(batchNumber uint64) (*types.RPCBatch, error) {
 
 	log.Infof("Getting batch %d from RPC", batchNumber)
 
-	response, err := rpc.JSONRPCCall(b.url, "zkevm_getBatchByNumber", batchNumber)
+	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
+	defer cancel()
+	response, err := rpc.JSONRPCCallWithContext(ctx, b.url, "zkevm_getBatchByNumber", batchNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +100,9 @@ func (b *BatchEndpoints) GetL2BlockTimestamp(blockHash string) (uint64, error) {
 
 	log.Infof("Getting l2 block timestamp from RPC. Block hash: %s", blockHash)
 
-	response, err := rpc.JSONRPCCall(b.url, "eth_getBlockByHash", blockHash, false)
+	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
+	defer cancel()
+	response, err := rpc.JSONRPCCallWithContext(ctx, b.url, "eth_getBlockByHash", blockHash, false)
 	if err != nil {
 		return 0, err
 	}
@@ -126,7 +136,9 @@ func (b *BatchEndpoints) GetWitness(batchNumber uint64, fullWitness bool) ([]byt
 
 	log.Infof("Requesting witness for batch %d of type %s", batchNumber, witnessType)
 
-	response, err = rpc.JSONRPCCall(b.url, "zkevm_getBatchWitness", batchNumber, witnessType)
+	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
+	defer cancel()
+	response, err = rpc.JSONRPCCallWithContext(ctx, b.url, "zkevm_getBatchWitness", batchNumber, witnessType)
 	if err != nil {
 		return nil, err
 	}

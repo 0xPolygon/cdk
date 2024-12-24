@@ -103,7 +103,7 @@ func Test_getBatchFromRPC(t *testing.T) {
 			}))
 			defer srv.Close()
 
-			rcpBatchClient := NewBatchEndpoints(srv.URL)
+			rcpBatchClient := NewBatchEndpoints(srv.URL, 0)
 			rpcBatch, err := rcpBatchClient.GetBatch(tt.batch)
 			if rpcBatch != nil {
 				copiedrpcBatch := rpcBatch.DeepCopy()
@@ -187,7 +187,7 @@ func Test_getBatchWitnessRPC(t *testing.T) {
 			}))
 			defer srv.Close()
 
-			rcpBatchClient := NewBatchEndpoints(srv.URL)
+			rcpBatchClient := NewBatchEndpoints(srv.URL, 0)
 			witness, err := rcpBatchClient.GetWitness(tt.batch, false)
 			if tt.expectErr != nil {
 				require.Equal(t, tt.expectErr.Error(), err.Error())
@@ -252,7 +252,7 @@ func Test_getGetL2BlockTimestamp(t *testing.T) {
 			}))
 			defer srv.Close()
 
-			rcpBatchClient := NewBatchEndpoints(srv.URL)
+			rcpBatchClient := NewBatchEndpoints(srv.URL, 0)
 			timestamp, err := rcpBatchClient.GetL2BlockTimestamp(string(tt.blockHash))
 			if tt.expectErr != nil {
 				require.Equal(t, tt.expectErr.Error(), err.Error())

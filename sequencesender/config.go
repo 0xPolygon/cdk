@@ -68,6 +68,9 @@ type Config struct {
 	// RPCURL is the URL of the RPC server
 	RPCURL string `mapstructure:"RPCURL"`
 
+	// RPCTimeout is the timeout for the L2 RPC calls
+	RPCTimeout types.Duration `mapstructure:"RPCTimeout"`
+
 	// GetBatchWaitInterval is the time to wait to query for a new batch when there are no more batches available
 	GetBatchWaitInterval types.Duration `mapstructure:"GetBatchWaitInterval"`
 }

@@ -91,6 +91,7 @@ MaxPendingTx = 1
 MaxBatchesForL1 = 300
 BlockFinality = "FinalizedBlock"
 RPCURL = "{{L2URL}}"
+RPCTimeout = "2m"
 GetBatchWaitInterval = "10s"
 	[SequenceSender.EthTxManager]
 		FrequencyToMonitorTxs = "1s"
@@ -131,6 +132,7 @@ CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 GasOffset = 0
 RPCURL = "{{L2URL}}"
+RPCTimeout = "2m"
 WitnessURL = "{{WitnessURL}}"
 UseFullWitness = false
 SettlementBackend = "l1"
