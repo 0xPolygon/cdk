@@ -25,6 +25,7 @@ import (
 )
 
 const ten = 10
+const batchMultiplier = 5
 
 // EthTxManager represents the eth tx manager interface
 type EthTxManager interface {
@@ -170,6 +171,10 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 			s.logger.Info("context cancelled, stopping batch retrieval")
 			return ctx.Err()
 		default:
+			if s.checkWait() {
+				<-ticker.C
+				continue
+			}
 			// Try to retrieve batch from RPC
 			rpcBatch, err := s.rpcClient.GetBatch(currentBatchNumber)
 			if err != nil {
@@ -553,4 +558,16 @@ func marginTimeElapsed(l2BlockTimestamp uint64, currentTime uint64, timeMargin i
 
 	// Time difference is greater than or equal to timeMargin, no need to wait
 	return true, 0
+}
+
+// check if the sequence sender is needed to be waited
+func (s *SequenceSender) checkWait() bool {
+	s.mutexSequence.Lock()
+	defer s.mutexSequence.Unlock()
+
+	if uint64(len(s.sequenceList)) >= s.cfg.MaxBatchesForL1*batchMultiplier {
+		s.logger.Infof("Sequence list is full: %d, waiting to sync batch from rpc.", len(s.sequenceList))
+		return true
+	}
+	return false
 }
