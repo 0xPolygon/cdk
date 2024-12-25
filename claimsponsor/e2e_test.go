@@ -51,9 +51,12 @@ func TestE2EL1toEVML2(t *testing.T) {
 
 		expectedGER, err := setup.L1Environment.GERContract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		isInjected, err := setup.L2Environment.AggoracleSender.IsGERInjected(expectedGER)
+		_, err = setup.L2Environment.GERContract.InsertGlobalExitRoot(setup.L2Environment.Auth, expectedGER)
 		require.NoError(t, err)
-		require.True(t, isInjected, fmt.Sprintf("iteration %d, GER: %s", i, common.Bytes2Hex(expectedGER[:])))
+		setup.L2Environment.SimBackend.Commit()
+		gerIndex, err := setup.L2Environment.GERContract.GlobalExitRootMap(nil, expectedGER)
+		require.NoError(t, err)
+		require.Equal(t, big.NewInt(int64(i)+1), gerIndex, fmt.Sprintf("iteration %d, GER: %s is not updated on L2", i, common.Bytes2Hex(expectedGER[:])))
 
 		// Build MP using bridgeSyncL1 & env.InfoTreeSync
 		info, err := setup.L1Environment.InfoTreeSync.GetInfoByIndex(ctx, i)

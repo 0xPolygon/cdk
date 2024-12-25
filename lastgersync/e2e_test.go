@@ -3,6 +3,7 @@ package lastgersync_test
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"path"
 	"strconv"
 	"testing"
@@ -44,9 +45,12 @@ func TestE2E(t *testing.T) {
 		time.Sleep(time.Millisecond * 150)
 		expectedGER, err := setup.L1Environment.GERContract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		isInjected, err := setup.AggoracleSender.IsGERInjected(expectedGER)
+		_, err = setup.L2Environment.GERContract.InsertGlobalExitRoot(setup.L2Environment.Auth, expectedGER)
 		require.NoError(t, err)
-		require.True(t, isInjected, fmt.Sprintf("iteration %d, GER: %s", i, common.Bytes2Hex(expectedGER[:])))
+		setup.L2Environment.SimBackend.Commit()
+		gerIndex, err := setup.L2Environment.GERContract.GlobalExitRootMap(nil, expectedGER)
+		require.NoError(t, err)
+		require.Equal(t, big.NewInt(int64(i+1)), gerIndex, fmt.Sprintf("iteration %d, GER: %s is not updated on L2", i, common.Bytes2Hex(expectedGER[:])))
 
 		// Wait for syncer to catch up
 		lb, err := setup.L2Environment.SimBackend.Client().BlockNumber(ctx)
