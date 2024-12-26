@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	jRPC "github.com/0xPolygon/cdk-rpc/rpc"
-	"github.com/0xPolygon/cdk/aggoracle"
 	"github.com/0xPolygon/cdk/aggregator"
 	"github.com/0xPolygon/cdk/aggsender"
 	"github.com/0xPolygon/cdk/bridgesync"
@@ -128,22 +127,28 @@ The file is [TOML format]
 type Config struct {
 	// Configuration of the etherman (client for access L1)
 	Etherman ethermanconfig.Config
+
 	// Configuration of the aggregator
 	Aggregator aggregator.Config
+
 	// Configure Log level for all the services, allow also to store the logs in a file
 	Log log.Config
+
 	// Configuration of the genesis of the network. This is used to known the initial state of the network
 	NetworkConfig NetworkConfig
+
 	// Configuration of the sequence sender service
 	SequenceSender sequencesender.Config
+
 	// Common Config that affects all the services
 	Common common.Config
+
 	// Configuration of the reorg detector service to be used for the L1
 	ReorgDetectorL1 reorgdetector.Config
+
 	// Configuration of the reorg detector service to be used for the L2
 	ReorgDetectorL2 reorgdetector.Config
-	// Configuration of the aggOracle service
-	AggOracle aggoracle.Config
+
 	// Configuration of the L1 Info Treee Sync service
 	L1InfoTreeSync l1infotreesync.Config
 

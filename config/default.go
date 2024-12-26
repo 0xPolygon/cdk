@@ -217,38 +217,6 @@ InitialBlock={{genesisBlockNumber}}
 RetryAfterErrorPeriod="1s"
 MaxRetryAttemptsAfterError=-1
 
-[AggOracle]
-TargetChainType="EVM"
-URLRPCL1="{{L1URL}}"
-BlockFinality="FinalizedBlock"
-WaitPeriodNextGER="100ms"
-	[AggOracle.EVMSender]
-		GlobalExitRootL2="{{L2Config.GlobalExitRootAddr}}"
-		URLRPCL2="{{L2URL}}"
-		ChainIDL2=1337
-		GasOffset=0
-		WaitPeriodMonitorTx="100ms"
-		[AggOracle.EVMSender.EthTxManager]
-				FrequencyToMonitorTxs = "1s"
-				WaitTxToBeMined = "2s"
-				GetReceiptMaxTime = "250ms"
-				GetReceiptWaitInterval = "1s"
-				PrivateKeys = [
-					{Path = "/app/keystore/aggoracle.keystore", Password = "testonly"},
-				]
-				ForcedGas = 0
-				GasPriceMarginFactor = 1
-				MaxGasPriceLimit = 0
-				StoragePath = "{{PathRWData}}/ethtxmanager-sequencesender.sqlite"
-				ReadPendingL1Txs = false
-				SafeStatusL1NumberOfBlocks = 5
-				FinalizedStatusL1NumberOfBlocks = 10
-					[AggOracle.EVMSender.EthTxManager.Etherman]
-						URL = "{{L2URL}}"
-						MultiGasProvider = false
-						L1ChainID = {{NetworkConfig.L1.L1ChainID}}
-						HTTPHeaders = []
-
 [RPC]
 Host = "0.0.0.0"
 Port = 5576
