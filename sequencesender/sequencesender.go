@@ -29,6 +29,13 @@ const ten = 10
 // EthTxManager represents the eth tx manager interface
 type EthTxManager interface {
 	Start()
+	Add(ctx context.Context,
+		to *common.Address,
+		value *big.Int,
+		data []byte,
+		gasOffset uint64,
+		sidecar *ethtypes.BlobTxSidecar,
+	) (common.Hash, error)
 	AddWithGas(
 		ctx context.Context,
 		to *common.Address,

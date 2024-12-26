@@ -21,19 +21,19 @@ import (
 func TestE2EL1toEVML2(t *testing.T) {
 	// start other needed components
 	ctx := context.Background()
-	setup := helpers.NewE2EEnvWithEVML2(t)
+	l1Env, l2Env := helpers.NewL1EnvWithL2EVM(t)
 
 	// start claim sponsor
 	dbPathClaimSponsor := path.Join(t.TempDir(), "claimsponsorTestE2EL1toEVML2_cs.sqlite")
 	claimer, err := claimsponsor.NewEVMClaimSponsor(
 		log.GetDefaultLogger(),
 		dbPathClaimSponsor,
-		setup.L2Environment.SimBackend.Client(),
-		setup.L2Environment.BridgeAddr,
-		setup.L2Environment.Auth.From,
+		l2Env.SimBackend.Client(),
+		l2Env.BridgeAddr,
+		l2Env.Auth.From,
 		200_000,
 		0,
-		setup.EthTxManagerMock,
+		l2Env.EthTxManagerMock,
 		0, 0, time.Millisecond*10, time.Millisecond*10,
 	)
 	require.NoError(t, err)
@@ -43,26 +43,29 @@ func TestE2EL1toEVML2(t *testing.T) {
 	for i := uint32(0); i < 3; i++ {
 		// Send bridges to L2, wait for GER to be injected on L2
 		amount := new(big.Int).SetUint64(uint64(i) + 1)
-		setup.L1Environment.Auth.Value = amount
-		_, err := setup.L1Environment.BridgeContract.BridgeAsset(setup.L1Environment.Auth, setup.NetworkIDL2, setup.L2Environment.Auth.From, amount, common.Address{}, true, nil)
+		l1Env.Auth.Value = amount
+		_, err := l1Env.BridgeContract.BridgeAsset(l1Env.Auth, l2Env.NetworkID, l2Env.Auth.From, amount, common.Address{}, true, nil)
 		require.NoError(t, err)
-		setup.L1Environment.SimBackend.Commit()
+		l1Env.SimBackend.Commit()
 		time.Sleep(time.Millisecond * 300)
 
-		expectedGER, err := setup.L1Environment.GERContract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
+		expectedGER, err := l1Env.GERContract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		isInjected, err := setup.L2Environment.AggoracleSender.IsGERInjected(expectedGER)
+		_, err = l2Env.GERContract.InsertGlobalExitRoot(l2Env.Auth, expectedGER)
 		require.NoError(t, err)
-		require.True(t, isInjected, fmt.Sprintf("iteration %d, GER: %s", i, common.Bytes2Hex(expectedGER[:])))
+		l2Env.SimBackend.Commit()
+		gerIndex, err := l2Env.GERContract.GlobalExitRootMap(nil, expectedGER)
+		require.NoError(t, err)
+		require.Equal(t, big.NewInt(int64(i)+1), gerIndex, fmt.Sprintf("iteration %d, GER: %s is not updated on L2", i, common.Bytes2Hex(expectedGER[:])))
 
 		// Build MP using bridgeSyncL1 & env.InfoTreeSync
-		info, err := setup.L1Environment.InfoTreeSync.GetInfoByIndex(ctx, i)
+		info, err := l1Env.InfoTreeSync.GetInfoByIndex(ctx, i)
 		require.NoError(t, err)
 
-		localProof, err := setup.L1Environment.BridgeSync.GetProof(ctx, i, info.MainnetExitRoot)
+		localProof, err := l1Env.BridgeSync.GetProof(ctx, i, info.MainnetExitRoot)
 		require.NoError(t, err)
 
-		rollupProof, err := setup.L1Environment.InfoTreeSync.GetRollupExitTreeMerkleProof(ctx, 0, common.Hash{})
+		rollupProof, err := l1Env.InfoTreeSync.GetRollupExitTreeMerkleProof(ctx, 0, common.Hash{})
 		require.NoError(t, err)
 
 		// Request to sponsor claim
@@ -76,8 +79,8 @@ func TestE2EL1toEVML2(t *testing.T) {
 			RollupExitRoot:      info.RollupExitRoot,
 			OriginNetwork:       0,
 			OriginTokenAddress:  common.Address{},
-			DestinationNetwork:  setup.NetworkIDL2,
-			DestinationAddress:  setup.L2Environment.Auth.From,
+			DestinationNetwork:  l2Env.NetworkID,
+			DestinationAddress:  l2Env.Auth.From,
 			Amount:              amount,
 			Metadata:            nil,
 		})
@@ -100,7 +103,7 @@ func TestE2EL1toEVML2(t *testing.T) {
 		require.True(t, succeed)
 
 		// Check on contract that is claimed
-		isClaimed, err := setup.L2Environment.BridgeContract.IsClaimed(&bind.CallOpts{Pending: false}, i, 0)
+		isClaimed, err := l2Env.BridgeContract.IsClaimed(&bind.CallOpts{Pending: false}, i, 0)
 		require.NoError(t, err)
 		require.True(t, isClaimed)
 	}
