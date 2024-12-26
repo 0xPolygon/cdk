@@ -30,12 +30,6 @@ const (
 	periodRetry        = time.Millisecond * 100
 )
 
-type AggoracleWithEVMChain struct {
-	L1Environment
-	L2Environment
-	NetworkIDL2 uint32
-}
-
 // CommonEnvironment contains common setup results used in both L1 and L2 network setups.
 type CommonEnvironment struct {
 	SimBackend     *simulated.Backend
@@ -59,23 +53,20 @@ type L2Environment struct {
 	CommonEnvironment
 	GERContract      *globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain
 	EthTxManagerMock *EthTxManagerMock
+	NetworkID        uint32
 }
 
-// NewE2EEnvWithEVML2 creates a new E2E environment with EVM L1 and L2 chains.
-func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChain {
+// NewL1EnvWithL2EVM creates a new E2E environment with EVM L1 and L2 chains.
+func NewL1EnvWithL2EVM(t *testing.T) (*L1Environment, *L2Environment) {
 	t.Helper()
 
 	// Setup L1 environment
 	l1Setup := L1Setup(t)
 
 	// Setup L2 environment
-	l2Setup := L2Setup(t)
+	l2Setup := L2Setup(t, rollupID)
 
-	return &AggoracleWithEVMChain{
-		L1Environment: *l1Setup,
-		L2Environment: *l2Setup,
-		NetworkIDL2:   rollupID,
-	}
+	return l1Setup, l2Setup
 }
 
 // L1Setup creates a new L1 environment.
@@ -144,7 +135,7 @@ func L1Setup(t *testing.T) *L1Environment {
 }
 
 // L2Setup creates a new L2 environment.
-func L2Setup(t *testing.T) *L2Environment {
+func L2Setup(t *testing.T, networkID uint32) *L2Environment {
 	t.Helper()
 
 	l2Client, authL2, gerL2Addr, gerL2Contract,
@@ -194,6 +185,7 @@ func L2Setup(t *testing.T) *L2Environment {
 		},
 		GERContract:      gerL2Contract,
 		EthTxManagerMock: ethTxManagerMock,
+		NetworkID:        networkID,
 	}
 }
 

@@ -19,15 +19,15 @@ import (
 
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
-	setup := helpers.NewE2EEnvWithEVML2(t)
+	l1Env, l2Env := helpers.NewL1EnvWithL2EVM(t)
 	dbPathSyncer := path.Join(t.TempDir(), "lastgersyncTestE2E.sqlite")
 	syncer, err := lastgersync.New(
 		ctx,
 		dbPathSyncer,
-		setup.L2Environment.ReorgDetector,
-		setup.L2Environment.SimBackend.Client(),
-		setup.L2Environment.GERAddr,
-		setup.InfoTreeSync,
+		l2Env.ReorgDetector,
+		l2Env.SimBackend.Client(),
+		l2Env.GERAddr,
+		l1Env.InfoTreeSync,
 		0,
 		0,
 		etherman.LatestBlock,
@@ -39,21 +39,21 @@ func TestE2E(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		// Update GER on L1
-		_, err := setup.L1Environment.GERContract.UpdateExitRoot(setup.L1Environment.Auth, common.HexToHash(strconv.Itoa(i)))
+		_, err := l1Env.GERContract.UpdateExitRoot(l1Env.Auth, common.HexToHash(strconv.Itoa(i)))
 		require.NoError(t, err)
-		setup.L1Environment.SimBackend.Commit()
+		l1Env.SimBackend.Commit()
 		time.Sleep(time.Millisecond * 150)
-		expectedGER, err := setup.L1Environment.GERContract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
+		expectedGER, err := l1Env.GERContract.GetLastGlobalExitRoot(&bind.CallOpts{Pending: false})
 		require.NoError(t, err)
-		_, err = setup.L2Environment.GERContract.InsertGlobalExitRoot(setup.L2Environment.Auth, expectedGER)
+		_, err = l2Env.GERContract.InsertGlobalExitRoot(l2Env.Auth, expectedGER)
 		require.NoError(t, err)
-		setup.L2Environment.SimBackend.Commit()
-		gerIndex, err := setup.L2Environment.GERContract.GlobalExitRootMap(nil, expectedGER)
+		l2Env.SimBackend.Commit()
+		gerIndex, err := l2Env.GERContract.GlobalExitRootMap(nil, expectedGER)
 		require.NoError(t, err)
 		require.Equal(t, big.NewInt(int64(i+1)), gerIndex, fmt.Sprintf("iteration %d, GER: %s is not updated on L2", i, common.Bytes2Hex(expectedGER[:])))
 
 		// Wait for syncer to catch up
-		lb, err := setup.L2Environment.SimBackend.Client().BlockNumber(ctx)
+		lb, err := l2Env.SimBackend.Client().BlockNumber(ctx)
 		require.NoError(t, err)
 		helpers.RequireProcessorUpdated(t, syncer, lb)
 
