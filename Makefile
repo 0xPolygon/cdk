@@ -60,7 +60,7 @@ build: build-rust build-go  build-tools## Builds the binaries locally into ./tar
 
 .PHONY: build-rust
 build-rust:
-	export BUILD_SCRIPT_DISABLED=1 && cargo build --release --jobs=$(shell nproc)
+	BUILD_SCRIPT_DISABLED=1 cargo build --release --jobs=$(shell nproc)
 
 .PHONY: build-go
 build-go:

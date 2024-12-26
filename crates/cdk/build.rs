@@ -85,7 +85,13 @@ fn build_versions() -> std::io::Result<()> {
     let versions = versions.replace(", }", " }");
 
     // The versions string is a JSON object we can parse
-    let versions_json: serde_json::Value = serde_json::from_str(&versions).unwrap();
+    let versions_json: serde_json::Value = match serde_json::from_str(&versions) {
+        Ok(json) => json,
+        Err(e) => {
+            eprintln!("Failed to parse JSON: {}", e);
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, "Failed to parse JSON"));
+        }
+    };
 
     // Write the versions to a file
     let dest_path = Path::new(".").join("versions.json");
