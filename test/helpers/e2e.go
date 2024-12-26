@@ -10,13 +10,10 @@ import (
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/globalexitrootmanagerl2sovereignchain"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/polygonzkevmbridgev2"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/polygonzkevmglobalexitrootv2"
-	"github.com/0xPolygon/cdk/aggoracle"
-	"github.com/0xPolygon/cdk/aggoracle/chaingersender"
 	"github.com/0xPolygon/cdk/bridgesync"
 	cfgTypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
-	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -33,13 +30,6 @@ const (
 	retries            = 3
 	periodRetry        = time.Millisecond * 100
 )
-
-type AggoracleWithEVMChain struct {
-	L1Environment
-	L2Environment
-	AggOracle   *aggoracle.AggOracle
-	NetworkIDL2 uint32
-}
 
 // CommonEnvironment contains common setup results used in both L1 and L2 network setups.
 type CommonEnvironment struct {
@@ -59,39 +49,25 @@ type L1Environment struct {
 	InfoTreeSync *l1infotreesync.L1InfoTreeSync
 }
 
-// L2Environment contains setup results for L1 network.
+// L2Environment contains setup results for L2 network.
 type L2Environment struct {
 	CommonEnvironment
 	GERContract      *globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain
-	AggoracleSender  aggoracle.ChainSender
 	EthTxManagerMock *EthTxManagerMock
+	NetworkID        uint32
 }
 
-// NewE2EEnvWithEVML2 creates a new E2E environment with EVM L1 and L2 chains.
-func NewE2EEnvWithEVML2(t *testing.T) *AggoracleWithEVMChain {
+// NewL1EnvWithL2EVM creates a new E2E environment with EVM L1 and L2 chains.
+func NewL1EnvWithL2EVM(t *testing.T) (*L1Environment, *L2Environment) {
 	t.Helper()
 
-	ctx := context.Background()
-	// Setup L1
+	// Setup L1 environment
 	l1Setup := L1Setup(t)
 
-	// Setup L2 EVM
-	l2Setup := L2Setup(t)
+	// Setup L2 environment
+	l2Setup := L2Setup(t, rollupID)
 
-	oracle, err := aggoracle.New(
-		log.GetDefaultLogger(), l2Setup.AggoracleSender,
-		l1Setup.SimBackend.Client(), l1Setup.InfoTreeSync,
-		etherman.LatestBlock, time.Millisecond*20, //nolint:mnd
-	)
-	require.NoError(t, err)
-	go oracle.Start(ctx)
-
-	return &AggoracleWithEVMChain{
-		L1Environment: *l1Setup,
-		L2Environment: *l2Setup,
-		AggOracle:     oracle,
-		NetworkIDL2:   rollupID,
-	}
+	return l1Setup, l2Setup
 }
 
 // L1Setup creates a new L1 environment.
@@ -164,7 +140,7 @@ func L1Setup(t *testing.T) *L1Environment {
 }
 
 // L2Setup creates a new L2 environment.
-func L2Setup(t *testing.T) *L2Environment {
+func L2Setup(t *testing.T, networkID uint32) *L2Environment {
 	t.Helper()
 
 	l2Client, authL2, gerL2Addr, gerL2Contract,
@@ -172,12 +148,6 @@ func L2Setup(t *testing.T) *L2Environment {
 
 	ethTxManagerMock := NewEthTxManMock(t, l2Client, authL2)
 
-	const gerCheckFrequency = time.Millisecond * 50
-	sender, err := chaingersender.NewEVMChainGERSender(
-		log.GetDefaultLogger(), gerL2Addr, l2Client.Client(),
-		ethTxManagerMock, 0, gerCheckFrequency,
-	)
-	require.NoError(t, err)
 	ctx := context.Background()
 
 	// Reorg detector
@@ -223,8 +193,8 @@ func L2Setup(t *testing.T) *L2Environment {
 			BridgeSync:     bridgeL2Sync,
 		},
 		GERContract:      gerL2Contract,
-		AggoracleSender:  sender,
 		EthTxManagerMock: ethTxManagerMock,
+		NetworkID:        networkID,
 	}
 }
 
