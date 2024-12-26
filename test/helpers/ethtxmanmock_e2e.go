@@ -73,9 +73,11 @@ func NewEthTxManMock(
 				return
 			}
 		}).
-		Return(common.Hash{}, nil)
+		Return(common.Hash{}, nil).
+		Maybe()
 	ethTxMock.On("Result", mock.Anything, mock.Anything).
-		Return(ethtxtypes.MonitoredTxResult{Status: ethtxtypes.MonitoredTxStatusMined}, nil)
+		Return(ethtxtypes.MonitoredTxResult{Status: ethtxtypes.MonitoredTxStatusMined}, nil).
+		Maybe()
 
 	return ethTxMock
 }

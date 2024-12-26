@@ -3,11 +3,10 @@
 package helpers
 
 import (
+	context "context"
 	big "math/big"
 
 	common "github.com/ethereum/go-ethereum/common"
-
-	context "context"
 
 	mock "github.com/stretchr/testify/mock"
 
@@ -92,9 +91,73 @@ func (_c *EthTxManagerMock_Add_Call) RunAndReturn(run func(context.Context, *com
 	return _c
 }
 
-// Remove provides a mock function with given fields: ctx, id
-func (_m *EthTxManagerMock) Remove(ctx context.Context, id common.Hash) error {
-	ret := _m.Called(ctx, id)
+// AddWithGas provides a mock function with given fields: ctx, to, value, data, gasOffset, sidecar, gas
+func (_m *EthTxManagerMock) AddWithGas(ctx context.Context, to *common.Address, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar, gas uint64) (common.Hash, error) {
+	ret := _m.Called(ctx, to, value, data, gasOffset, sidecar, gas)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddWithGas")
+	}
+
+	var r0 common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.Address, *big.Int, []byte, uint64, *types.BlobTxSidecar, uint64) (common.Hash, error)); ok {
+		return rf(ctx, to, value, data, gasOffset, sidecar, gas)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.Address, *big.Int, []byte, uint64, *types.BlobTxSidecar, uint64) common.Hash); ok {
+		r0 = rf(ctx, to, value, data, gasOffset, sidecar, gas)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.Address, *big.Int, []byte, uint64, *types.BlobTxSidecar, uint64) error); ok {
+		r1 = rf(ctx, to, value, data, gasOffset, sidecar, gas)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// EthTxManagerMock_AddWithGas_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddWithGas'
+type EthTxManagerMock_AddWithGas_Call struct {
+	*mock.Call
+}
+
+// AddWithGas is a helper method to define mock.On call
+//   - ctx context.Context
+//   - to *common.Address
+//   - value *big.Int
+//   - data []byte
+//   - gasOffset uint64
+//   - sidecar *types.BlobTxSidecar
+//   - gas uint64
+func (_e *EthTxManagerMock_Expecter) AddWithGas(ctx interface{}, to interface{}, value interface{}, data interface{}, gasOffset interface{}, sidecar interface{}, gas interface{}) *EthTxManagerMock_AddWithGas_Call {
+	return &EthTxManagerMock_AddWithGas_Call{Call: _e.mock.On("AddWithGas", ctx, to, value, data, gasOffset, sidecar, gas)}
+}
+
+func (_c *EthTxManagerMock_AddWithGas_Call) Run(run func(ctx context.Context, to *common.Address, value *big.Int, data []byte, gasOffset uint64, sidecar *types.BlobTxSidecar, gas uint64)) *EthTxManagerMock_AddWithGas_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.Address), args[2].(*big.Int), args[3].([]byte), args[4].(uint64), args[5].(*types.BlobTxSidecar), args[6].(uint64))
+	})
+	return _c
+}
+
+func (_c *EthTxManagerMock_AddWithGas_Call) Return(_a0 common.Hash, _a1 error) *EthTxManagerMock_AddWithGas_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *EthTxManagerMock_AddWithGas_Call) RunAndReturn(run func(context.Context, *common.Address, *big.Int, []byte, uint64, *types.BlobTxSidecar, uint64) (common.Hash, error)) *EthTxManagerMock_AddWithGas_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Remove provides a mock function with given fields: ctx, hash
+func (_m *EthTxManagerMock) Remove(ctx context.Context, hash common.Hash) error {
+	ret := _m.Called(ctx, hash)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Remove")
@@ -102,7 +165,7 @@ func (_m *EthTxManagerMock) Remove(ctx context.Context, id common.Hash) error {
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) error); ok {
-		r0 = rf(ctx, id)
+		r0 = rf(ctx, hash)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -117,12 +180,12 @@ type EthTxManagerMock_Remove_Call struct {
 
 // Remove is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id common.Hash
-func (_e *EthTxManagerMock_Expecter) Remove(ctx interface{}, id interface{}) *EthTxManagerMock_Remove_Call {
-	return &EthTxManagerMock_Remove_Call{Call: _e.mock.On("Remove", ctx, id)}
+//   - hash common.Hash
+func (_e *EthTxManagerMock_Expecter) Remove(ctx interface{}, hash interface{}) *EthTxManagerMock_Remove_Call {
+	return &EthTxManagerMock_Remove_Call{Call: _e.mock.On("Remove", ctx, hash)}
 }
 
-func (_c *EthTxManagerMock_Remove_Call) Run(run func(ctx context.Context, id common.Hash)) *EthTxManagerMock_Remove_Call {
+func (_c *EthTxManagerMock_Remove_Call) Run(run func(ctx context.Context, hash common.Hash)) *EthTxManagerMock_Remove_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(common.Hash))
 	})
@@ -139,9 +202,9 @@ func (_c *EthTxManagerMock_Remove_Call) RunAndReturn(run func(context.Context, c
 	return _c
 }
 
-// Result provides a mock function with given fields: ctx, id
-func (_m *EthTxManagerMock) Result(ctx context.Context, id common.Hash) (zkevm_ethtx_managertypes.MonitoredTxResult, error) {
-	ret := _m.Called(ctx, id)
+// Result provides a mock function with given fields: ctx, hash
+func (_m *EthTxManagerMock) Result(ctx context.Context, hash common.Hash) (zkevm_ethtx_managertypes.MonitoredTxResult, error) {
+	ret := _m.Called(ctx, hash)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Result")
@@ -150,16 +213,16 @@ func (_m *EthTxManagerMock) Result(ctx context.Context, id common.Hash) (zkevm_e
 	var r0 zkevm_ethtx_managertypes.MonitoredTxResult
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (zkevm_ethtx_managertypes.MonitoredTxResult, error)); ok {
-		return rf(ctx, id)
+		return rf(ctx, hash)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) zkevm_ethtx_managertypes.MonitoredTxResult); ok {
-		r0 = rf(ctx, id)
+		r0 = rf(ctx, hash)
 	} else {
 		r0 = ret.Get(0).(zkevm_ethtx_managertypes.MonitoredTxResult)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
-		r1 = rf(ctx, id)
+		r1 = rf(ctx, hash)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -174,12 +237,12 @@ type EthTxManagerMock_Result_Call struct {
 
 // Result is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id common.Hash
-func (_e *EthTxManagerMock_Expecter) Result(ctx interface{}, id interface{}) *EthTxManagerMock_Result_Call {
-	return &EthTxManagerMock_Result_Call{Call: _e.mock.On("Result", ctx, id)}
+//   - hash common.Hash
+func (_e *EthTxManagerMock_Expecter) Result(ctx interface{}, hash interface{}) *EthTxManagerMock_Result_Call {
+	return &EthTxManagerMock_Result_Call{Call: _e.mock.On("Result", ctx, hash)}
 }
 
-func (_c *EthTxManagerMock_Result_Call) Run(run func(ctx context.Context, id common.Hash)) *EthTxManagerMock_Result_Call {
+func (_c *EthTxManagerMock_Result_Call) Run(run func(ctx context.Context, hash common.Hash)) *EthTxManagerMock_Result_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(common.Hash))
 	})
@@ -196,9 +259,9 @@ func (_c *EthTxManagerMock_Result_Call) RunAndReturn(run func(context.Context, c
 	return _c
 }
 
-// ResultsByStatus provides a mock function with given fields: ctx, statuses
-func (_m *EthTxManagerMock) ResultsByStatus(ctx context.Context, statuses []zkevm_ethtx_managertypes.MonitoredTxStatus) ([]zkevm_ethtx_managertypes.MonitoredTxResult, error) {
-	ret := _m.Called(ctx, statuses)
+// ResultsByStatus provides a mock function with given fields: ctx, status
+func (_m *EthTxManagerMock) ResultsByStatus(ctx context.Context, status []zkevm_ethtx_managertypes.MonitoredTxStatus) ([]zkevm_ethtx_managertypes.MonitoredTxResult, error) {
+	ret := _m.Called(ctx, status)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ResultsByStatus")
@@ -207,10 +270,10 @@ func (_m *EthTxManagerMock) ResultsByStatus(ctx context.Context, statuses []zkev
 	var r0 []zkevm_ethtx_managertypes.MonitoredTxResult
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, []zkevm_ethtx_managertypes.MonitoredTxStatus) ([]zkevm_ethtx_managertypes.MonitoredTxResult, error)); ok {
-		return rf(ctx, statuses)
+		return rf(ctx, status)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, []zkevm_ethtx_managertypes.MonitoredTxStatus) []zkevm_ethtx_managertypes.MonitoredTxResult); ok {
-		r0 = rf(ctx, statuses)
+		r0 = rf(ctx, status)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]zkevm_ethtx_managertypes.MonitoredTxResult)
@@ -218,7 +281,7 @@ func (_m *EthTxManagerMock) ResultsByStatus(ctx context.Context, statuses []zkev
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, []zkevm_ethtx_managertypes.MonitoredTxStatus) error); ok {
-		r1 = rf(ctx, statuses)
+		r1 = rf(ctx, status)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -233,12 +296,12 @@ type EthTxManagerMock_ResultsByStatus_Call struct {
 
 // ResultsByStatus is a helper method to define mock.On call
 //   - ctx context.Context
-//   - statuses []zkevm_ethtx_managertypes.MonitoredTxStatus
-func (_e *EthTxManagerMock_Expecter) ResultsByStatus(ctx interface{}, statuses interface{}) *EthTxManagerMock_ResultsByStatus_Call {
-	return &EthTxManagerMock_ResultsByStatus_Call{Call: _e.mock.On("ResultsByStatus", ctx, statuses)}
+//   - status []zkevm_ethtx_managertypes.MonitoredTxStatus
+func (_e *EthTxManagerMock_Expecter) ResultsByStatus(ctx interface{}, status interface{}) *EthTxManagerMock_ResultsByStatus_Call {
+	return &EthTxManagerMock_ResultsByStatus_Call{Call: _e.mock.On("ResultsByStatus", ctx, status)}
 }
 
-func (_c *EthTxManagerMock_ResultsByStatus_Call) Run(run func(ctx context.Context, statuses []zkevm_ethtx_managertypes.MonitoredTxStatus)) *EthTxManagerMock_ResultsByStatus_Call {
+func (_c *EthTxManagerMock_ResultsByStatus_Call) Run(run func(ctx context.Context, status []zkevm_ethtx_managertypes.MonitoredTxStatus)) *EthTxManagerMock_ResultsByStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].([]zkevm_ethtx_managertypes.MonitoredTxStatus))
 	})
@@ -252,6 +315,38 @@ func (_c *EthTxManagerMock_ResultsByStatus_Call) Return(_a0 []zkevm_ethtx_manage
 
 func (_c *EthTxManagerMock_ResultsByStatus_Call) RunAndReturn(run func(context.Context, []zkevm_ethtx_managertypes.MonitoredTxStatus) ([]zkevm_ethtx_managertypes.MonitoredTxResult, error)) *EthTxManagerMock_ResultsByStatus_Call {
 	_c.Call.Return(run)
+	return _c
+}
+
+// Start provides a mock function with no fields
+func (_m *EthTxManagerMock) Start() {
+	_m.Called()
+}
+
+// EthTxManagerMock_Start_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Start'
+type EthTxManagerMock_Start_Call struct {
+	*mock.Call
+}
+
+// Start is a helper method to define mock.On call
+func (_e *EthTxManagerMock_Expecter) Start() *EthTxManagerMock_Start_Call {
+	return &EthTxManagerMock_Start_Call{Call: _e.mock.On("Start")}
+}
+
+func (_c *EthTxManagerMock_Start_Call) Run(run func()) *EthTxManagerMock_Start_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *EthTxManagerMock_Start_Call) Return() *EthTxManagerMock_Start_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *EthTxManagerMock_Start_Call) RunAndReturn(run func()) *EthTxManagerMock_Start_Call {
+	_c.Run(run)
 	return _c
 }
 
