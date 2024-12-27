@@ -40,7 +40,6 @@ jobs:
           - "fork11-rollup"
           - "fork12-validium"
           - "fork12-rollup"
-          - "fork12-pessimistic"
     steps:
     - uses: actions/checkout@v4
     

@@ -293,21 +293,4 @@ ZkEVMAddr = "{{L1Config.polygonZkEVMAddress}}"
 RollupManagerAddr = "{{L1Config.polygonRollupManagerAddress}}"
 GlobalExitRootManagerAddr = "{{L1Config.polygonZkEVMGlobalExitRootAddress}}"
 
-
-[AggSender]
-StoragePath = "{{PathRWData}}/aggsender.sqlite"
-AggLayerURL = "{{AggLayerURL}}"
-AggsenderPrivateKey = {Path = "{{SequencerPrivateKeyPath}}", Password = "{{SequencerPrivateKeyPassword}}"}
-URLRPCL2="{{L2URL}}"
-BlockFinality = "LatestBlock"
-EpochNotificationPercentage = 50
-SaveCertificatesToFilesPath = ""
-MaxRetriesStoreCertificate = 3
-DelayBeetweenRetries = "60s"
-KeepCertificatesHistory = true
-# MaxSize of the certificate to 8Mb
-MaxCertSize = 8388608
-BridgeMetadataAsHash = true
-DryRun = false
-EnableRPC = true
 `

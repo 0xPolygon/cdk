@@ -66,10 +66,6 @@ build-rust:
 build-go:
 	$(GOENVVARS) go build -ldflags "all=$(LDFLAGS)" -o $(GOBIN)/$(GOBINARY) $(GOCMD)
 
-.PHONY: build-tools
-build-tools: ## Builds the tools
-	$(GOENVVARS) go build -o $(GOBIN)/aggsender_find_imported_bridge ./tools/aggsender_find_imported_bridge
-
 .PHONY: build-docker
 build-docker: ## Builds a docker image with the cdk binary
 	docker build -t cdk -f ./Dockerfile .

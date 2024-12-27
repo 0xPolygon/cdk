@@ -12,10 +12,8 @@ import (
 	zkevm "github.com/0xPolygon/cdk"
 	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
 	jRPC "github.com/0xPolygon/cdk-rpc/rpc"
-	"github.com/0xPolygon/cdk/agglayer"
 	"github.com/0xPolygon/cdk/aggregator"
 	"github.com/0xPolygon/cdk/aggregator/db"
-	"github.com/0xPolygon/cdk/aggsender"
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/claimsponsor"
 	cdkcommon "github.com/0xPolygon/cdk/common"
@@ -72,7 +70,7 @@ func start(cliCtx *cli.Context) error {
 		}
 	}()
 
-	rollupID := getRollUpIDIfNeeded(components, cfg.NetworkConfig.L1Config, l1Client)
+	rollupID := getRollupID(cfg.NetworkConfig.L1Config, l1Client)
 	l1InfoTreeSync := runL1InfoTreeSyncerIfNeeded(cliCtx.Context, components, *cfg, l1Client, reorgDetectorL1)
 	claimSponsor := runClaimSponsorIfNeeded(cliCtx.Context, components, l2Client, cfg.ClaimSponsor)
 	l1BridgeSync := runBridgeSyncL1IfNeeded(cliCtx.Context, components, cfg.BridgeL1Sync, reorgDetectorL1,
@@ -112,21 +110,6 @@ func start(cliCtx *cli.Context) error {
 				l2BridgeSync,
 			)
 			rpcServices = append(rpcServices, rpcBridge...)
-
-		case cdkcommon.AGGSENDER:
-			aggsender, err := createAggSender(
-				cliCtx.Context,
-				cfg.AggSender,
-				l1Client,
-				l1InfoTreeSync,
-				l2BridgeSync,
-			)
-			if err != nil {
-				log.Fatal(err)
-			}
-			rpcServices = append(rpcServices, aggsender.GetRPCServices()...)
-
-			go aggsender.Start(cliCtx.Context)
 		}
 	}
 	if len(rpcServices) > 0 {
@@ -140,40 +123,6 @@ func start(cliCtx *cli.Context) error {
 	waitSignal(nil)
 
 	return nil
-}
-
-func createAggSender(
-	ctx context.Context,
-	cfg aggsender.Config,
-	l1EthClient *ethclient.Client,
-	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
-	l2Syncer *bridgesync.BridgeSync) (*aggsender.AggSender, error) {
-	logger := log.WithFields("module", cdkcommon.AGGSENDER)
-	agglayerClient := agglayer.NewAggLayerClient(cfg.AggLayerURL)
-	blockNotifier, err := aggsender.NewBlockNotifierPolling(l1EthClient, aggsender.ConfigBlockNotifierPolling{
-		BlockFinalityType:     etherman.BlockNumberFinality(cfg.BlockFinality),
-		CheckNewBlockInterval: aggsender.AutomaticBlockInterval,
-	}, logger, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	notifierCfg, err := aggsender.NewConfigEpochNotifierPerBlock(agglayerClient, cfg.EpochNotificationPercentage)
-	if err != nil {
-		return nil, fmt.Errorf("cant generate config for Epoch Notifier because: %w", err)
-	}
-	epochNotifier, err := aggsender.NewEpochNotifierPerBlock(
-		blockNotifier,
-		logger,
-		*notifierCfg, nil)
-	if err != nil {
-		return nil, err
-	}
-	log.Infof("Starting blockNotifier: %s", blockNotifier.String())
-	go blockNotifier.Start(ctx)
-	log.Infof("Starting epochNotifier: %s", epochNotifier.String())
-	go epochNotifier.Start(ctx)
-	return aggsender.New(ctx, logger, cfg, agglayerClient, l1InfoTreeSync, l2Syncer, epochNotifier)
 }
 
 func createAggregator(ctx context.Context, c config.Config, runMigrations bool) *aggregator.Aggregator {
@@ -452,7 +401,7 @@ func runL1InfoTreeSyncerIfNeeded(
 	reorgDetector *reorgdetector.ReorgDetector,
 ) *l1infotreesync.L1InfoTreeSync {
 	if !isNeeded([]string{cdkcommon.BRIDGE,
-		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGSENDER, cdkcommon.L1INFOTREESYNC}, components) {
+		cdkcommon.SEQUENCE_SENDER, cdkcommon.L1INFOTREESYNC}, components) {
 		return nil
 	}
 	l1InfoTreeSync, err := l1infotreesync.New(
@@ -481,8 +430,7 @@ func runL1InfoTreeSyncerIfNeeded(
 func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client {
 	if !isNeeded([]string{
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
-		cdkcommon.BRIDGE, cdkcommon.AGGSENDER,
-		cdkcommon.L1INFOTREESYNC,
+		cdkcommon.BRIDGE, cdkcommon.L1INFOTREESYNC,
 	}, components) {
 		return nil
 	}
@@ -495,13 +443,8 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 	return l1CLient
 }
 
-func getRollUpIDIfNeeded(components []string, networkConfig ethermanconfig.L1Config,
+func getRollupID(networkConfig ethermanconfig.L1Config,
 	l1Client *ethclient.Client) uint32 {
-	if !isNeeded([]string{
-		cdkcommon.AGGSENDER,
-	}, components) {
-		return 0
-	}
 	rollupID, err := etherman.GetRollupID(networkConfig, networkConfig.ZkEVMAddr, l1Client)
 	if err != nil {
 		log.Fatal(err)
@@ -510,7 +453,7 @@ func getRollUpIDIfNeeded(components []string, networkConfig ethermanconfig.L1Con
 }
 
 func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client {
-	if !isNeeded([]string{cdkcommon.BRIDGE, cdkcommon.AGGSENDER}, components) {
+	if !isNeeded([]string{cdkcommon.BRIDGE}, components) {
 		return nil
 	}
 
@@ -531,8 +474,7 @@ func runReorgDetectorL1IfNeeded(
 ) (*reorgdetector.ReorgDetector, chan error) {
 	if !isNeeded([]string{
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
-		cdkcommon.BRIDGE, cdkcommon.AGGSENDER,
-		cdkcommon.L1INFOTREESYNC},
+		cdkcommon.BRIDGE, cdkcommon.L1INFOTREESYNC},
 		components) {
 		return nil, nil
 	}
@@ -555,7 +497,7 @@ func runReorgDetectorL2IfNeeded(
 	l2Client *ethclient.Client,
 	cfg *reorgdetector.Config,
 ) (*reorgdetector.ReorgDetector, chan error) {
-	if !isNeeded([]string{cdkcommon.BRIDGE, cdkcommon.AGGSENDER}, components) {
+	if !isNeeded([]string{cdkcommon.BRIDGE}, components) {
 		return nil, nil
 	}
 	rd := newReorgDetector(cfg, l2Client)
@@ -686,7 +628,7 @@ func runBridgeSyncL2IfNeeded(
 	l2Client *ethclient.Client,
 	rollupID uint32,
 ) *bridgesync.BridgeSync {
-	if !isNeeded([]string{cdkcommon.BRIDGE, cdkcommon.AGGSENDER}, components) {
+	if !isNeeded([]string{cdkcommon.BRIDGE}, components) {
 		return nil
 	}
 
@@ -748,8 +690,8 @@ func createRPC(cfg jRPC.Config, services []jRPC.Service) *jRPC.Server {
 }
 
 func getL2RPCUrl(c *config.Config) string {
-	if c.AggSender.URLRPCL2 != "" {
-		return c.AggSender.URLRPCL2
+	if c.SequenceSender.RPCURL != "" {
+		return c.SequenceSender.RPCURL
 	}
 
 	return ""
