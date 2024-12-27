@@ -56,7 +56,7 @@ install-linter: check-go check-curl
 generate-code-from-proto: check-protoc
 
 .PHONY: build
-build: build-rust build-go  build-tools## Builds the binaries locally into ./target
+build: build-rust build-go ## Builds the binaries locally into ./target
 
 .PHONY: build-rust
 build-rust:
