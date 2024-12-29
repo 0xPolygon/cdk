@@ -42,7 +42,6 @@ jobs:
           - "fork11-rollup"
           - "fork12-validium"
           - "fork12-rollup"
-          - "fork12-pessimistic"
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4

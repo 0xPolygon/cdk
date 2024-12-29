@@ -53,8 +53,3 @@ Outputs = ["stderr"]
         VerifyProofInterval = "10s"
         GasOffset = 150000
         SettlementBackend = "agglayer"
-       
-[AggSender]
-SaveCertificatesToFilesPath = "{{.zkevm_path_rw_data}}/"
-
-
