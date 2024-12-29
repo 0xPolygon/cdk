@@ -9,7 +9,7 @@ RUN go mod download
 
 # BUILD BINARY
 COPY . .
-RUN make build-go build-tools
+RUN make build-go
 
 # BUILD RUST BIN
 FROM --platform=${BUILDPLATFORM} rust:slim-bookworm AS chef

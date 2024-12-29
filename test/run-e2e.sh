@@ -9,7 +9,7 @@ fi
 
 DATA_AVAILABILITY_MODE=$2
 if [ -z $DATA_AVAILABILITY_MODE ]; then
-    echo "Missing DATA_AVAILABILITY_MODE: ['rollup', 'cdk-validium', 'pessimistic']"
+    echo "Missing DATA_AVAILABILITY_MODE: ['rollup', 'cdk-validium']"
     exit 1
 fi
 
