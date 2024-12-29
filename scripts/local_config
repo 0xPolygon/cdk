@@ -202,10 +202,7 @@ function export_values_of_cdk_node_config(){
     if [ $? -ne 0 ]; then
         export_key_from_toml_file_or_fatal      zkevm_rollup_fork_id                $_CDK_CONFIG_FILE "." ForkId
     fi
-    export_key_from_toml_file     zkevm_l2_agglayer_keystore_password               $_CDK_CONFIG_FILE AggSender.SequencerPrivateKey Password
-    if [ $? -ne 0 ]; then
-        export_key_from_toml_file_or_fatal      zkevm_l2_agglayer_keystore_password $_CDK_CONFIG_FILE "." SequencerPrivateKeyPassword
-    fi
+    export_key_from_toml_file_or_fatal      zkevm_l2_agglayer_keystore_password $_CDK_CONFIG_FILE "." SequencerPrivateKeyPassword
     export_key_from_toml_file      zkevm_bridge_address                             $_CDK_CONFIG_FILE BridgeL1Sync BridgeAddr
     if [ $? -ne 0 ]; then
         export_key_from_toml_file_or_fatal      zkevm_bridge_address                $_CDK_CONFIG_FILE "." polygonBridgeAddr
@@ -436,9 +433,6 @@ cat << EOF
                 "-components", "sequence-sender,aggregator",
             ]
         },
-
-        To run AggSender change components to:
-                "-components", "aggsender",
 EOF
 
 echo " -----------------------------------------------------------"

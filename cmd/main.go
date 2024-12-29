@@ -41,7 +41,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR, common.BRIDGE, common.AGGSENDER),
+		Value:    cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR, common.BRIDGE),
 	}
 	saveConfigFlag = cli.StringFlag{
 		Name:     config.FlagSaveConfigPath,

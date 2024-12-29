@@ -78,7 +78,7 @@ func TestBigIntString(t *testing.T) {
 }
 
 func TestProceessor(t *testing.T) {
-	path := path.Join(t.TempDir(), "aggsenderTestProceessor.sqlite")
+	path := path.Join(t.TempDir(), "bridgeSyncTestProcessor.sqlite")
 	logger := log.WithFields("bridge-syncer", "foo")
 	p, err := newProcessor(path, logger)
 	require.NoError(t, err)
@@ -729,7 +729,7 @@ func TestDecodeGlobalIndex(t *testing.T) {
 }
 
 func TestInsertAndGetClaim(t *testing.T) {
-	path := path.Join(t.TempDir(), "aggsenderTestInsertAndGetClaim.sqlite")
+	path := path.Join(t.TempDir(), "bridgeSyncerTestInsertAndGetClaim.sqlite")
 	log.Debugf("sqlite path: %s", path)
 	err := migrationsBridge.RunMigrations(path)
 	require.NoError(t, err)
@@ -850,7 +850,7 @@ func TestGetBridgesPublished(t *testing.T) {
 }
 
 func TestProcessBlockInvalidIndex(t *testing.T) {
-	path := path.Join(t.TempDir(), "aggsenderTestProceessor.sqlite")
+	path := path.Join(t.TempDir(), "testProcessorBlockInvalidIndex.sqlite")
 	logger := log.WithFields("bridge-syncer", "foo")
 	p, err := newProcessor(path, logger)
 	require.NoError(t, err)

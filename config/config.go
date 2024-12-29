@@ -9,7 +9,6 @@ import (
 
 	jRPC "github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/aggregator"
-	"github.com/0xPolygon/cdk/aggsender"
 	"github.com/0xPolygon/cdk/bridgesync"
 	"github.com/0xPolygon/cdk/claimsponsor"
 	"github.com/0xPolygon/cdk/common"
@@ -167,9 +166,6 @@ type Config struct {
 	// LastGERSync is the config for the synchronizer in charge of syncing the last GER injected on L2.
 	// Needed for the bridge service (RPC)
 	LastGERSync lastgersync.Config
-
-	// AggSender is the configuration of the agg sender service
-	AggSender aggsender.Config
 }
 
 // Load loads the configuration
