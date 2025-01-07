@@ -276,16 +276,6 @@ RetryAfterErrorPeriod = "1s"
 MaxRetryAttemptsAfterError = -1
 WaitForNewBlocksPeriod = "3s"
 
-[LastGERSync]
-DBPath = "{{PathRWData}}/lastgersync.sqlite"
-BlockFinality = "LatestBlock"
-InitialBlockNum = 0
-GlobalExitRootL2Addr = "{{L2Config.GlobalExitRootAddr}}"
-RetryAfterErrorPeriod = "1s"
-MaxRetryAttemptsAfterError = -1
-WaitForNewBlocksPeriod = "1s"
-DownloadBufferSize = 100
-
 [NetworkConfig.L1]
 L1ChainID = {{L1Config.chainId}}
 PolAddr = "{{L1Config.polTokenAddress}}"

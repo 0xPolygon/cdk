@@ -6,9 +6,9 @@ import (
 	"math/big"
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
-	"github.com/0xPolygon/cdk/claimsponsor"
-	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/rpc/types"
+	"github.com/agglayer/aggkit/claimsponsor"
+	"github.com/agglayer/aggkit/l1infotreesync"
 )
 
 type BridgeClientInterface interface {

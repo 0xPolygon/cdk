@@ -5,9 +5,9 @@ import (
 	"math/big"
 
 	"github.com/0xPolygon/cdk/config/types"
-	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	syncronizerConfig "github.com/0xPolygonHermez/zkevm-synchronizer-l1/config"
+	"github.com/agglayer/aggkit/log"
 )
 
 // SettlementBackend is the type of the settlement backend

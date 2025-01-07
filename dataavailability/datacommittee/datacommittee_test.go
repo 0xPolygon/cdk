@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygondatacommittee"
-	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/test/contracts/erc1967proxy"
 	"github.com/0xPolygon/cdk/test/helpers"
+	"github.com/agglayer/aggkit/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"

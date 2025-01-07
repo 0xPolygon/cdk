@@ -4,10 +4,10 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/0xPolygon/cdk/claimsponsor"
-	"github.com/0xPolygon/cdk/l1infotreesync"
-	"github.com/0xPolygon/cdk/lastgersync"
-	tree "github.com/0xPolygon/cdk/tree/types"
+	"github.com/agglayer/aggkit/claimsponsor"
+	"github.com/agglayer/aggkit/l1infotreesync"
+	"github.com/agglayer/aggkit/lastgersync"
+	tree "github.com/agglayer/aggkit/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 

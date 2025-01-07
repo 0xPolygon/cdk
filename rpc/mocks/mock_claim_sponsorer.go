@@ -5,7 +5,7 @@ package mocks
 import (
 	big "math/big"
 
-	claimsponsor "github.com/0xPolygon/cdk/claimsponsor"
+	claimsponsor "github.com/agglayer/aggkit/claimsponsor"
 	mock "github.com/stretchr/testify/mock"
 )
 

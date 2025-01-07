@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/0xPolygon/cdk/config/types"
-	"github.com/0xPolygon/cdk/log"
+	"github.com/agglayer/aggkit/log"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/keccak256"

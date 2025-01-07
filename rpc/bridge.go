@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
-	"github.com/0xPolygon/cdk/claimsponsor"
-	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/rpc/types"
-	tree "github.com/0xPolygon/cdk/tree/types"
+	"github.com/agglayer/aggkit/claimsponsor"
+	"github.com/agglayer/aggkit/log"
+	tree "github.com/agglayer/aggkit/tree/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 )

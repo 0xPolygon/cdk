@@ -61,13 +61,6 @@ packages:
       dir: "{{ .InterfaceDir }}/mocks"
     interfaces:
       EthClienter:
-  github.com/0xPolygon/cdk/reorgdetector:
-    config:
-      dir: "{{ .InterfaceDir }}"
-      outpkg: "{{ .PackageName }}"
-      mockname: "{{ .InterfaceName }}Mock"
-    interfaces:
-      EthClient:
   github.com/0xPolygon/cdk/rpc/client:
     config:
     interfaces:

@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/mocks"
 	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
+	"github.com/agglayer/aggkit/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

@@ -1,8 +1,8 @@
 package types
 
 import (
-	"github.com/0xPolygon/cdk/l1infotreesync"
-	tree "github.com/0xPolygon/cdk/tree/types"
+	"github.com/agglayer/aggkit/l1infotreesync"
+	tree "github.com/agglayer/aggkit/tree/types"
 )
 
 type ClaimProof struct {

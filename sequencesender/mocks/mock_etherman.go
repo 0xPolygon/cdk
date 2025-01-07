@@ -143,7 +143,7 @@ func (_c *EthermanMock_EstimateGas_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
-// GetLatestBatchNumber provides a mock function with no fields
+// GetLatestBatchNumber provides a mock function with given fields:
 func (_m *EthermanMock) GetLatestBatchNumber() (uint64, error) {
 	ret := _m.Called()
 

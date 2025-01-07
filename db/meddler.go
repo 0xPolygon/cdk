@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strings"
 
-	tree "github.com/0xPolygon/cdk/tree/types"
+	tree "github.com/agglayer/aggkit/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 	sqlite "github.com/mattn/go-sqlite3"
 	"github.com/russross/meddler"

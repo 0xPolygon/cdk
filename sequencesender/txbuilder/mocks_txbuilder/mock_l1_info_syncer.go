@@ -5,7 +5,7 @@ package mocks_txbuilder
 import (
 	context "context"
 
-	l1infotreesync "github.com/0xPolygon/cdk/l1infotreesync"
+	l1infotreesync "github.com/agglayer/aggkit/l1infotreesync"
 	mock "github.com/stretchr/testify/mock"
 )
 

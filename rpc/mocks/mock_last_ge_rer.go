@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	lastgersync "github.com/0xPolygon/cdk/lastgersync"
+	lastgersync "github.com/agglayer/aggkit/lastgersync"
 	mock "github.com/stretchr/testify/mock"
 )
 

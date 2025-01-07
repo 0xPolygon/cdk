@@ -6,7 +6,7 @@ import (
 	zkevm "github.com/0xPolygon/cdk"
 	"github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/config"
-	"github.com/0xPolygon/cdk/log"
+	"github.com/agglayer/aggkit/log"
 	"github.com/urfave/cli/v2"
 )
 

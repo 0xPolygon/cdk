@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	cdkCommon "github.com/0xPolygon/cdk/common"
-	"github.com/0xPolygon/cdk/l1infotreesync"
-	"github.com/0xPolygon/cdk/log"
 	mocks "github.com/0xPolygon/cdk/rpc/mocks"
-	tree "github.com/0xPolygon/cdk/tree/types"
+	"github.com/agglayer/aggkit/l1infotreesync"
+	"github.com/agglayer/aggkit/log"
+	tree "github.com/agglayer/aggkit/tree/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

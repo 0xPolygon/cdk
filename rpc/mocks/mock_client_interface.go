@@ -5,8 +5,8 @@ package mocks
 import (
 	big "math/big"
 
-	claimsponsor "github.com/0xPolygon/cdk/claimsponsor"
-	l1infotreesync "github.com/0xPolygon/cdk/l1infotreesync"
+	claimsponsor "github.com/agglayer/aggkit/claimsponsor"
+	l1infotreesync "github.com/agglayer/aggkit/l1infotreesync"
 
 	mock "github.com/stretchr/testify/mock"
 

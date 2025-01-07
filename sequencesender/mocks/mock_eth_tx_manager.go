@@ -318,7 +318,7 @@ func (_c *EthTxManagerMock_ResultsByStatus_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
-// Start provides a mock function with no fields
+// Start provides a mock function with given fields:
 func (_m *EthTxManagerMock) Start() {
 	_m.Called()
 }
@@ -346,7 +346,7 @@ func (_c *EthTxManagerMock_Start_Call) Return() *EthTxManagerMock_Start_Call {
 }
 
 func (_c *EthTxManagerMock_Start_Call) RunAndReturn(run func()) *EthTxManagerMock_Start_Call {
-	_c.Run(run)
+	_c.Call.Return(run)
 	return _c
 }
 
