@@ -2,10 +2,11 @@ use regex::Regex;
 use reqwest::blocking::get;
 use std::env;
 use std::fs::File;
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
+use serde_json::Value;
 
 fn main() {
     let _ = build_versions();
@@ -55,45 +56,56 @@ fn main() {
 }
 
 // build_versions retrieves the versions from the Starlark file and embeds them in the binary.
-fn build_versions() -> std::io::Result<()> {
-    // Retrieve the contents of the file from the URL
+fn build_versions() -> io::Result<()> {
+    // URL of the Starlark file
     let url = "https://raw.githubusercontent.com/0xPolygon/kurtosis-cdk/refs/heads/main/input_parser.star";
+
+    // Download the file content
     let response = get(url).expect("Failed to send request");
     let content = response.text().expect("Failed to read response text");
 
-    // Write the contents to a file
-    let out_dir = std::env::var("OUT_DIR").unwrap();
-    let dest_path = Path::new(&out_dir).join("input_parser.star");
-    let mut file = File::create(&dest_path)?;
-    file.write_all(content.as_bytes())?;
-
-    // Get the corresponding lines from the contents of the starlark file
-    let versions = content
+    // Extract the relevant lines (skip the first 30 lines, take the next 15)
+    let raw_versions = content
         .lines()
         .skip(30)
         .take(15)
         .collect::<Vec<&str>>()
         .join("\n");
 
-    // Replace the string DEFAULT_IMAGES = from the versions string
-    let versions = versions.replace("DEFAULT_IMAGES = ", "");
+    // Remove the declaration `DEFAULT_IMAGES = `
+    let raw_versions = raw_versions.replace("DEFAULT_IMAGES = ", "");
 
-    // Remove all comments to the end of the line using a regexp
-    let re = Regex::new(r"\s#\s.*\n").unwrap();
-    let versions = re.replace_all(&versions, "");
-    // Replace the trailing comma on the last line
-    let versions = versions.replace(", }", " }");
+    // Clean up the content by removing comments and unnecessary spaces
+    let re_comments = Regex::new(r"#.*$").unwrap(); // Regex to remove comments
+    let re_trailing_commas = Regex::new(r",(\s*})").unwrap(); // Regex to fix trailing commas
 
-    // The versions string is a JSON object we can parse
-    let versions_json: serde_json::Value = serde_json::from_str(&versions).unwrap();
+    let cleaned_versions = raw_versions
+        .lines()
+        .map(|line| re_comments.replace_all(line, "").trim().to_string()) // Remove comments and trim spaces
+        .filter(|line| !line.is_empty()) // Filter out empty lines
+        .collect::<Vec<_>>()
+        .join("\n");
 
-    // Write the versions to a file
+    // Fix improperly placed trailing commas
+    let cleaned_versions = re_trailing_commas.replace_all(&cleaned_versions, "$1");
+
+    // Attempt to parse the cleaned content as JSON
+    let versions_json: Value = match serde_json::from_str(&cleaned_versions) {
+        Ok(json) => json,
+        Err(e) => {
+            eprintln!("Failed to parse JSON: {}", e); // Print the error
+            eprintln!("Input string was: {}", cleaned_versions); // Print the input causing the error
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "JSON parsing failed"));
+        }
+    };
+
+    // Define the output file path for the JSON
     let dest_path = Path::new(".").join("versions.json");
     let mut file = File::create(&dest_path)?;
     file.write_all(
         format!(
             "{}\n",
-            serde_json::to_string_pretty(&versions_json).unwrap()
+            serde_json::to_string_pretty(&versions_json).unwrap() // Pretty-print JSON to the file
         )
         .as_bytes(),
     )?;
