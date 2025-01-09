@@ -163,3 +163,5 @@ require (
 	modernc.org/sqlite v1.34.5 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
+
+replace github.com/0xPolygon/cdk-data-availability => /Users/rachitsonthalia/workspace/cdk-data-availablity-temp/cdk-data-availability
