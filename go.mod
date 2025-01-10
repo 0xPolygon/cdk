@@ -4,7 +4,7 @@ go 1.22.4
 
 require (
 	github.com/0xPolygon/cdk-contracts-tooling v0.0.2-0.20241225094934-1d381f5703ef
-	github.com/0xPolygon/cdk-data-availability v0.0.11
+	github.com/0xPolygon/cdk-data-availability v0.0.12-0.20250110120923-25a978231f89
 	github.com/0xPolygon/cdk-rpc v0.0.0-20241004114257-6c3cb6eebfb6
 	github.com/0xPolygon/zkevm-ethtx-manager v0.2.4
 	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.6
@@ -163,5 +163,3 @@ require (
 	modernc.org/sqlite v1.34.5 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
-
-replace github.com/0xPolygon/cdk-data-availability => /Users/rachitsonthalia/workspace/cdk-data-availablity-temp/cdk-data-availability
