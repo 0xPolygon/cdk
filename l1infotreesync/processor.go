@@ -344,7 +344,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			l1InfoLeavesAdded++
 		}
 		if event.UpdateL1InfoTreeV2 != nil {
-			log.Debugf("handle UpdateL1InfoTreeV2 event. Block: %d, block hash: %s. Event root: %s. Event leaf count: %d.",
+			log.Infof("handle UpdateL1InfoTreeV2 event. Block: %d, block hash: %s. Event root: %s. Event leaf count: %d.",
 				block.Num, block.Hash, event.UpdateL1InfoTreeV2.CurrentL1InfoRoot.String(), event.UpdateL1InfoTreeV2.LeafCount)
 
 			root, err := p.l1InfoTree.GetLastRoot(tx)
