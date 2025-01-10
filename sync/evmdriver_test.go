@@ -91,11 +91,11 @@ func TestSync(t *testing.T) {
 		Return(uint64(3), nil)
 	rdm.On("AddBlockToTrack", ctx, reorgDetectorID, expectedBlock1.Num, expectedBlock1.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", ctx, Block{Num: expectedBlock1.Num, Events: expectedBlock1.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: expectedBlock1.Num, Events: expectedBlock1.Events, Hash: expectedBlock1.Hash}).
 		Return(nil)
 	rdm.On("AddBlockToTrack", ctx, reorgDetectorID, expectedBlock2.Num, expectedBlock2.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", ctx, Block{Num: expectedBlock2.Num, Events: expectedBlock2.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: expectedBlock2.Num, Events: expectedBlock2.Events, Hash: expectedBlock2.Hash}).
 		Return(nil)
 	go driver.Sync(ctx)
 	time.Sleep(time.Millisecond * 200) // time to download expectedBlock1
@@ -142,7 +142,7 @@ func TestHandleNewBlock(t *testing.T) {
 	rdm.
 		On("AddBlockToTrack", ctx, reorgDetectorID, b1.Num, b1.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", ctx, Block{Num: b1.Num, Events: b1.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: b1.Num, Events: b1.Events, Hash: b1.Hash}).
 		Return(nil)
 	driver.handleNewBlock(ctx, nil, b1)
 
@@ -159,7 +159,7 @@ func TestHandleNewBlock(t *testing.T) {
 	rdm.
 		On("AddBlockToTrack", ctx, reorgDetectorID, b2.Num, b2.Hash).
 		Return(nil).Once()
-	pm.On("ProcessBlock", ctx, Block{Num: b2.Num, Events: b2.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: b2.Num, Events: b2.Events, Hash: b2.Hash}).
 		Return(nil)
 	driver.handleNewBlock(ctx, nil, b2)
 
@@ -173,9 +173,9 @@ func TestHandleNewBlock(t *testing.T) {
 	rdm.
 		On("AddBlockToTrack", ctx, reorgDetectorID, b3.Num, b3.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", ctx, Block{Num: b3.Num, Events: b3.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: b3.Num, Events: b3.Events, Hash: b3.Hash}).
 		Return(errors.New("foo")).Once()
-	pm.On("ProcessBlock", ctx, Block{Num: b3.Num, Events: b3.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: b3.Num, Events: b3.Events, Hash: b3.Hash}).
 		Return(nil).Once()
 	driver.handleNewBlock(ctx, nil, b3)
 
@@ -189,7 +189,7 @@ func TestHandleNewBlock(t *testing.T) {
 	rdm.
 		On("AddBlockToTrack", ctx, reorgDetectorID, b4.Num, b4.Hash).
 		Return(nil)
-	pm.On("ProcessBlock", ctx, Block{Num: b4.Num, Events: b4.Events}).
+	pm.On("ProcessBlock", ctx, Block{Num: b4.Num, Events: b4.Events, Hash: b4.Hash}).
 		Return(ErrInconsistentState)
 	cancelIsCalled := false
 	cancel := func() {

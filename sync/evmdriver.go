@@ -101,7 +101,7 @@ reset:
 			d.log.Debugf("handleNewBlock, blockNum: %d, blockHash: %s", b.Num, b.Hash)
 			d.handleNewBlock(ctx, cancel, b)
 		case firstReorgedBlock := <-d.reorgSub.ReorgedBlock:
-			d.log.Debug("handleReorg from block: ", firstReorgedBlock)
+			d.log.Info("handleReorg from block: ", firstReorgedBlock)
 			d.handleReorg(ctx, cancel, firstReorgedBlock)
 			goto reset
 		}
@@ -143,6 +143,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFun
 			blockToProcess := Block{
 				Num:    b.Num,
 				Events: b.Events,
+				Hash:   b.Hash,
 			}
 			err := d.processor.ProcessBlock(ctx, blockToProcess)
 			if err != nil {

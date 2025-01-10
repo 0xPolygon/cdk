@@ -106,7 +106,7 @@ func CommonSetup(t *testing.T) (
 
 	// Reorg detector
 	dbPathReorgDetector := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	reorg, err := reorgdetector.New(l1Client.Client(), reorgdetector.Config{DBPath: dbPathReorgDetector})
+	reorg, err := reorgdetector.New(l1Client.Client(), reorgdetector.Config{DBPath: dbPathReorgDetector}, reorgdetector.L1)
 	require.NoError(t, err)
 
 	// Syncer

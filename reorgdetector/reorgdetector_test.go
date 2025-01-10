@@ -24,7 +24,7 @@ func Test_ReorgDetector(t *testing.T) {
 	// Create test DB dir
 	testDir := path.Join(t.TempDir(), "file::memory:?cache=shared")
 
-	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
+	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)}, L1)
 	require.NoError(t, err)
 
 	err = reorgDetector.Start(ctx)
@@ -76,7 +76,7 @@ func Test_ReorgDetector(t *testing.T) {
 func TestGetTrackedBlocks(t *testing.T) {
 	clientL1, _ := helpers.SimulatedBackend(t, nil, 0)
 	testDir := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
+	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)}, L1)
 	require.NoError(t, err)
 	list, err := reorgDetector.getTrackedBlocks()
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestGetTrackedBlocks(t *testing.T) {
 func TestNotSubscribed(t *testing.T) {
 	clientL1, _ := helpers.SimulatedBackend(t, nil, 0)
 	testDir := path.Join(t.TempDir(), "file::memory:?cache=shared")
-	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
+	reorgDetector, err := New(clientL1.Client(), Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)}, L1)
 	require.NoError(t, err)
 	err = reorgDetector.AddBlockToTrack(context.Background(), "foo", 1, common.Hash{})
 	require.True(t, strings.Contains(err.Error(), "is not subscribed"))

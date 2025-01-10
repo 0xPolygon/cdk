@@ -294,7 +294,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 		}
 	}()
 
-	if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, block.Num); err != nil {
+	if _, err := tx.Exec(`INSERT INTO block (num, hash) VALUES ($1, $2)`, block.Num, block.Hash.String()); err != nil {
 		return fmt.Errorf("insert Block. err: %w", err)
 	}
 
@@ -344,6 +344,9 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			l1InfoLeavesAdded++
 		}
 		if event.UpdateL1InfoTreeV2 != nil {
+			log.Debugf("handle UpdateL1InfoTreeV2 event. Block: %d, block hash: %s. Event root: %s. Event leaf count: %d.",
+				block.Num, block.Hash, event.UpdateL1InfoTreeV2.CurrentL1InfoRoot.String(), event.UpdateL1InfoTreeV2.LeafCount)
+
 			root, err := p.l1InfoTree.GetLastRoot(tx)
 			if err != nil {
 				return fmt.Errorf("GetLastRoot(). err: %w", err)
@@ -355,10 +358,10 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			if root.Hash != event.UpdateL1InfoTreeV2.CurrentL1InfoRoot || root.Index+1 != event.UpdateL1InfoTreeV2.LeafCount {
 				errStr := fmt.Sprintf(
 					"failed to check UpdateL1InfoTreeV2. Root: %s vs event:%s. "+
-						"Index: : %d vs event.LeafCount:%d. Happened on block %d",
-					root.Hash, common.Bytes2Hex(event.UpdateL1InfoTreeV2.CurrentL1InfoRoot[:]),
+						"Index: %d vs event.LeafCount: %d. Happened on block %d. Block hash: %s.",
+					root.Hash, event.UpdateL1InfoTreeV2.CurrentL1InfoRoot.String(),
 					root.Index, event.UpdateL1InfoTreeV2.LeafCount,
-					block.Num,
+					block.Num, block.Hash.String(),
 				)
 				log.Error(errStr)
 				p.haltedReason = errStr

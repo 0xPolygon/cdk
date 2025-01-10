@@ -60,6 +60,9 @@ func (rd *ReorgDetector) saveTrackedBlock(id string, b header) error {
 		hdrs.add(b)
 	}
 	rd.trackedBlocksLock.Unlock()
+
+	rd.log.Debugf("Tracking block %d for subscriber %s", b.Num, id)
+
 	return meddler.Insert(rd.db, "tracked_block", &headerWithSubscriberID{
 		SubscriberID: id,
 		Num:          b.Num,

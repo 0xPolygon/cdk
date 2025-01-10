@@ -500,8 +500,9 @@ func newState(c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.St
 func newReorgDetector(
 	cfg *reorgdetector.Config,
 	client *ethclient.Client,
+	network reorgdetector.Network,
 ) *reorgdetector.ReorgDetector {
-	rd, err := reorgdetector.New(client, *cfg)
+	rd, err := reorgdetector.New(client, *cfg, network)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -600,7 +601,7 @@ func runReorgDetectorL1IfNeeded(
 		components) {
 		return nil, nil
 	}
-	rd := newReorgDetector(cfg, l1Client)
+	rd := newReorgDetector(cfg, l1Client, reorgdetector.L1)
 
 	errChan := make(chan error)
 	go func() {
@@ -622,7 +623,7 @@ func runReorgDetectorL2IfNeeded(
 	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER}, components) {
 		return nil, nil
 	}
-	rd := newReorgDetector(cfg, l2Client)
+	rd := newReorgDetector(cfg, l2Client, reorgdetector.L2)
 
 	errChan := make(chan error)
 	go func() {

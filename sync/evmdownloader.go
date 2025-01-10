@@ -76,7 +76,7 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 	for {
 		select {
 		case <-ctx.Done():
-			d.log.Debug("closing channel")
+			d.log.Info("closing evm downloader channel")
 			close(downloadedCh)
 			return
 		default:
