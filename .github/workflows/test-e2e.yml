@@ -45,10 +45,6 @@ jobs:
     
     - name: Checkout kurtosis-cdk repository
       uses: actions/checkout@v4
-      with:
-        go-version: ${{ matrix.go-version }}
-      env:
-        GOARCH: ${{ matrix.goarch }}
 
     - name: Build Docker
       run: make build-docker
