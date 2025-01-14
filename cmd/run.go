@@ -332,6 +332,16 @@ func createAggoracle(
 	syncer *l1infotreesync.L1InfoTreeSync,
 ) *aggoracle.AggOracle {
 	logger := log.WithFields("module", cdkcommon.AGGORACLE)
+	ethermanClient, err := etherman.NewClient(cfg.Etherman, cfg.NetworkConfig.L1Config, cfg.Common)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	l2ChainID, err := ethermanClient.GetL2ChainID()
+	if err != nil {
+		logger.Fatal(err)
+	}
+	cfg.AggOracle.ApplyL2ChainID(l2ChainID)
+
 	var sender aggoracle.ChainSender
 	switch cfg.AggOracle.TargetChainType {
 	case aggoracle.EVMChain:

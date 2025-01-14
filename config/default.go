@@ -222,6 +222,8 @@ TargetChainType="EVM"
 URLRPCL1="{{L1URL}}"
 BlockFinality="FinalizedBlock"
 WaitPeriodNextGER="100ms"
+# L2ChainID is populated on runtime
+L2ChainID=0
 	[AggOracle.EVMSender]
 		GlobalExitRootL2="{{L2Config.GlobalExitRootAddr}}"
 		URLRPCL2="{{L2URL}}"
@@ -246,7 +248,6 @@ WaitPeriodNextGER="100ms"
 					[AggOracle.EVMSender.EthTxManager.Etherman]
 						URL = "{{L2URL}}"
 						MultiGasProvider = false
-						L1ChainID = {{NetworkConfig.L1.L1ChainID}}
 						HTTPHeaders = []
 
 [RPC]
