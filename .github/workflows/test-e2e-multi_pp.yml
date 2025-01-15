@@ -1,11 +1,10 @@
-# based on: https://github.com/0xPolygon/kurtosis-cdk/blob/jhilliard/multi-pp-testing/multi-pp-test.sh.md
+# based on: https://github.com/0xPolygon/kurtosis-cdk/tree/main/docs/multi-pp-testing
 name: Test e2e multi pp
 on: 
   push:
     branches:
       - '**'
   workflow_dispatch: {}
-
 
 jobs:
   test-e2e-multi_pp:

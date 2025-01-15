@@ -11,7 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - uses: actions/setup-go@v5
       with:
         go-version: 1.22.x
@@ -44,9 +46,6 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
-
-    - name: Build Docker
-      run: make build-docker
     
     - name: Checkout Kurtosis CDK
       uses: actions/checkout@v4
