@@ -43,14 +43,6 @@ jobs:
     
     - name: Install Kurtosis CDK tools
       uses: ./kurtosis-cdk/.github/actions/setup-kurtosis-cdk
-    
-    - name: Install polycli
-      run: |
-        git clone https://github.com/0xPolygon/polygon-cli -b jhilliard/alonso
-        cd polygon-cli
-        make install
-        cp ~/go/bin/polycli /usr/local/bin/polycli
-        /usr/local/bin/polycli version
 
     - name: Setup Bats and bats libs
       uses: bats-core/bats-action@2.0.0
