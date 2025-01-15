@@ -27,7 +27,6 @@ jobs:
         go-version: ${{ matrix.go-version }}
       env:
         GOARCH: ${{ matrix.goarch }}
-      
 
     - name: Build Docker
       run: make build-docker
@@ -35,12 +34,12 @@ jobs:
     - name: Build Tools
       run: make build-tools
       
-    - name: Checkout kurtosis-cdk
+    - name: Checkout Kurtosis CDK
       uses: actions/checkout@v4
       with:
         repository: 0xPolygon/kurtosis-cdk
         path: kurtosis-cdk
-        ref: jhilliard/multi-pp-testing
+        ref: v0.2.26
     
     - name: Install Kurtosis CDK tools
       uses: ./kurtosis-cdk/.github/actions/setup-kurtosis-cdk
