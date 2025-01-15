@@ -70,7 +70,7 @@ func (rd *ReorgDetector) saveTrackedBlock(id string, b header) error {
 // updateTrackedBlocksDB updates the tracked blocks for a subscriber in db
 func (rd *ReorgDetector) removeTrackedBlockRange(id string, fromBlock, toBlock uint64) error {
 	_, err := rd.db.Exec(
-		"DELETE FROM tracked_block WHERE num >= $1 AND NUM <= 2 AND subscriber_id = $3;",
+		"DELETE FROM tracked_block WHERE num >= $1 AND NUM <= $2 AND subscriber_id = $3;",
 		fromBlock, toBlock, id,
 	)
 	return err

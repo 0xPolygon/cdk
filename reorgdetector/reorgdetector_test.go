@@ -2,14 +2,18 @@ package reorgdetector
 
 import (
 	"context"
+	big "math/big"
 	"path"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	cdktypes "github.com/0xPolygon/cdk/config/types"
 	common "github.com/ethereum/go-ethereum/common"
+	types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient/simulated"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -157,4 +161,99 @@ func TestNotSubscribed(t *testing.T) {
 	require.NoError(t, err)
 	err = reorgDetector.AddBlockToTrack(context.Background(), "foo", 1, common.Hash{})
 	require.True(t, strings.Contains(err.Error(), "is not subscribed"))
+}
+
+func TestDetectReorgs(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	syncerID := "test-syncer"
+	trackedBlock := &types.Header{Number: big.NewInt(9)}
+
+	t.Run("Block not finalized", func(t *testing.T) {
+		t.Parallel()
+
+		lastFinalizedBlock := &types.Header{Number: big.NewInt(8)}
+		client := NewEthClientMock(t)
+		client.On("HeaderByNumber", ctx, big.NewInt(int64(rpc.FinalizedBlockNumber))).Return(lastFinalizedBlock, nil)
+		client.On("HeaderByNumber", ctx, trackedBlock.Number).Return(trackedBlock, nil)
+
+		testDir := path.Join(t.TempDir(), "reorgdetectorTestDetectReorgs.sqlite")
+		reorgDetector, err := New(client, Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
+		require.NoError(t, err)
+
+		_, err = reorgDetector.Subscribe(syncerID)
+		require.NoError(t, err)
+		require.NoError(t, reorgDetector.AddBlockToTrack(ctx, syncerID, trackedBlock.Number.Uint64(), trackedBlock.Hash()))
+
+		require.NoError(t, reorgDetector.detectReorgInTrackedList(ctx))
+
+		trackedBlocks, err := reorgDetector.getTrackedBlocks()
+		require.NoError(t, err)
+		require.Equal(t, 1, len(trackedBlocks))
+
+		syncerTrackedBlocks, ok := trackedBlocks[syncerID]
+		require.True(t, ok)
+		require.Equal(t, 1, syncerTrackedBlocks.len())
+	})
+
+	t.Run("Block finalized", func(t *testing.T) {
+		t.Parallel()
+
+		lastFinalizedBlock := trackedBlock
+		client := NewEthClientMock(t)
+		client.On("HeaderByNumber", ctx, big.NewInt(int64(rpc.FinalizedBlockNumber))).Return(lastFinalizedBlock, nil)
+
+		testDir := path.Join(t.TempDir(), "reorgdetectorTestDetectReorgs.sqlite")
+		reorgDetector, err := New(client, Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
+		require.NoError(t, err)
+
+		_, err = reorgDetector.Subscribe(syncerID)
+		require.NoError(t, err)
+		require.NoError(t, reorgDetector.AddBlockToTrack(ctx, syncerID, trackedBlock.Number.Uint64(), trackedBlock.Hash()))
+
+		require.NoError(t, reorgDetector.detectReorgInTrackedList(ctx))
+
+		trackedBlocks, err := reorgDetector.getTrackedBlocks()
+		require.NoError(t, err)
+		require.Equal(t, 0, len(trackedBlocks))
+	})
+
+	t.Run("Reorg happened", func(t *testing.T) {
+		t.Parallel()
+
+		lastFinalizedBlock := &types.Header{Number: big.NewInt(5)}
+		reorgedTrackedBlock := &types.Header{Number: trackedBlock.Number, Extra: []byte("reorged")} // Different hash
+
+		client := NewEthClientMock(t)
+		client.On("HeaderByNumber", ctx, big.NewInt(int64(rpc.FinalizedBlockNumber))).Return(lastFinalizedBlock, nil)
+		client.On("HeaderByNumber", ctx, trackedBlock.Number).Return(reorgedTrackedBlock, nil)
+
+		testDir := path.Join(t.TempDir(), "reorgdetectorTestDetectReorgs.sqlite")
+		reorgDetector, err := New(client, Config{DBPath: testDir, CheckReorgsInterval: cdktypes.NewDuration(time.Millisecond * 100)})
+		require.NoError(t, err)
+
+		subscription, err := reorgDetector.Subscribe(syncerID)
+		require.NoError(t, err)
+
+		var wg sync.WaitGroup
+
+		wg.Add(1)
+		go func() {
+			<-subscription.ReorgedBlock
+			subscription.ReorgProcessed <- true
+
+			wg.Done()
+		}()
+
+		require.NoError(t, reorgDetector.AddBlockToTrack(ctx, syncerID, trackedBlock.Number.Uint64(), trackedBlock.Hash()))
+
+		require.NoError(t, reorgDetector.detectReorgInTrackedList(ctx))
+
+		wg.Wait() // we wait here to make sure the reorg is processed
+
+		trackedBlocks, err := reorgDetector.getTrackedBlocks()
+		require.NoError(t, err)
+		require.Equal(t, 0, len(trackedBlocks)) // shouldn't be any since a reorg happened on that block
+	})
 }

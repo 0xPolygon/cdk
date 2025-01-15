@@ -159,10 +159,11 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 					// and hashes matches. If higher than finalized block, we assume a reorg still might happen.
 					if hdr.Num <= lastFinalisedBlock.Number.Uint64() {
 						hdrs.removeRange(hdr.Num, hdr.Num)
-					}
-					if err := rd.removeTrackedBlockRange(id, hdr.Num, hdr.Num); err != nil {
-						return fmt.Errorf("error removing blocks from DB for subscriber %s between blocks %d and %d: %w",
-							id, hdr.Num, hdr.Num, err)
+
+						if err := rd.removeTrackedBlockRange(id, hdr.Num, hdr.Num); err != nil {
+							return fmt.Errorf("error removing blocks from DB for subscriber %s between blocks %d and %d: %w",
+								id, hdr.Num, hdr.Num, err)
+						}
 					}
 
 					continue
