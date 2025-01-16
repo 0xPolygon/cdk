@@ -21,7 +21,6 @@ type Config struct {
 	// BlockFinality indicates the status of the blocks that will be queried in order to sync
 	BlockFinality     string                   `jsonschema:"enum=LatestBlock, enum=SafeBlock, enum=PendingBlock, enum=FinalizedBlock, enum=EarliestBlock" mapstructure:"BlockFinality"` //nolint:lll
 	WaitPeriodNextGER types.Duration           `mapstructure:"WaitPeriodNextGER"`
-	L2ChainID         uint64                   `mapstructure:"L2ChainID"`
 	EVMSender         chaingersender.EVMConfig `mapstructure:"EVMSender"`
 }
 

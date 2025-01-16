@@ -222,8 +222,6 @@ TargetChainType="EVM"
 URLRPCL1="{{L1URL}}"
 BlockFinality="FinalizedBlock"
 WaitPeriodNextGER="100ms"
-# L2ChainID is populated on runtime
-L2ChainID=0
 	[AggOracle.EVMSender]
 		GlobalExitRootL2="{{L2Config.GlobalExitRootAddr}}"
 		URLRPCL2="{{L2URL}}"
