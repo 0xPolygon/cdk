@@ -24,9 +24,7 @@ type Config struct {
 	EVMSender         chaingersender.EVMConfig `mapstructure:"EVMSender"`
 }
 
-// ApplyL2ChainID copies L2ChainID to relevant config fields
+// ApplyL2ChainID copies L2ChainID to the L1ChainID in the Etherman config
 func (c *Config) ApplyL2ChainID(l2ChainID uint64) {
-	// Ethereman needs to have the L2ChainID in the L1ChainID field for aggOacle
 	c.EVMSender.EthTxManager.Etherman.L1ChainID = l2ChainID
-	c.EVMSender.ChainIDL2 = l2ChainID
 }
