@@ -63,7 +63,7 @@ func (c *ConfigRender) Merge() (string, error) {
 		dataToml := c.convertVarsToStrings(data.Content)
 		err := k.Load(rawbytes.Provider([]byte(dataToml)), toml.Parser())
 		if err != nil {
-			log.Errorf("error loading file %s. Err:%v.FileData: %v", data.Name, err, dataToml)
+			log.Errorf("error loading file %s. Err:%v.", data.Name, err)
 			return "", fmt.Errorf("fail to load  converted template %s to toml. Err: %w", data.Name, err)
 		}
 	}
