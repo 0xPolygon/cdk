@@ -225,7 +225,6 @@ WaitPeriodNextGER="100ms"
 	[AggOracle.EVMSender]
 		GlobalExitRootL2="{{L2Config.GlobalExitRootAddr}}"
 		URLRPCL2="{{L2URL}}"
-		ChainIDL2=1337
 		GasOffset=0
 		WaitPeriodMonitorTx="100ms"
 		[AggOracle.EVMSender.EthTxManager]
