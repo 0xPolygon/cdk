@@ -542,7 +542,7 @@ func Test_syncAllEthTxResults(t *testing.T) {
 				logger: log.GetDefaultLogger(),
 			}
 
-			err = ss.syncAllEthTxResults(context.Background())
+			_, err = ss.syncAllEthTxResults(context.Background())
 			if tt.expectErr != nil {
 				require.Equal(t, tt.expectErr, err)
 			} else {

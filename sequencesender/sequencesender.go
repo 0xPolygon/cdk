@@ -138,7 +138,7 @@ func (s *SequenceSender) Start(ctx context.Context) {
 	}
 
 	// Sync all monitored sent L1 tx
-	err = s.syncAllEthTxResults(ctx)
+	s.latestVirtualTime, err = s.syncAllEthTxResults(ctx)
 	if err != nil {
 		s.logger.Fatalf("failed to sync monitored tx results, error: %v", err)
 	}

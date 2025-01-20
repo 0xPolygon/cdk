@@ -203,12 +203,13 @@ func (s *SequenceSender) syncEthTxResults(ctx context.Context) (uint64, error) {
 }
 
 // syncAllEthTxResults syncs all tx results from L1
-func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) error {
+func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) (time.Time, error) {
+	latestVirtualTime := time.Now().Local().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)
 	// Get all results
 	results, err := s.ethTxManager.ResultsByStatus(ctx, nil)
 	if err != nil {
 		log.Warnf("error getting results for all tx: %v", err)
-		return err
+		return latestVirtualTime, err
 	}
 
 	// Check and update tx status
@@ -227,7 +228,7 @@ func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) error {
 			}
 			txSequence = s.ethTransactions[result.ID]
 		}
-
+		latestVirtualTime = txSequence.SentL1Timestamp
 		s.updateEthTxResult(txSequence, result)
 	}
 	s.mutexEthTx.Unlock()
@@ -239,7 +240,7 @@ func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) error {
 	}
 
 	log.Infof("%d tx results synchronized", numResults)
-	return nil
+	return latestVirtualTime, nil
 }
 
 // copyTxData copies tx data in the internal structure
