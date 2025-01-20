@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type EthClienter interface {
@@ -23,9 +24,10 @@ type EthClienter interface {
 
 type EVMDownloaderInterface interface {
 	WaitForNewBlocks(ctx context.Context, lastBlockSeen uint64) (newLastBlock uint64)
-	GetEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) []EVMBlock
+	GetEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) EVMBlocks
 	GetLogs(ctx context.Context, fromBlock, toBlock uint64) []types.Log
 	GetBlockHeader(ctx context.Context, blockNum uint64) (EVMBlockHeader, bool)
+	GetLastFinalizedBlock(ctx context.Context) (*types.Header, error)
 }
 
 type LogAppenderMap map[common.Hash]func(b *EVMBlock, l types.Log) error
@@ -73,6 +75,9 @@ func NewEVMDownloader(
 
 func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, downloadedCh chan EVMBlock) {
 	lastBlock := d.WaitForNewBlocks(ctx, 0)
+	toBlock := fromBlock
+	automaticToBlockResize := true
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -81,10 +86,16 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 			return
 		default:
 		}
-		toBlock := fromBlock + d.syncBlockChunkSize
-		if toBlock > lastBlock {
-			toBlock = lastBlock
+
+		if automaticToBlockResize {
+			toBlock = fromBlock + d.syncBlockChunkSize
+			if toBlock > lastBlock {
+				toBlock = lastBlock
+			}
 		}
+
+		automaticToBlockResize = true // reset the flag
+
 		if fromBlock > toBlock {
 			d.log.Debugf(
 				"waiting for new blocks, last block processed %d, last block seen on L1 %d",
@@ -93,16 +104,29 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 			lastBlock = d.WaitForNewBlocks(ctx, fromBlock-1)
 			continue
 		}
+
+		lastFinalizedBlock, err := d.GetLastFinalizedBlock(ctx)
+		if err != nil {
+			d.log.Error("error getting last finalized block: ", err)
+			continue
+		}
+
+		lastFinalizedBlockNumber := lastFinalizedBlock.Number.Uint64()
+
 		d.log.Debugf("getting events from blocks %d to  %d", fromBlock, toBlock)
 		blocks := d.GetEventsByBlockRange(ctx, fromBlock, toBlock)
-		for _, b := range blocks {
-			d.log.Debugf("sending block %d to the driver (with events)", b.Num)
-			downloadedCh <- b
+
+		reportBlocksFn := func(numOfBlocksToReport int) {
+			for i := 0; i < numOfBlocksToReport; i++ {
+				d.log.Debugf("sending block %d to the driver (with events)", blocks[i].Num)
+				downloadedCh <- blocks[i]
+			}
 		}
-		if len(blocks) == 0 || blocks[len(blocks)-1].Num < toBlock {
+
+		reportEmptyBlockFn := func(blockNum uint64) {
 			// Indicate the last downloaded block if there are not events on it
 			d.log.Debugf("sending block %d to the driver (without events)", toBlock)
-			header, isCanceled := d.GetBlockHeader(ctx, toBlock)
+			header, isCanceled := d.GetBlockHeader(ctx, blockNum)
 			if isCanceled {
 				return
 			}
@@ -111,7 +135,50 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 				EVMBlockHeader: header,
 			}
 		}
-		fromBlock = toBlock + 1
+
+		if blocks.Len() == 0 {
+			// we have no events, keep increasing the block range until we hit a log
+			if lastFinalizedBlockNumber > toBlock {
+				// we might be behind a lot, so go until last finalized block
+				toBlock = lastFinalizedBlockNumber + 1
+			} else {
+				toBlock++
+			}
+
+			if lastFinalizedBlockNumber-fromBlock >= d.syncBlockChunkSize {
+				// if we already got a lot of finalized blocks that are empty, report an empty block
+				// to the driver to indicate that we are still processing the chain
+				// this is mainly needed for tests
+				reportEmptyBlockFn(lastFinalizedBlockNumber)
+				fromBlock = lastFinalizedBlockNumber
+			}
+
+			automaticToBlockResize = false
+
+			continue
+		} else if blocks[blocks.Len()-1].Num <= lastFinalizedBlockNumber {
+			// if the last block we have logs for is less than or equal to the last finalized block,
+			// report all of the blocks without the need to report the last empty block, since it is finalized
+			// and we do not need to track it in the reorg detector
+			reportBlocksFn(blocks.Len())
+			fromBlock = lastFinalizedBlockNumber + 1
+		} else if blocks[len(blocks)-1].Num < toBlock {
+			// if we have logs in some of the blocks, and they are not all finalized,
+			// check if we have finalized blocks in gotten range, report them and
+			// set the from block from the last finalized block and keep increasing the range
+			lastFinalizedBlock, index, exists := blocks.LastFinalizedBlock(lastFinalizedBlockNumber)
+			if exists {
+				reportBlocksFn(index + 1) // num of blocks to report is index + 1 since index is zero based
+				fromBlock = lastFinalizedBlock + 1
+				continue
+			}
+		} else {
+			// if we have logs in the last block, just report all of them and continue
+			// reorg detector will handle the reorg since the last block has events,
+			// and we are not afraid to have missaligned hashes at this point
+			reportBlocksFn(blocks.Len())
+			fromBlock = toBlock + 1
+		}
 	}
 }
 
@@ -149,6 +216,10 @@ func NewEVMDownloaderImplementation(
 	}
 }
 
+func (d *EVMDownloaderImplementation) GetLastFinalizedBlock(ctx context.Context) (*types.Header, error) {
+	return d.ethClient.HeaderByNumber(ctx, big.NewInt(int64(rpc.SafeBlockNumber)))
+}
+
 func (d *EVMDownloaderImplementation) WaitForNewBlocks(
 	ctx context.Context, lastBlockSeen uint64,
 ) (newLastBlock uint64) {
@@ -175,7 +246,7 @@ func (d *EVMDownloaderImplementation) WaitForNewBlocks(
 	}
 }
 
-func (d *EVMDownloaderImplementation) GetEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) []EVMBlock {
+func (d *EVMDownloaderImplementation) GetEventsByBlockRange(ctx context.Context, fromBlock, toBlock uint64) EVMBlocks {
 	select {
 	case <-ctx.Done():
 		return nil

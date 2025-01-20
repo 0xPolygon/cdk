@@ -48,23 +48,53 @@ func (_m *EVMDownloaderMock) GetBlockHeader(ctx context.Context, blockNum uint64
 }
 
 // GetEventsByBlockRange provides a mock function with given fields: ctx, fromBlock, toBlock
-func (_m *EVMDownloaderMock) GetEventsByBlockRange(ctx context.Context, fromBlock uint64, toBlock uint64) []EVMBlock {
+func (_m *EVMDownloaderMock) GetEventsByBlockRange(ctx context.Context, fromBlock uint64, toBlock uint64) EVMBlocks {
 	ret := _m.Called(ctx, fromBlock, toBlock)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetEventsByBlockRange")
 	}
 
-	var r0 []EVMBlock
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) []EVMBlock); ok {
+	var r0 EVMBlocks
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) EVMBlocks); ok {
 		r0 = rf(ctx, fromBlock, toBlock)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]EVMBlock)
+			r0 = ret.Get(0).(EVMBlocks)
 		}
 	}
 
 	return r0
+}
+
+// GetLastFinalizedBlock provides a mock function with given fields: ctx
+func (_m *EVMDownloaderMock) GetLastFinalizedBlock(ctx context.Context) (*types.Header, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLastFinalizedBlock")
+	}
+
+	var r0 *types.Header
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (*types.Header, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) *types.Header); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*types.Header)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetLogs provides a mock function with given fields: ctx, fromBlock, toBlock

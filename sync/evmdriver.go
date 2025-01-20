@@ -9,11 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type evmDownloaderFull interface {
-	EVMDownloaderInterface
-	downloader
-}
-
 type downloader interface {
 	Download(ctx context.Context, fromBlock uint64, downloadedCh chan EVMBlock)
 }
