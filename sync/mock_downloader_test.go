@@ -115,53 +115,53 @@ func (_c *EVMDownloaderMock_GetBlockHeader_Call) RunAndReturn(run func(context.C
 }
 
 // GetEventsByBlockRange provides a mock function with given fields: ctx, fromBlock, toBlock
-func (_m *EVMDownloaderMock) GetEventsByBlockRange(ctx context.Context, fromBlock uint64, toBlock uint64) []EVMBlock {
+func (_m *EVMDownloaderMock) GetEventsByBlockRange(ctx context.Context, fromBlock uint64, toBlock uint64) EVMBlocks {
 	ret := _m.Called(ctx, fromBlock, toBlock)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetEventsByBlockRange")
 	}
 
-	var r0 []EVMBlock
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) []EVMBlock); ok {
+	var r0 EVMBlocks
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) EVMBlocks); ok {
 		r0 = rf(ctx, fromBlock, toBlock)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]EVMBlock)
+			r0 = ret.Get(0).(EVMBlocks)
 		}
 	}
 
 	return r0
 }
 
-// EVMDownloaderMock_GetEventsByBlockRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEventsByBlockRange'
-type EVMDownloaderMock_GetEventsByBlockRange_Call struct {
-	*mock.Call
-}
+// GetLastFinalizedBlock provides a mock function with given fields: ctx
+func (_m *EVMDownloaderMock) GetLastFinalizedBlock(ctx context.Context) (*types.Header, error) {
+	ret := _m.Called(ctx)
 
-// GetEventsByBlockRange is a helper method to define mock.On call
-//   - ctx context.Context
-//   - fromBlock uint64
-//   - toBlock uint64
-func (_e *EVMDownloaderMock_Expecter) GetEventsByBlockRange(ctx interface{}, fromBlock interface{}, toBlock interface{}) *EVMDownloaderMock_GetEventsByBlockRange_Call {
-	return &EVMDownloaderMock_GetEventsByBlockRange_Call{Call: _e.mock.On("GetEventsByBlockRange", ctx, fromBlock, toBlock)}
-}
+	if len(ret) == 0 {
+		panic("no return value specified for GetLastFinalizedBlock")
+	}
 
-func (_c *EVMDownloaderMock_GetEventsByBlockRange_Call) Run(run func(ctx context.Context, fromBlock uint64, toBlock uint64)) *EVMDownloaderMock_GetEventsByBlockRange_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uint64), args[2].(uint64))
-	})
-	return _c
-}
+	var r0 *types.Header
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (*types.Header, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) *types.Header); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*types.Header)
+		}
+	}
 
-func (_c *EVMDownloaderMock_GetEventsByBlockRange_Call) Return(_a0 []EVMBlock) *EVMDownloaderMock_GetEventsByBlockRange_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
 
-func (_c *EVMDownloaderMock_GetEventsByBlockRange_Call) RunAndReturn(run func(context.Context, uint64, uint64) []EVMBlock) *EVMDownloaderMock_GetEventsByBlockRange_Call {
-	_c.Call.Return(run)
-	return _c
+	return r0, r1
 }
 
 // GetLogs provides a mock function with given fields: ctx, fromBlock, toBlock
