@@ -162,10 +162,11 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 			// and we do not need to track it in the reorg detector
 			reportBlocksFn(blocks.Len())
 			fromBlock = lastFinalizedBlockNumber + 1
-		} else if blocks[len(blocks)-1].Num < toBlock {
+		} else if blocks[blocks.Len()-1].Num < toBlock {
 			// if we have logs in some of the blocks, and they are not all finalized,
 			// check if we have finalized blocks in gotten range, report them and
 			// set the from block from the last finalized block and keep increasing the range
+			// if not keep getting that range to protect us from possible mishandling of block hashes
 			lastFinalizedBlock, index, exists := blocks.LastFinalizedBlock(lastFinalizedBlockNumber)
 			if exists {
 				reportBlocksFn(index + 1) // num of blocks to report is index + 1 since index is zero based
