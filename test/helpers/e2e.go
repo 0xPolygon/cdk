@@ -128,7 +128,7 @@ func L1Setup(t *testing.T) *L1Environment {
 		originNetwork          = 1
 		initialBlock           = 0
 		retryPeriod            = 0
-		retriesCount           = 0
+		retriesCount           = 10
 	)
 
 	// Bridge sync
