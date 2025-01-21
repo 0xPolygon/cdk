@@ -1,0 +1,138 @@
+with-expecter: true
+issue-845-fix: true
+resolve-type-alias: false
+dir: "{{ .InterfaceDir }}/../mocks"
+outpkg: "mocks"
+filename: "mock_{{ .InterfaceName | snakecase | lower }}.go"
+mockname: "{{ .InterfaceName }}"
+packages:
+  github.com/0xPolygon/cdk/agglayer:
+    config:
+      inpackage: true
+      dir: "{{ .InterfaceDir }}"
+      outpkg: "{{ .PackageName }}"
+    interfaces:
+      AgglayerClientInterface:
+        config:
+          mockname: AgglayerClientMock
+  github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer:
+    config:
+    interfaces:
+      Synchronizer:
+        config:
+          dir: "./aggregator/mocks"
+          mockname: "{{ .InterfaceName }}InterfaceMock"
+  github.com/0xPolygon/cdk/aggregator:
+    config:
+      dir: "{{ .InterfaceDir }}/mocks"
+      mockname: "{{ .InterfaceName }}Mock"
+    interfaces:
+      ProverInterface:
+      Etherman:
+      StorageInterface:
+      EthTxManagerClient:
+      RPCInterface:
+  github.com/0xPolygon/cdk/aggregator/prover:
+    config:
+      dir: "{{ .InterfaceDir }}/mocks"
+    interfaces:
+      AggregatorService_ChannelServer:
+        config:
+          mockname: ChannelMock
+  github.com/0xPolygon/cdk/bridgesync:
+    config:
+      dir: "{{ .InterfaceDir }}/mocks"
+    interfaces:
+      ReorgDetector:
+      EthClienter:
+  github.com/0xPolygon/cdk/dataavailability:
+    config:
+      dir: "{{ .InterfaceDir }}/mocks_da"
+      all: true
+      outpkg: "mocks_da"
+  github.com/0xPolygon/cdk/db:
+    config:
+      dir: "{{ .InterfaceDir }}/../aggregator/mocks"
+      mockname: "{{ .InterfaceName }}Mock"
+    interfaces:
+      Txer:
+  github.com/0xPolygon/cdk/l1infotreesync:
+    config:
+      dir: "{{ .InterfaceDir }}/mocks"
+    interfaces:
+      EthClienter:
+  github.com/0xPolygon/cdk/reorgdetector:
+    config:
+      dir: "{{ .InterfaceDir }}"
+      outpkg: "{{ .PackageName }}"
+      mockname: "{{ .InterfaceName }}Mock"
+    interfaces:
+      EthClient:
+  github.com/0xPolygon/cdk/rpc/client:
+    config:
+    interfaces:
+      BridgeClientInterface:
+      ClientInterface:
+      ClientFactoryInterface:
+  github.com/0xPolygon/cdk/rpc:
+    config:
+      dir: "{{ .InterfaceDir }}/mocks"
+    interfaces:
+      Bridger:
+      LastGERer:
+      L1InfoTreer:
+      ClaimSponsorer:
+  github.com/0xPolygon/cdk/sequencesender:
+    config:
+      dir: "{{ .InterfaceDir }}/mocks"
+      outpkg: "mocks"
+      mockname: "{{ .InterfaceName }}Mock"
+    interfaces:
+      EthTxManager:
+        configs:
+          - mockname: EthTxManagerMock
+          - mockname: EthTxManagerMock
+            dir: "{{ .InterfaceDir }}/../test/helpers"
+            outpkg: "helpers"
+      Etherman:
+      RPCInterface:
+  github.com/0xPolygon/cdk/sequencesender/txbuilder:
+    config:
+      dir: "{{ .InterfaceDir }}/mocks_txbuilder"
+      all: true
+      outpkg: "mocks_txbuilder"
+      mockname: "{{ .InterfaceName | camelcase | firstUpper }}"
+    interfaces:
+      TxBuilder:
+        configs:
+          - dir: "{{ .InterfaceDir }}/../mocks"
+            outpkg: "mocks"
+            mockname: "{{ .InterfaceName | camelcase | firstUpper }}Mock"
+          - dir: "{{ .InterfaceDir }}/mocks_txbuilder"
+            outpkg: "mocks_txbuilder"
+            mockname: "{{ .InterfaceName | camelcase | firstUpper }}"
+  github.com/0xPolygon/cdk/sync:
+    config:
+      dir: "{{ .InterfaceDir }}"
+      outpkg: "{{ .PackageName }}"
+      mockname: "{{ .InterfaceName }}Mock"
+      inpackage: true
+    interfaces:
+      ReorgDetector:
+        configs:
+          - dir: "{{ .InterfaceDir }}/../l1infotreesync/mocks"
+            outpkg: "mocks"
+            mockname: "{{ .InterfaceName }}Mock"
+            inpackage: false
+          - dir: "{{ .InterfaceDir }}"
+            outpkg: "{{ .PackageName }}"
+            mockname: "{{ .InterfaceName }}Mock"
+      processorInterface:
+        config:
+          mockname: "ProcessorMock"
+      evmDownloaderFull:
+        config:
+          mockname: "EVMDownloaderMock"
+      EthClienter:
+        config:
+          mockname: "L2Mock"

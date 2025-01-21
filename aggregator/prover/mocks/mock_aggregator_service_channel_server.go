@@ -129,7 +129,7 @@ func (_c *ChannelMock_Recv_Call) RunAndReturn(run func() (*prover.ProverMessage,
 }
 
 // RecvMsg provides a mock function with given fields: m
-func (_m *ChannelMock) RecvMsg(m interface{}) error {
+func (_m *ChannelMock) RecvMsg(m any) error {
 	ret := _m.Called(m)
 
 	if len(ret) == 0 {
@@ -137,7 +137,7 @@ func (_m *ChannelMock) RecvMsg(m interface{}) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(interface{}) error); ok {
+	if rf, ok := ret.Get(0).(func(any) error); ok {
 		r0 = rf(m)
 	} else {
 		r0 = ret.Error(0)
@@ -152,14 +152,14 @@ type ChannelMock_RecvMsg_Call struct {
 }
 
 // RecvMsg is a helper method to define mock.On call
-//   - m interface{}
+//   - m any
 func (_e *ChannelMock_Expecter) RecvMsg(m interface{}) *ChannelMock_RecvMsg_Call {
 	return &ChannelMock_RecvMsg_Call{Call: _e.mock.On("RecvMsg", m)}
 }
 
-func (_c *ChannelMock_RecvMsg_Call) Run(run func(m interface{})) *ChannelMock_RecvMsg_Call {
+func (_c *ChannelMock_RecvMsg_Call) Run(run func(m any)) *ChannelMock_RecvMsg_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(interface{}))
+		run(args[0].(any))
 	})
 	return _c
 }
@@ -169,7 +169,7 @@ func (_c *ChannelMock_RecvMsg_Call) Return(_a0 error) *ChannelMock_RecvMsg_Call 
 	return _c
 }
 
-func (_c *ChannelMock_RecvMsg_Call) RunAndReturn(run func(interface{}) error) *ChannelMock_RecvMsg_Call {
+func (_c *ChannelMock_RecvMsg_Call) RunAndReturn(run func(any) error) *ChannelMock_RecvMsg_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -267,7 +267,7 @@ func (_c *ChannelMock_SendHeader_Call) RunAndReturn(run func(metadata.MD) error)
 }
 
 // SendMsg provides a mock function with given fields: m
-func (_m *ChannelMock) SendMsg(m interface{}) error {
+func (_m *ChannelMock) SendMsg(m any) error {
 	ret := _m.Called(m)
 
 	if len(ret) == 0 {
@@ -275,7 +275,7 @@ func (_m *ChannelMock) SendMsg(m interface{}) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(interface{}) error); ok {
+	if rf, ok := ret.Get(0).(func(any) error); ok {
 		r0 = rf(m)
 	} else {
 		r0 = ret.Error(0)
@@ -290,14 +290,14 @@ type ChannelMock_SendMsg_Call struct {
 }
 
 // SendMsg is a helper method to define mock.On call
-//   - m interface{}
+//   - m any
 func (_e *ChannelMock_Expecter) SendMsg(m interface{}) *ChannelMock_SendMsg_Call {
 	return &ChannelMock_SendMsg_Call{Call: _e.mock.On("SendMsg", m)}
 }
 
-func (_c *ChannelMock_SendMsg_Call) Run(run func(m interface{})) *ChannelMock_SendMsg_Call {
+func (_c *ChannelMock_SendMsg_Call) Run(run func(m any)) *ChannelMock_SendMsg_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(interface{}))
+		run(args[0].(any))
 	})
 	return _c
 }
@@ -307,7 +307,7 @@ func (_c *ChannelMock_SendMsg_Call) Return(_a0 error) *ChannelMock_SendMsg_Call 
 	return _c
 }
 
-func (_c *ChannelMock_SendMsg_Call) RunAndReturn(run func(interface{}) error) *ChannelMock_SendMsg_Call {
+func (_c *ChannelMock_SendMsg_Call) RunAndReturn(run func(any) error) *ChannelMock_SendMsg_Call {
 	_c.Call.Return(run)
 	return _c
 }
