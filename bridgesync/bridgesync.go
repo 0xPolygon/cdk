@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	bridgeSyncL1       = "L1"
-	bridgeSyncL2       = "L2"
+	bridgeSyncL1       = "BridgeSyncL1"
+	bridgeSyncL2       = "BridgeSyncL2"
 	downloadBufferSize = 1000
 )
 

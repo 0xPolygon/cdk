@@ -81,7 +81,6 @@ func NewEVMDownloader(
 func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, downloadedCh chan EVMBlock) {
 	lastBlock := d.WaitForNewBlocks(ctx, 0)
 	toBlock := fromBlock
-	automaticToBlockResize := true
 
 	for {
 		select {
@@ -92,14 +91,10 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 		default:
 		}
 
-		if automaticToBlockResize {
-			toBlock = fromBlock + d.syncBlockChunkSize
-			if toBlock > lastBlock {
-				toBlock = lastBlock
-			}
+		toBlock = fromBlock + d.syncBlockChunkSize
+		if toBlock > lastBlock {
+			toBlock = lastBlock
 		}
-
-		automaticToBlockResize = true // reset the flag
 
 		if fromBlock > toBlock {
 			d.log.Debugf(
@@ -145,9 +140,8 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 			// we have no events, keep increasing the block range until we hit a log
 			if lastFinalizedBlockNumber > toBlock {
 				// we might be behind a lot, so go until last finalized block
-				toBlock = lastFinalizedBlockNumber + 1
-			} else {
-				toBlock++
+				toBlock = lastFinalizedBlockNumber
+				lastBlock = lastFinalizedBlockNumber
 			}
 
 			if lastFinalizedBlockNumber-fromBlock >= d.syncBlockChunkSize {
@@ -158,15 +152,13 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 				fromBlock = lastFinalizedBlockNumber
 			}
 
-			automaticToBlockResize = false
-
 			continue
 		} else if blocks[blocks.Len()-1].Num <= lastFinalizedBlockNumber {
 			// if the last block we have logs for is less than or equal to the last finalized block,
 			// report all of the blocks without the need to report the last empty block, since it is finalized
 			// and we do not need to track it in the reorg detector
 			reportBlocksFn(blocks.Len())
-			fromBlock = lastFinalizedBlockNumber + 1
+			fromBlock = toBlock + 1
 		} else if blocks[blocks.Len()-1].Num < toBlock {
 			// if we have logs in some of the blocks, and they are not all finalized,
 			// check if we have finalized blocks in gotten range, report them and
