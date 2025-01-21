@@ -1,6 +1,6 @@
 with-expecter: true
-issue-845-fix: True
-resolve-type-alias: False
+issue-845-fix: true
+resolve-type-alias: false
 dir: "{{ .InterfaceDir }}/../mocks"
 outpkg: "mocks"
 filename: "{{ .InterfaceName | snakecase | lower }}.go"
