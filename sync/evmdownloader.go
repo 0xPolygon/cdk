@@ -75,7 +75,6 @@ func NewEVMDownloader(
 
 func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, downloadedCh chan EVMBlock) {
 	lastBlock := d.WaitForNewBlocks(ctx, 0)
-	toBlock := fromBlock
 
 	for {
 		select {
@@ -86,14 +85,14 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 		default:
 		}
 
-		toBlock = fromBlock + d.syncBlockChunkSize
+		toBlock := fromBlock + d.syncBlockChunkSize
 		if toBlock > lastBlock {
 			toBlock = lastBlock
 		}
 
 		if fromBlock > toBlock {
-			d.log.Debugf(
-				"waiting for new blocks, last block processed %d, last block seen on L1 %d",
+			d.log.Infof(
+				"waiting for new blocks, last block processed: %d, last block seen on L1: %d",
 				fromBlock-1, lastBlock,
 			)
 			lastBlock = d.WaitForNewBlocks(ctx, fromBlock-1)
@@ -108,12 +107,13 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 
 		lastFinalizedBlockNumber := lastFinalizedBlock.Number.Uint64()
 
-		d.log.Debugf("getting events from blocks %d to  %d", fromBlock, toBlock)
+		d.log.Infof("getting events from blocks %d to  %d. lastFinalizedBlock: %d",
+			fromBlock, toBlock, lastFinalizedBlockNumber)
 		blocks := d.GetEventsByBlockRange(ctx, fromBlock, toBlock)
 
 		reportBlocksFn := func(numOfBlocksToReport int) {
 			for i := 0; i < numOfBlocksToReport; i++ {
-				d.log.Debugf("sending block %d to the driver (with events)", blocks[i].Num)
+				d.log.Infof("sending block %d to the driver (with events)", blocks[i].Num)
 				downloadedCh <- blocks[i]
 			}
 		}
@@ -131,46 +131,19 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 			}
 		}
 
-		if blocks.Len() == 0 {
-			// we have no events, keep increasing the block range until we hit a log
-			if lastFinalizedBlockNumber > toBlock {
-				// we might be behind a lot, so go until last finalized block
-				toBlock = lastFinalizedBlockNumber
-				lastBlock = lastFinalizedBlockNumber
-			}
-
-			if lastFinalizedBlockNumber-fromBlock >= d.syncBlockChunkSize {
-				// if we already got a lot of finalized blocks that are empty, report an empty block
-				// to the driver to indicate that we are still processing the chain
-				// this is mainly needed for tests
-				reportEmptyBlockFn(lastFinalizedBlockNumber)
-				fromBlock = lastFinalizedBlockNumber
-			}
-
-			continue
-		} else if blocks[blocks.Len()-1].Num <= lastFinalizedBlockNumber {
-			// if the last block we have logs for is less than or equal to the last finalized block,
-			// report all of the blocks without the need to report the last empty block, since it is finalized
-			// and we do not need to track it in the reorg detector
+		if toBlock <= lastFinalizedBlockNumber {
 			reportBlocksFn(blocks.Len())
 			fromBlock = toBlock + 1
-		} else if blocks[blocks.Len()-1].Num < toBlock {
-			// if we have logs in some of the blocks, and they are not all finalized,
-			// check if we have finalized blocks in gotten range, report them and
-			// set the from block from the last finalized block and keep increasing the range
-			// if not keep getting that range to protect us from possible mishandling of block hashes
-			lastFinalizedBlock, index, exists := blocks.LastFinalizedBlock(lastFinalizedBlockNumber)
-			if exists {
-				reportBlocksFn(index + 1) // num of blocks to report is index + 1 since index is zero based
-				fromBlock = lastFinalizedBlock + 1
-				continue
+
+			if blocks.Len() == 0 || blocks[blocks.Len()-1].Num < toBlock {
+				reportEmptyBlockFn(toBlock)
 			}
 		} else {
-			// if we have logs in the last block, just report all of them and continue
-			// reorg detector will handle the reorg since the last block has events,
-			// and we are not afraid to have missaligned hashes at this point
-			reportBlocksFn(blocks.Len())
-			fromBlock = toBlock + 1
+			lastFinalizedBlockNum, i, found := blocks.LastFinalizedBlock(lastFinalizedBlockNumber)
+			if found {
+				reportBlocksFn(i + 1)
+				fromBlock = lastFinalizedBlockNum + 1
+			}
 		}
 	}
 }
