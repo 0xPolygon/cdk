@@ -3,7 +3,7 @@ issue-845-fix: true
 resolve-type-alias: false
 dir: "{{ .InterfaceDir }}/../mocks"
 outpkg: "mocks"
-filename: "{{ .InterfaceName | snakecase | lower }}.go"
+filename: "mock_{{ .InterfaceName | snakecase | lower }}.go"
 mockname: "{{ .InterfaceName }}"
 packages:
   github.com/0xPolygon/cdk/agglayer:
@@ -15,7 +15,6 @@ packages:
       AgglayerClientInterface:
         config:
           mockname: AgglayerClientMock
-          filename: mock_agglayer_client.go
   github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer:
     config:
     interfaces:
@@ -23,11 +22,9 @@ packages:
         config:
           dir: "./aggregator/mocks"
           mockname: "{{ .InterfaceName }}InterfaceMock"
-          filename: "mock_{{ .InterfaceName | snakecase | lower }}.go"
   github.com/0xPolygon/cdk/aggregator:
     config:
       dir: "{{ .InterfaceDir }}/mocks"
-      filename: "mock_{{ .InterfaceName | snakecase | lower }}.go"
       mockname: "{{ .InterfaceName }}Mock"
     interfaces:
       ProverInterface:
@@ -42,7 +39,6 @@ packages:
       AggregatorService_ChannelServer:
         config:
           mockname: ChannelMock
-          filename: mock_channel.go
   github.com/0xPolygon/cdk/bridgesync:
     config:
       dir: "{{ .InterfaceDir }}/mocks"
@@ -57,7 +53,6 @@ packages:
   github.com/0xPolygon/cdk/db:
     config:
       dir: "{{ .InterfaceDir }}/../aggregator/mocks"
-      filename: "mock_{{ .InterfaceName | snakecase | lower }}.go"
       mockname: "{{ .InterfaceName }}Mock"
     interfaces:
       Txer:
@@ -71,7 +66,6 @@ packages:
       dir: "{{ .InterfaceDir }}"
       outpkg: "{{ .PackageName }}"
       mockname: "{{ .InterfaceName }}Mock"
-      filename: "mock_{{ .InterfaceName | snakecase | lower }}.go"
     interfaces:
       EthClient:
   github.com/0xPolygon/cdk/rpc/client:
@@ -97,9 +91,7 @@ packages:
       EthTxManager:
         configs:
           - mockname: EthTxManagerMock
-            filename: mock_ethtxmanager.go
           - mockname: EthTxManagerMock
-            filename: mock_ethtxmanager.go
             dir: "{{ .InterfaceDir }}/../test/helpers"
             outpkg: "helpers"
       Etherman:
@@ -124,7 +116,6 @@ packages:
       dir: "{{ .InterfaceDir }}"
       outpkg: "{{ .PackageName }}"
       mockname: "{{ .InterfaceName }}Mock"
-      filename: "mock_{{ .InterfaceName | snakecase | lower }}.go"
       inpackage: true
     interfaces:
       ReorgDetector:
@@ -132,12 +123,10 @@ packages:
           - dir: "{{ .InterfaceDir }}/../l1infotreesync/mocks"
             outpkg: "mocks"
             mockname: "{{ .InterfaceName }}Mock"
-            filename: "mock_{{ .InterfaceName | snakecase | lower }}.go"
             inpackage: false
           - dir: "{{ .InterfaceDir }}"
             outpkg: "{{ .PackageName }}"
             mockname: "{{ .InterfaceName }}Mock"
-            filename: "mock_{{ .InterfaceName | snakecase | lower }}.go"
       processorInterface:
         config:
           mockname: "ProcessorMock"
