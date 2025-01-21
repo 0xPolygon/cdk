@@ -79,14 +79,12 @@ fn build_versions() -> io::Result<()> {
     let re_comments = Regex::new(r"#.*$").unwrap(); // Regex to remove comments
     let re_trailing_commas = Regex::new(r",(\s*})").unwrap(); // Regex to fix trailing commas
 
-    // The versions string is a JSON object we can parse
-    let versions_json: serde_json::Value = match serde_json::from_str(&versions) {
-        Ok(json) => json,
-        Err(e) => {
-            eprintln!("Failed to parse JSON: {}", e);
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, "Failed to parse JSON"));
-        }
-    };
+    let cleaned_versions = raw_versions
+        .lines()
+        .map(|line| re_comments.replace_all(line, "").trim().to_string()) // Remove comments and trim spaces
+        .filter(|line| !line.is_empty()) // Filter out empty lines
+        .collect::<Vec<_>>()
+        .join("\n");
 
     // Fix improperly placed trailing commas
     let cleaned_versions = re_trailing_commas.replace_all(&cleaned_versions, "$1");
