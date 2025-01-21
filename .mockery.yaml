@@ -8,7 +8,7 @@ mockname: "{{ .InterfaceName }}"
 packages:
   github.com/0xPolygon/cdk/agglayer:
     config:
-      inpackage: True
+      inpackage: true
       dir: "{{ .InterfaceDir }}"
       outpkg: "{{ .PackageName }}"
     interfaces:
@@ -52,7 +52,7 @@ packages:
   github.com/0xPolygon/cdk/dataavailability:
     config:
       dir: "{{ .InterfaceDir }}/mocks_da"
-      all: True
+      all: true
       outpkg: "mocks_da"
   github.com/0xPolygon/cdk/db:
     config:
@@ -107,7 +107,7 @@ packages:
   github.com/0xPolygon/cdk/sequencesender/txbuilder:
     config:
       dir: "{{ .InterfaceDir }}/mocks_txbuilder"
-      all: True
+      all: true
       outpkg: "mocks_txbuilder"
       mockname: "{{ .InterfaceName | camelcase | firstUpper }}"
     interfaces:
@@ -125,7 +125,7 @@ packages:
       outpkg: "{{ .PackageName }}"
       mockname: "{{ .InterfaceName }}Mock"
       filename: "mock_{{ .InterfaceName | snakecase | lower }}.go"
-      inpackage: True
+      inpackage: true
     interfaces:
       ReorgDetector:
         configs:
@@ -133,7 +133,7 @@ packages:
             outpkg: "mocks"
             mockname: "{{ .InterfaceName }}Mock"
             filename: "mock_{{ .InterfaceName | snakecase | lower }}.go"
-            inpackage: False
+            inpackage: false
           - dir: "{{ .InterfaceDir }}"
             outpkg: "{{ .PackageName }}"
             mockname: "{{ .InterfaceName }}Mock"

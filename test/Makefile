@@ -1,6 +1,8 @@
+COMMON_MOCKERY_PARAMS=--disable-version-string --with-expecter --exported
+
 .PHONY: generate-mocks
 generate-mocks:	
-	mockery
+	mockery ${COMMON_MOCKERY_PARAMS}
 
 .PHONY: test-e2e-fork9-validium
 test-e2e-fork9-validium: stop
