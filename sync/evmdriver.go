@@ -93,10 +93,10 @@ reset:
 			cancel()
 			return
 		case b, ok := <-downloadCh:
-			d.log.Debugf("handleNewBlock, blockNum: %d, blockHash: %s", b.Num, b.Hash)
 			if ok {
 				// when channel is closing, it is sending an empty block with num = 0, and empty hash
 				// because it is not passing object by reference, but by value, so do not handle that since it is closing
+				d.log.Debugf("handleNewBlock, blockNum: %d, blockHash: %s", b.Num, b.Hash)
 				d.handleNewBlock(ctx, cancel, b)
 			}
 		case firstReorgedBlock := <-d.reorgSub.ReorgedBlock:

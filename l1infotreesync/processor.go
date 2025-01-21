@@ -277,7 +277,9 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 		p.halted = false
 		p.haltedReason = ""
 	}
+
 	shouldRollback = false
+
 	return nil
 }
 

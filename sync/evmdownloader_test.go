@@ -219,7 +219,12 @@ func TestDownload(t *testing.T) {
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(0), uint64(1)).
 		Return(EVMBlocks{}, false).Once()
 
-	// iteration 1: block 2 has events
+	// iteration 1: we have a new block, so increase to block
+	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(2)}, nil).Once()
+	d.On("GetEventsByBlockRange", mock.Anything, uint64(0), uint64(1)).
+		Return(EVMBlocks{}, false).Once()
+
+	// iteration 2: block 2 has events
 	b2 := EVMBlock{
 		EVMBlockHeader: EVMBlockHeader{
 			Num:  2,
@@ -231,12 +236,12 @@ func TestDownload(t *testing.T) {
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(0), uint64(2)).
 		Return(EVMBlocks{b2}, false).Once()
 
-	// iteration 2: wait for next block to be created (jump to block 8)
+	// iteration 3: wait for next block to be created (jump to block 8)
 	d.On("WaitForNewBlocks", mock.Anything, uint64(2)).
 		After(time.Millisecond * 100).
 		Return(uint64(8)).Once()
 
-	// iteration 3: blocks 6 and 7 have events, but last finalized block is 5
+	// iteration 4: blocks 6 and 7 have events, but last finalized block is 5
 	b6 := EVMBlock{
 		EVMBlockHeader: EVMBlockHeader{
 			Num:  6,
@@ -271,7 +276,7 @@ func TestDownload(t *testing.T) {
 
 	// iteration 7: last finalized block is now 20, no events, report empty block
 	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(20)}, nil).Once()
-	d.On("GetEventsByBlockRange", mock.Anything, uint64(9), uint64(20)).
+	d.On("GetEventsByBlockRange", mock.Anything, uint64(9), uint64(19)).
 		Return(EVMBlocks{}, false)
 
 	b20 := EVMBlock{
@@ -283,16 +288,27 @@ func TestDownload(t *testing.T) {
 	expectedBlocks = append(expectedBlocks, b20)
 	d.On("GetBlockHeader", mock.Anything, uint64(20)).Return(b20.EVMBlockHeader, false) // reporting empty finalized block
 
-	// iteration 8, 9 and 10: last finalized block is still 20, no events
-	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(20)}, nil).Times(3)
+	// iteration 8: last finalized block is 21, no events
+	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(21)}, nil).Once()
+	d.On("GetEventsByBlockRange", mock.Anything, uint64(20), uint64(20)).
+		Return(EVMBlocks{}, false)
+
+	// iteration 9: last finalized block is 22, no events
+	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(22)}, nil).Once()
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(20), uint64(21)).
 		Return(EVMBlocks{}, false)
+
+	// iteration 10: last finalized block is 23, no events
+	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(23)}, nil).Once()
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(20), uint64(22)).
 		Return(EVMBlocks{}, false)
+
+	// iteration 11: last finalized block is still 23, no events
+	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(23)}, nil).Once()
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(20), uint64(23)).
 		Return(EVMBlocks{}, false)
 
-	// iteration 11: from block 20 to 24, events on last block
+	// iteration 12: finalized block is 24, has events
 	b24 := EVMBlock{
 		EVMBlockHeader: EVMBlockHeader{
 			Num:  24,
@@ -301,11 +317,11 @@ func TestDownload(t *testing.T) {
 		Events: []interface{}{testEvent(common.HexToHash("24"))},
 	}
 	expectedBlocks = append(expectedBlocks, b24)
-	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(20)}, nil).Once()
+	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(24)}, nil).Twice()
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(20), uint64(24)).
 		Return(EVMBlocks{b24}, false)
 
-	// iteration 12: closing the downloader
+	// iteration 13: closing the downloader
 	d.On("WaitForNewBlocks", mock.Anything, uint64(24)).Return(uint64(25)).After(time.Millisecond * 100).Once()
 
 	go dwnldr.Download(ctx1, 0, downloadCh)
