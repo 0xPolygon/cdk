@@ -2,7 +2,7 @@ package helpers
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -19,14 +19,18 @@ func RequireProcessorUpdated(t *testing.T, processor Processorer, targetBlock ui
 		maxIterations         = 100
 		sleepTimePerIteration = time.Millisecond * 10
 	)
+	var (
+		lpb uint64
+		err error
+	)
 	ctx := context.Background()
 	for i := 0; i < maxIterations; i++ {
-		lpb, err := processor.GetLastProcessedBlock(ctx)
+		lpb, err = processor.GetLastProcessedBlock(ctx)
 		require.NoError(t, err)
 		if targetBlock <= lpb {
 			return
 		}
 		time.Sleep(sleepTimePerIteration)
 	}
-	require.NoError(t, errors.New("processor not updated"))
+	require.NoError(t, fmt.Errorf("processor not updated. Last block: %d, target block: %d", lpb, targetBlock))
 }

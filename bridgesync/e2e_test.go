@@ -88,6 +88,8 @@ func TestBridgeEventE2E(t *testing.T) {
 		}
 	}
 
+	helpers.CommitBlocks(t, setup.L1Environment.SimBackend, 11, blockTime)
+
 	// Wait for syncer to catch up
 	time.Sleep(time.Second * 2) // sleeping since the processor could be up to date, but have pending reorgs
 	lb, err := setup.L1Environment.SimBackend.Client().BlockNumber(ctx)

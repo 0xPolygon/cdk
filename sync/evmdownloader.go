@@ -136,52 +136,19 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 			}
 		}
 
-		if blocks.Len() == 0 {
-			// we have no events, keep increasing the block range until we hit a log
-			d.log.Infof("no events found in blocks %d to %d", fromBlock, toBlock)
-			if lastFinalizedBlockNumber > toBlock {
-				// we might be behind a lot, so go until last finalized block
-				toBlock = lastFinalizedBlockNumber
-				lastBlock = lastFinalizedBlockNumber
-				d.log.Infof("setting toBlock to last finalized block %d", toBlock)
-			}
-
-			if lastFinalizedBlockNumber > fromBlock && lastFinalizedBlockNumber-fromBlock >= d.syncBlockChunkSize {
-				// if we already got a lot of finalized blocks that are empty, report an empty block
-				// to the driver to indicate that we are still processing the chain
-				// this is mainly needed for tests
-				reportEmptyBlockFn(lastFinalizedBlockNumber)
-				fromBlock = lastFinalizedBlockNumber
-				d.log.Infof("setting fromBlock to last finalized block %d", fromBlock)
-			}
-
-			continue
-		} else if blocks[blocks.Len()-1].Num <= lastFinalizedBlockNumber {
-			// if the last block we have logs for is less than or equal to the last finalized block,
-			// report all of the blocks without the need to report the last empty block, since it is finalized
-			// and we do not need to track it in the reorg detector
+		if toBlock <= lastFinalizedBlockNumber {
 			reportBlocksFn(blocks.Len())
 			fromBlock = toBlock + 1
-			d.log.Infof("got blocks that are lower than finalized block, setting fromBlock to %d", fromBlock)
-		} else if blocks[blocks.Len()-1].Num < toBlock {
-			// if we have logs in some of the blocks, and they are not all finalized,
-			// check if we have finalized blocks in gotten range, report them and
-			// set the from block from the last finalized block and keep increasing the range
-			// if not keep getting that range to protect us from possible mishandling of block hashes
-			lastFinalizedBlock, index, exists := blocks.LastFinalizedBlock(lastFinalizedBlockNumber)
-			if exists {
-				reportBlocksFn(index + 1) // num of blocks to report is index + 1 since index is zero based
-				fromBlock = lastFinalizedBlock + 1
-				d.log.Infof("have some finalized blocks in the range, setting fromBlock to %d", fromBlock)
-				continue
+
+			if blocks.Len() == 0 || blocks[blocks.Len()-1].Num < toBlock {
+				reportEmptyBlockFn(toBlock)
 			}
 		} else {
-			// if we have logs in the last block, just report all of them and continue
-			// reorg detector will handle the reorg since the last block has events,
-			// and we are not afraid to have missaligned hashes at this point
-			reportBlocksFn(blocks.Len())
-			fromBlock = toBlock + 1
-			d.log.Infof("have logs in the last block, setting fromBlock to %d", fromBlock)
+			lastFinalizedBlockNum, i, found := blocks.LastFinalizedBlock(lastFinalizedBlockNumber)
+			if found {
+				reportBlocksFn(i + 1)
+				fromBlock = lastFinalizedBlockNum + 1
+			}
 		}
 	}
 }
