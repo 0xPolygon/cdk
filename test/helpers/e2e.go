@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygon/cdk/aggoracle"
 	"github.com/0xPolygon/cdk/aggoracle/chaingersender"
 	"github.com/0xPolygon/cdk/bridgesync"
+	cfgTypes "github.com/0xPolygon/cdk/config/types"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
@@ -104,7 +105,10 @@ func L1Setup(t *testing.T) *L1Environment {
 
 	// Reorg detector
 	dbPathReorgDetectorL1 := path.Join(t.TempDir(), "ReorgDetectorL1.sqlite")
-	rdL1, err := reorgdetector.New(l1Client.Client(), reorgdetector.Config{DBPath: dbPathReorgDetectorL1})
+	rdL1, err := reorgdetector.New(l1Client.Client(), reorgdetector.Config{
+		DBPath:              dbPathReorgDetectorL1,
+		CheckReorgsInterval: cfgTypes.Duration{Duration: time.Millisecond * 100},
+	})
 	require.NoError(t, err)
 	go rdL1.Start(ctx) //nolint:errcheck
 
@@ -178,7 +182,9 @@ func L2Setup(t *testing.T) *L2Environment {
 
 	// Reorg detector
 	dbPathReorgL2 := path.Join(t.TempDir(), "ReorgDetectorL2.sqlite")
-	rdL2, err := reorgdetector.New(l2Client.Client(), reorgdetector.Config{DBPath: dbPathReorgL2})
+	rdL2, err := reorgdetector.New(l2Client.Client(), reorgdetector.Config{
+		DBPath:              dbPathReorgL2,
+		CheckReorgsInterval: cfgTypes.Duration{Duration: time.Millisecond * 100}})
 	require.NoError(t, err)
 	go rdL2.Start(ctx) //nolint:errcheck
 

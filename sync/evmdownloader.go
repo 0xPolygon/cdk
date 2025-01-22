@@ -135,40 +135,46 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 			fromBlock, toBlock, lastFinalizedBlockNumber)
 		blocks := d.GetEventsByBlockRange(ctx, fromBlock, toBlock)
 
-		reportBlocksFn := func(numOfBlocksToReport int) {
-			for i := 0; i < numOfBlocksToReport; i++ {
-				d.log.Infof("sending block %d to the driver (with events)", blocks[i].Num)
-				downloadedCh <- blocks[i]
-			}
-		}
-
-		reportEmptyBlockFn := func(blockNum uint64) {
-			// Indicate the last downloaded block if there are not events on it
-			d.log.Debugf("sending block %d to the driver (without events)", toBlock)
-			header, isCanceled := d.GetBlockHeader(ctx, blockNum)
-			if isCanceled {
-				return
-			}
-
-			downloadedCh <- EVMBlock{
-				EVMBlockHeader: header,
-			}
-		}
-
 		if toBlock <= lastFinalizedBlockNumber {
-			reportBlocksFn(blocks.Len())
+			d.reportBlocks(downloadedCh, blocks)
 			fromBlock = toBlock + 1
 
 			if blocks.Len() == 0 || blocks[blocks.Len()-1].Num < toBlock {
-				reportEmptyBlockFn(toBlock)
+				d.reportEmptyBlock(ctx, downloadedCh, toBlock)
 			}
 		} else {
-			lastFinalizedBlockNum, i, found := blocks.LastFinalizedBlock(lastFinalizedBlockNumber)
-			if found {
-				reportBlocksFn(i + 1)
-				fromBlock = lastFinalizedBlockNum + 1
+			d.reportBlocks(downloadedCh, blocks)
+
+			if blocks.Len() == 0 {
+				if lastFinalizedBlockNumber > fromBlock &&
+					lastFinalizedBlockNumber-fromBlock > d.syncBlockChunkSize {
+					d.reportEmptyBlock(ctx, downloadedCh, fromBlock+d.syncBlockChunkSize)
+					fromBlock += d.syncBlockChunkSize + 1
+				}
+			} else {
+				fromBlock = blocks[blocks.Len()-1].Num + 1
 			}
 		}
+	}
+}
+
+func (d *EVMDownloader) reportBlocks(downloadedCh chan EVMBlock, blocks []EVMBlock) {
+	for _, block := range blocks {
+		d.log.Infof("sending block %d to the driver (with events)", block.Num)
+		downloadedCh <- block
+	}
+}
+
+func (d *EVMDownloader) reportEmptyBlock(ctx context.Context, downloadedCh chan EVMBlock, blockNum uint64) {
+	// Indicate the last downloaded block if there are not events on it
+	d.log.Debugf("sending block %d to the driver (without events)", blockNum)
+	header, isCanceled := d.GetBlockHeader(ctx, blockNum)
+	if isCanceled {
+		return
+	}
+
+	downloadedCh <- EVMBlock{
+		EVMBlockHeader: header,
 	}
 }
 
