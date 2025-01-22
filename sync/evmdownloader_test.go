@@ -507,7 +507,7 @@ func NewTestDownloader(t *testing.T, retryPeriod time.Duration) (*EVMDownloader,
 	d, err := NewEVMDownloader("test",
 		clientMock, syncBlockChunck, etherman.LatestBlock, time.Millisecond,
 		buildAppender(), []common.Address{contractAddr}, rh,
-		etherman.SafeBlock,
+		etherman.FinalizedBlock,
 	)
 	require.NoError(t, err)
 	return d, clientMock
