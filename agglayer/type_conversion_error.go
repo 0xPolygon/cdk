@@ -146,7 +146,7 @@ type BalanceUnderflow struct {
 	*TokenInfoError
 }
 
-// NewBalanceOverflow returns a new BalanceOverflow error.
+// NewBalanceUnderflow returns a new BalanceUnderflow error.
 func NewBalanceUnderflow() *BalanceUnderflow {
 	return &BalanceUnderflow{
 		TokenInfoError: &TokenInfoError{},
