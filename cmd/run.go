@@ -526,6 +526,7 @@ func runL1InfoTreeSyncerIfNeeded(
 		cfg.L1InfoTreeSync.RetryAfterErrorPeriod.Duration,
 		cfg.L1InfoTreeSync.MaxRetryAttemptsAfterError,
 		l1infotreesync.FlagNone,
+		etherman.FinalizedBlock,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -727,6 +728,7 @@ func runBridgeSyncL1IfNeeded(
 		cfg.MaxRetryAttemptsAfterError,
 		rollupID,
 		false,
+		etherman.FinalizedBlock,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL1: %s", err)
@@ -762,6 +764,7 @@ func runBridgeSyncL2IfNeeded(
 		cfg.MaxRetryAttemptsAfterError,
 		rollupID,
 		true,
+		etherman.LatestBlock,
 	)
 	if err != nil {
 		log.Fatalf("error creating bridgeSyncL2: %s", err)

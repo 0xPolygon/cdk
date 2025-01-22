@@ -45,6 +45,7 @@ func NewL1(
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
 	syncFullClaims bool,
+	finalizedBlockType etherman.BlockNumberFinality,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -61,6 +62,7 @@ func NewL1(
 		maxRetryAttemptsAfterError,
 		originNetwork,
 		syncFullClaims,
+		finalizedBlockType,
 	)
 }
 
@@ -79,6 +81,7 @@ func NewL2(
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
 	syncFullClaims bool,
+	finalizedBlockType etherman.BlockNumberFinality,
 ) (*BridgeSync, error) {
 	return newBridgeSync(
 		ctx,
@@ -95,6 +98,7 @@ func NewL2(
 		maxRetryAttemptsAfterError,
 		originNetwork,
 		syncFullClaims,
+		finalizedBlockType,
 	)
 }
 
@@ -113,6 +117,7 @@ func newBridgeSync(
 	maxRetryAttemptsAfterError int,
 	originNetwork uint32,
 	syncFullClaims bool,
+	finalizedBlockType etherman.BlockNumberFinality,
 ) (*BridgeSync, error) {
 	logger := log.WithFields("bridge-syncer", layerID)
 	processor, err := newProcessor(dbPath, logger)
@@ -151,6 +156,7 @@ func newBridgeSync(
 		appender,
 		[]common.Address{bridge},
 		rh,
+		finalizedBlockType,
 	)
 	if err != nil {
 		return nil, err

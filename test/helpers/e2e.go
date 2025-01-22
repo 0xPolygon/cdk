@@ -117,6 +117,7 @@ func L1Setup(t *testing.T) *L1Environment {
 		rdL1, l1Client.Client(),
 		time.Millisecond, 0, periodRetry,
 		retries, l1infotreesync.FlagAllowWrongContractsAddrs,
+		etherman.SafeBlock,
 	)
 	require.NoError(t, err)
 
@@ -138,7 +139,7 @@ func L1Setup(t *testing.T) *L1Environment {
 		ctx, dbPathBridgeSyncL1, bridgeL1Addr,
 		syncBlockChunks, etherman.LatestBlock, rdL1, testClient,
 		initialBlock, waitForNewBlocksPeriod, retryPeriod,
-		retriesCount, originNetwork, false)
+		retriesCount, originNetwork, false, etherman.SafeBlock)
 	require.NoError(t, err)
 
 	go bridgeL1Sync.Start(ctx)
@@ -198,7 +199,7 @@ func L2Setup(t *testing.T) *L2Environment {
 		ctx, dbPathL2BridgeSync, bridgeL2Addr, syncBlockChunks,
 		etherman.LatestBlock, rdL2, testClient,
 		initialBlock, waitForNewBlocksPeriod, retryPeriod,
-		retriesCount, originNetwork, false)
+		retriesCount, originNetwork, false, etherman.LatestBlock)
 	require.NoError(t, err)
 
 	go bridgeL2Sync.Start(ctx)

@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 const (
@@ -52,6 +51,7 @@ func NewEVMDownloader(
 	appender LogAppenderMap,
 	adressessToQuery []common.Address,
 	rh *RetryHandler,
+	finalizedBlockType etherman.BlockNumberFinality,
 ) (*EVMDownloader, error) {
 	logger := log.WithFields("syncer", syncerID)
 	finality, err := blockFinalityType.ToBlockNum()
@@ -62,6 +62,16 @@ func NewEVMDownloader(
 	for topic := range appender {
 		topicsToQuery = append(topicsToQuery, topic)
 	}
+	fbt, err := finalizedBlockType.ToBlockNum()
+	if err != nil {
+		return nil, err
+	}
+	if fbt.Cmp(finality) > 0 {
+		// if someone configured the syncer to query blocks by Safe or Finalized block
+		// finalized block type should be at least the same as the block finality
+		fbt = finality
+	}
+
 	return &EVMDownloader{
 		syncBlockChunkSize: syncBlockChunkSize,
 		log:                logger,
@@ -74,6 +84,7 @@ func NewEVMDownloader(
 			adressessToQuery:       adressessToQuery,
 			rh:                     rh,
 			log:                    logger,
+			finalizedBlockType:     fbt,
 		},
 	}, nil
 }
@@ -162,6 +173,7 @@ type EVMDownloaderImplementation struct {
 	adressessToQuery       []common.Address
 	rh                     *RetryHandler
 	log                    *log.Logger
+	finalizedBlockType     *big.Int
 }
 
 func NewEVMDownloaderImplementation(
@@ -188,7 +200,7 @@ func NewEVMDownloaderImplementation(
 }
 
 func (d *EVMDownloaderImplementation) GetLastFinalizedBlock(ctx context.Context) (*types.Header, error) {
-	return d.ethClient.HeaderByNumber(ctx, big.NewInt(int64(rpc.SafeBlockNumber)))
+	return d.ethClient.HeaderByNumber(ctx, d.finalizedBlockType)
 }
 
 func (d *EVMDownloaderImplementation) WaitForNewBlocks(
