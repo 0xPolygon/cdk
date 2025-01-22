@@ -120,6 +120,10 @@ func (b *BlockNumberFinality) ToBlockNum() (*big.Int, error) {
 	}
 }
 
+func (b BlockNumberFinality) IsFinalized() bool {
+	return b == FinalizedBlock
+}
+
 type BlockNumber int64
 
 const (

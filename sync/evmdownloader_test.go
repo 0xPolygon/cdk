@@ -86,7 +86,7 @@ func TestGetEventsByBlockRange(t *testing.T) {
 		*logC2_3,
 		*logC2_4,
 	}
-	blocksC2 := []EVMBlock{
+	blocksC2 := []*EVMBlock{
 		{
 			EVMBlockHeader: EVMBlockHeader{
 				Num:        logC2_1.BlockNumber,
@@ -214,8 +214,9 @@ func TestDownload(t *testing.T) {
 		Return(uint64(1))
 
 	lastFinalizedBlock := &types.Header{Number: big.NewInt(1)}
-	createEVMBlockFn := func(header *types.Header) EVMBlock {
-		return EVMBlock{
+	createEVMBlockFn := func(header *types.Header, isSafeBlock bool) *EVMBlock {
+		return &EVMBlock{
+			IsSafeBlock: isSafeBlock,
 			EVMBlockHeader: EVMBlockHeader{
 				Num:        header.Number.Uint64(),
 				Hash:       header.Hash(),
@@ -227,7 +228,7 @@ func TestDownload(t *testing.T) {
 
 	// iteration 0:
 	// last block is 1, download that block (no events and wait)
-	b0 := createEVMBlockFn(lastFinalizedBlock)
+	b0 := createEVMBlockFn(lastFinalizedBlock, true)
 	expectedBlocks = append(expectedBlocks, b0)
 	d.On("GetLastFinalizedBlock", mock.Anything).Return(lastFinalizedBlock, nil).Once()
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(0), uint64(1)).
@@ -236,7 +237,7 @@ func TestDownload(t *testing.T) {
 
 	// iteration 1: we have a new block, so increase to block (no events)
 	lastFinalizedBlock = &types.Header{Number: big.NewInt(2)}
-	b2 := createEVMBlockFn(lastFinalizedBlock)
+	b2 := createEVMBlockFn(lastFinalizedBlock, true)
 	expectedBlocks = append(expectedBlocks, b2)
 	d.On("WaitForNewBlocks", mock.Anything, uint64(1)).
 		Return(uint64(2))
@@ -252,14 +253,14 @@ func TestDownload(t *testing.T) {
 
 	// iteration 3: blocks 6 and 7 have events, last finalized block is 5
 	lastFinalizedBlock = &types.Header{Number: big.NewInt(5)}
-	b6 := EVMBlock{
+	b6 := &EVMBlock{
 		EVMBlockHeader: EVMBlockHeader{
 			Num:  6,
 			Hash: common.HexToHash("06"),
 		},
 		Events: []interface{}{"06"},
 	}
-	b7 := EVMBlock{
+	b7 := &EVMBlock{
 		EVMBlockHeader: EVMBlockHeader{
 			Num:  7,
 			Hash: common.HexToHash("07"),
@@ -273,7 +274,7 @@ func TestDownload(t *testing.T) {
 
 	// iteration 4: finalized block is now block 8, report the finalized block
 	lastFinalizedBlock = &types.Header{Number: big.NewInt(8)}
-	b8 := createEVMBlockFn(lastFinalizedBlock)
+	b8 := createEVMBlockFn(lastFinalizedBlock, true)
 	expectedBlocks = append(expectedBlocks, b8)
 	d.On("GetLastFinalizedBlock", mock.Anything).Return(lastFinalizedBlock, nil).Once()
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(8), uint64(8)).
@@ -297,12 +298,12 @@ func TestDownload(t *testing.T) {
 	d.On("WaitForNewBlocks", mock.Anything, uint64(19)).
 		After(time.Millisecond * 100).
 		Return(uint64(20)).Once()
-	b19 := createEVMBlockFn(&types.Header{Number: big.NewInt(19)})
+	b19 := createEVMBlockFn(&types.Header{Number: big.NewInt(19)}, true)
 	expectedBlocks = append(expectedBlocks, b19)
 	d.On("GetBlockHeader", mock.Anything, uint64(19)).Return(b19.EVMBlockHeader, false) // reporting empty finalized to block
 
 	// iteration 8: last finalized block is 21, no events
-	b20 := createEVMBlockFn(&types.Header{Number: big.NewInt(20)})
+	b20 := createEVMBlockFn(&types.Header{Number: big.NewInt(20)}, true)
 	expectedBlocks = append(expectedBlocks, b20)
 	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(21)}, nil).Once()
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(20), uint64(20)).
@@ -313,7 +314,7 @@ func TestDownload(t *testing.T) {
 	d.On("WaitForNewBlocks", mock.Anything, uint64(20)).
 		After(time.Millisecond * 100).
 		Return(uint64(21)).Once()
-	b21 := createEVMBlockFn(&types.Header{Number: big.NewInt(21)})
+	b21 := createEVMBlockFn(&types.Header{Number: big.NewInt(21)}, true)
 	expectedBlocks = append(expectedBlocks, b21)
 	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(22)}, nil).Once()
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(21), uint64(21)).
@@ -324,7 +325,7 @@ func TestDownload(t *testing.T) {
 	d.On("WaitForNewBlocks", mock.Anything, uint64(21)).
 		After(time.Millisecond * 100).
 		Return(uint64(22)).Once()
-	b22 := createEVMBlockFn(&types.Header{Number: big.NewInt(22)})
+	b22 := createEVMBlockFn(&types.Header{Number: big.NewInt(22)}, true)
 	expectedBlocks = append(expectedBlocks, b22)
 	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(23)}, nil).Once()
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(22), uint64(22)).
@@ -335,7 +336,7 @@ func TestDownload(t *testing.T) {
 	d.On("WaitForNewBlocks", mock.Anything, uint64(22)).
 		After(time.Millisecond * 100).
 		Return(uint64(23)).Once()
-	b23 := createEVMBlockFn(&types.Header{Number: big.NewInt(23)})
+	b23 := createEVMBlockFn(&types.Header{Number: big.NewInt(23)}, true)
 	expectedBlocks = append(expectedBlocks, b23)
 	d.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(23)}, nil).Once()
 	d.On("GetEventsByBlockRange", mock.Anything, uint64(23), uint64(23)).
@@ -346,7 +347,7 @@ func TestDownload(t *testing.T) {
 	d.On("WaitForNewBlocks", mock.Anything, uint64(23)).
 		After(time.Millisecond * 100).
 		Return(uint64(24)).Once()
-	b24 := EVMBlock{
+	b24 := &EVMBlock{
 		EVMBlockHeader: EVMBlockHeader{
 			Num:  24,
 			Hash: common.HexToHash("24"),
@@ -365,7 +366,7 @@ func TestDownload(t *testing.T) {
 	for _, expectedBlock := range expectedBlocks {
 		actualBlock := <-downloadCh
 		log.Debugf("block %d received!", actualBlock.Num)
-		require.Equal(t, expectedBlock, actualBlock)
+		require.Equal(t, *expectedBlock, actualBlock)
 	}
 	log.Debug("canceling")
 	cancel()

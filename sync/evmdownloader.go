@@ -39,7 +39,8 @@ type LogAppenderMap map[common.Hash]func(b *EVMBlock, l types.Log) error
 type EVMDownloader struct {
 	syncBlockChunkSize uint64
 	EVMDownloaderInterface
-	log *log.Logger
+	log                *log.Logger
+	finalizedBlockType etherman.BlockNumberFinality
 }
 
 func NewEVMDownloader(
@@ -83,6 +84,7 @@ func NewEVMDownloader(
 	return &EVMDownloader{
 		syncBlockChunkSize: syncBlockChunkSize,
 		log:                logger,
+		finalizedBlockType: fbtEthermanType,
 		EVMDownloaderInterface: &EVMDownloaderImplementation{
 			ethClient:              ethClient,
 			blockFinality:          finality,
@@ -136,19 +138,19 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 		blocks := d.GetEventsByBlockRange(ctx, fromBlock, toBlock)
 
 		if toBlock <= lastFinalizedBlockNumber {
-			d.reportBlocks(downloadedCh, blocks)
+			d.reportBlocks(downloadedCh, blocks, lastFinalizedBlockNumber)
 			fromBlock = toBlock + 1
 
 			if blocks.Len() == 0 || blocks[blocks.Len()-1].Num < toBlock {
-				d.reportEmptyBlock(ctx, downloadedCh, toBlock)
+				d.reportEmptyBlock(ctx, downloadedCh, toBlock, lastFinalizedBlockNumber)
 			}
 		} else {
-			d.reportBlocks(downloadedCh, blocks)
+			d.reportBlocks(downloadedCh, blocks, lastFinalizedBlockNumber)
 
 			if blocks.Len() == 0 {
 				if lastFinalizedBlockNumber > fromBlock &&
 					lastFinalizedBlockNumber-fromBlock > d.syncBlockChunkSize {
-					d.reportEmptyBlock(ctx, downloadedCh, fromBlock+d.syncBlockChunkSize)
+					d.reportEmptyBlock(ctx, downloadedCh, fromBlock+d.syncBlockChunkSize, lastFinalizedBlockNumber)
 					fromBlock += d.syncBlockChunkSize + 1
 				}
 			} else {
@@ -158,14 +160,16 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 	}
 }
 
-func (d *EVMDownloader) reportBlocks(downloadedCh chan EVMBlock, blocks []EVMBlock) {
+func (d *EVMDownloader) reportBlocks(downloadedCh chan EVMBlock, blocks EVMBlocks, lastFinalizedBlock uint64) {
 	for _, block := range blocks {
 		d.log.Infof("sending block %d to the driver (with events)", block.Num)
-		downloadedCh <- block
+		block.IsSafeBlock = d.finalizedBlockType.IsFinalized() && block.Num <= lastFinalizedBlock
+		downloadedCh <- *block
 	}
 }
 
-func (d *EVMDownloader) reportEmptyBlock(ctx context.Context, downloadedCh chan EVMBlock, blockNum uint64) {
+func (d *EVMDownloader) reportEmptyBlock(ctx context.Context, downloadedCh chan EVMBlock,
+	blockNum, lastFinalizedBlock uint64) {
 	// Indicate the last downloaded block if there are not events on it
 	d.log.Debugf("sending block %d to the driver (without events)", blockNum)
 	header, isCanceled := d.GetBlockHeader(ctx, blockNum)
@@ -174,6 +178,7 @@ func (d *EVMDownloader) reportEmptyBlock(ctx context.Context, downloadedCh chan 
 	}
 
 	downloadedCh <- EVMBlock{
+		IsSafeBlock:    d.finalizedBlockType.IsFinalized() && header.Num <= lastFinalizedBlock,
 		EVMBlockHeader: header,
 	}
 }
@@ -252,7 +257,7 @@ func (d *EVMDownloaderImplementation) GetEventsByBlockRange(ctx context.Context,
 	case <-ctx.Done():
 		return nil
 	default:
-		blocks := []EVMBlock{}
+		blocks := EVMBlocks{}
 		logs := d.GetLogs(ctx, fromBlock, toBlock)
 		for _, l := range logs {
 			if len(blocks) == 0 || blocks[len(blocks)-1].Num < l.BlockNumber {
@@ -269,7 +274,7 @@ func (d *EVMDownloaderImplementation) GetEventsByBlockRange(ctx context.Context,
 					)
 					return d.GetEventsByBlockRange(ctx, fromBlock, toBlock)
 				}
-				blocks = append(blocks, EVMBlock{
+				blocks = append(blocks, &EVMBlock{
 					EVMBlockHeader: EVMBlockHeader{
 						Num:        l.BlockNumber,
 						Hash:       l.BlockHash,
@@ -282,7 +287,7 @@ func (d *EVMDownloaderImplementation) GetEventsByBlockRange(ctx context.Context,
 
 			for {
 				attempts := 0
-				err := d.appender[l.Topics[0]](&blocks[len(blocks)-1], l)
+				err := d.appender[l.Topics[0]](blocks[len(blocks)-1], l)
 				if err != nil {
 					attempts++
 					d.log.Error("error trying to append log: ", err)
