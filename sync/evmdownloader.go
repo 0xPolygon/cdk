@@ -58,19 +58,27 @@ func NewEVMDownloader(
 	if err != nil {
 		return nil, err
 	}
+
 	topicsToQuery := make([]common.Hash, 0, len(appender))
 	for topic := range appender {
 		topicsToQuery = append(topicsToQuery, topic)
 	}
+
+	fbtEthermanType := finalizedBlockType
 	fbt, err := finalizedBlockType.ToBlockNum()
 	if err != nil {
 		return nil, err
 	}
+
 	if fbt.Cmp(finality) > 0 {
 		// if someone configured the syncer to query blocks by Safe or Finalized block
 		// finalized block type should be at least the same as the block finality
 		fbt = finality
+		fbtEthermanType = blockFinalityType
 	}
+
+	logger.Infof("downloader initialized with block finality: %s, finalized block type: %s. SyncChunkSize: %d",
+		blockFinalityType, fbtEthermanType, syncBlockChunkSize)
 
 	return &EVMDownloader{
 		syncBlockChunkSize: syncBlockChunkSize,
