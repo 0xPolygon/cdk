@@ -38,7 +38,6 @@ func (c Config) String() string {
 		"BlockGetInterval: " + c.BlockGetInterval.String() + "\n" +
 		"CheckSettledInterval: " + c.CheckSettledInterval.String() + "\n" +
 		"AggsenderPrivateKeyPath: " + c.AggsenderPrivateKey.Path + "\n" +
-		"AggsenderPrivateKeyPassword: " + c.AggsenderPrivateKey.Password + "\n" +
 		"URLRPCL2: " + c.URLRPCL2 + "\n" +
 		"BlockFinality: " + c.BlockFinality + "\n" +
 		"EpochNotificationPercentage: " + fmt.Sprintf("%d", c.EpochNotificationPercentage) + "\n" +

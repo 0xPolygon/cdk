@@ -59,7 +59,6 @@ func TestConfigString(t *testing.T) {
 		"BlockGetInterval: 10s\n" +
 		"CheckSettledInterval: 20s\n" +
 		"AggsenderPrivateKeyPath: /path/to/key\n" +
-		"AggsenderPrivateKeyPassword: password\n" +
 		"URLRPCL2: http://l2.rpc.url\n" +
 		"BlockFinality: latestBlock\n" +
 		"EpochNotificationPercentage: 50\n" +
