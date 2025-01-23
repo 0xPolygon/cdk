@@ -116,7 +116,7 @@ func (b *BatchEndpoints) GetL2BlockTimestamp(blockHash string) (uint64, error) {
 	}
 	timestamp := new(big.Int).SetBytes(common.FromHex(l2Block.Timestamp)).Uint64()
 	if timestamp == 0 {
-		return 0, fmt.Errorf("error timestamp str:'%s' form Block hash: %s is 0", l2Block.Timestamp, blockHash)
+		return 0, fmt.Errorf("timestamp str '%s' from block hash %s is 0", l2Block.Timestamp, blockHash)
 	}
 	return timestamp, nil
 }
