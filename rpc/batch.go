@@ -104,7 +104,7 @@ func (b *BatchEndpoints) GetL2BlockTimestamp(blockHash string) (uint64, error) {
 	}
 
 	if string(response.Result) == "null" {
-		log.Errorf("error response of eth_getBlockByHash  is null. Block hash: %s. err: Not Found", blockHash)
+		log.Errorf("eth_getBlockByHash response is null. Block hash %s not found", blockHash)
 		return 0, fmt.Errorf("error response of eth_getBlockByHash  is null. Block hash: %s. err: Not Found", blockHash)
 	}
 
