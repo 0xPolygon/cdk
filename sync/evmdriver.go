@@ -117,7 +117,7 @@ func (d *EVMDriver) handleNewBlock(ctx context.Context, cancel context.CancelFun
 			d.log.Warnf("context canceled while adding block %d to tracker", b.Num)
 			return
 		default:
-			if !b.IsSafeBlock {
+			if !b.IsFinalizedBlock {
 				err := d.reorgDetector.AddBlockToTrack(ctx, d.reorgDetectorID, b.Num, b.Hash)
 				if err != nil {
 					attempts++

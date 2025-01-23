@@ -216,7 +216,7 @@ func TestDownload(t *testing.T) {
 	lastFinalizedBlock := &types.Header{Number: big.NewInt(1)}
 	createEVMBlockFn := func(header *types.Header, isSafeBlock bool) *EVMBlock {
 		return &EVMBlock{
-			IsSafeBlock: isSafeBlock,
+			IsFinalizedBlock: isSafeBlock,
 			EVMBlockHeader: EVMBlockHeader{
 				Num:        header.Number.Uint64(),
 				Hash:       header.Hash(),

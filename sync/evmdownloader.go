@@ -76,6 +76,8 @@ func NewEVMDownloader(
 		// finalized block type should be at least the same as the block finality
 		fbt = finality
 		fbtEthermanType = blockFinalityType
+		logger.Warnf("finalized block type %s is greater than block finality %s, setting finalized block type to %s",
+			finalizedBlockType, blockFinalityType, fbtEthermanType)
 	}
 
 	logger.Infof("downloader initialized with block finality: %s, finalized block type: %s. SyncChunkSize: %d",
@@ -163,7 +165,7 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 func (d *EVMDownloader) reportBlocks(downloadedCh chan EVMBlock, blocks EVMBlocks, lastFinalizedBlock uint64) {
 	for _, block := range blocks {
 		d.log.Infof("sending block %d to the driver (with events)", block.Num)
-		block.IsSafeBlock = d.finalizedBlockType.IsFinalized() && block.Num <= lastFinalizedBlock
+		block.IsFinalizedBlock = d.finalizedBlockType.IsFinalized() && block.Num <= lastFinalizedBlock
 		downloadedCh <- *block
 	}
 }
@@ -178,8 +180,8 @@ func (d *EVMDownloader) reportEmptyBlock(ctx context.Context, downloadedCh chan 
 	}
 
 	downloadedCh <- EVMBlock{
-		IsSafeBlock:    d.finalizedBlockType.IsFinalized() && header.Num <= lastFinalizedBlock,
-		EVMBlockHeader: header,
+		IsFinalizedBlock: d.finalizedBlockType.IsFinalized() && header.Num <= lastFinalizedBlock,
+		EVMBlockHeader:   header,
 	}
 }
 

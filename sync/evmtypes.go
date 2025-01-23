@@ -10,8 +10,8 @@ func (e EVMBlocks) Len() int {
 
 type EVMBlock struct {
 	EVMBlockHeader
-	IsSafeBlock bool
-	Events      []interface{}
+	IsFinalizedBlock bool
+	Events           []interface{}
 }
 
 type EVMBlockHeader struct {
@@ -19,5 +19,4 @@ type EVMBlockHeader struct {
 	Hash       common.Hash
 	ParentHash common.Hash
 	Timestamp  uint64
-	SafeBlock  bool
 }
