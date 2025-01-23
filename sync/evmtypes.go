@@ -2,7 +2,7 @@ package sync
 
 import "github.com/ethereum/go-ethereum/common"
 
-type EVMBlocks []EVMBlock
+type EVMBlocks []*EVMBlock
 
 func (e EVMBlocks) Len() int {
 	return len(e)
@@ -20,7 +20,8 @@ func (e EVMBlocks) LastFinalizedBlock(lastFinalizedBlockOnNetwork uint64) (uint6
 
 type EVMBlock struct {
 	EVMBlockHeader
-	Events []interface{}
+	IsSafeBlock bool
+	Events      []interface{}
 }
 
 type EVMBlockHeader struct {

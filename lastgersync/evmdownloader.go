@@ -49,7 +49,7 @@ func newDownloader(
 
 	return &downloader{
 		EVMDownloaderImplementation: sync.NewEVMDownloaderImplementation(
-			"lastgersync", l2Client, blockFinality, waitForNewBlocksPeriod, nil, nil, nil, rh,
+			"lastgersync", l2Client, blockFinality, waitForNewBlocksPeriod, nil, nil, nil, rh, blockFinality,
 		),
 		l2Client:       l2Client,
 		gerContract:    gerContract,

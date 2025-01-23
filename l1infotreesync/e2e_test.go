@@ -67,7 +67,7 @@ func TestE2E(t *testing.T) {
 
 	client, auth, gerAddr, verifyAddr, gerSc, verifySC := newSimulatedClient(t)
 	syncer, err := l1infotreesync.New(ctx, dbPath, gerAddr, verifyAddr, 10, etherman.LatestBlock, rdm, client.Client(), time.Millisecond, 0, 100*time.Millisecond, 25,
-		l1infotreesync.FlagAllowWrongContractsAddrs)
+		l1infotreesync.FlagAllowWrongContractsAddrs, etherman.SafeBlock)
 	require.NoError(t, err)
 
 	go syncer.Start(ctx)
@@ -165,7 +165,7 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, rd.Start(ctx))
 
 	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, time.Second, 25,
-		l1infotreesync.FlagAllowWrongContractsAddrs)
+		l1infotreesync.FlagAllowWrongContractsAddrs, etherman.SafeBlock)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
@@ -281,7 +281,7 @@ func TestStressAndReorgs(t *testing.T) {
 	require.NoError(t, rd.Start(ctx))
 
 	syncer, err := l1infotreesync.New(ctx, dbPathSyncer, gerAddr, verifyAddr, 10, etherman.LatestBlock, rd, client.Client(), time.Millisecond, 0, time.Second, 100,
-		l1infotreesync.FlagAllowWrongContractsAddrs)
+		l1infotreesync.FlagAllowWrongContractsAddrs, etherman.SafeBlock)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 

@@ -103,6 +103,10 @@ const (
 	EarliestBlock  = BlockNumberFinality("EarliestBlock")
 )
 
+func (b BlockNumberFinality) IsFinalized() bool {
+	return b == FinalizedBlock
+}
+
 func (b *BlockNumberFinality) ToBlockNum() (*big.Int, error) {
 	switch *b {
 	case FinalizedBlock:

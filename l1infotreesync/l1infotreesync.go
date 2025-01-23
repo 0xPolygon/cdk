@@ -47,6 +47,7 @@ func New(
 	retryAfterErrorPeriod time.Duration,
 	maxRetryAttemptsAfterError int,
 	flags CreationFlags,
+	finalizedBlockType etherman.BlockNumberFinality,
 ) (*L1InfoTreeSync, error) {
 	processor, err := newProcessor(dbPath)
 	if err != nil {
@@ -83,6 +84,7 @@ func New(
 		appender,
 		[]common.Address{globalExitRoot, rollupManager},
 		rh,
+		finalizedBlockType,
 	)
 	if err != nil {
 		return nil, err

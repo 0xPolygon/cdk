@@ -115,7 +115,7 @@ func CommonSetup(t *testing.T) (
 		gerL1Addr, common.Address{},
 		syncBlockChunkSize, etherman.LatestBlock,
 		reorg, l1Client.Client(),
-		time.Millisecond, 0, periodRetry, retries, l1infotreesync.FlagAllowWrongContractsAddrs)
+		time.Millisecond, 0, periodRetry, retries, l1infotreesync.FlagAllowWrongContractsAddrs, etherman.SafeBlock)
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
