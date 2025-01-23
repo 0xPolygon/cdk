@@ -14,8 +14,6 @@ import (
 )
 
 func Test_getBatchFromRPC(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name                 string
 		batch                uint64
@@ -200,8 +198,6 @@ func Test_getBatchWitnessRPC(t *testing.T) {
 }
 
 func Test_getGetL2BlockTimestamp(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name       string
 		blockHash  []byte
