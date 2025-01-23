@@ -74,8 +74,6 @@ func Test_getBatchFromRPC(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				var req rpc.Request
 				err := json.NewDecoder(r.Body).Decode(&req)
@@ -228,8 +226,6 @@ func Test_getGetL2BlockTimestamp(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				var req rpc.Request
 				err := json.NewDecoder(r.Body).Decode(&req)
