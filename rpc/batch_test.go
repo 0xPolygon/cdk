@@ -14,8 +14,6 @@ import (
 )
 
 func Test_getBatchFromRPC(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name                 string
 		batch                uint64
@@ -76,8 +74,6 @@ func Test_getBatchFromRPC(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				var req rpc.Request
 				err := json.NewDecoder(r.Body).Decode(&req)
@@ -200,8 +196,6 @@ func Test_getBatchWitnessRPC(t *testing.T) {
 }
 
 func Test_getGetL2BlockTimestamp(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name       string
 		blockHash  []byte
@@ -232,8 +226,6 @@ func Test_getGetL2BlockTimestamp(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				var req rpc.Request
 				err := json.NewDecoder(r.Body).Decode(&req)
@@ -262,4 +254,32 @@ func Test_getGetL2BlockTimestamp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_getGetL2BlockTimestampNull(t *testing.T) {
+	response := rpc.Response{
+		Result: []byte(`null`),
+	}
+	jSONRPCCall = func(_, _ string, _ ...interface{}) (rpc.Response, error) {
+		return response, nil
+	}
+	sut := NewBatchEndpoints("http://localhost:8080")
+	timestamp, err := sut.GetL2BlockTimestamp("0x123456")
+	require.Error(t, err)
+	require.Equal(t, uint64(0), timestamp)
+	require.Contains(t, err.Error(), "error response of eth_getBlockByHash  is null. Block hash: 0x123456. err: Not Found")
+}
+
+func Test_getGetL2BlockTimestampZero(t *testing.T) {
+	response := rpc.Response{
+		Result: []byte(`{"timestamp": "0x0"}`),
+	}
+	jSONRPCCall = func(_, _ string, _ ...interface{}) (rpc.Response, error) {
+		return response, nil
+	}
+	sut := NewBatchEndpoints("http://localhost:8080")
+	timestamp, err := sut.GetL2BlockTimestamp("0x123456")
+	require.Error(t, err)
+	require.Equal(t, uint64(0), timestamp)
+	require.Contains(t, err.Error(), "is 0")
 }

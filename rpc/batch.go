@@ -15,7 +15,8 @@ import (
 
 var (
 	// ErrBusy is returned when the witness server is busy
-	ErrBusy = errors.New("witness server is busy")
+	ErrBusy     = errors.New("witness server is busy")
+	jSONRPCCall = rpc.JSONRPCCall
 )
 
 const busyResponse = "busy"
@@ -92,7 +93,7 @@ func (b *BatchEndpoints) GetL2BlockTimestamp(blockHash string) (uint64, error) {
 
 	log.Infof("Getting l2 block timestamp from RPC. Block hash: %s", blockHash)
 
-	response, err := rpc.JSONRPCCall(b.url, "eth_getBlockByHash", blockHash, false)
+	response, err := jSONRPCCall(b.url, "eth_getBlockByHash", blockHash, false)
 	if err != nil {
 		return 0, err
 	}
@@ -102,14 +103,22 @@ func (b *BatchEndpoints) GetL2BlockTimestamp(blockHash string) (uint64, error) {
 		return 0, fmt.Errorf("error in the response calling eth_getBlockByHash: %v", response.Error)
 	}
 
+	if string(response.Result) == "null" {
+		log.Errorf("eth_getBlockByHash response is null. Block hash %s not found", blockHash)
+		return 0, fmt.Errorf("error response of eth_getBlockByHash  is null. Block hash: %s. err: Not Found", blockHash)
+	}
+
 	//  Get the l2 block from the response
 	l2Block := zkeEVML2Block{}
 	err = json.Unmarshal(response.Result, &l2Block)
 	if err != nil {
 		return 0, fmt.Errorf("error unmarshalling the l2 block from the response calling eth_getBlockByHash: %w", err)
 	}
-
-	return new(big.Int).SetBytes(common.FromHex(l2Block.Timestamp)).Uint64(), nil
+	timestamp := new(big.Int).SetBytes(common.FromHex(l2Block.Timestamp)).Uint64()
+	if timestamp == 0 {
+		return 0, fmt.Errorf("timestamp str '%s' from block hash %s is 0", l2Block.Timestamp, blockHash)
+	}
+	return timestamp, nil
 }
 
 func (b *BatchEndpoints) GetWitness(batchNumber uint64, fullWitness bool) ([]byte, error) {
