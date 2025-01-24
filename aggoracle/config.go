@@ -23,8 +23,3 @@ type Config struct {
 	WaitPeriodNextGER types.Duration           `mapstructure:"WaitPeriodNextGER"`
 	EVMSender         chaingersender.EVMConfig `mapstructure:"EVMSender"`
 }
-
-// ApplyL2ChainID copies L2ChainID to the L1ChainID in the Etherman config
-func (c *Config) ApplyL2ChainID(l2ChainID uint64) {
-	c.EVMSender.EthTxManager.Etherman.L1ChainID = l2ChainID
-}
