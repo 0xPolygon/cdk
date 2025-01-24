@@ -507,7 +507,7 @@ func TestConvertNumeric(t *testing.T) {
 		{"FloatToFloat64", 3.14, reflect.TypeOf(float64(0)), float64(3.14), nil},
 
 		// Unsupported type
-		{"UnsupportedType", 3.14, reflect.TypeOf("string"), nil, errors.New("unsupported target type string")},
+		{"UnsupportedType", 3.14, reflect.TypeOf("string"), nil, errors.New("unsupported target type")},
 	}
 
 	for _, tt := range tests {
