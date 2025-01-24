@@ -18,6 +18,17 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type Network string
+
+const (
+	L1 Network = "l1"
+	L2 Network = "l2"
+)
+
+func (n Network) String() string {
+	return string(n)
+}
+
 type EthClient interface {
 	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
 	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
@@ -34,9 +45,11 @@ type ReorgDetector struct {
 
 	subscriptionsLock sync.RWMutex
 	subscriptions     map[string]*Subscription
+
+	log *log.Logger
 }
 
-func New(client EthClient, cfg Config) (*ReorgDetector, error) {
+func New(client EthClient, cfg Config, network Network) (*ReorgDetector, error) {
 	err := migrations.RunMigrations(cfg.DBPath)
 	if err != nil {
 		return nil, err
@@ -52,6 +65,7 @@ func New(client EthClient, cfg Config) (*ReorgDetector, error) {
 		checkReorgInterval: cfg.GetCheckReorgsInterval(),
 		trackedBlocks:      make(map[string]*headersList),
 		subscriptions:      make(map[string]*Subscription),
+		log:                log.WithFields("reorg-detector", network.String()),
 	}, nil
 }
 
@@ -136,6 +150,8 @@ func (rd *ReorgDetector) detectReorgInTrackedList(ctx context.Context) error {
 		if !ok {
 			continue
 		}
+
+		rd.log.Debugf("Checking reorgs in tracked blocks up to block %d", lastFinalisedBlock.Number.Uint64())
 
 		errGroup.Go(func() error {
 			headers := hdrs.getSorted()

@@ -19,6 +19,9 @@ var mig001 string
 //go:embed l1infotreesync0002.sql
 var mig002 string
 
+//go:embed l1infotreesync0003.sql
+var mig003 string
+
 func RunMigrations(dbPath string) error {
 	migrations := []types.Migration{
 		{
@@ -28,6 +31,10 @@ func RunMigrations(dbPath string) error {
 		{
 			ID:  "l1infotreesync0002",
 			SQL: mig002,
+		},
+		{
+			ID:  "l1infotreesync0003",
+			SQL: mig003,
 		},
 	}
 	for _, tm := range treeMigrations.Migrations {
