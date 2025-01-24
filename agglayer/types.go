@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"reflect"
 	"slices"
 	"strings"
 
@@ -822,67 +821,6 @@ func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
-}
-
-// convertMapValue converts the value of a key in a map to a target type.
-func convertMapValue[T any](data map[string]interface{}, key string) (T, error) {
-	value, ok := data[key]
-	if !ok {
-		var zero T
-		return zero, fmt.Errorf("key %s not found in map", key)
-	}
-
-	// Try a direct type assertion
-	if convertedValue, ok := value.(T); ok {
-		return convertedValue, nil
-	}
-
-	// If direct assertion fails, handle numeric type conversions
-	var target T
-	targetType := reflect.TypeOf(target)
-
-	// Check if value is a float64 (default JSON number type) and target is a numeric type
-	if floatValue, ok := value.(float64); ok && targetType.Kind() >= reflect.Int && targetType.Kind() <= reflect.Uint64 {
-		convertedValue, err := convertNumeric(floatValue, targetType)
-		if err != nil {
-			return target, fmt.Errorf("conversion error for key %s: %w", key, err)
-		}
-		return convertedValue.(T), nil //nolint:forcetypeassert
-	}
-
-	return target, fmt.Errorf("value of key %s is not of type %T", key, target)
-}
-
-// convertNumeric converts a float64 to the specified numeric type.
-func convertNumeric(value float64, targetType reflect.Type) (interface{}, error) {
-	switch targetType.Kind() {
-	case reflect.Int:
-		return int(value), nil
-	case reflect.Int8:
-		return int8(value), nil
-	case reflect.Int16:
-		return int16(value), nil
-	case reflect.Int32:
-		return int32(value), nil
-	case reflect.Int64:
-		return int64(value), nil
-	case reflect.Uint:
-		return uint(value), nil
-	case reflect.Uint8:
-		return uint8(value), nil
-	case reflect.Uint16:
-		return uint16(value), nil
-	case reflect.Uint32:
-		return uint32(value), nil
-	case reflect.Uint64:
-		return uint64(value), nil
-	case reflect.Float32:
-		return float32(value), nil
-	case reflect.Float64:
-		return value, nil
-	default:
-		return nil, fmt.Errorf("unsupported target type %v", targetType)
-	}
 }
 
 // ClockConfiguration represents the configuration of the epoch clock

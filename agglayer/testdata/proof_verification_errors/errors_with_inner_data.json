@@ -1,0 +1,22 @@
+[
+  {
+    "test_name": "VersionMismatch",
+    "certificate_header": "{\"network_id\":1,\"height\":4,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0xa80cd4abb016bbb3c3058f923a88be1ad49d68277366c55554d6f13d62428a1f\",\"new_local_exit_root\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa9\",\"metadata\":\"0x000000000000000000000000000000000000000000000000000000000000001f\",\"status\":{\"InError\":{\"error\":{\"ProofVerificationError\":{\"VersionMismatch\":\"version1-1\"}}}}}"
+  },
+  {
+    "test_name": "Core",
+    "certificate_header": "{\"network_id\":1,\"height\":4,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0xa80cd4abb016bbb3c3058f923a88be1ad49d68277366c55554d6f13d62428a1f\",\"new_local_exit_root\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa9\",\"metadata\":\"0x000000000000000000000000000000000000000000000000000000000000001f\",\"status\":{\"InError\":{\"error\":{\"ProofVerificationError\":{\"Core\":\"coreexample\"}}}}}"
+  },
+  {
+    "test_name": "Recursion",
+    "certificate_header": "{\"network_id\":1,\"height\":4,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0xa80cd4abb016bbb3c3058f923a88be1ad49d68277366c55554d6f13d62428a1f\",\"new_local_exit_root\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa9\",\"metadata\":\"0x000000000000000000000000000000000000000000000000000000000000001f\",\"status\":{\"InError\":{\"error\":{\"ProofVerificationError\":{\"Recursion\":\"recursion error\"}}}}}"
+  },
+  {
+    "test_name": "Plank",
+    "certificate_header": "{\"network_id\":1,\"height\":4,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0xa80cd4abb016bbb3c3058f923a88be1ad49d68277366c55554d6f13d62428a1f\",\"new_local_exit_root\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa9\",\"metadata\":\"0x000000000000000000000000000000000000000000000000000000000000001f\",\"status\":{\"InError\":{\"error\":{\"ProofVerificationError\":{\"Plank\":\"plank error\"}}}}}"
+  },
+  {
+    "test_name": "Groth16",
+    "certificate_header": "{\"network_id\":1,\"height\":4,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0xa80cd4abb016bbb3c3058f923a88be1ad49d68277366c55554d6f13d62428a1f\",\"new_local_exit_root\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa9\",\"metadata\":\"0x000000000000000000000000000000000000000000000000000000000000001f\",\"status\":{\"InError\":{\"error\":{\"ProofVerificationError\":{\"Groth16\":\"Groth16 error\"}}}}}"
+  }
+]

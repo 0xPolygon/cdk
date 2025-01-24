@@ -1,0 +1,26 @@
+[
+  {
+    "test_name": "MultipleL1InfoRoot",
+    "certificate_header": "{\"network_id\":1,\"height\":0,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0xa80cd4abb016bbb3c3058f923a88be1ad49d68277366c55554d6f13d62428a1f\",\"new_local_exit_root\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa9\",\"metadata\":\"0x000000000000000000000000000000000000000000000000000000000000001f\",\"status\":{\"InError\":{\"error\":{\"TypeConversionError\":{\"MultipleL1InfoRoot\":{\"origin_network\":1,\"origin_token_address\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa2\"}}}}}}"
+  },
+  {
+    "test_name": "MismatchNewLocalExitRoot",
+    "certificate_header": "{\"network_id\":1,\"height\":1,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0xa80cd4abb016bbb3c3058f923a88be1ad49d68277366c55554d6f13d62428a1f\",\"new_local_exit_root\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa9\",\"metadata\":\"0x000000000000000000000000000000000000000000000000000000000000001f\",\"status\":{\"InError\":{\"error\":{\"TypeConversionError\":{\"MismatchNewLocalExitRoot\":{\"origin_network\":1,\"origin_token_address\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa2\"}}}}}}"
+  },
+  {
+    "test_name": "BalanceOverflow",
+    "certificate_header": "{\"network_id\":1,\"height\":2,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0xa80cd4abb016bbb3c3058f923a88be1ad49d68277366c55554d6f13d62428a1f\",\"new_local_exit_root\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa9\",\"metadata\":\"0x000000000000000000000000000000000000000000000000000000000000001f\",\"status\":{\"InError\":{\"error\":{\"TypeConversionError\":{\"BalanceOverflow\":{\"origin_network\":1,\"origin_token_address\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa2\"}}}}}}"
+  },
+  {
+    "test_name": "BalanceUnderflow",
+    "certificate_header": "{\"network_id\":1,\"height\":3,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0xa80cd4abb016bbb3c3058f923a88be1ad49d68277366c55554d6f13d62428a1f\",\"new_local_exit_root\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa9\",\"metadata\":\"0x000000000000000000000000000000000000000000000000000000000000001f\",\"status\":{\"InError\":{\"error\":{\"TypeConversionError\":{\"BalanceUnderflow\":{\"origin_network\":1,\"origin_token_address\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa2\"}}}}}}"
+  },
+  {
+    "test_name": "BalanceProofGenerationFailed - KeyAlreadyPresent",
+    "certificate_header": "{\"network_id\":1,\"height\":4,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0xa80cd4abb016bbb3c3058f923a88be1ad49d68277366c55554d6f13d62428a1f\",\"new_local_exit_root\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa9\",\"metadata\":\"0x000000000000000000000000000000000000000000000000000000000000001f\",\"status\":{\"InError\":{\"error\":{\"TypeConversionError\":{\"BalanceProofGenerationFailed\":{\"source\":\"KeyAlreadyPresent\",\"token\":{\"origin_network\":1,\"origin_token_address\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa2\"}}}}}}}"
+  },
+  {
+    "test_name": "BalanceProofGenerationFailed - KeyNotPresent",
+    "certificate_header": "{\"network_id\":1,\"height\":5,\"epoch_number\":null,\"certificate_index\":null,\"certificate_id\":\"0xa80cd4abb016bbb3c3058f923a88be1ad49d68277366c55554d6f13d62428a1f\",\"new_local_exit_root\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa9\",\"metadata\":\"0x000000000000000000000000000000000000000000000000000000000000001f\",\"status\":{\"InError\":{\"error\":{\"TypeConversionError\":{\"BalanceProofGenerationFailed\":{\"source\":\"KeyNotPresent\",\"token\":{\"origin_network\":11,\"origin_token_address\":\"0x566244fbf813b6926f6895142979f61ed6706184909cb8c819cd0216202a8aa2\"}}}}}}}"
+  }
+]

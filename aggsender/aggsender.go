@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"time"
 
 	zkevm "github.com/0xPolygon/cdk"
@@ -692,6 +693,11 @@ func (a *AggSender) checkPendingCertificatesStatus(ctx context.Context) bool {
 		if !certificate.IsClosed() {
 			a.log.Infof("certificate %s is still pending, elapsed time:%s ",
 				certificateHeader.ID(), certificate.ElapsedTimeSinceCreation())
+			thereArePendingCerts = true
+		}
+		if slices.Contains(nonSettledStatuses, certificateHeader.Status) {
+			a.log.Infof("certificate %s is still pending, elapsed time:%s ",
+				certificateHeader.String(), elapsedTime)
 			thereArePendingCerts = true
 		}
 	}

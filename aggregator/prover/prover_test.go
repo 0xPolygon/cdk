@@ -18,7 +18,9 @@ import (
 )
 
 const (
-	dir = "../../test/vectors/proofs"
+	dir                 = "../../test/vectors/proofs"
+	stateRootStartIndex = 19
+	stateRootFinalIndex = stateRootStartIndex + 8
 )
 
 type TestStateRoot struct {
