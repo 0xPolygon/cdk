@@ -140,7 +140,8 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 			d.log.Error("error getting last finalized block: ", err)
 			continue
 		}
-		lastFinalizedBlockNumber := lastFinalizedBlock.Number.Uint64()
+		// lastFinalizedBlock can't be > lastBlock
+		lastFinalizedBlockNumber := min(lastBlock, lastFinalizedBlock.Number.Uint64())
 
 		requestToBlock := toBlock
 		if toBlock >= lastBlock {
