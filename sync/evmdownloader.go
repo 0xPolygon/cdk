@@ -161,14 +161,12 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 			toBlock = fromBlock + d.syncBlockChunkSize
 		} else {
 			if blocks.Len() == 0 {
-				if lastFinalizedBlockNumber > fromBlock &&
-					toBlock-fromBlock > d.syncBlockChunkSize {
+				if lastFinalizedBlockNumber >= fromBlock {
 					emptyBlock := lastFinalizedBlockNumber
 					d.reportEmptyBlock(ctx, downloadedCh, emptyBlock, lastFinalizedBlockNumber)
 					fromBlock = emptyBlock + 1
 					toBlock = fromBlock + d.syncBlockChunkSize
 				} else {
-
 					// Extend range until find logs or reach the last finalized block
 					toBlock += d.syncBlockChunkSize
 				}
@@ -183,7 +181,6 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 			d.log.Infof("stop downloader on iteration %d", iteration)
 			return
 		}
-
 	}
 }
 

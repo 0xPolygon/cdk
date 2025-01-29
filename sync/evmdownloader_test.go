@@ -311,94 +311,6 @@ func TestGetLogs(t *testing.T) {
 	require.Equal(t, []types.Log{}, logs)
 }
 
-func TestDownloadEmptyReachingTopOfChain(t *testing.T) {
-	sut, clientMock := NewTestDownloader(t, time.Millisecond*100)
-	ctx := context.TODO()
-	downloadedCh := make(chan EVMBlock, 100)
-	sut.setStopDownloaderOnIterationN(7)
-	//blockNumBig := big.NewInt(5)
-	clientMock.EXPECT().HeaderByNumber(ctx, big.NewInt(int64(etherman.Latest))).Return(&types.Header{Number: big.NewInt(25)}, nil).Once()
-	clientMock.EXPECT().HeaderByNumber(ctx, big.NewInt(int64(etherman.Finalized))).Return(&types.Header{Number: big.NewInt(10)}, nil).Times(4)
-	// 1st range is 0 - 10 (chunkSize=10)
-	query := ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(0),
-		Addresses: []common.Address{contractAddr},
-		ToBlock:   new(big.Int).SetUint64(10),
-	}
-	clientMock.EXPECT().FilterLogs(ctx, query).Return(nil, nil).Once()
-	// the range it's empty so it ask for empty block 10
-	clientMock.EXPECT().HeaderByNumber(ctx, big.NewInt(int64(10))).Return(&types.Header{Number: big.NewInt(10)}, nil)
-	// 2nd range is 10 - 21 (chunkSize=10)
-	query = ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(11),
-		Addresses: []common.Address{contractAddr},
-		ToBlock:   new(big.Int).SetUint64(21),
-	}
-	clientMock.EXPECT().FilterLogs(ctx, query).Return(nil, nil).Once()
-
-	// 3rd range is 11 - 31 (chunkSize=10) extend range, but latest block is 25 -> so request is [11-25]
-	query = ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(11),
-		Addresses: []common.Address{contractAddr},
-		ToBlock:   new(big.Int).SetUint64(25),
-	}
-	clientMock.EXPECT().FilterLogs(ctx, query).Return(nil, nil).Once()
-
-	// Now needs more block because current range is 10-31 and latest block is 25
-	clientMock.EXPECT().HeaderByNumber(ctx, big.NewInt(int64(etherman.Latest))).Return(&types.Header{Number: big.NewInt(35)}, nil).Once()
-	// 4rd range is 11 - 41 (chunkSize=10) extend range, but latest block is 35 -> so request is [110-35]
-	query = ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(11),
-		Addresses: []common.Address{contractAddr},
-		ToBlock:   new(big.Int).SetUint64(35),
-	}
-	clientMock.EXPECT().FilterLogs(ctx, query).Return(nil, nil).Once()
-
-	// Now needs more block because current range is 10-41 and latest block is 35
-	clientMock.EXPECT().HeaderByNumber(ctx, big.NewInt(int64(etherman.Latest))).Return(&types.Header{Number: big.NewInt(36)}, nil).Once()
-	// We also change the finalized to 15, to cut the range to empty 15, range [16-41]
-	clientMock.EXPECT().HeaderByNumber(ctx, big.NewInt(int64(etherman.Finalized))).Return(&types.Header{Number: big.NewInt(17)}, nil).Times(3)
-	// 5rd range is 11 - 36 (chunkSize=10) extend range, but latest block is 36 -> so request is [11-36]
-	query = ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(11),
-		Addresses: []common.Address{contractAddr},
-		ToBlock:   new(big.Int).SetUint64(36),
-	}
-	clientMock.EXPECT().FilterLogs(ctx, query).Return(nil, nil).Once()
-	// Now must the finalize block is 17, so it must create a emtpy block 17 and cut to next range [18-28]
-	clientMock.EXPECT().HeaderByNumber(ctx, big.NewInt(int64(17))).Return(&types.Header{Number: big.NewInt(15)}, nil).Once()
-	// 6st range is 18 - 28 (chunkSize=10)
-	query = ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(18),
-		Addresses: []common.Address{contractAddr},
-		ToBlock:   new(big.Int).SetUint64(28),
-	}
-	clientMock.EXPECT().FilterLogs(ctx, query).Return(nil, nil).Once()
-	// 7st range is 18 - 36 (chunkSize=10)
-	query = ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(18),
-		Addresses: []common.Address{contractAddr},
-		ToBlock:   new(big.Int).SetUint64(36),
-	}
-	clientMock.EXPECT().FilterLogs(ctx, query).Return(nil, nil).Once()
-
-	sut.Download(ctx, 0, downloadedCh)
-
-	expectedBlocks := []struct {
-		num       uint64
-		finalized bool
-	}{
-		{num: 10, finalized: true},
-		{num: 15, finalized: true},
-	}
-
-	for _, expectedBlock := range expectedBlocks {
-		actualBlock := <-downloadedCh
-		log.Debugf("block %d received!", actualBlock.Num)
-		require.Equal(t, expectedBlock.num, actualBlock.Num)
-	}
-}
-
 func TestDownloadBeforeFinalized(t *testing.T) {
 	mockEthDownloader := NewEVMDownloaderMock(t)
 
@@ -433,6 +345,8 @@ func TestDownloadBeforeFinalized(t *testing.T) {
 		// Block 36 is the new last block,so it reduce the range again to [37-47]
 		{finalizedBlock: 35, fromBlock: 37, toBlock: 47},
 		{finalizedBlock: 57, fromBlock: 37, toBlock: 57, eventsReponse: EVMBlocks{createEVMBlock(t, 57, false)}},
+		{finalizedBlock: 61, fromBlock: 58, toBlock: 60, eventsReponse: EVMBlocks{createEVMBlock(t, 60, false)}},
+		{finalizedBlock: 61, fromBlock: 61, toBlock: 61, waitForNewBlocks: true, waitForNewBlocksRequest: 60, waitForNewBlockReply: 61, getBlockHeader: &EVMBlockHeader{Num: 61}},
 	}
 	for i := 0; i < len(steps); i++ {
 		log.Info("iteration: ", i, "------------------------------------------------")
@@ -444,9 +358,9 @@ func TestDownloadBeforeFinalized(t *testing.T) {
 		for _, step := range steps[:i+1] {
 			mockEthDownloader.On("GetLastFinalizedBlock", mock.Anything).Return(&types.Header{Number: big.NewInt(int64(step.finalizedBlock))}, nil).Once()
 			if step.waitForNewBlocks {
-				mockEthDownloader.On("WaitForNewBlocks", mock.Anything, uint64(step.waitForNewBlocksRequest)).Return(uint64(step.waitForNewBlockReply)).Once()
+				mockEthDownloader.On("WaitForNewBlocks", mock.Anything, step.waitForNewBlocksRequest).Return(step.waitForNewBlockReply).Once()
 			}
-			mockEthDownloader.On("GetEventsByBlockRange", mock.Anything, uint64(step.fromBlock), uint64(step.toBlock)).
+			mockEthDownloader.On("GetEventsByBlockRange", mock.Anything, step.fromBlock, step.toBlock).
 				Return(step.eventsReponse, false).Once()
 			for _, eventBlock := range step.eventsReponse {
 				expectedBlocks = append(expectedBlocks, eventBlock)
@@ -459,7 +373,6 @@ func TestDownloadBeforeFinalized(t *testing.T) {
 					IsFinalizedBlock: step.getBlockHeader.Num <= step.finalizedBlock,
 				})
 			}
-
 		}
 		downloader.Download(ctx1, 1, downloadCh)
 		mockEthDownloader.AssertExpectations(t)
@@ -470,7 +383,6 @@ func TestDownloadBeforeFinalized(t *testing.T) {
 			require.Equal(t, *expectedBlock, actualBlock)
 		}
 	}
-
 }
 
 func buildAppender() LogAppenderMap {
