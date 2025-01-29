@@ -122,7 +122,7 @@ func (d *EVMDownloader) Download(ctx context.Context, fromBlock uint64, download
 		}
 		d.log.Debugf("range: %d to %d, last block: %d", fromBlock, toBlock, lastBlock)
 
-		if reachTop && toBlock >= lastBlock {
+		if fromBlock > lastBlock || (reachTop && toBlock >= lastBlock) {
 			d.log.Debugf(
 				"waiting for new blocks, current range: [%d to %d], last block seen: %d",
 				fromBlock, toBlock, lastBlock,
