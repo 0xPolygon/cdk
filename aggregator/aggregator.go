@@ -1215,8 +1215,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 
 	// Request the witness from the server, if it is busy just keep looping until it is available
 	start := time.Now()
-	var witness []byte
-	witness, err = a.rpcClient.GetWitness(batchNumberToVerify, a.cfg.UseFullWitness)
+	witness, err := a.rpcClient.GetWitness(batchNumberToVerify, a.cfg.UseFullWitness)
 	for err != nil {
 		if errors.Is(err, rpc.ErrBusy) {
 			a.logger.Debugf(
