@@ -1215,7 +1215,8 @@ func (a *Aggregator) getAndLockBatchToProve(
 
 	// Request the witness from the server, if it is busy just keep looping until it is available
 	start := time.Now()
-	witness, err := a.rpcClient.GetWitness(batchNumberToVerify, a.cfg.UseFullWitness)
+	var witness []byte
+	witness, err = a.rpcClient.GetWitness(batchNumberToVerify, a.cfg.UseFullWitness)
 	for err != nil {
 		if errors.Is(err, rpc.ErrBusy) {
 			a.logger.Debugf(
@@ -1226,6 +1227,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 			a.logger.Errorf("Failed to get witness for batch %d, err: %v", batchNumberToVerify, err)
 		}
 		time.Sleep(a.cfg.RetryTime.Duration)
+		witness, err = a.rpcClient.GetWitness(batchNumberToVerify, a.cfg.UseFullWitness)
 	}
 	end := time.Now()
 	a.logger.Debugf("Time to get witness for batch %d: %v", batchNumberToVerify, end.Sub(start))
