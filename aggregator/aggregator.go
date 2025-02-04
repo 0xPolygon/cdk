@@ -1226,6 +1226,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 			a.logger.Errorf("Failed to get witness for batch %d, err: %v", batchNumberToVerify, err)
 		}
 		time.Sleep(a.cfg.RetryTime.Duration)
+		witness, err = a.rpcClient.GetWitness(batchNumberToVerify, a.cfg.UseFullWitness)
 	}
 	end := time.Now()
 	a.logger.Debugf("Time to get witness for batch %d: %v", batchNumberToVerify, end.Sub(start))
