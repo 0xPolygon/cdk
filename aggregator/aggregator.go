@@ -298,17 +298,24 @@ func (a *Aggregator) handleRollbackBatches(rollbackData synchronizer.RollbackBat
 // Start starts the aggregator
 func (a *Aggregator) Start() error {
 	// Initial L1 Sync blocking
-	err := a.l1Syncr.Sync(true)
-	if err != nil {
-		a.logger.Fatalf("Failed to synchronize from L1: %v", err)
-		return err
+	for {
+		err := a.l1Syncr.Sync(true)
+		if err != nil {
+			a.logger.Errorf("Failed to synchronize from L1: %v", err)
+			continue
+		}
+		break
 	}
 
 	// Keep syncing L1
 	go func() {
-		err := a.l1Syncr.Sync(false)
-		if err != nil {
-			a.logger.Fatalf("Failed to synchronize from L1: %v", err)
+		for {
+			err := a.l1Syncr.Sync(false)
+			if err != nil {
+				a.logger.Fatalf("Failed to synchronize from L1: %v", err)
+				time.Sleep(a.cfg.RetryTime.Duration)
+				continue
+			}
 		}
 	}()
 
