@@ -312,7 +312,7 @@ func (a *Aggregator) Start() error {
 		for {
 			err := a.l1Syncr.Sync(false)
 			if err != nil {
-				a.logger.Fatalf("Failed to synchronize from L1: %v", err)
+				a.logger.Errorf("Failed to synchronize from L1: %v", err)
 				time.Sleep(a.cfg.RetryTime.Duration)
 				continue
 			}
