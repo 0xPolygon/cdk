@@ -10,13 +10,13 @@ For the first iteration of integrations, on-chain verification is not expected. 
 
 ## Smart Contracts
 
-The versions of the smart contracts that are being targeted for the DA integrations are found in [zkevm-contracts @ feature/banana](https://github.com/0xPolygonHermez/zkevm-contracts/tree/feature/banana). This new version of the contracts allow for multiple “consensus” implementations but there are two that are included by default:
+The versions of the smart contracts that are being targeted for the DA integrations are found in [zkevm-contracts @ feature/banana](https://github.com/0xPolygonHermez/zkevm-contracts/tree/feature/banana). This new version of the contracts allows for multiple “consensus” implementations but there are two that are included by default:
 
 - zkEVM to implement a rollup.
 - Validium to implement a validium.
 - Adding a custom solution. 
 
-This document only considers the first approach, reusing the `PolygonValidium` consensus. That being said, the `PolygonValidium` implementation allows a custom smart contract to be used in the relevant interaction. This could be used by DAs to add custom on-chain verification logic. While verifying the DA integrity is optional, any new protocol will need to develop a custom smart contract in order to be successfully  integrated (more details bellow)
+This document only considers the first approach, reusing the `PolygonValidium` consensus. That being said, the `PolygonValidium` implementation allows a custom smart contract to be used in the relevant interaction. This could be used by DAs to add custom on-chain verification logic. While verifying the DA integrity is optional, any new protocol will need to develop a custom smart contract in order to be successfully  integrated (more details below)
 
 This is by far the [most relevant part of the contract for DAs](https://github.com/0xPolygonHermez/zkevm-contracts/blob/533641301223a1e413b2e8f0323354671f310922/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol#L91C5-L98C36):
 
@@ -63,7 +63,7 @@ These items would need to be implemented to have a successful integration:
 ## Test the integration
 
 1. Create an E2E test that uses your protocol by following the [test/e2e/datacommittee_test.go](https://github.com/0xPolygon/cdk-validium-node/blob/develop/test/e2e/datacommittee_test.go) example.
-2. Follow the instructions on [Local Debug](local_debug.md) to run Kurtosis enviroment for local testing
+2. Follow the instructions on [Local Debug](local_debug.md) to run Kurtosis environment for local testing
 4. Deploy the new contract contract to L1 running in Kurtosis
 4. Call `setDataAvailabilityProtocol` in validium consensus contract to use the newly deployed contract.
 5. Modify the `Makefile` to be able to run your test, take the case of the DAC test as an example here
@@ -74,8 +74,8 @@ These items would need to be implemented to have a successful integration:
 2. Sequencer calls `PostSequence`
 3. The DA BAckend implementation decides to split the N batches into M chunks, so they fit as good as possible to the size of the DA blobs of the protocol (or other considerations that the protocol may have)
 4. The DA BAckend crafts the `dataAvailabilityMessage`, this is optional but could be used to:
-    - Verify the existance of the data on the DA backend on L1 (this message will be passed down to the DA smart contract, and it could include merkle proofs, ...). Realisitcally speaking, we don't expect to be implemented on a first iteration
-    - Help the data retrival process, for instance by including the block height or root of the blobs used to store the data. If many DA blobs are used to store a single sequence, one interesting trick would be to post some metadata in another blob, or the lates used blob, that points to the other used blobs. This way only the pointer to the metadata is needed to include into the `dataAvailabilityMessage` (since this message will be posted as part of the calldata, it's interesting to minimize it's size)
+    - Verify the existence of the data on the DA backend on L1 (this message will be passed down to the DA smart contract, and it could include merkle proofs, ...). Realistically speaking, we don't expect to be implemented on a first iteration
+    - Help the data retrieval process, for instance by including the block height or root of the blobs used to store the data. If many DA blobs are used to store a single sequence, one interesting trick would be to post some metadata in another blob, or the lates used blob, that points to the other used blobs. This way only the pointer to the metadata is needed to include in the `dataAvailabilityMessage` (since this message will be posted as part of the calldata, it's interesting to minimize it's size)
 5. The sequencer [posts the sequence on L1](https://github.com/0xPolygonHermez/zkevm-contracts/blob/develop/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol#L85), including the `dataAvailabilityMessage`. On that call, [the DA smart contract will be called](https://github.com/0xPolygonHermez/zkevm-contracts/blob/develop/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol#L217). This can be used to validate that the DA protocol has been used as expected (optional)
 6. After that happens, any node synchronizing the network will realise of it through an event of the smart contract, and will be able to retrieve the hashes of each batch and the `dataAvailabilityMessage`
 7. And so it will be able to call `GetSequence(hashes common.Hash, dataAvailabilityMessage []byte)` to the DA Backend
