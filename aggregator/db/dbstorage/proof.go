@@ -170,7 +170,7 @@ func (d *DBStorage) GetProofsToAggregate(ctx context.Context, dbTx db.Txer) (*st
 		&createdAt1, &updatedAt1,
 		&proof2.BatchNumber, &proof2.BatchNumberFinal, &proof2.Proof, &proof2.ProofID,
 		&proof2.InputProver, &proof2.Prover, &proof2.ProverID, &generatingSince2,
-		&createdAt1, &updatedAt1,
+		&createdAt2, &updatedAt2,
 	)
 
 	if generatingSince1 != nil {
