@@ -56,7 +56,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/0xPolygon/cdk/hex"
+	"github.com/agglayer/aggkit/hex"
 	"github.com/agglayer/aggkit/log"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
