@@ -50,17 +50,6 @@ packages:
       dir: "{{ .InterfaceDir }}/mocks_da"
       all: true
       outpkg: "mocks_da"
-  github.com/0xPolygon/cdk/db:
-    config:
-      dir: "{{ .InterfaceDir }}/../aggregator/mocks"
-      mockname: "{{ .InterfaceName }}Mock"
-    interfaces:
-      Txer:
-  github.com/0xPolygon/cdk/l1infotreesync:
-    config:
-      dir: "{{ .InterfaceDir }}/mocks"
-    interfaces:
-      EthClienter:
   github.com/0xPolygon/cdk/rpc/client:
     config:
     interfaces:

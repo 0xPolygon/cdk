@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/0xPolygon/cdk/db"
+	"github.com/agglayer/aggkit/db"
 )
 
 // DBStorage implements the Storage interface

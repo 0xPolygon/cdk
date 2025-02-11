@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	db "github.com/0xPolygon/cdk/db"
+	db "github.com/agglayer/aggkit/db"
 	mock "github.com/stretchr/testify/mock"
 
 	sql "database/sql"

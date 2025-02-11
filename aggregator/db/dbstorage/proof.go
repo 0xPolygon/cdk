@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/state"
+	"github.com/agglayer/aggkit/db"
 )
 
 // CheckProofExistsForBatch checks if the batch is already included in any proof
