@@ -41,7 +41,7 @@ jobs:
       with:
         repository: 0xPolygon/kurtosis-cdk
         path: kurtosis-cdk
-        ref: v0.2.29
+        ref: main
     
     - name: Install polycli
       run: |
