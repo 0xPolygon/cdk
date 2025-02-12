@@ -69,7 +69,7 @@ jobs:
     - name: Deploy L1 and PP CDK L2 and OP Sovereign Rollup
       if: ${{ env.agglayer_prover_sp1_key || env.agglayer_prover_sp1_key != '' }}
       run: |
-        kurtosis run --enclave=${{ env.ENCLAVE_NAME }} --args-file=./.github/tests/attach-sovereign-rollup.yml .
+        kurtosis run --enclave=${{ env.ENCLAVE_NAME }} --args-file=${{ github.workspace }}/kurtosis-cdk/.github/tests/attach-sovereign-rollup.yml .
       env:
         agglayer_prover_sp1_key: ${{ secrets.SP1_PRIVATE_KEY }}
 
@@ -81,7 +81,7 @@ jobs:
 
     - name: Send bridge transactions from L1 to OP Sovereign L2
       if: ${{ env.agglayer_prover_sp1_key || env.agglayer_prover_sp1_key != '' }}
-      working-directory: .github/scripts
+      working-directory: ${{ github.workspace }}/kurtosis-cdk/.github/scripts
       run: |
         echo "Sending a bridge transaction from L1 to the OP Sovereign RPC..."
         l1_prefunded_mnemonic="giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
@@ -117,7 +117,7 @@ jobs:
 
     - name: Bridge from OP Sovereign L2 to L1
       if: ${{ env.agglayer_prover_sp1_key || env.agglayer_prover_sp1_key != '' }}
-      working-directory: .github/scripts
+      working-directory: ${{ github.workspace }}/kurtosis-cdk/.github/scripts
       run: |
         echo "Sending a bridge transaction from OP Sovereign L2 to L1..."
         l1_prefunded_mnemonic="giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
@@ -163,7 +163,7 @@ jobs:
 
     - name: Bridge from OP Sovereign L2 to CDK L2
       if: ${{ env.agglayer_prover_sp1_key || env.agglayer_prover_sp1_key != '' }}
-      working-directory: .github/scripts
+      working-directory: ${{ github.workspace }}/kurtosis-cdk/.github/scripts
       run: |
         echo "Sending a bridge transaction from OP Sovereign L2 to CDK L2..."
         l1_prefunded_mnemonic="giant issue aisle success illegal bike spike question tent bar rely arctic volcano long crawl hungry vocal artwork sniff fantasy very lucky have athlete"
