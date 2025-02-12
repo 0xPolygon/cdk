@@ -69,7 +69,7 @@ jobs:
     - name: Deploy L1 and PP CDK L2 and OP Sovereign Rollup
       if: ${{ env.agglayer_prover_sp1_key || env.agglayer_prover_sp1_key != '' }}
       run: |
-        kurtosis run --enclave=${{ env.ENCLAVE_NAME }} --args-file=${{ github.workspace }}/kurtosis-cdk/.github/tests/attach-sovereign-rollup.yml .
+        kurtosis run --enclave=${{ env.ENCLAVE_NAME }} --args-file=${{ github.workspace }}/kurtosis-cdk/.github/tests/attach-sovereign-rollup.yml ${{ github.workspace }}/kurtosis-cdk
       env:
         agglayer_prover_sp1_key: ${{ secrets.SP1_PRIVATE_KEY }}
 
