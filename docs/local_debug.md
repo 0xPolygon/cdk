@@ -10,7 +10,7 @@
 
 ## Create configuration for this kurtosis environment
 
-```
+```bash
 scripts/local_config
 ```
 
