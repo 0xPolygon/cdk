@@ -202,9 +202,6 @@ DBPath = "{{PathRWData}}/aggregator_db.sqlite"
 [ReorgDetectorL1]
 DBPath = "{{PathRWData}}/reorgdetectorl1.sqlite"
 
-[ReorgDetectorL2]
-DBPath = "{{PathRWData}}/reorgdetectorl2.sqlite"
-
 [L1InfoTreeSync]
 DBPath = "{{PathRWData}}/L1InfoTreeSync.sqlite"
 GlobalExitRootAddr="{{NetworkConfig.L1.GlobalExitRootManagerAddr}}"
@@ -223,58 +220,6 @@ Port = 5576
 ReadTimeout = "2s"
 WriteTimeout = "2s"
 MaxRequestsPerIPAndSecond = 10
-
-[ClaimSponsor]
-DBPath = "{{PathRWData}}/claimsopnsor.sqlite"
-Enabled = true
-SenderAddr = "0xfa3b44587990f97ba8b6ba7e230a5f0e95d14b3d"
-BridgeAddrL2 = "0xB7098a13a48EcE087d3DA15b2D28eCE0f89819B8"
-MaxGas = 200000
-RetryAfterErrorPeriod = "1s"
-MaxRetryAttemptsAfterError = -1
-WaitTxToBeMinedPeriod = "3s"
-WaitOnEmptyQueue = "3s"
-GasOffset = 0
-	[ClaimSponsor.EthTxManager]
-		FrequencyToMonitorTxs = "1s"
-		WaitTxToBeMined = "2s"
-		GetReceiptMaxTime = "250ms"
-		GetReceiptWaitInterval = "1s"
-		PrivateKeys = [
-			{Path = "/app/keystore/claimsopnsor.keystore", Password = "testonly"},
-		]
-		ForcedGas = 0
-		GasPriceMarginFactor = 1
-		MaxGasPriceLimit = 0
-		StoragePath = "{{PathRWData}}/ethtxmanager-claimsponsor.sqlite"
-		ReadPendingL1Txs = false
-		SafeStatusL1NumberOfBlocks = 5
-		FinalizedStatusL1NumberOfBlocks = 10
-			[ClaimSponsor.EthTxManager.Etherman]
-				URL = "{{L2URL}}"
-				MultiGasProvider = false
-				L1ChainID = {{NetworkConfig.L1.L1ChainID}}
-				HTTPHeaders = []
-
-[BridgeL1Sync]
-DBPath = "{{PathRWData}}/bridgel1sync.sqlite"
-BlockFinality = "LatestBlock"
-InitialBlockNum = 0
-BridgeAddr = "{{polygonBridgeAddr}}"
-SyncBlockChunkSize = 100
-RetryAfterErrorPeriod = "1s"
-MaxRetryAttemptsAfterError = -1
-WaitForNewBlocksPeriod = "3s"
-
-[BridgeL2Sync]
-DBPath = "{{PathRWData}}/bridgel2sync.sqlite"
-BlockFinality = "LatestBlock"
-InitialBlockNum = 0
-BridgeAddr = "{{polygonBridgeAddr}}"
-SyncBlockChunkSize = 100
-RetryAfterErrorPeriod = "1s"
-MaxRetryAttemptsAfterError = -1
-WaitForNewBlocksPeriod = "3s"
 
 [NetworkConfig.L1]
 L1ChainID = {{L1Config.chainId}}

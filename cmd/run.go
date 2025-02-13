@@ -21,18 +21,13 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/etherman/contracts"
-	"github.com/0xPolygon/cdk/rpc"
 	"github.com/0xPolygon/cdk/sequencesender"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/translator"
 	ethtxman "github.com/0xPolygon/zkevm-ethtx-manager/etherman"
 	"github.com/0xPolygon/zkevm-ethtx-manager/etherman/etherscan"
-	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
-	"github.com/agglayer/aggkit/bridgesync"
-	"github.com/agglayer/aggkit/claimsponsor"
 	aggkitetherman "github.com/agglayer/aggkit/etherman"
 	"github.com/agglayer/aggkit/l1infotreesync"
-	"github.com/agglayer/aggkit/lastgersync"
 	"github.com/agglayer/aggkit/log"
 	"github.com/agglayer/aggkit/reorgdetector"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -56,7 +51,6 @@ func start(cliCtx *cli.Context) error {
 
 	components := cliCtx.StringSlice(config.FlagComponents)
 	l1Client := runL1ClientIfNeeded(components, cfg.Etherman.URL)
-	l2Client := runL2ClientIfNeeded(components, getL2RPCUrl(cfg))
 	reorgDetectorL1, errChanL1 := runReorgDetectorL1IfNeeded(cliCtx.Context, components, l1Client, &cfg.ReorgDetectorL1)
 	go func() {
 		if err := <-errChanL1; err != nil {
@@ -64,23 +58,7 @@ func start(cliCtx *cli.Context) error {
 		}
 	}()
 
-	reorgDetectorL2, errChanL2 := runReorgDetectorL2IfNeeded(cliCtx.Context, components, l2Client, &cfg.ReorgDetectorL2)
-	go func() {
-		if err := <-errChanL2; err != nil {
-			log.Fatal("Error from ReorgDetectorL2: ", err)
-		}
-	}()
-
-	rollupID := getRollupID(cfg.NetworkConfig.L1Config, l1Client)
 	l1InfoTreeSync := runL1InfoTreeSyncerIfNeeded(cliCtx.Context, components, *cfg, l1Client, reorgDetectorL1)
-	claimSponsor := runClaimSponsorIfNeeded(cliCtx.Context, components, l2Client, cfg.ClaimSponsor)
-	l1BridgeSync := runBridgeSyncL1IfNeeded(cliCtx.Context, components, cfg.BridgeL1Sync, reorgDetectorL1,
-		l1Client, 0)
-	l2BridgeSync := runBridgeSyncL2IfNeeded(cliCtx.Context, components, cfg.BridgeL2Sync, reorgDetectorL2,
-		l2Client, rollupID)
-	lastGERSync := runLastGERSyncIfNeeded(
-		cliCtx.Context, components, cfg.LastGERSync, reorgDetectorL2, l2Client, l1InfoTreeSync,
-	)
 	var rpcServices []jRPC.Service
 	for _, component := range components {
 		switch component {
@@ -99,18 +77,6 @@ func start(cliCtx *cli.Context) error {
 					log.Fatal(err)
 				}
 			}()
-
-		case cdkcommon.BRIDGE:
-			rpcBridge := createBridgeRPC(
-				cfg.RPC,
-				cfg.Common.NetworkID,
-				claimSponsor,
-				l1InfoTreeSync,
-				lastGERSync,
-				l1BridgeSync,
-				l2BridgeSync,
-			)
-			rpcServices = append(rpcServices, rpcBridge...)
 		}
 	}
 	if len(rpcServices) > 0 {
@@ -402,8 +368,7 @@ func runL1InfoTreeSyncerIfNeeded(
 	l1Client *ethclient.Client,
 	reorgDetector *reorgdetector.ReorgDetector,
 ) *l1infotreesync.L1InfoTreeSync {
-	if !isNeeded([]string{cdkcommon.BRIDGE,
-		cdkcommon.SEQUENCE_SENDER, cdkcommon.L1INFOTREESYNC}, components) {
+	if !isNeeded([]string{cdkcommon.SEQUENCE_SENDER, cdkcommon.L1INFOTREESYNC}, components) {
 		return nil
 	}
 	l1InfoTreeSync, err := l1infotreesync.New(
@@ -432,8 +397,7 @@ func runL1InfoTreeSyncerIfNeeded(
 
 func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client {
 	if !isNeeded([]string{
-		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
-		cdkcommon.BRIDGE, cdkcommon.L1INFOTREESYNC,
+		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR, cdkcommon.L1INFOTREESYNC,
 	}, components) {
 		return nil
 	}
@@ -455,29 +419,13 @@ func getRollupID(networkConfig ethermanconfig.L1Config,
 	return rollupID
 }
 
-func runL2ClientIfNeeded(components []string, urlRPCL2 string) *ethclient.Client {
-	if !isNeeded([]string{cdkcommon.BRIDGE}, components) {
-		return nil
-	}
-
-	log.Infof("dialing L2 client at: %s", urlRPCL2)
-	l2CLient, err := ethclient.Dial(urlRPCL2)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return l2CLient
-}
-
 func runReorgDetectorL1IfNeeded(
 	ctx context.Context,
 	components []string,
 	l1Client *ethclient.Client,
 	cfg *reorgdetector.Config,
 ) (*reorgdetector.ReorgDetector, chan error) {
-	if !isNeeded([]string{
-		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
-		cdkcommon.BRIDGE, cdkcommon.L1INFOTREESYNC},
+	if !isNeeded([]string{cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR, cdkcommon.L1INFOTREESYNC},
 		components) {
 		return nil, nil
 	}
@@ -492,199 +440,6 @@ func runReorgDetectorL1IfNeeded(
 	}()
 
 	return rd, errChan
-}
-
-func runReorgDetectorL2IfNeeded(
-	ctx context.Context,
-	components []string,
-	l2Client *ethclient.Client,
-	cfg *reorgdetector.Config,
-) (*reorgdetector.ReorgDetector, chan error) {
-	if !isNeeded([]string{cdkcommon.BRIDGE}, components) {
-		return nil, nil
-	}
-	rd := newReorgDetector(cfg, l2Client, reorgdetector.L2)
-
-	errChan := make(chan error)
-	go func() {
-		if err := rd.Start(ctx); err != nil {
-			errChan <- err
-		}
-		close(errChan)
-	}()
-
-	return rd, errChan
-}
-
-func runClaimSponsorIfNeeded(
-	ctx context.Context,
-	components []string,
-	l2Client *ethclient.Client,
-	cfg claimsponsor.EVMClaimSponsorConfig,
-) *claimsponsor.ClaimSponsor {
-	if !isNeeded([]string{cdkcommon.BRIDGE}, components) || !cfg.Enabled {
-		return nil
-	}
-
-	logger := log.WithFields("module", cdkcommon.CLAIM_SPONSOR)
-	// In the future there may support different backends other than EVM, and this will require different config.
-	// But today only EVM is supported
-	ethTxManagerL2, err := ethtxmanager.New(cfg.EthTxManager)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	go ethTxManagerL2.Start()
-	cs, err := claimsponsor.NewEVMClaimSponsor(
-		logger,
-		cfg.DBPath,
-		l2Client,
-		cfg.BridgeAddrL2,
-		cfg.SenderAddr,
-		cfg.MaxGas,
-		cfg.GasOffset,
-		ethTxManagerL2,
-		cfg.RetryAfterErrorPeriod.Duration,
-		cfg.MaxRetryAttemptsAfterError,
-		cfg.WaitTxToBeMinedPeriod.Duration,
-		cfg.WaitTxToBeMinedPeriod.Duration,
-	)
-	if err != nil {
-		logger.Fatalf("error creating claim sponsor: %s", err)
-	}
-	go cs.Start(ctx)
-
-	return cs
-}
-
-func runLastGERSyncIfNeeded(
-	ctx context.Context,
-	components []string,
-	cfg lastgersync.Config,
-	reorgDetectorL2 *reorgdetector.ReorgDetector,
-	l2Client *ethclient.Client,
-	l1InfoTreeSync *l1infotreesync.L1InfoTreeSync,
-) *lastgersync.LastGERSync {
-	if !isNeeded([]string{cdkcommon.BRIDGE}, components) {
-		return nil
-	}
-	lastGERSync, err := lastgersync.New(
-		ctx,
-		cfg.DBPath,
-		reorgDetectorL2,
-		l2Client,
-		cfg.GlobalExitRootL2Addr,
-		l1InfoTreeSync,
-		cfg.RetryAfterErrorPeriod.Duration,
-		cfg.MaxRetryAttemptsAfterError,
-		aggkitetherman.NewBlockNumberFinality(cfg.BlockFinality),
-		cfg.WaitForNewBlocksPeriod.Duration,
-		cfg.DownloadBufferSize,
-	)
-	if err != nil {
-		log.Fatalf("error creating lastGERSync: %s", err)
-	}
-	go lastGERSync.Start(ctx)
-
-	return lastGERSync
-}
-
-func runBridgeSyncL1IfNeeded(
-	ctx context.Context,
-	components []string,
-	cfg bridgesync.Config,
-	reorgDetectorL1 *reorgdetector.ReorgDetector,
-	l1Client *ethclient.Client,
-	rollupID uint32,
-) *bridgesync.BridgeSync {
-	if !isNeeded([]string{cdkcommon.BRIDGE}, components) {
-		return nil
-	}
-
-	bridgeSyncL1, err := bridgesync.NewL1(
-		ctx,
-		cfg.DBPath,
-		cfg.BridgeAddr,
-		cfg.SyncBlockChunkSize,
-		aggkitetherman.NewBlockNumberFinality(cfg.BlockFinality),
-		reorgDetectorL1,
-		l1Client,
-		cfg.InitialBlockNum,
-		cfg.WaitForNewBlocksPeriod.Duration,
-		cfg.RetryAfterErrorPeriod.Duration,
-		cfg.MaxRetryAttemptsAfterError,
-		rollupID,
-		false,
-	)
-	if err != nil {
-		log.Fatalf("error creating bridgeSyncL1: %s", err)
-	}
-	go bridgeSyncL1.Start(ctx)
-
-	return bridgeSyncL1
-}
-
-func runBridgeSyncL2IfNeeded(
-	ctx context.Context,
-	components []string,
-	cfg bridgesync.Config,
-	reorgDetectorL2 *reorgdetector.ReorgDetector,
-	l2Client *ethclient.Client,
-	rollupID uint32,
-) *bridgesync.BridgeSync {
-	if !isNeeded([]string{cdkcommon.BRIDGE}, components) {
-		return nil
-	}
-
-	bridgeSyncL2, err := bridgesync.NewL2(
-		ctx,
-		cfg.DBPath,
-		cfg.BridgeAddr,
-		cfg.SyncBlockChunkSize,
-		aggkitetherman.NewBlockNumberFinality(cfg.BlockFinality),
-		reorgDetectorL2,
-		l2Client,
-		cfg.InitialBlockNum,
-		cfg.WaitForNewBlocksPeriod.Duration,
-		cfg.RetryAfterErrorPeriod.Duration,
-		cfg.MaxRetryAttemptsAfterError,
-		rollupID,
-		true,
-	)
-	if err != nil {
-		log.Fatalf("error creating bridgeSyncL2: %s", err)
-	}
-	go bridgeSyncL2.Start(ctx)
-
-	return bridgeSyncL2
-}
-
-func createBridgeRPC(
-	cfg jRPC.Config,
-	cdkNetworkID uint32,
-	sponsor *claimsponsor.ClaimSponsor,
-	l1InfoTree *l1infotreesync.L1InfoTreeSync,
-	injectedGERs *lastgersync.LastGERSync,
-	bridgeL1 *bridgesync.BridgeSync,
-	bridgeL2 *bridgesync.BridgeSync,
-) []jRPC.Service {
-	logger := log.WithFields("module", cdkcommon.BRIDGE)
-	services := []jRPC.Service{
-		{
-			Name: rpc.BRIDGE,
-			Service: rpc.NewBridgeEndpoints(
-				logger,
-				cfg.WriteTimeout.Duration,
-				cfg.ReadTimeout.Duration,
-				cdkNetworkID,
-				sponsor,
-				l1InfoTree,
-				injectedGERs,
-				bridgeL1,
-				bridgeL2,
-			),
-		},
-	}
-	return services
 }
 
 func createRPC(cfg jRPC.Config, services []jRPC.Service) *jRPC.Server {

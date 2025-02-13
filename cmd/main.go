@@ -12,11 +12,6 @@ import (
 
 const appName = "cdk"
 
-const (
-	// NETWORK_CONFIGFILE name to identify the network_custom (genesis) config-file
-	NETWORK_CONFIGFILE = "custom_network" //nolint:stylecheck
-)
-
 var (
 	configFileFlag = cli.StringSliceFlag{
 		Name:     config.FlagCfg,
@@ -41,7 +36,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR, common.BRIDGE),
+		Value:    cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR),
 	}
 	saveConfigFlag = cli.StringFlag{
 		Name:     config.FlagSaveConfigPath,
