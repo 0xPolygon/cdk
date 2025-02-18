@@ -6,16 +6,11 @@ import (
 	zkevm "github.com/0xPolygon/cdk"
 	"github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/config"
-	"github.com/0xPolygon/cdk/log"
+	"github.com/agglayer/aggkit/log"
 	"github.com/urfave/cli/v2"
 )
 
 const appName = "cdk"
-
-const (
-	// NETWORK_CONFIGFILE name to identify the network_custom (genesis) config-file
-	NETWORK_CONFIGFILE = "custom_network" //nolint:stylecheck
-)
 
 var (
 	configFileFlag = cli.StringSliceFlag{
@@ -41,7 +36,7 @@ var (
 		Aliases:  []string{"co"},
 		Usage:    "List of components to run",
 		Required: false,
-		Value:    cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR, common.BRIDGE),
+		Value:    cli.NewStringSlice(common.SEQUENCE_SENDER, common.AGGREGATOR),
 	}
 	saveConfigFlag = cli.StringFlag{
 		Name:     config.FlagSaveConfigPath,

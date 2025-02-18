@@ -1,6 +1,6 @@
 package translator
 
-import "github.com/0xPolygon/cdk/log"
+import "github.com/agglayer/aggkit/log"
 
 type TranslatorFullMatchRule struct {
 	// If null match any context

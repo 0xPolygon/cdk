@@ -14,7 +14,7 @@ The versions of the smart contracts that are being targeted for the DA integrati
 
 - zkEVM to implement a rollup.
 - Validium to implement a validium.
-- Adding a custom solution. 
+- Adding a custom solution.
 
 This document only considers the first approach, reusing the `PolygonValidium` consensus. That being said, the `PolygonValidium` implementation allows a custom smart contract to be used in the relevant interaction. This could be used by DAs to add custom on-chain verification logic. While verifying the DA integrity is optional, any new protocol will need to develop a custom smart contract in order to be successfully  integrated (more details bellow)
 
@@ -48,7 +48,7 @@ It's expected that any protocol build their own contract that follows [this inte
 
 In order to integrate a DA solution into CDK, the most fundamental part is for the node to be able to post and retrieve data from the DA backend.  
 
-Up until now, DAs would fork the `cdk-validium-node` repo to make such an integration. But maintaining forks can be really painful, so the team is proposing this solution that will allow the different DAs to be 1st class citizens and live on the official `cdk` repo. 
+Up until now, DAs would fork the `cdk-validium-node` repo to make such an integration. But maintaining forks can be really painful, so the team is proposing this solution that will allow the different DAs to be 1st class citizens and live on the official `cdk` repo.
 
 These items would need to be implemented to have a successful integration:
 
@@ -64,7 +64,7 @@ These items would need to be implemented to have a successful integration:
 
 1. Create an E2E test that uses your protocol by following the [test/e2e/datacommittee_test.go](https://github.com/0xPolygon/cdk-validium-node/blob/develop/test/e2e/datacommittee_test.go) example.
 2. Follow the instructions on [Local Debug](local_debug.md) to run Kurtosis enviroment for local testing
-4. Deploy the new contract contract to L1 running in Kurtosis
+3. Deploy the new contract contract to L1 running in Kurtosis
 4. Call `setDataAvailabilityProtocol` in validium consensus contract to use the newly deployed contract.
 5. Modify the `Makefile` to be able to run your test, take the case of the DAC test as an example here
 

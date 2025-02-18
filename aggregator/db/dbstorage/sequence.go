@@ -3,8 +3,8 @@ package dbstorage
 import (
 	"context"
 
-	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/state"
+	"github.com/agglayer/aggkit/db"
 )
 
 // AddSequence stores the sequence information to allow the aggregator verify sequences.

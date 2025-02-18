@@ -10,12 +10,12 @@ import (
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/globalexitrootmanagerl2sovereignchain"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/polygonzkevmbridgev2"
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/polygonzkevmglobalexitrootv2"
-	"github.com/0xPolygon/cdk/bridgesync"
-	cfgTypes "github.com/0xPolygon/cdk/config/types"
-	"github.com/0xPolygon/cdk/etherman"
-	"github.com/0xPolygon/cdk/l1infotreesync"
-	"github.com/0xPolygon/cdk/reorgdetector"
 	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
+	"github.com/agglayer/aggkit/bridgesync"
+	aggkitTypes "github.com/agglayer/aggkit/config/types"
+	aggkitetherman "github.com/agglayer/aggkit/etherman"
+	"github.com/agglayer/aggkit/l1infotreesync"
+	"github.com/agglayer/aggkit/reorgdetector"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -83,7 +83,7 @@ func L1Setup(t *testing.T) *L1Environment {
 	dbPathReorgDetectorL1 := path.Join(t.TempDir(), "ReorgDetectorL1.sqlite")
 	rdL1, err := reorgdetector.New(l1Client.Client(), reorgdetector.Config{
 		DBPath:              dbPathReorgDetectorL1,
-		CheckReorgsInterval: cfgTypes.Duration{Duration: time.Millisecond * 100}, //nolint:mnd
+		CheckReorgsInterval: aggkitTypes.Duration{Duration: time.Millisecond * 100}, //nolint:mnd
 	}, reorgdetector.L1)
 	require.NoError(t, err)
 	go rdL1.Start(ctx) //nolint:errcheck
@@ -93,11 +93,11 @@ func L1Setup(t *testing.T) *L1Environment {
 	l1InfoTreeSync, err := l1infotreesync.New(
 		ctx, dbPathL1InfoTreeSync,
 		gerL1Addr, common.Address{},
-		syncBlockChunkSize, etherman.LatestBlock,
+		syncBlockChunkSize, aggkitetherman.LatestBlock,
 		rdL1, l1Client.Client(),
 		time.Millisecond, 0, periodRetry,
 		retries, l1infotreesync.FlagAllowWrongContractsAddrs,
-		etherman.SafeBlock,
+		aggkitetherman.SafeBlock,
 	)
 	require.NoError(t, err)
 
@@ -117,9 +117,9 @@ func L1Setup(t *testing.T) *L1Environment {
 	dbPathBridgeSyncL1 := path.Join(t.TempDir(), "BridgeSyncL1.sqlite")
 	bridgeL1Sync, err := bridgesync.NewL1(
 		ctx, dbPathBridgeSyncL1, bridgeL1Addr,
-		syncBlockChunks, etherman.LatestBlock, rdL1, testClient,
+		syncBlockChunks, aggkitetherman.LatestBlock, rdL1, testClient,
 		initialBlock, waitForNewBlocksPeriod, retryPeriod,
-		retriesCount, originNetwork, false, etherman.SafeBlock)
+		retriesCount, originNetwork, false)
 	require.NoError(t, err)
 
 	go bridgeL1Sync.Start(ctx)
@@ -154,7 +154,7 @@ func L2Setup(t *testing.T, networkID uint32) *L2Environment {
 	dbPathReorgL2 := path.Join(t.TempDir(), "ReorgDetectorL2.sqlite")
 	rdL2, err := reorgdetector.New(l2Client.Client(), reorgdetector.Config{
 		DBPath:              dbPathReorgL2,
-		CheckReorgsInterval: cfgTypes.Duration{Duration: time.Millisecond * 100}}, //nolint:mnd
+		CheckReorgsInterval: aggkitTypes.Duration{Duration: time.Millisecond * 100}}, //nolint:mnd
 		reorgdetector.L2,
 	)
 	require.NoError(t, err)
@@ -175,9 +175,9 @@ func L2Setup(t *testing.T, networkID uint32) *L2Environment {
 
 	bridgeL2Sync, err := bridgesync.NewL2(
 		ctx, dbPathL2BridgeSync, bridgeL2Addr, syncBlockChunks,
-		etherman.LatestBlock, rdL2, testClient,
+		aggkitetherman.LatestBlock, rdL2, testClient,
 		initialBlock, waitForNewBlocksPeriod, retryPeriod,
-		retriesCount, originNetwork, false, etherman.LatestBlock)
+		retriesCount, originNetwork, false)
 	require.NoError(t, err)
 
 	go bridgeL2Sync.Start(ctx)

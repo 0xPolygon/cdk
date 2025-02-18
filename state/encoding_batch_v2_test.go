@@ -3,8 +3,8 @@ package state
 import (
 	"testing"
 
-	"github.com/0xPolygon/cdk/hex"
-	"github.com/0xPolygon/cdk/log"
+	"github.com/agglayer/aggkit/hex"
+	"github.com/agglayer/aggkit/log"
 	"github.com/stretchr/testify/require"
 )
 

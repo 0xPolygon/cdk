@@ -1,4 +1,4 @@
-COMMON_MOCKERY_PARAMS=--disable-version-string --with-expecter --exported
+COMMON_MOCKERY_PARAMS=--with-expecter --exported
 
 .PHONY: generate-mocks
 generate-mocks:	
@@ -7,22 +7,22 @@ generate-mocks:
 .PHONY: test-e2e-fork9-validium
 test-e2e-fork9-validium: stop
 	./run-e2e.sh fork9 cdk-validium
-	bats bats/fep/
+	bats bats/
 
 .PHONY: test-e2e-fork11-rollup
 test-e2e-fork11-rollup: stop
 	./run-e2e.sh fork11 rollup
-	bats bats/fep/
+	bats bats/
 
 .PHONY: test-e2e-fork12-validium
 test-e2e-fork12-validium: stop
 	./run-e2e.sh fork12 cdk-validium
-	bats bats/fep/
+	bats bats/
 
 .PHONY: test-e2e-fork12-rollup
 test-e2e-fork12-rollup: stop
 	./run-e2e.sh fork12 rollup
-	bats bats/fep/
+	bats bats/
 
 .PHONY: stop
 stop:

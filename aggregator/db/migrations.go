@@ -4,8 +4,8 @@ import (
 	"embed"
 	"fmt"
 
-	"github.com/0xPolygon/cdk/db"
-	"github.com/0xPolygon/cdk/log"
+	"github.com/agglayer/aggkit/db"
+	"github.com/agglayer/aggkit/log"
 	migrate "github.com/rubenv/sql-migrate"
 )
 

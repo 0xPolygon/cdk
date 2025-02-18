@@ -1,7 +1,7 @@
 setup() {
-    load '../helpers/common-setup'
-    load '../helpers/common'
-    load '../helpers/lxly-bridge'
+    load 'helpers/common-setup'
+    load 'helpers/common'
+    load 'helpers/lxly-bridge'
 
     _common_setup
 

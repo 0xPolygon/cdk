@@ -39,49 +39,11 @@ packages:
       AggregatorService_ChannelServer:
         config:
           mockname: ChannelMock
-  github.com/0xPolygon/cdk/bridgesync:
-    config:
-      dir: "{{ .InterfaceDir }}/mocks"
-    interfaces:
-      ReorgDetector:
-      EthClienter:
   github.com/0xPolygon/cdk/dataavailability:
     config:
       dir: "{{ .InterfaceDir }}/mocks_da"
       all: true
       outpkg: "mocks_da"
-  github.com/0xPolygon/cdk/db:
-    config:
-      dir: "{{ .InterfaceDir }}/../aggregator/mocks"
-      mockname: "{{ .InterfaceName }}Mock"
-    interfaces:
-      Txer:
-  github.com/0xPolygon/cdk/l1infotreesync:
-    config:
-      dir: "{{ .InterfaceDir }}/mocks"
-    interfaces:
-      EthClienter:
-  github.com/0xPolygon/cdk/reorgdetector:
-    config:
-      dir: "{{ .InterfaceDir }}"
-      outpkg: "{{ .PackageName }}"
-      mockname: "{{ .InterfaceName }}Mock"
-    interfaces:
-      EthClient:
-  github.com/0xPolygon/cdk/rpc/client:
-    config:
-    interfaces:
-      BridgeClientInterface:
-      ClientInterface:
-      ClientFactoryInterface:
-  github.com/0xPolygon/cdk/rpc:
-    config:
-      dir: "{{ .InterfaceDir }}/mocks"
-    interfaces:
-      Bridger:
-      LastGERer:
-      L1InfoTreer:
-      ClaimSponsorer:
   github.com/0xPolygon/cdk/sequencesender:
     config:
       dir: "{{ .InterfaceDir }}/mocks"
@@ -111,28 +73,3 @@ packages:
           - dir: "{{ .InterfaceDir }}/mocks_txbuilder"
             outpkg: "mocks_txbuilder"
             mockname: "{{ .InterfaceName | camelcase | firstUpper }}"
-  github.com/0xPolygon/cdk/sync:
-    config:
-      dir: "{{ .InterfaceDir }}"
-      outpkg: "{{ .PackageName }}"
-      mockname: "{{ .InterfaceName }}Mock"
-      inpackage: true
-    interfaces:
-      ReorgDetector:
-        configs:
-          - dir: "{{ .InterfaceDir }}/../l1infotreesync/mocks"
-            outpkg: "mocks"
-            mockname: "{{ .InterfaceName }}Mock"
-            inpackage: false
-          - dir: "{{ .InterfaceDir }}"
-            outpkg: "{{ .PackageName }}"
-            mockname: "{{ .InterfaceName }}Mock"
-      processorInterface:
-        config:
-          mockname: "ProcessorMock"
-      evmDownloaderFull:
-        config:
-          mockname: "EVMDownloaderMock"
-      EthClienter:
-        config:
-          mockname: "L2Mock"

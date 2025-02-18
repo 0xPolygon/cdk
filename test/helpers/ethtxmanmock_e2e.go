@@ -7,8 +7,8 @@ import (
 	big "math/big"
 	"testing"
 
-	"github.com/0xPolygon/cdk/log"
 	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
+	"github.com/agglayer/aggkit/log"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
