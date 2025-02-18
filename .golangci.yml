@@ -3,16 +3,11 @@
 run:
   timeout: 3m
   tests: true
-  skip-dirs-use-default: true
-
-service:
-  golangci-lint-version: 1.61.0
     
 linters:
   disable-all: true
   enable:
     - whitespace # Tool for detection of leading and trailing whitespace
-    # - wsl # Forces you to use empty lines
     - wastedassign # Finds wasted assignment statements
     - unconvert  # Unnecessary type conversions
     - tparallel # Detects inappropriate usage of t.Parallel() method in your Go test codes
@@ -21,7 +16,6 @@ linters:
     - prealloc # Finds slice declarations that could potentially be pre-allocated
     - predeclared # Finds code that shadows one of Go's predeclared identifiers
     - nolintlint # Ill-formed or insufficient nolint directives
-    # - nlreturn # Checks for a new line before return and branch statements to increase code clarity
     - misspell # Misspelled English words in comments
     - makezero # Finds slice declarations with non-zero initial length
     - lll # Long lines
@@ -40,7 +34,7 @@ linters:
     # - godox # Linter for TODOs and FIXMEs left in the code
     - gci # Gci checks the consistency of the code with the Go code style guide
     - mnd # mnd is a linter for magic numbers
-    # - revive 
+    # - revive
     - unparam # Unused function parameters
 
 linters-settings:
