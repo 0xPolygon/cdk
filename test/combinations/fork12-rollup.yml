@@ -7,6 +7,7 @@ args:
   cdk_erigon_node_image: hermeznetwork/cdk-erigon:v2.61.14-RC1-amd64
   cdk_node_image: cdk:latest
   gas_token_enabled: true
+  gas_token_address: ""
   consensus_contract_type: rollup
   sequencer_type: erigon
   agglayer_prover_sp1_key: {{.agglayer_prover_sp1_key}}

@@ -8,6 +8,7 @@ args:
   zkevm_node_image: hermeznetwork/zkevm-node:v0.7.0-fork11-RC1
   cdk_node_image: cdk:latest
   gas_token_enabled: true
+  gas_token_address: ""
   consensus_contract_type: rollup
   sequencer_type: erigon
   # This is just a workaround, since the Kurtosis is deploying the agglayer even in the FEP setup

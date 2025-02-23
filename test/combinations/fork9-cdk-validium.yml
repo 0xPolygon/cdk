@@ -10,6 +10,7 @@ args:
   consensus_contract_type: cdk-validium
   cdk_node_image: cdk:latest
   gas_token_enabled: true
+  gas_token_address: ""
   additional_services:
     - pless_zkevm_node
   sequencer_type: erigon
