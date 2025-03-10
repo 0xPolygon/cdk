@@ -163,11 +163,13 @@ func TestWithReorgs(t *testing.T) {
 	require.NoError(t, err)
 	go syncer.Start(ctx)
 
-	// Commit block
-	header, err := client.Client().HeaderByHash(ctx, client.Commit()) // Block 3
+	// Commit block 6
+	header, err := client.Client().HeaderByHash(ctx, client.Commit())
 	require.NoError(t, err)
 	reorgFrom := header.Hash()
-	fmt.Println("start from header:", header.Number)
+
+	// Commit block 7
+	helpers.CommitBlocks(t, client, 1, time.Millisecond*500)
 
 	updateL1InfoTreeAndRollupExitTree := func(i int, rollupID uint32) {
 		// Update L1 Info Tree
@@ -188,7 +190,7 @@ func TestWithReorgs(t *testing.T) {
 	// create some events and update the trees
 	updateL1InfoTreeAndRollupExitTree(1, 1)
 
-	// Block 4
+	// Commit block 8 that contains the transaction that updates the trees
 	helpers.CommitBlocks(t, client, 1, time.Second*5)
 
 	// Make sure syncer is up to date
@@ -214,36 +216,41 @@ func TestWithReorgs(t *testing.T) {
 	require.Equal(t, common.Hash(expectedL1InfoRoot), actualL1InfoRoot.Hash)
 	require.Equal(t, common.Hash(expectedGER), info.GlobalExitRoot, fmt.Sprintf("%+v", info))
 
-	// Forking from block 3
+	// Forking from block 6
+	// Note: reorged trx will be added to pending transactions
+	// and will be committed when the forked block is committed
 	err = client.Fork(reorgFrom)
 	require.NoError(t, err)
 
-	// Block 4, 5, 6 after the fork
-	helpers.CommitBlocks(t, client, 3, time.Millisecond*500)
+	pendingTx, err := client.Client().PendingTransactionCount(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 3, int(pendingTx))
 
-	// Assert rollup exit root after the fork - should be zero since there are no events in the block after the fork
+	// Commit block 7, 8, 9 after the fork
+	helpers.CommitBlocks(t, client, 5, time.Millisecond*500)
+
+	// Assert rollup exit root after committing new blocks on the fork
 	expectedRollupExitRoot, err = verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	actualRollupExitRoot, err = syncer.GetLastRollupExitRoot(ctx)
-	require.ErrorContains(t, err, "not found") // rollup exit tree reorged, it does not have any exits in it
+	require.NoError(t, err)
 	require.Equal(t, common.Hash(expectedRollupExitRoot), actualRollupExitRoot.Hash)
 
-	// Forking from block 3 again
+	// Forking from block 6 again
 	err = client.Fork(reorgFrom)
 	require.NoError(t, err)
 	time.Sleep(time.Millisecond * 500)
 
-	helpers.CommitBlocks(t, client, 1, time.Millisecond*100)
+	helpers.CommitBlocks(t, client, 1, time.Millisecond*100) // Commit block 7
 
 	// create some events and update the trees
 	updateL1InfoTreeAndRollupExitTree(2, 1)
-
 	helpers.CommitBlocks(t, client, 1, time.Millisecond*100)
 
 	// Make sure syncer is up to date
 	waitForSyncerToCatchUp(ctx, t, syncer, client)
 
-	// Assert rollup exit root after the fork - should be zero since there are no events in the block after the fork
+	// Assert rollup exit root after the fork
 	expectedRollupExitRoot, err = verifySC.GetRollupExitRoot(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	actualRollupExitRoot, err = syncer.GetLastRollupExitRoot(ctx)
