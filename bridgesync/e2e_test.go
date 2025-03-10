@@ -64,18 +64,11 @@ func TestBridgeEventE2E(t *testing.T) {
 			bn, err := setup.L1Environment.SimBackend.Client().BlockNumber(ctx)
 			require.NoError(t, err)
 			helpers.Reorg(t, setup.L1Environment.SimBackend, uint64(blocksToReorg))
+			helpers.CommitBlocks(t, setup.L1Environment.SimBackend, blocksToReorg+1, blockTime)
 			// Clean expected bridges
 			lastValidBlock := bn - uint64(blocksToReorg)
-			reorgEffective := false
-			for i := len(expectedBridges) - 1; i >= 0; i-- {
-				if expectedBridges[i].BlockNum > lastValidBlock {
-					log.Debugf("removing expectedBridge with depositCount %d due to reorg", expectedBridges[i].DepositCount)
-					lastDepositCount = expectedBridges[i].DepositCount
-					expectedBridges = expectedBridges[0:i]
-					reorgEffective = true
-					bridgesSent--
-				}
-			}
+			reorgEffective := true
+			log.Debugf("lastValidBlock: %d", lastValidBlock)
 			if reorgEffective {
 				reorgs++
 				log.Debug("reorgs: ", reorgs)
