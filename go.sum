@@ -1,11 +1,11 @@
 github.com/0xPolygon/cdk-contracts-tooling v0.0.2-0.20241225094934-1d381f5703ef h1:DRBrbysjMTyeFRbyo+zoltOTET+vR20CnXc4wupj+qo=
 github.com/0xPolygon/cdk-contracts-tooling v0.0.2-0.20241225094934-1d381f5703ef/go.mod h1:mFlcEjsm2YBBsu8atHJ3zyVnwM+Z/fMXpVmIJge+WVU=
-github.com/0xPolygon/cdk-data-availability v0.0.12-0.20250110120923-25a978231f89 h1:dqMjGG25vl7yq/G7RN+xvePsxeoMRtC/FU+IJrwcFAs=
-github.com/0xPolygon/cdk-data-availability v0.0.12-0.20250110120923-25a978231f89/go.mod h1:Uv6+NnNQ5X6Drdb8YIhfA0kuQvFxVhJsnFZXUyq6050=
+github.com/0xPolygon/cdk-data-availability v0.0.13 h1:CoZoSGOtg+wCF3s9XfLf+dc9H5SdPDMEhmiwNrFf1iY=
+github.com/0xPolygon/cdk-data-availability v0.0.13/go.mod h1:u/vHga1Wdx4qeglcvh3VCGxeU7h/EouZnuYeFBibOZU=
 github.com/0xPolygon/cdk-rpc v0.0.0-20241004114257-6c3cb6eebfb6 h1:FXL/rcO7/GtZ3kRFw+C7J6vmGnl8gcazg+Gh/NVmnas=
 github.com/0xPolygon/cdk-rpc v0.0.0-20241004114257-6c3cb6eebfb6/go.mod h1:2scWqMMufrQXu7TikDgQ3BsyaKoX8qP26D6E262vSOg=
-github.com/0xPolygon/zkevm-ethtx-manager v0.2.5-0.20250309055842-83836cfc3059 h1:SsDqnRXRar67TE/C1Fd7P4z1bQKf1PQxMNilyZKzpAQ=
-github.com/0xPolygon/zkevm-ethtx-manager v0.2.5-0.20250309055842-83836cfc3059/go.mod h1:xuLx/9KDv5wO8mnkiiX5pZHyTWQZXyHjmBRBGEzNGXo=
+github.com/0xPolygon/zkevm-ethtx-manager v0.2.5 h1:t6vLS597OjPcoZzvpGXooIy+ANQEX6LoxYBenRmu15I=
+github.com/0xPolygon/zkevm-ethtx-manager v0.2.5/go.mod h1:xuLx/9KDv5wO8mnkiiX5pZHyTWQZXyHjmBRBGEzNGXo=
 github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.7 h1:KJM1QlNZdZjNRS+ajPauD4uG+uaYgItaL+96Om3f8aI=
 github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.7/go.mod h1:exl+KHnTN6Y8HG4nSUXni4qKbAug0HjJqpebMSgl72k=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
@@ -20,8 +20,8 @@ github.com/StackExchange/wmi v1.2.1 h1:VIkavFPXSjcnS+O8yTq7NI32k0R5Aj+v39y29VYDO
 github.com/StackExchange/wmi v1.2.1/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9SBzvHz7e8=
 github.com/VictoriaMetrics/fastcache v1.12.2 h1:N0y9ASrJ0F6h0QaC3o6uJb3NIZ9VKLjCM7NQbSmF7WI=
 github.com/VictoriaMetrics/fastcache v1.12.2/go.mod h1:AmC+Nzz1+3G2eCPapF6UcsnkThDcMsQicp4xDukwJYI=
-github.com/agglayer/aggkit v0.0.2-0.20250309131411-f17ce0ce45bf h1:eJCP6brVIzH9xfEspb1Nio+VBV0c76+dQRVcy6LhZ6E=
-github.com/agglayer/aggkit v0.0.2-0.20250309131411-f17ce0ce45bf/go.mod h1:eAK5ZaobFTzah5eg5nrRfqlPkZlap8H9fSQimQvA89Y=
+github.com/agglayer/aggkit v0.1.0-beta3 h1:i9A/0nabvVq6WBCXRG3BVGwKR2Kgh/kWkPTUsoIiQOc=
+github.com/agglayer/aggkit v0.1.0-beta3/go.mod h1:49tEv0kEirGa7X9I74oPsLKUFSQmOwjKhH8SuX1VQA4=
 github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156/go.mod h1:Cb/ax3seSYIx7SuZdm2G2xzfwmv3TPSk2ucNfQESPXM=
 github.com/allegro/bigcache v1.2.1 h1:hg1sY1raCwic3Vnsvje6TT7/pnZba83LeFck5NrFKSc=
 github.com/allegro/bigcache v1.2.1/go.mod h1:Cb/ax3seSYIx7SuZdm2G2xzfwmv3TPSk2ucNfQESPXM=

@@ -4,11 +4,11 @@ go 1.23.7
 
 require (
 	github.com/0xPolygon/cdk-contracts-tooling v0.0.2-0.20241225094934-1d381f5703ef
-	github.com/0xPolygon/cdk-data-availability v0.0.12-0.20250110120923-25a978231f89
+	github.com/0xPolygon/cdk-data-availability v0.0.13
 	github.com/0xPolygon/cdk-rpc v0.0.0-20241004114257-6c3cb6eebfb6
-	github.com/0xPolygon/zkevm-ethtx-manager v0.2.5-0.20250309055842-83836cfc3059
+	github.com/0xPolygon/zkevm-ethtx-manager v0.2.5
 	github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.7
-	github.com/agglayer/aggkit v0.0.2-0.20250309131411-f17ce0ce45bf
+	github.com/agglayer/aggkit v0.1.0-beta3
 	github.com/ethereum/go-ethereum v1.15.5
 	github.com/iden3/go-iden3-crypto v0.0.17
 	github.com/invopop/jsonschema v0.13.0
