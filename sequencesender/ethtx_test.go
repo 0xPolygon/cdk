@@ -11,7 +11,6 @@ import (
 
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/cdk/sequencesender/mocks"
-	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
@@ -661,7 +660,7 @@ func Test_getResultAndUpdateEthTx(t *testing.T) {
 				t.Helper()
 
 				mngr := mocks.NewEthTxManagerMock(t)
-				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxtypes.MonitoredTxResult{}, ethtxmanager.ErrNotFound)
+				mngr.On("Result", mock.Anything, common.HexToHash("0x1")).Return(ethtxtypes.MonitoredTxResult{}, errors.New(ErrTxNotFoundMessage))
 				mngr.On("AddWithGas", mock.Anything, mock.Anything, big.NewInt(0), mock.Anything, mock.Anything, mock.Anything, uint64(100500)).Return(common.Hash{}, nil)
 				mngr.On("Result", mock.Anything, common.Hash{}).Return(ethtxtypes.MonitoredTxResult{
 					ID:   common.HexToHash("0x1"),

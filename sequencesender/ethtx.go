@@ -12,10 +12,11 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk/log"
-	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/ethereum/go-ethereum/common"
 )
+
+const ErrTxNotFoundMessage = "not found"
 
 type ethTxData struct {
 	Nonce           uint64                              `json:"nonce"`
@@ -306,7 +307,8 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 
 	txResult, err := s.ethTxManager.Result(ctx, txHash)
 	switch {
-	case errors.Is(err, ethtxmanager.ErrNotFound):
+	//case errors.Is(err, ethtxmanager.ErrNotFound):
+	case isEthTxManagerErrNotFound(err):
 		s.logger.Infof("transaction %v does not exist in ethtxmanager. Marking it", txHash)
 		txData.OnMonitor = false
 		// Resend tx
@@ -324,6 +326,16 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 	}
 
 	return nil
+}
+
+func isEthTxManagerErrNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	if err.Error() == ErrTxNotFoundMessage {
+		return true
+	}
+	return false
 }
 
 // loadSentSequencesTransactions loads the file into the memory structure
