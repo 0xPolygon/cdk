@@ -307,7 +307,6 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 
 	txResult, err := s.ethTxManager.Result(ctx, txHash)
 	switch {
-	//case errors.Is(err, ethtxmanager.ErrNotFound):
 	case isEthTxManagerErrNotFound(err):
 		s.logger.Infof("transaction %v does not exist in ethtxmanager. Marking it", txHash)
 		txData.OnMonitor = false
@@ -328,6 +327,8 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 	return nil
 }
 
+// this function is use instead of
+// errors.Is(err, ethtxmanager.ErrNotFound)
 func isEthTxManagerErrNotFound(err error) bool {
 	if err == nil {
 		return false
