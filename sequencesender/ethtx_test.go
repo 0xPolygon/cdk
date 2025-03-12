@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"os"
 	"testing"
@@ -17,6 +18,14 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+func TestIsEthTxManagerErrNotFound(t *testing.T) {
+	require.False(t, isEthTxManagerErrNotFound(nil))
+	require.True(t, isEthTxManagerErrNotFound(ethtxmanager.ErrNotFound))
+	require.True(t, isEthTxManagerErrNotFound(fmt.Errorf("not found")))
+	require.True(t, isEthTxManagerErrNotFound(fmt.Errorf("wrapper: %w", ethtxmanager.ErrNotFound)))
+	require.False(t, isEthTxManagerErrNotFound(errors.New("another error")))
+}
 
 func Test_sendTx(t *testing.T) {
 	t.Parallel()
