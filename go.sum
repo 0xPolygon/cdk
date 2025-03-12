@@ -4,8 +4,8 @@ github.com/0xPolygon/cdk-data-availability v0.0.12 h1:nI3TnYpBHg/VhGQ9XGFSe1atWq
 github.com/0xPolygon/cdk-data-availability v0.0.12/go.mod h1:Qmi6eFHVBNp5nlWZHp2tc8ci/3Mb0IGVKA52lADTIz0=
 github.com/0xPolygon/cdk-rpc v0.0.0-20241004114257-6c3cb6eebfb6 h1:FXL/rcO7/GtZ3kRFw+C7J6vmGnl8gcazg+Gh/NVmnas=
 github.com/0xPolygon/cdk-rpc v0.0.0-20241004114257-6c3cb6eebfb6/go.mod h1:2scWqMMufrQXu7TikDgQ3BsyaKoX8qP26D6E262vSOg=
-github.com/0xPolygon/zkevm-ethtx-manager v0.2.6 h1:36i/EHy1tZjkvQXQXPx3EMmXbGM399ga4ncA1qzw0Yg=
-github.com/0xPolygon/zkevm-ethtx-manager v0.2.6/go.mod h1:xuLx/9KDv5wO8mnkiiX5pZHyTWQZXyHjmBRBGEzNGXo=
+github.com/0xPolygon/zkevm-ethtx-manager v0.2.7 h1:eS2ewz4z+S16ZWQRyci6Y3U9YSR+sx1opB0/NxhmKlQ=
+github.com/0xPolygon/zkevm-ethtx-manager v0.2.7/go.mod h1:xuLx/9KDv5wO8mnkiiX5pZHyTWQZXyHjmBRBGEzNGXo=
 github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.7 h1:KJM1QlNZdZjNRS+ajPauD4uG+uaYgItaL+96Om3f8aI=
 github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.7/go.mod h1:exl+KHnTN6Y8HG4nSUXni4qKbAug0HjJqpebMSgl72k=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=

@@ -13,10 +13,9 @@ import (
 
 	"github.com/0xPolygon/cdk/log"
 	"github.com/0xPolygon/zkevm-ethtx-manager/types"
+	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/ethereum/go-ethereum/common"
 )
-
-const ErrTxNotFoundMessage = "not found"
 
 type ethTxData struct {
 	Nonce           uint64                              `json:"nonce"`
@@ -217,6 +216,9 @@ func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) (time.Time, er
 	numResults := len(results)
 	s.mutexEthTx.Lock()
 	for _, result := range results {
+		for txHash, _ := range result.Txs {
+			log.Debugf("syncAllEthTxResults: id: %s tx:%s", result.ID.String(), txHash.String())
+		}
 		txSequence, exists := s.ethTransactions[result.ID]
 		if !exists {
 			log.Debugf("transaction %v missing in memory structure. Adding it", result.ID)
@@ -333,8 +335,14 @@ func isEthTxManagerErrNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
-	if err.Error() == ErrTxNotFoundMessage {
+	if errors.Is(err, ethtxmanager.ErrNotFound) {
 		return true
+	}
+	for err != nil {
+		if err.Error() == ethtxmanager.ErrNotFound.Error() {
+			return true
+		}
+		err = errors.Unwrap(err)
 	}
 	return false
 }
