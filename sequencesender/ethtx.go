@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk/log"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/0xPolygon/zkevm-ethtx-manager/types"
-	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -216,7 +216,7 @@ func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) (time.Time, er
 	numResults := len(results)
 	s.mutexEthTx.Lock()
 	for _, result := range results {
-		for txHash, _ := range result.Txs {
+		for txHash := range result.Txs {
 			log.Debugf("syncAllEthTxResults: id: %s tx:%s", result.ID.String(), txHash.String())
 		}
 		txSequence, exists := s.ethTransactions[result.ID]
@@ -338,6 +338,7 @@ func isEthTxManagerErrNotFound(err error) bool {
 	if errors.Is(err, ethtxmanager.ErrNotFound) {
 		return true
 	}
+	// Check all wrapped errors looking for the same message
 	for err != nil {
 		if err.Error() == ethtxmanager.ErrNotFound.Error() {
 			return true
