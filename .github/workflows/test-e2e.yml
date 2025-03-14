@@ -91,11 +91,11 @@ jobs:
 
     
     - name: Dump enclave logs
-      if: failure()
+      if: always()
       run: kurtosis dump ./dump
 
     - name: Generate archive name
-      if: failure()
+      if: always()
       run: |
         archive_name="dump_run_with_args_${{matrix.e2e-group}}_${{ github.run_id }}"
         echo "ARCHIVE_NAME=${archive_name}" >> "$GITHUB_ENV"
@@ -103,7 +103,7 @@ jobs:
         kurtosis service exec cdk cdk-node-001 'cat /etc/cdk/cdk-node-config.toml' > ./dump/cdk-node-config.toml
 
     - name: Upload logs
-      if: failure()
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.ARCHIVE_NAME }}
