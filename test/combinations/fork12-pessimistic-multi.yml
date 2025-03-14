@@ -4,7 +4,7 @@ deployment_stages:
 args:
   cdk_node_image: cdk:latest
   agglayer_image: ghcr.io/agglayer/agglayer:0.3.0-rc.5
-  zkevm_contracts_image: leovct/zkevm-contracts:v9.0.0-rc.5-pp-fork.12
+  zkevm_contracts_image: leovct/zkevm-contracts:9228886-fork.13
   additional_services: []
   consensus_contract_type: pessimistic
   sequencer_type: erigon
