@@ -7,6 +7,7 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  
   test-e2e-multi_pp:
     strategy:
       fail-fast: false
@@ -38,7 +39,7 @@ jobs:
       with:
         repository: 0xPolygon/kurtosis-cdk
         path: kurtosis-cdk
-        ref: v0.3.3
+        ref: main
     
     - name: Install Kurtosis CDK tools
       uses: ./kurtosis-cdk/.github/actions/setup-kurtosis-cdk
