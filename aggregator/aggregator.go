@@ -1221,7 +1221,8 @@ func (a *Aggregator) getAndLockBatchToProve(
 	}
 
 	// All the data required to generate a proof is ready
-	tmpLogger.Infof("All information to generate proof for batch %d is ready. Witness will be requested.", virtualBatch.BatchNumber)
+	tmpLogger.Infof("All information to generate proof for batch %d is ready. "+
+		"Witness will be requested.", virtualBatch.BatchNumber)
 	tmpLogger = tmpLogger.WithFields("batch", virtualBatch.BatchNumber)
 
 	now := time.Now().Round(time.Microsecond)
