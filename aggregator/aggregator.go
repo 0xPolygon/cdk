@@ -1053,7 +1053,7 @@ func (a *Aggregator) getVerifiedBatchAccInputHash(ctx context.Context, batchNumb
 
 func (a *Aggregator) getAndLockBatchToProve(
 	ctx context.Context, prover ProverInterface,
-) (*state.Batch, []byte, *state.Proof, error) {
+) (*state.Batch, *state.Proof, error) {
 	proverID := prover.ID()
 	proverName := prover.Name()
 
@@ -1069,7 +1069,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	// Get last virtual batch number from L1
 	lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	proofExists := true
@@ -1082,7 +1082,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 		if err != nil {
 			tmpLogger.Infof("Error checking proof exists for batch %d", batchNumberToVerify)
 
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		if proofExists {
@@ -1094,7 +1094,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 				err := a.storage.CleanupGeneratedProofs(ctx, math.MaxInt, nil)
 				if err != nil {
 					tmpLogger.Infof("Error cleaning up generated proofs for batch %d", batchNumberToVerify)
-					return nil, nil, nil, err
+					return nil, nil, err
 				}
 				batchNumberToVerify--
 				break
@@ -1105,7 +1105,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	// Check if the batch has been sequenced
 	sequence, err := a.l1Syncr.GetSequenceByBatchNumber(ctx, batchNumberToVerify)
 	if err != nil && !errors.Is(err, entities.ErrNotFound) {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	// Not found, so it it not possible to verify the batch yet
@@ -1113,7 +1113,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 		tmpLogger.Infof("Sequencing event for batch %d has not been synced yet, "+
 			"so it is not possible to verify it yet. Waiting ...", batchNumberToVerify)
 
-		return nil, nil, nil, state.ErrNotFound
+		return nil, nil, state.ErrNotFound
 	}
 
 	stateSequence := state.Sequence{
@@ -1121,22 +1121,29 @@ func (a *Aggregator) getAndLockBatchToProve(
 		ToBatchNumber:   sequence.ToBatchNumber,
 	}
 
+	// Store the sequence in aggregator DB
+	err = a.storage.AddSequence(ctx, stateSequence, nil)
+	if err != nil {
+		tmpLogger.Infof("Error storing sequence for batch %d", batchNumberToVerify)
+		return nil, nil, err
+	}
+
 	// Get Batch from L1 Syncer
 	virtualBatch, err := a.l1Syncr.GetVirtualBatchByBatchNumber(a.ctx, batchNumberToVerify)
 	if err != nil && !errors.Is(err, entities.ErrNotFound) {
 		a.logger.Errorf("Error getting virtual batch: %v", err)
-		return nil, nil, nil, err
+		return nil, nil, err
 	} else if errors.Is(err, entities.ErrNotFound) {
 		a.logger.Infof("Virtual batch %d has not been synced yet, "+
 			"so it is not possible to verify it yet. Waiting ...", batchNumberToVerify)
-		return nil, nil, nil, state.ErrNotFound
+		return nil, nil, state.ErrNotFound
 	}
 
 	// Get Batch from RPC
 	rpcBatch, err := a.rpcClient.GetBatch(batchNumberToVerify)
 	if err != nil {
 		a.logger.Errorf("error getting batch %d from RPC: %v.", batchNumberToVerify, err)
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	// Compare BatchL2Data from virtual batch and rpcBatch (skipping injected batch (1))
@@ -1157,7 +1164,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 	oldAccInputHash := a.getAccInputHash(batchNumberToVerify - 1)
 	if oldAccInputHash == (common.Hash{}) && batchNumberToVerify > 1 {
 		tmpLogger.Warnf("AccInputHash for previous batch (%d) is not in memory. Waiting ...", batchNumberToVerify-1)
-		return nil, nil, nil, state.ErrNotFound
+		return nil, nil, state.ErrNotFound
 	}
 
 	forcedBlockHashL1 := rpcBatch.ForcedBlockHashL1()
@@ -1167,7 +1174,7 @@ func (a *Aggregator) getAndLockBatchToProve(
 		l1Block, err := a.l1Syncr.GetL1BlockByNumber(ctx, virtualBatch.BlockNumber)
 		if err != nil {
 			a.logger.Errorf("Error getting l1 block: %v", err)
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 
 		forcedBlockHashL1 = l1Block.ParentHash
@@ -1213,34 +1220,8 @@ func (a *Aggregator) getAndLockBatchToProve(
 		ForkID:          a.cfg.ForkId,
 	}
 
-	// Request the witness from the server, if it is busy just keep looping until it is available
-	start := time.Now()
-	witness, err := a.rpcClient.GetWitness(batchNumberToVerify, a.cfg.UseFullWitness)
-	for err != nil {
-		if errors.Is(err, rpc.ErrBusy) {
-			a.logger.Debugf(
-				"Witness server is busy, retrying get witness for batch %d in %v",
-				batchNumberToVerify, a.cfg.RetryTime.Duration,
-			)
-		} else {
-			a.logger.Errorf("Failed to get witness for batch %d, err: %v", batchNumberToVerify, err)
-		}
-		time.Sleep(a.cfg.RetryTime.Duration)
-		witness, err = a.rpcClient.GetWitness(batchNumberToVerify, a.cfg.UseFullWitness)
-	}
-	end := time.Now()
-	a.logger.Debugf("Time to get witness for batch %d: %v", batchNumberToVerify, end.Sub(start))
-
-	// Store the sequence in aggregator DB
-	err = a.storage.AddSequence(ctx, stateSequence, nil)
-	if err != nil {
-		tmpLogger.Infof("Error storing sequence for batch %d", batchNumberToVerify)
-
-		return nil, nil, nil, err
-	}
-
 	// All the data required to generate a proof is ready
-	tmpLogger.Infof("All information to generate proof for batch %d is ready", virtualBatch.BatchNumber)
+	tmpLogger.Infof("All information to generate proof for batch %d is ready. Witness will be requested.", virtualBatch.BatchNumber)
 	tmpLogger = tmpLogger.WithFields("batch", virtualBatch.BatchNumber)
 
 	now := time.Now().Round(time.Microsecond)
@@ -1257,10 +1238,10 @@ func (a *Aggregator) getAndLockBatchToProve(
 	if err != nil {
 		tmpLogger.Errorf("Failed to add batch proof to DB for batch %d, err: %v", virtualBatch.BatchNumber, err)
 
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
-	return stateBatch, witness, proof, nil
+	return stateBatch, proof, nil
 }
 
 func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInterface) (bool, error) {
@@ -1271,7 +1252,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 	)
 	tmpLogger.Debug("tryGenerateBatchProof start")
 
-	batchToProve, witness, proof, err0 := a.getAndLockBatchToProve(ctx, prover)
+	batchToProve, proof, err0 := a.getAndLockBatchToProve(ctx, prover)
 	if errors.Is(err0, state.ErrNotFound) || errors.Is(err0, entities.ErrNotFound) {
 		// nothing to proof, swallow the error
 		tmpLogger.Debug("Nothing to generate proof")
@@ -1281,12 +1262,27 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 		return false, err0
 	}
 
+	// Request the witness from the server, if it is busy just keep looping until it is available
+	start := time.Now()
+	witness, err := a.rpcClient.GetWitness(batchToProve.BatchNumber, a.cfg.UseFullWitness)
+	for err != nil {
+		if errors.Is(err, rpc.ErrBusy) {
+			a.logger.Debugf(
+				"Witness server is busy, retrying get witness for batch %d in %v",
+				batchToProve.BatchNumber, a.cfg.RetryTime.Duration,
+			)
+		} else {
+			a.logger.Errorf("Failed to get witness for batch %d, err: %v", batchToProve.BatchNumber, err)
+		}
+		time.Sleep(a.cfg.RetryTime.Duration)
+		witness, err = a.rpcClient.GetWitness(batchToProve.BatchNumber, a.cfg.UseFullWitness)
+	}
+	end := time.Now()
+	a.logger.Debugf("Time to get witness for batch %d: %v", batchToProve.BatchNumber, end.Sub(start))
+
 	tmpLogger = tmpLogger.WithFields("batch", batchToProve.BatchNumber)
 
-	var (
-		genProofID *string
-		err        error
-	)
+	var genProofID *string
 
 	defer func() {
 		if err != nil {
