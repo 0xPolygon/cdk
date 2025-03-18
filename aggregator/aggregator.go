@@ -1264,7 +1264,10 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 	}
 
 	// Request Witness
+	tmpLogger.Infof("Requesting witness for batch %d", batchToProve.BatchNumber)
 	witness := a.getWitness(batchToProve.BatchNumber)
+	tmpLogger.Infof("Witness received for batch %d", batchToProve.BatchNumber)
+
 	tmpLogger = tmpLogger.WithFields("batch", batchToProve.BatchNumber)
 
 	var (
