@@ -1,5 +1,6 @@
 #!/bin/bash
 source $(dirname $0)/scripts/env.sh
+source $(dirname $0)/scripts/shared.sh
 
 FORK=$1
 if [ -z $FORK ]; then
@@ -25,13 +26,7 @@ else
 fi
 
 kurtosis clean --all
-echo "Override cdk config file"
-cp $BASE_FOLDER/config/kurtosis-cdk-node-config.toml.template.$DATA_AVAILABILITY_MODE $KURTOSIS_FOLDER/templates/trusted-node/cdk-node-config.toml
-if [ $? -ne 0 ]; then
-    echo "... copying generic config file"
-    cp $BASE_FOLDER/config/kurtosis-cdk-node-config.toml.template $KURTOSIS_FOLDER/templates/trusted-node/cdk-node-config.toml
-fi
-
+override_cdk_node_config_file  $DATA_AVAILABILITY_MODE
 
 KURTOSIS_CONFIG_FILE="combinations/$FORK-$DATA_AVAILABILITY_MODE.yml"
 TEMP_CONFIG_FILE=$(mktemp --suffix ".yml")

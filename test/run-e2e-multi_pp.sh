@@ -1,5 +1,6 @@
 #!/bin/bash
 source $(dirname $0)/scripts/env.sh
+source $(dirname $0)/scripts/shared.sh
 
 function log_error() {
     echo -e "\033[0;31mError: $*" "\033[0m"
@@ -43,13 +44,7 @@ function resolve_template(){
     eval $_RESULT_VARNAME="$_TEMP_FILE"
 }
 
-function override_cdk_node_config_file(){
-    echo "Override cdk config file"
-    cp $BASE_FOLDER/config/kurtosis-cdk-node-config.toml.template.$DATA_AVAILABILITY_MODE $KURTOSIS_FOLDER/templates/trusted-node/cdk-node-config.toml
-    if [ $? -ne 0 ]; then
-        cp $BASE_FOLDER/config/kurtosis-cdk-node-config.toml.template $KURTOSIS_FOLDER/templates/trusted-node/cdk-node-config.toml
-    fi
-}
+
 
 ###############################################################################
 # MAIN
