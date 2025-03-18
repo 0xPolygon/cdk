@@ -1,5 +1,6 @@
 #!/bin/bash
 source $(dirname $0)/scripts/env.sh
+source $(dirname $0)/scripts/shared.sh
 
 function log_error() {
     echo -e "\033[0;31mError: $*" "\033[0m"
@@ -43,6 +44,8 @@ function resolve_template(){
     eval $_RESULT_VARNAME="$_TEMP_FILE"
 }
 
+
+
 ###############################################################################
 # MAIN
 ###############################################################################
@@ -61,6 +64,9 @@ KURTOSIS_ENCLAVE=cdk
 build_docker_if_required
 resolve_template $PP1_ORIGIN_CONFIG_FILE PP1_RENDERED_CONFIG_FILE
 resolve_template $PP2_ORIGIN_CONFIG_FILE PP2_RENDERED_CONFIG_FILE
+
+override_cdk_node_config_file pessimistic
+ok_or_fatal "Failed to override cdk node config file"
 
 kurtosis clean --all
 kurtosis run --enclave $KURTOSIS_ENCLAVE --args-file "$PP1_RENDERED_CONFIG_FILE" --image-download always $KURTOSIS_FOLDER
