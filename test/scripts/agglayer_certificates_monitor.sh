@@ -28,12 +28,18 @@ function check_timeout() {
 }
 
 function check_num_certificates() {
-    readonly agglayer_rpc_url="$(kurtosis port print cdk agglayer aglr-readrpc)"
+    agglayer_rpc_url="$(kurtosis port print cdk agglayer aglr-readrpc)"
+    if [ $? -ne 0 ]; then
+        agglayer_rpc_url="$(kurtosis port print cdk agglayer agglayer)"
+        if [ $? -ne 0 ]; then
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] Error getting agglayer rpc url (not aglr-readrpc or agglayer)." >&3
+        fi
+    fi
 
     cast_output=$(cast rpc --rpc-url "$agglayer_rpc_url" "interop_getLatestKnownCertificateHeader" "$l2_rpc_network_id" 2>&1)
 
     if [ $? -ne 0 ]; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Error executing command cast rpc: $cast_output"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Error executing command cast rpc $agglayer_rpc_url: $cast_output"
         return
     fi
 
