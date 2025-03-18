@@ -65,7 +65,8 @@ build_docker_if_required
 resolve_template $PP1_ORIGIN_CONFIG_FILE PP1_RENDERED_CONFIG_FILE
 resolve_template $PP2_ORIGIN_CONFIG_FILE PP2_RENDERED_CONFIG_FILE
 
-override_cdk_node_config_file
+override_cdk_node_config_file pessimistic
+ok_or_fatal "Failed to override cdk node config file"
 
 kurtosis clean --all
 kurtosis run --enclave $KURTOSIS_ENCLAVE --args-file "$PP1_RENDERED_CONFIG_FILE" --image-download always $KURTOSIS_FOLDER
