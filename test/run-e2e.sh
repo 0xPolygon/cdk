@@ -26,7 +26,7 @@ else
 fi
 
 kurtosis clean --all
-override_cdk_node_config_file  $DATA_AVAILABILITY_MODE
+override_cdk_node_config_file $DATA_AVAILABILITY_MODE
 
 KURTOSIS_CONFIG_FILE="combinations/$FORK-$DATA_AVAILABILITY_MODE.yml"
 TEMP_CONFIG_FILE=$(mktemp --suffix ".yml")
