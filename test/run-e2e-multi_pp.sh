@@ -43,6 +43,14 @@ function resolve_template(){
     eval $_RESULT_VARNAME="$_TEMP_FILE"
 }
 
+function override_cdk_node_config_file(){
+    echo "Override cdk config file"
+    cp $BASE_FOLDER/config/kurtosis-cdk-node-config.toml.template.$DATA_AVAILABILITY_MODE $KURTOSIS_FOLDER/templates/trusted-node/cdk-node-config.toml
+    if [ $? -ne 0 ]; then
+        cp $BASE_FOLDER/config/kurtosis-cdk-node-config.toml.template $KURTOSIS_FOLDER/templates/trusted-node/cdk-node-config.toml
+    fi
+}
+
 ###############################################################################
 # MAIN
 ###############################################################################
@@ -61,6 +69,8 @@ KURTOSIS_ENCLAVE=cdk
 build_docker_if_required
 resolve_template $PP1_ORIGIN_CONFIG_FILE PP1_RENDERED_CONFIG_FILE
 resolve_template $PP2_ORIGIN_CONFIG_FILE PP2_RENDERED_CONFIG_FILE
+
+override_cdk_node_config_file
 
 kurtosis clean --all
 kurtosis run --enclave $KURTOSIS_ENCLAVE --args-file "$PP1_RENDERED_CONFIG_FILE" --image-download always $KURTOSIS_FOLDER

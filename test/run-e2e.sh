@@ -26,7 +26,13 @@ fi
 
 kurtosis clean --all
 echo "Override cdk config file"
-cp $BASE_FOLDER/config/kurtosis-cdk-node-config.toml.template $KURTOSIS_FOLDER/templates/trusted-node/cdk-node-config.toml
+cp $BASE_FOLDER/config/kurtosis-cdk-node-config.toml.template.$DATA_AVAILABILITY_MODE $KURTOSIS_FOLDER/templates/trusted-node/cdk-node-config.toml
+if [ $? -ne 0 ]; then
+    echo "... copying generic config file"
+    cp $BASE_FOLDER/config/kurtosis-cdk-node-config.toml.template $KURTOSIS_FOLDER/templates/trusted-node/cdk-node-config.toml
+fi
+
+
 KURTOSIS_CONFIG_FILE="combinations/$FORK-$DATA_AVAILABILITY_MODE.yml"
 TEMP_CONFIG_FILE=$(mktemp --suffix ".yml")
 echo "rendering $KURTOSIS_CONFIG_FILE to temp file $TEMP_CONFIG_FILE"
