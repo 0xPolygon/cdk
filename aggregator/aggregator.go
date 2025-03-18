@@ -1263,27 +1263,14 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 		return false, err0
 	}
 
-	// Request the witness from the server, if it is busy just keep looping until it is available
-	start := time.Now()
-	witness, err := a.rpcClient.GetWitness(batchToProve.BatchNumber, a.cfg.UseFullWitness)
-	for err != nil {
-		if errors.Is(err, rpc.ErrBusy) {
-			a.logger.Debugf(
-				"Witness server is busy, retrying get witness for batch %d in %v",
-				batchToProve.BatchNumber, a.cfg.RetryTime.Duration,
-			)
-		} else {
-			a.logger.Errorf("Failed to get witness for batch %d, err: %v", batchToProve.BatchNumber, err)
-		}
-		time.Sleep(a.cfg.RetryTime.Duration)
-		witness, err = a.rpcClient.GetWitness(batchToProve.BatchNumber, a.cfg.UseFullWitness)
-	}
-	end := time.Now()
-	a.logger.Debugf("Time to get witness for batch %d: %v", batchToProve.BatchNumber, end.Sub(start))
-
+	// Request Witness
+	witness := a.getWitness(batchToProve.BatchNumber)
 	tmpLogger = tmpLogger.WithFields("batch", batchToProve.BatchNumber)
 
-	var genProofID *string
+	var (
+		genProofID *string
+		err        error
+	)
 
 	defer func() {
 		if err != nil {
@@ -1357,6 +1344,28 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 	}
 
 	return true, nil
+}
+
+func (a *Aggregator) getWitness(batchNumber uint64) []byte {
+	// Request the witness from the server, if it is busy just keep looping until it is available
+	start := time.Now()
+	witness, err := a.rpcClient.GetWitness(batchNumber, a.cfg.UseFullWitness)
+	for err != nil {
+		if errors.Is(err, rpc.ErrBusy) {
+			a.logger.Debugf(
+				"Witness server is busy, retrying get witness for batch %d in %v",
+				batchNumber, a.cfg.RetryTime.Duration,
+			)
+		} else {
+			a.logger.Errorf("Failed to get witness for batch %d, err: %v", batchNumber, err)
+		}
+		time.Sleep(a.cfg.RetryTime.Duration)
+		witness, err = a.rpcClient.GetWitness(batchNumber, a.cfg.UseFullWitness)
+	}
+	end := time.Now()
+	a.logger.Debugf("Time to get witness for batch %d: %v", batchNumber, end.Sub(start))
+
+	return witness
 }
 
 func (a *Aggregator) performSanityChecks(tmpLogger *log.Logger, stateRoot, accInputHash common.Hash,
