@@ -6,7 +6,9 @@ args:
   cdk_validium_node_image: 0xpolygon/cdk-validium-node:0.7.0-cdk
   cdk_node_image: cdk
   gas_token_enabled: true
+  gas_token_address: ''
   additional_services:
     - pless_zkevm_node
   data_availability_mode: cdk-validium
   sequencer_type: erigon
+  agglayer_image: ghcr.io/agglayer/agglayer:0.2.0-rc.19

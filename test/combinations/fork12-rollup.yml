@@ -4,5 +4,7 @@ args:
   cdk_erigon_node_image: hermeznetwork/cdk-erigon:v2.1.2
   cdk_node_image: cdk
   gas_token_enabled: true
+  gas_token_address: ''
   data_availability_mode: rollup
   sequencer_type: erigon
+  agglayer_image: ghcr.io/agglayer/agglayer@sha256:5715855f2cc6834bd84a99a33937915164648547d21bfb55198948b0ae4e0fad
