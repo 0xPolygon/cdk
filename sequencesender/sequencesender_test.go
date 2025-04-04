@@ -2,6 +2,7 @@ package sequencesender
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"os"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
 	"github.com/0xPolygon/cdk/state"
+	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	ethtxtypes "github.com/0xPolygon/zkevm-ethtx-manager/types"
 	"github.com/agglayer/aggkit/log"
 	"github.com/ethereum/go-ethereum/common"
@@ -616,4 +618,11 @@ func Test_marginTimeElapsed(t *testing.T) {
 			require.Equal(t, tt.expectedWaitTime, waitTime, "marginTimeElapsed() got1 = %v, want %v", waitTime, tt.expectedWaitTime)
 		})
 	}
+}
+
+func Test_isEthTxManagerErrNotFound(t *testing.T) {
+	require.False(t, isEthTxManagerErrNotFound(nil))
+	require.True(t, isEthTxManagerErrNotFound(ethtxmanager.ErrNotFound))
+	require.True(t, isEthTxManagerErrNotFound(fmt.Errorf("is wrapped %w", ethtxmanager.ErrNotFound)))
+
 }
