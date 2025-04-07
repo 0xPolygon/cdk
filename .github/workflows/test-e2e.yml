@@ -34,13 +34,13 @@ jobs:
     name: E2E test
     needs:
       - build-cdk-image
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@312383f0362623e3c0aa53c4ef5d6f2710a36092
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@79c80102886ef8ba658d0d030f01597d7aa5e0c8
     secrets: inherit
     with:
       docker-tag: local
       kurtosis-cdk-ref: arpit/bridge-service
       docker-artifact-name: cdk
-      agglayer-e2e-ref: 312383f0362623e3c0aa53c4ef5d6f2710a36092
+      agglayer-e2e-ref: 79c80102886ef8ba658d0d030f01597d7aa5e0c8
       kurtosis-cdk-enclave-name: cdk
       kurtosis-cdk-args: |
         {
@@ -74,13 +74,13 @@ jobs:
     name: E2E test
     needs:
       - build-cdk-image
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@312383f0362623e3c0aa53c4ef5d6f2710a36092
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@79c80102886ef8ba658d0d030f01597d7aa5e0c8
     secrets: inherit
     with:
       docker-tag: local
       kurtosis-cdk-ref: arpit/bridge-service
       docker-artifact-name: cdk
-      agglayer-e2e-ref: 312383f0362623e3c0aa53c4ef5d6f2710a36092
+      agglayer-e2e-ref: 79c80102886ef8ba658d0d030f01597d7aa5e0c8
       kurtosis-cdk-enclave-name: cdk
       kurtosis-cdk-args: |
         {
@@ -110,13 +110,13 @@ jobs:
     name: E2E test
     needs:
       - build-cdk-image
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@312383f0362623e3c0aa53c4ef5d6f2710a36092
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@79c80102886ef8ba658d0d030f01597d7aa5e0c8
     secrets: inherit
     with:
       docker-tag: local
       kurtosis-cdk-ref: arpit/bridge-service
       docker-artifact-name: cdk
-      agglayer-e2e-ref: 312383f0362623e3c0aa53c4ef5d6f2710a36092
+      agglayer-e2e-ref: 79c80102886ef8ba658d0d030f01597d7aa5e0c8
       kurtosis-cdk-enclave-name: cdk
       kurtosis-cdk-args: |
         {
@@ -145,13 +145,13 @@ jobs:
     name: E2E test
     needs:
       - build-cdk-image
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@312383f0362623e3c0aa53c4ef5d6f2710a36092
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@79c80102886ef8ba658d0d030f01597d7aa5e0c8
     secrets: inherit
     with:
       docker-tag: local
       kurtosis-cdk-ref: arpit/bridge-service
       docker-artifact-name: cdk
-      agglayer-e2e-ref: 312383f0362623e3c0aa53c4ef5d6f2710a36092
+      agglayer-e2e-ref: 79c80102886ef8ba658d0d030f01597d7aa5e0c8
       kurtosis-cdk-enclave-name: cdk
       kurtosis-cdk-args: |
         {
