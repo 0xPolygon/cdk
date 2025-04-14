@@ -33,6 +33,33 @@ jobs:
         name: cdk
         path: /tmp/cdk.tar
 
+  read-test-args:
+    name: Read tests args
+    permissions:
+      id-token: write
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      test-fork9-cdk-validium-e2e-args: ${{ steps.read-args.outputs.test-fork9-cdk-validium-e2e-args }}
+      test-fork11-rollup-e2e-args: ${{ steps.read-args.outputs.test-fork11-rollup-e2e-args }}
+      test-fork12-cdk-validium-e2e-args: ${{ steps.read-args.outputs.test-fork12-cdk-validium-e2e-args }}
+      test-fork12-rollup-e2e-args: ${{ steps.read-args.outputs.test-fork12-rollup-e2e-args }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read kurtosis-cdk-args from file
+        id: read-args
+        run: |
+          CONTENT=$(cat ./.github/test_fork9_cdk_validium_e2e_args.json | jq -c .)
+          echo "test-fork9-cdk-validium-e2e-args=${CONTENT}" >> $GITHUB_OUTPUT
+          CONTENT=$(cat ./.github/test_fork11_rollup_e2e_args.json | jq -c .)
+          echo "test-fork11-rollup-e2e-args=${CONTENT}" >> $GITHUB_OUTPUT
+          CONTENT=$(cat ./.github/test_fork12_cdk_validium_e2e_args.json | jq -c .)
+          echo "test-fork12-cdk-validium-e2e-args=${CONTENT}" >> $GITHUB_OUTPUT
+          CONTENT=$(cat ./.github/test_fork12_rollup_e2e_args.json | jq -c .)
+          echo "test-fork12-rollup-e2e-args=${CONTENT}" >> $GITHUB_OUTPUT
+
   test-fork9-cdk-validium-e2e:
     name: E2E test
     permissions:
@@ -40,32 +67,17 @@ jobs:
       contents: write
     needs:
       - build-cdk-image
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@aacc086849f0b3adce0f989307a67033d6693fb0
+      - read-test-args
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@8a90fb1b71095245a8fe8e7dc00a402ee11a15ec
     secrets: inherit
     with:
       docker-tag: local
       kurtosis-cdk-ref: arpit/bridge-service
       docker-artifact-name: cdk
-      agglayer-e2e-ref: aacc086849f0b3adce0f989307a67033d6693fb0
+      agglayer-e2e-ref: 8a90fb1b71095245a8fe8e7dc00a402ee11a15ec
       kurtosis-cdk-enclave-name: cdk
       test-name: test-fork9-cdk-validium-e2e
-      kurtosis-cdk-args: |
-        {
-          "zkevm_contracts_image": "leovct/zkevm-contracts:v6.0.0-rc.1-fork.9-patch.1",
-          "zkevm_prover_image": "hermeznetwork/zkevm-prover:v6.0.6",
-          "cdk_erigon_node_image": "hermeznetwork/cdk-erigon:v2.1.2",
-          "zkevm_node_image": "hermeznetwork/zkevm-node:v0.7.3-RC1",
-          "cdk_validium_node_image": "0xpolygon/cdk-validium-node:0.7.0-cdk",
-          "cdk_node_image": "cdk",
-          "gas_token_enabled": true,
-          "gas_token_address": "0x8F0342A7060e76dfc7F6e9dEbfAD9b9eC919952c",
-          "additional_services": [
-            "pless_zkevm_node"
-          ],
-          "data_availability_mode": "cdk-validium",
-          "sequencer_type": "erigon",
-          "agglayer_image": "ghcr.io/agglayer/agglayer:0.2.0-rc.19"
-        }
+      kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork9-cdk-validium-e2e-args }}
 
   check-fork9-cdk-validium-e2e-result:
     name: Check E2E results
@@ -87,28 +99,17 @@ jobs:
       contents: write
     needs:
       - build-cdk-image
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@aacc086849f0b3adce0f989307a67033d6693fb0
+      - read-test-args
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@8a90fb1b71095245a8fe8e7dc00a402ee11a15ec
     secrets: inherit
     with:
       docker-tag: local
       kurtosis-cdk-ref: arpit/bridge-service
       docker-artifact-name: cdk
-      agglayer-e2e-ref: aacc086849f0b3adce0f989307a67033d6693fb0
+      agglayer-e2e-ref: 8a90fb1b71095245a8fe8e7dc00a402ee11a15ec
       kurtosis-cdk-enclave-name: cdk
       test-name: test-fork11-rollup-e2e
-      kurtosis-cdk-args: |
-        {
-          "zkevm_contracts_image": "leovct/zkevm-contracts:v7.0.0-rc.2-fork.11-patch.1",
-          "zkevm_prover_image": "hermeznetwork/zkevm-prover:v7.0.2-fork.11",
-          "cdk_erigon_node_image": "hermeznetwork/cdk-erigon:v2.1.2",
-          "zkevm_node_image": "hermeznetwork/zkevm-node:v0.7.0-fork11-RC1",
-          "cdk_node_image": "cdk",
-          "gas_token_enabled": true,
-          "gas_token_address": "0x8F0342A7060e76dfc7F6e9dEbfAD9b9eC919952c",
-          "data_availability_mode": "rollup",
-          "sequencer_type": "erigon",
-          "agglayer_image": "ghcr.io/agglayer/agglayer:0.2.0-rc.19"
-        }
+      kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork11-rollup-e2e-args }}
 
   check-fork11-rollup-e2e-result:
     name: Check E2E results
@@ -130,27 +131,17 @@ jobs:
       contents: write
     needs:
       - build-cdk-image
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@aacc086849f0b3adce0f989307a67033d6693fb0
+      - read-test-args
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@8a90fb1b71095245a8fe8e7dc00a402ee11a15ec
     secrets: inherit
     with:
       docker-tag: local
       kurtosis-cdk-ref: arpit/bridge-service
       docker-artifact-name: cdk
-      agglayer-e2e-ref: aacc086849f0b3adce0f989307a67033d6693fb0
+      agglayer-e2e-ref: 8a90fb1b71095245a8fe8e7dc00a402ee11a15ec
       kurtosis-cdk-enclave-name: cdk
       test-name: test-fork12-cdk-validium-e2e
-      kurtosis-cdk-args: |
-        {
-          "zkevm_contracts_image": "leovct/zkevm-contracts:v8.0.0-rc.4-fork.12-patch.1",
-          "zkevm_prover_image": "hermeznetwork/zkevm-prover:v8.0.0-RC12-fork.12",
-          "cdk_erigon_node_image": "hermeznetwork/cdk-erigon:v2.1.2",
-          "cdk_node_image": "cdk",
-          "gas_token_enabled": true,
-          "gas_token_address": "0x8F0342A7060e76dfc7F6e9dEbfAD9b9eC919952c",
-          "data_availability_mode": "cdk-validium",
-          "sequencer_type": "erigon",
-          "agglayer_image": "ghcr.io/agglayer/agglayer@sha256:5715855f2cc6834bd84a99a33937915164648547d21bfb55198948b0ae4e0fad"
-        }
+      kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork12-cdk-validium-e2e-args }}
 
   check-fork12-cdk-validium-e2e-result:
     name: Check E2E results
@@ -172,27 +163,17 @@ jobs:
       contents: write
     needs:
       - build-cdk-image
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@aacc086849f0b3adce0f989307a67033d6693fb0
+      - read-test-args
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@8a90fb1b71095245a8fe8e7dc00a402ee11a15ec
     secrets: inherit
     with:
       docker-tag: local
       kurtosis-cdk-ref: arpit/bridge-service
       docker-artifact-name: cdk
-      agglayer-e2e-ref: aacc086849f0b3adce0f989307a67033d6693fb0
+      agglayer-e2e-ref: 8a90fb1b71095245a8fe8e7dc00a402ee11a15ec
       kurtosis-cdk-enclave-name: cdk
       test-name: test-fork12-rollup-e2e
-      kurtosis-cdk-args: |
-        {
-          "zkevm_contracts_image": "leovct/zkevm-contracts:v8.0.0-rc.4-fork.12-patch.1",
-          "zkevm_prover_image": "hermeznetwork/zkevm-prover:v8.0.0-RC12-fork.12",
-          "cdk_erigon_node_image": "hermeznetwork/cdk-erigon:v2.1.2",
-          "cdk_node_image": "cdk",
-          "gas_token_enabled": true,
-          "gas_token_address": "0x8F0342A7060e76dfc7F6e9dEbfAD9b9eC919952c",
-          "data_availability_mode": "rollup",
-          "sequencer_type": "erigon",
-          "agglayer_image": "ghcr.io/agglayer/agglayer@sha256:5715855f2cc6834bd84a99a33937915164648547d21bfb55198948b0ae4e0fad"
-        }
+      kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork12-rollup-e2e-args }}
 
   check-fork12-rollup-e2e-result:
     name: Check E2E results
