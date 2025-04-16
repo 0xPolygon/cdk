@@ -8,6 +8,6 @@
     "gas_token_address": "",
     "data_availability_mode": "rollup",
     "sequencer_type": "erigon",
-    "agglayer_image": "ghcr.io/agglayer/agglayer@sha256:5715855f2cc6834bd84a99a33937915164648547d21bfb55198948b0ae4e0fad"
+    "agglayer_image": "ghcr.io/agglayer/agglayer:0.3.0-rc.16"
   }
 }

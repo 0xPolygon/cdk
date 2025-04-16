@@ -5,7 +5,6 @@ on:
       - '**'
   workflow_dispatch: {}
 
-
 jobs:
   build-cdk-image:
     permissions:
@@ -68,14 +67,11 @@ jobs:
     needs:
       - build-cdk-image
       - read-test-args
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@6937778f1eeebd52e87ba74ddbfc027758da259a
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@4e2463a1b73208fe3f4dbda139ab96542322f1cb
     secrets: inherit
     with:
-      docker-tag: local
-      kurtosis-cdk-ref: arpit/bridge-service
-      docker-artifact-name: cdk
-      agglayer-e2e-ref: 6937778f1eeebd52e87ba74ddbfc027758da259a
-      kurtosis-cdk-enclave-name: cdk
+      kurtosis-cdk-ref: c3caebc409c7f69354ae012f15cac76f3edf8503
+      agglayer-e2e-ref: 4e2463a1b73208fe3f4dbda139ab96542322f1cb
       test-name: test-fork9-cdk-validium-e2e
       kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork9-cdk-validium-e2e-args }}
 
@@ -100,14 +96,11 @@ jobs:
     needs:
       - build-cdk-image
       - read-test-args
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@6937778f1eeebd52e87ba74ddbfc027758da259a
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@4e2463a1b73208fe3f4dbda139ab96542322f1cb
     secrets: inherit
     with:
-      docker-tag: local
-      kurtosis-cdk-ref: arpit/bridge-service
-      docker-artifact-name: cdk
-      agglayer-e2e-ref: 6937778f1eeebd52e87ba74ddbfc027758da259a
-      kurtosis-cdk-enclave-name: cdk
+      kurtosis-cdk-ref: c3caebc409c7f69354ae012f15cac76f3edf8503
+      agglayer-e2e-ref: 4e2463a1b73208fe3f4dbda139ab96542322f1cb
       test-name: test-fork11-rollup-e2e
       kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork11-rollup-e2e-args }}
 
@@ -132,14 +125,11 @@ jobs:
     needs:
       - build-cdk-image
       - read-test-args
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@6937778f1eeebd52e87ba74ddbfc027758da259a
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@4e2463a1b73208fe3f4dbda139ab96542322f1cb
     secrets: inherit
     with:
-      docker-tag: local
-      kurtosis-cdk-ref: arpit/bridge-service
-      docker-artifact-name: cdk
-      agglayer-e2e-ref: 6937778f1eeebd52e87ba74ddbfc027758da259a
-      kurtosis-cdk-enclave-name: cdk
+      kurtosis-cdk-ref: c3caebc409c7f69354ae012f15cac76f3edf8503
+      agglayer-e2e-ref: 4e2463a1b73208fe3f4dbda139ab96542322f1cb
       test-name: test-fork12-cdk-validium-e2e
       kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork12-cdk-validium-e2e-args }}
 
@@ -164,14 +154,11 @@ jobs:
     needs:
       - build-cdk-image
       - read-test-args
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@6937778f1eeebd52e87ba74ddbfc027758da259a
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@4e2463a1b73208fe3f4dbda139ab96542322f1cb
     secrets: inherit
     with:
-      docker-tag: local
-      kurtosis-cdk-ref: arpit/bridge-service
-      docker-artifact-name: cdk
-      agglayer-e2e-ref: 6937778f1eeebd52e87ba74ddbfc027758da259a
-      kurtosis-cdk-enclave-name: cdk
+      kurtosis-cdk-ref: c3caebc409c7f69354ae012f15cac76f3edf8503
+      agglayer-e2e-ref: 4e2463a1b73208fe3f4dbda139ab96542322f1cb
       test-name: test-fork12-rollup-e2e
       kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork12-rollup-e2e-args }}
 
