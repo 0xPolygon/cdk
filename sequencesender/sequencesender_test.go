@@ -626,3 +626,52 @@ func Test_isEthTxManagerErrNotFound(t *testing.T) {
 	require.True(t, isEthTxManagerErrNotFound(fmt.Errorf("is wrapped %w", ethtxmanager.ErrNotFound)))
 	require.False(t, isEthTxManagerErrNotFound(fmt.Errorf("another error")))
 }
+
+func Test_batchRetrieval(t *testing.T) {
+	tests := []struct {
+		name          string
+		getRPC        func(t *testing.T) *mocks.RPCInterfaceMock
+		batchNumber   uint64
+		expectedBatch *rpctypes.RPCBatch
+		expectedErr   string
+	}{
+		{
+			name: "successfully get batch",
+			getRPC: func(t *testing.T) *mocks.RPCInterfaceMock {
+				t.Helper()
+
+				mngr := mocks.NewRPCInterfaceMock(t)
+				mngr.On("GetBatch", mock.Anything).Return(
+					rpctypes.NewRPCBatch(1, common.Hash{}, nil, nil,
+						common.Hash{}, common.Hash{}, common.Hash{}, common.Address{}, true), nil)
+				return mngr
+			},
+			batchNumber:   1,
+			expectedBatch: &rpctypes.RPCBatch{},
+			expectedErr:   "context deadline exceeded",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			s := SequenceSender{
+				cfg: Config{
+					GetBatchWaitInterval: types2.NewDuration(time.Millisecond),
+				},
+				rpcClient:    tt.getRPC(t),
+				logger:       log.GetDefaultLogger(),
+				sequenceData: make(map[uint64]*sequenceData),
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			err := s.batchRetrieval(ctx)
+			if tt.expectedErr != "" {
+				require.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
