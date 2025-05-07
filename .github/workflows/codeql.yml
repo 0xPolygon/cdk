@@ -42,26 +42,4 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
-      
-          # NEW: Step to debug SARIF validation
-      - name: Debug SARIF Validation
-        run: |
-          echo "Validating SARIF file..."
-          if [ -f "codeql-results.sarif" ]; then
-            echo "SARIF file found. Listing details:"
-            cat codeql-results.sarif | head -n 100
-          else
-            echo "SARIF file not found. Ensure the CodeQL analysis step produces the file."
-          fi
-        shell: bash
-
-      - name: Debug SARIF Validation2
-        run: |
-          echo "Validating SARIF file..."
-          if [ -f "/home/runner/work/cdk/results/go.sarif" ]; then
-            echo "SARIF file found. /home/runner/work/cdk/results/go.sarif Listing details:"
-            cat /home/runner/work/cdk/results/go.sarif | head -n 100
-          else
-            echo "SARIF file not found. Ensure the CodeQL analysis step produces the file."
-          fi
-        shell: bash
+ 

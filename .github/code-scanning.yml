@@ -1,2 +1,0 @@
-# Disable default CodeQL setup for advanced configuration
-codeql-default-setup: false
