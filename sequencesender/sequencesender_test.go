@@ -625,5 +625,4 @@ func Test_isEthTxManagerErrNotFound(t *testing.T) {
 	require.True(t, isEthTxManagerErrNotFound(ethtxmanager.ErrNotFound))
 	require.True(t, isEthTxManagerErrNotFound(fmt.Errorf("is wrapped %w", ethtxmanager.ErrNotFound)))
 	require.False(t, isEthTxManagerErrNotFound(fmt.Errorf("another error")))
-
 }
