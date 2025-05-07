@@ -5,20 +5,24 @@ setup() {
 
     _common_setup
 
-    if [ -z "$BRIDGE_ADDRESS" ]; then
+    if [ -z "$L1_BRIDGE_ADDRESS" ]; then
         local combined_json_file="/opt/zkevm/combined.json"
-        echo "BRIDGE_ADDRESS env variable is not provided, resolving the bridge address from the Kurtosis CDK '$combined_json_file'" >&3
+        echo "L1_BRIDGE_ADDRESS env variable is not provided, resolving the bridge address from the Kurtosis CDK '$combined_json_file'" >&3
 
         # Fetching the combined JSON output and filtering to get polygonZkEVMBridgeAddress
         combined_json_output=$($contracts_service_wrapper "cat $combined_json_file")
         if echo "$combined_json_output" | jq empty > /dev/null 2>&1; then
-            bridge_default_address=$(echo "$combined_json_output" | jq -r .polygonZkEVMBridgeAddress)
+            l1_bridge_address=$(echo "$combined_json_output" | jq -r .polygonZkEVMBridgeAddress)
+            l2_bridge_address=$(echo "$combined_json_output" | jq -r .polygonZkEVML2BridgeAddress)
         else
-            bridge_default_address=$(echo "$combined_json_output" | tail -n +2 | jq -r .polygonZkEVMBridgeAddress)
+            l1_bridge_address=$(echo "$combined_json_output" | tail -n +2 | jq -r .polygonZkEVMBridgeAddress)
+            l2_bridge_address=$(echo "$combined_json_output" | tail -n +2 | jq -r .polygonZkEVML2BridgeAddress)
         fi
-        BRIDGE_ADDRESS=$bridge_default_address
+        L1_BRIDGE_ADDRESS=$l1_bridge_address
+        L2_BRIDGE_ADDRESS=$l2_bridge_address
     fi
-    echo "Bridge address=$BRIDGE_ADDRESS" >&3
+    echo "L1 Bridge address=$L1_BRIDGE_ADDRESS" >&3
+    echo "L2 Bridge address=$L2_BRIDGE_ADDRESS" >&3
 
     readonly sender_private_key=${SENDER_PRIVATE_KEY:-"12d7de8621a77640c9241b2595ba78ce443d05e94090365ab3bb5e19df82c625"}
     readonly sender_addr="$(cast wallet address --private-key $sender_private_key)"
@@ -41,17 +45,18 @@ setup() {
         fi
     fi
     readonly is_forced=${IS_FORCED:-"true"}
-    readonly bridge_addr=$BRIDGE_ADDRESS
+    readonly l1_bridge_addr=$L1_BRIDGE_ADDRESS
+    readonly l2_bridge_addr=$L2_BRIDGE_ADDRESS
     readonly meta_bytes=${META_BYTES:-"0x"}
 
     readonly l1_rpc_url=${L1_ETH_RPC_URL:-"$(kurtosis port print $enclave el-1-geth-lighthouse rpc)"}
     readonly bridge_api_url=${BRIDGE_API_URL:-"$(kurtosis port print $enclave zkevm-bridge-service-001 rpc)"}
 
     readonly dry_run=${DRY_RUN:-"false"}
-    readonly l1_rpc_network_id=$(cast call --rpc-url $l1_rpc_url $bridge_addr 'networkID() (uint32)')
-    readonly l2_rpc_network_id=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'networkID() (uint32)')
+    readonly l1_rpc_network_id=$(cast call --rpc-url $l1_rpc_url $l1_bridge_addr 'networkID() (uint32)')
+    readonly l2_rpc_network_id=$(cast call --rpc-url $l2_rpc_url $l2_bridge_addr 'networkID() (uint32)')
     gas_price=$(cast gas-price --rpc-url "$l2_rpc_url")
-    readonly weth_token_addr=$(cast call --rpc-url $l2_rpc_url $bridge_addr 'WETHToken()' | cast parse-bytes32-address)
+    readonly weth_token_addr=$(cast call --rpc-url $l2_rpc_url $l2_bridge_addr 'WETHToken()' | cast parse-bytes32-address)
 }
 
 # Helper function to run native gas token deposit to WETH
@@ -69,16 +74,16 @@ native_gas_token_deposit_to_WETH() {
     destination_net=$l2_rpc_network_id
 
     if [[ $bridge_type == "bridgeMessage" ]]; then
-        run bridge_message "$native_token_addr" "$l1_rpc_url"
+        run bridge_message "$native_token_addr" "$l1_rpc_url" "$l1_bridge_addr"
     else
-        run bridge_asset "$native_token_addr" "$l1_rpc_url"
+        run bridge_asset "$native_token_addr" "$l1_rpc_url" "$l1_bridge_addr"
     fi
     assert_success
 
     echo "=== Claiming on L2..." >&3
     timeout="120"
     claim_frequency="10"
-    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url" "$bridge_type"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url" "$bridge_type" "$l2_bridge_addr"
     assert_success
 
     run verify_balance "$l2_rpc_url" "$weth_token_addr" "$destination_addr" "$initial_receiver_balance" "$ether_value"
@@ -89,16 +94,16 @@ native_gas_token_deposit_to_WETH() {
     destination_net=0
 
     if [[ $bridge_type == "bridgeMessage" ]]; then
-        run bridge_message "$weth_token_addr" "$l2_rpc_url"
+        run bridge_message "$weth_token_addr" "$l2_rpc_url" "$l2_bridge_addr"
     else
-        run bridge_asset "$weth_token_addr" "$l2_rpc_url"
+        run bridge_asset "$weth_token_addr" "$l2_rpc_url" "$l2_bridge_addr"
     fi
     assert_success
 
     echo "=== Claiming on L1..." >&3
     timeout="400"
     claim_frequency="60"
-    run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url" "$bridge_type"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url" "$bridge_type" "$l1_bridge_addr"
     assert_success
 }
 
@@ -149,7 +154,7 @@ native_gas_token_deposit_to_WETH() {
 
     # Send approve transaction to the gas token on L1
     deposit_ether_value="0.1ether"
-    run send_tx "$l1_rpc_url" "$sender_private_key" "$gas_token_addr" "$approve_fn_sig" "$bridge_addr" "$deposit_ether_value"
+    run send_tx "$l1_rpc_url" "$sender_private_key" "$gas_token_addr" "$approve_fn_sig" "$l1_bridge_addr" "$deposit_ether_value"
     assert_success
     assert_output --regexp "Transaction successful \(transaction hash: 0x[a-fA-F0-9]{64}\)"
 
@@ -157,13 +162,13 @@ native_gas_token_deposit_to_WETH() {
     destination_addr=$receiver
     destination_net=$l2_rpc_network_id
     amount=$wei_amount
-    run bridge_asset "$gas_token_addr" "$l1_rpc_url"
+    run bridge_asset "$gas_token_addr" "$l1_rpc_url" "$l1_bridge_addr"
     assert_success
 
     # Claim deposits (settle them on the L2)
     timeout="120"
     claim_frequency="10"
-    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url" "bridgeAsset"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l2_rpc_url" "bridgeAsset" "$l2_bridge_addr"
     assert_success
 
     # Validate that the native token of receiver on L2 has increased by the bridge tokens amount
@@ -179,14 +184,14 @@ native_gas_token_deposit_to_WETH() {
     echo "Receiver balance of gas token on L1 $initial_receiver_balance" >&3
 
     destination_net=$l1_rpc_network_id
-    run bridge_asset "$native_token_addr" "$l2_rpc_url"
+    run bridge_asset "$native_token_addr" "$l2_rpc_url" "$l2_bridge_addr"
     assert_success
 
     # Claim withdrawals (settle them on the L1)
-    timeout="360"
+    timeout="720"
     claim_frequency="10"
     destination_net=$l1_rpc_network_id
-    run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url" "bridgeAsset"
+    run wait_for_claim "$timeout" "$claim_frequency" "$l1_rpc_url" "bridgeAsset" "$l1_bridge_addr"
     assert_success
 
     # Validate that the token of receiver on L1 has increased by the bridge tokens amount
