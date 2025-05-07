@@ -85,11 +85,15 @@ test-e2e-fork11-rollup: stop
 .PHONY: test-e2e-fork12-validium
 test-e2e-fork12-validium: stop
 	./run-e2e.sh fork12 cdk-validium
+	# this is for fail fast if kurtosis fails to deploy cdk-node-001
+	kurtosis service inspect cdk cdk-node-001
 	bats bats/fep/
 
 .PHONY: test-e2e-fork12-rollup
 test-e2e-fork12-rollup: stop
 	./run-e2e.sh fork12 rollup
+	# this is for fail fast if kurtosis fails to deploy cdk-node-001
+	kurtosis service inspect cdk cdk-node-001
 	bats bats/fep/
 
 .PHONY: test-e2e-fork12-pessimistic
