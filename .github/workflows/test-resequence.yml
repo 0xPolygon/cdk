@@ -34,7 +34,7 @@ jobs:
         with:
           repository: 0xPolygon/kurtosis-cdk
           path: kurtosis-cdk
-          ref: arpit/bridge-service
+          ref: main
 
       - name: Install Kurtosis CDK tools
         uses: ./kurtosis-cdk/.github/actions/setup-kurtosis-cdk

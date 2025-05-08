@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/globalexitrootmanagerl2sovereignchain"
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/polygonzkevmbridgev2"
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/l2-sovereign-chain/polygonzkevmglobalexitrootv2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/pp/l2-sovereign-chain/globalexitrootmanagerl2sovereignchain"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/pp/l2-sovereign-chain/polygonzkevmbridgev2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/pp/l2-sovereign-chain/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk/test/contracts/transparentupgradableproxy"
 	"github.com/agglayer/aggkit/bridgesync"
 	aggkitTypes "github.com/agglayer/aggkit/config/types"
@@ -98,6 +98,7 @@ func L1Setup(t *testing.T) *L1Environment {
 		time.Millisecond, 0, periodRetry,
 		retries, l1infotreesync.FlagAllowWrongContractsAddrs,
 		aggkitetherman.SafeBlock,
+		false,
 	)
 	require.NoError(t, err)
 
@@ -119,7 +120,7 @@ func L1Setup(t *testing.T) *L1Environment {
 		ctx, dbPathBridgeSyncL1, bridgeL1Addr,
 		syncBlockChunks, aggkitetherman.LatestBlock, rdL1, testClient,
 		initialBlock, waitForNewBlocksPeriod, retryPeriod,
-		retriesCount, originNetwork, false)
+		retriesCount, originNetwork, false, false)
 	require.NoError(t, err)
 
 	go bridgeL1Sync.Start(ctx)
@@ -177,7 +178,7 @@ func L2Setup(t *testing.T, networkID uint32) *L2Environment {
 		ctx, dbPathL2BridgeSync, bridgeL2Addr, syncBlockChunks,
 		aggkitetherman.LatestBlock, rdL2, testClient,
 		initialBlock, waitForNewBlocksPeriod, retryPeriod,
-		retriesCount, originNetwork, false)
+		retriesCount, originNetwork, false, false)
 	require.NoError(t, err)
 
 	go bridgeL2Sync.Start(ctx)
