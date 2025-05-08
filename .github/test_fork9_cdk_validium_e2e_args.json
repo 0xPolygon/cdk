@@ -11,6 +11,7 @@
         "pless_zkevm_node"
     ],
     "data_availability_mode": "cdk-validium",
-    "sequencer_type": "erigon"
+    "sequencer_type": "erigon",
+    "agglayer_image": "ghcr.io/agglayer/agglayer:0.2.0-rc.19"
   }
 }
