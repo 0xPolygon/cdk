@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/fep/elderberry/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/etherman/contracts"

@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygondatacommittee"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/fep/banana/polygondatacommittee"
 	"github.com/0xPolygon/cdk/test/contracts/erc1967proxy"
 	"github.com/0xPolygon/cdk/test/helpers"
 	"github.com/agglayer/aggkit/log"

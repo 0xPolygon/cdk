@@ -22,6 +22,7 @@ import (
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/config/types"
+	"github.com/0xPolygon/cdk/l1infotree"
 	"github.com/0xPolygon/cdk/rpc"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
@@ -31,13 +32,14 @@ import (
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/state/entities"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer/l1_check_block"
-	"github.com/agglayer/aggkit/l1infotree"
 	"github.com/agglayer/aggkit/log"
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -1594,6 +1596,12 @@ func (hc *healthChecker) Check(
 	return &grpchealth.HealthCheckResponse{
 		Status: grpchealth.HealthCheckResponse_SERVING,
 	}, nil
+}
+
+func (hc *healthChecker) List(
+	ctx context.Context, req *grpchealth.HealthListRequest,
+) (*grpchealth.HealthListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method List not implemented")
 }
 
 // Watch returns the current status of the server for stream gRPC health requests,
