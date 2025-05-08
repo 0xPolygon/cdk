@@ -4,7 +4,7 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonvalidiumetrog"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/fep/banana/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/agglayer/aggkit/log"

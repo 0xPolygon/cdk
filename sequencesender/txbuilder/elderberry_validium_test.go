@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/fep/elderberry/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk/dataavailability/mocks_da"
 	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"

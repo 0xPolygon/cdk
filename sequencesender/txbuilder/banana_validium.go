@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonvalidiumetrog"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/fep/banana/polygonvalidiumetrog"
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
