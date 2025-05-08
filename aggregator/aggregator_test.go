@@ -1582,6 +1582,22 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 			},
 		},
 		{
+			name: "getAndLockBatchToProve GetSequenceByBatchNumber fails",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr")
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
+				m.storageMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(true, nil)
+				m.storageMock.On("CleanupGeneratedProofs", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.Anything, mock.Anything).Return(nil, errTest).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errTest)
+			},
+		},
+		{
 			name: "getAndLockBatchToProve returns ErrNotFound",
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("Name").Return(proverName).Twice()
