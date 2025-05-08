@@ -628,6 +628,9 @@ func Test_isEthTxManagerErrNotFound(t *testing.T) {
 }
 
 func Test_batchRetrieval(t *testing.T) {
+	t.Parallel()
+
+	errTest := errors.New("example error for test")
 	tests := []struct {
 		name          string
 		getRPC        func(t *testing.T) *mocks.RPCInterfaceMock
@@ -644,6 +647,24 @@ func Test_batchRetrieval(t *testing.T) {
 				mngr.On("GetBatch", mock.Anything).Return(
 					rpctypes.NewRPCBatch(1, common.Hash{}, nil, nil,
 						common.Hash{}, common.Hash{}, common.Hash{}, common.Address{}, true), nil)
+				return mngr
+			},
+			batchNumber:   1,
+			expectedBatch: &rpctypes.RPCBatch{},
+			expectedErr:   "context deadline exceeded",
+		},
+		{
+			name: "fails get batch",
+			getRPC: func(t *testing.T) *mocks.RPCInterfaceMock {
+				t.Helper()
+
+				mngr := mocks.NewRPCInterfaceMock(t)
+				mngr.On("GetBatch", mock.Anything).Return(
+					nil, errTest).Once()
+				mngr.On("GetBatch", mock.Anything).Return(
+					rpctypes.NewRPCBatch(1, common.Hash{}, nil, nil,
+						common.Hash{}, common.Hash{}, common.Hash{}, common.Address{}, true), nil)
+
 				return mngr
 			},
 			batchNumber:   1,
