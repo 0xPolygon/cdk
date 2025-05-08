@@ -53,25 +53,25 @@ pushd "$KURTOSIS_FOLDER" > /dev/null
 log_info "Cleaning any existing Kurtosis enclaves..."
 kurtosis clean --all
 
-ENCLAVE_NAME="cdk"
+ENCLAVE="cdk"
 
 # Start Kurtosis Enclave 
 log_info "Starting Kurtosis enclave"
 
 if [ "$TEST_TYPE" == "fork9-cdk-validium" ]; then
-    kurtosis run --enclave "$ENCLAVE_NAME" --args-file "$PROJECT_ROOT/.github/test_fork9_cdk_validium_e2e_args.json" .
+    kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_fork9_cdk_validium_e2e_args.json" .
 elif [ "$TEST_TYPE" == "fork11-rollup" ]; then
-    kurtosis run --enclave "$ENCLAVE_NAME" --args-file "$PROJECT_ROOT/.github/test_fork11_rollup_e2e_args.json" .
+    kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_fork11_rollup_e2e_args.json" .
 elif [ "$TEST_TYPE" == "fork12-cdk-validium" ]; then
-    kurtosis run --enclave "$ENCLAVE_NAME" --args-file "$PROJECT_ROOT/.github/test_fork12_cdk_validium_e2e_args.json" .
+    kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_fork12_cdk_validium_e2e_args.json" .
 elif [ "$TEST_TYPE" == "fork12-rollup" ]; then
-    kurtosis run --enclave "$ENCLAVE_NAME" --args-file "$PROJECT_ROOT/.github/test_fork12_rollup_e2e_args.json" .
+    kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_fork12_rollup_e2e_args.json" .
 else
     log_error "Unknown test type: $TEST_TYPE"
     exit 1
 fi
 
-log_info "$ENCLAVE_NAME enclave started successfully."
+log_info "$ENCLAVE enclave started successfully."
 popd > /dev/null
 
 log_info "Using provided Agglayer E2E repo at: $E2E_FOLDER"
@@ -86,7 +86,8 @@ set +a
 
 export BATS_LIB_PATH="$PWD/core/helpers/lib"
 export PROJECT_ROOT="$PWD"
-export ENCLAVE="$ENCLAVE_NAME"
+export ENCLAVE="$ENCLAVE"
+export DISABLE_L2_FUND="true"
 
 log_info "Running BATS E2E tests..."
 bats ./tests/cdk
