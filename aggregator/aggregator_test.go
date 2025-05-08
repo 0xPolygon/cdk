@@ -1559,7 +1559,6 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 				m.proverMock.On("Addr").Return("addr")
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
 				m.storageMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(true, errTest)
-
 			},
 			asserts: func(result bool, a *Aggregator, err error) {
 				assert.False(result)
@@ -1948,4 +1947,19 @@ func Test_sanityChecks(t *testing.T) {
 		time.Sleep(5 * time.Second)
 		return
 	}()
+}
+
+func Test_getWitness(t *testing.T) {
+	mockRPC := mocks.NewRPCInterfaceMock(t)
+	sut := &Aggregator{
+		rpcClient: mockRPC,
+		logger:    log.WithFields("module", "unittest"),
+		cfg: Config{
+			RetryTime: types.Duration{Duration: time.Microsecond * 1},
+		},
+	}
+	mockRPC.EXPECT().GetWitness(mock.Anything, mock.Anything).Return([]byte("witness"), errors.New("test error")).Once()
+	mockRPC.EXPECT().GetWitness(mock.Anything, mock.Anything).Return([]byte("witness"), nil).Once()
+	data := sut.getWitness(1234)
+	require.NotNil(t, data)
 }
