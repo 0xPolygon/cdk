@@ -21,6 +21,7 @@ import (
 	mocks "github.com/0xPolygon/cdk/aggregator/mocks"
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	"github.com/0xPolygon/cdk/config/types"
+	"github.com/0xPolygon/cdk/rpc"
 	rpctypes "github.com/0xPolygon/cdk/rpc/types"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer"
@@ -1959,6 +1960,7 @@ func Test_getWitness(t *testing.T) {
 		},
 	}
 	mockRPC.EXPECT().GetWitness(mock.Anything, mock.Anything).Return([]byte("witness"), errors.New("test error")).Once()
+	mockRPC.EXPECT().GetWitness(mock.Anything, mock.Anything).Return([]byte("witness"), rpc.ErrBusy).Once()
 	mockRPC.EXPECT().GetWitness(mock.Anything, mock.Anything).Return([]byte("witness"), nil).Once()
 	data := sut.getWitness(1234)
 	require.NotNil(t, data)
