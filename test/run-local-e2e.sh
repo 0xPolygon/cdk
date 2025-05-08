@@ -33,7 +33,7 @@ LOG_FILE="$LOG_FOLDER/run-local-e2e.log"
 rm -rf "$ROOT_FOLDER"
 mkdir -p "$LOG_FOLDER"
 
-# exec > >(tee -a "$LOG_FILE") 2>&1
+exec > >(tee -a "$LOG_FILE") 2>&1
 
 log_info "Starting local E2E setup..."
 
