@@ -677,6 +677,8 @@ func Test_batchRetrieval(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := SequenceSender{
 				cfg: Config{
 					GetBatchWaitInterval: types2.NewDuration(time.Millisecond),
