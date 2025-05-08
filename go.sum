@@ -35,8 +35,8 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/VictoriaMetrics/fastcache v1.12.2 h1:N0y9ASrJ0F6h0QaC3o6uJb3NIZ9VKLjCM7NQbSmF7WI=
 github.com/VictoriaMetrics/fastcache v1.12.2/go.mod h1:AmC+Nzz1+3G2eCPapF6UcsnkThDcMsQicp4xDukwJYI=
-github.com/agglayer/aggkit v0.3.0-beta1.0.20250507060341-dbab1bd391dd h1:7pxllxZPBGfLK2Y+zDoGtnbSWeuDGja/cePmu+cPyDU=
-github.com/agglayer/aggkit v0.3.0-beta1.0.20250507060341-dbab1bd391dd/go.mod h1:sH5vdzBSWdxDLRGuhi5fpwJXVgccGSqX8KzimGrvE3U=
+github.com/agglayer/aggkit v0.3.0-beta1.0.20250508073355-c91e456bdf6a h1:03FQgUdmXtzXaBJnCKbv7w79/QQVg43AjMMvWd48kfA=
+github.com/agglayer/aggkit v0.3.0-beta1.0.20250508073355-c91e456bdf6a/go.mod h1:sH5vdzBSWdxDLRGuhi5fpwJXVgccGSqX8KzimGrvE3U=
 github.com/agglayer/go_signer v0.0.6 h1:IKeh4JMvWAXZX/0lGEF0W/UatmUc7LEo5Nm0L+yCcqc=
 github.com/agglayer/go_signer v0.0.6/go.mod h1:YIoQNqvA10L/qV9vlAV8rXjejnyPpnYA0A/zU1uxXeY=
 github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156/go.mod h1:Cb/ax3seSYIx7SuZdm2G2xzfwmv3TPSk2ucNfQESPXM=
