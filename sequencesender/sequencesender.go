@@ -141,8 +141,7 @@ func (s *SequenceSender) Start(ctx context.Context) {
 	// Get latest virtual state batch from L1
 	err := s.updateLatestVirtualBatch()
 	if err != nil {
-		s.logger.Errorf("error getting latest sequenced batch, error: %v", err)
-		return
+		s.logger.Fatalf("error getting latest sequenced batch, error: %v", err)
 	}
 
 	// Sync all monitored sent L1 tx
@@ -368,8 +367,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Get latest virtual state batch from L1
 	err = s.updateLatestVirtualBatch()
 	if err != nil {
-		s.logger.Errorf("error getting latest sequenced batch, error: %v", err)
-		return
+		s.logger.Panicf("error getting latest sequenced batch, error: %v", err)
 	}
 
 	sequence.SetLastVirtualBatchNumber(atomic.LoadUint64(&s.latestVirtualBatchNumber))
