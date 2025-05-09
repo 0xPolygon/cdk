@@ -21,6 +21,7 @@ import (
 	mocks "github.com/0xPolygon/cdk/aggregator/mocks"
 	"github.com/0xPolygon/cdk/aggregator/prover"
 	"github.com/0xPolygon/cdk/config/types"
+	"github.com/0xPolygon/cdk/rpc"
 	rpctypes "github.com/0xPolygon/cdk/rpc/types"
 	"github.com/0xPolygon/cdk/state"
 	"github.com/0xPolygonHermez/zkevm-synchronizer-l1/synchronizer"
@@ -1552,6 +1553,51 @@ func Test_tryGenerateBatchProof(t *testing.T) {
 			},
 		},
 		{
+			name: "getAndLockBatchToProve CheckProofExistsForBatch fails",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr")
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
+				m.storageMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(true, errTest)
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errTest)
+			},
+		},
+		{
+			name: "getAndLockBatchToProve CleanupGeneratedProofs fails",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr")
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
+				m.storageMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(true, nil)
+				m.storageMock.On("CleanupGeneratedProofs", mock.Anything, mock.Anything, mock.Anything).Return(errTest).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errTest)
+			},
+		},
+		{
+			name: "getAndLockBatchToProve GetSequenceByBatchNumber fails",
+			setup: func(m mox, a *Aggregator) {
+				m.proverMock.On("Name").Return(proverName).Twice()
+				m.proverMock.On("ID").Return(proverID).Twice()
+				m.proverMock.On("Addr").Return("addr")
+				m.etherman.On("GetLatestVerifiedBatchNum").Return(lastVerifiedBatchNum, nil).Once()
+				m.storageMock.On("CheckProofExistsForBatch", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Return(true, nil)
+				m.storageMock.On("CleanupGeneratedProofs", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+				m.synchronizerMock.On("GetSequenceByBatchNumber", mock.Anything, mock.Anything).Return(nil, errTest).Once()
+			},
+			asserts: func(result bool, a *Aggregator, err error) {
+				assert.False(result)
+				assert.ErrorIs(err, errTest)
+			},
+		},
+		{
 			name: "getAndLockBatchToProve returns ErrNotFound",
 			setup: func(m mox, a *Aggregator) {
 				m.proverMock.On("Name").Return(proverName).Twice()
@@ -1918,4 +1964,20 @@ func Test_sanityChecks(t *testing.T) {
 		time.Sleep(5 * time.Second)
 		return
 	}()
+}
+
+func Test_getWitness(t *testing.T) {
+	mockRPC := mocks.NewRPCInterfaceMock(t)
+	sut := &Aggregator{
+		rpcClient: mockRPC,
+		logger:    log.WithFields("module", "unittest"),
+		cfg: Config{
+			RetryTime: types.Duration{Duration: time.Microsecond * 1},
+		},
+	}
+	mockRPC.EXPECT().GetWitness(mock.Anything, mock.Anything).Return([]byte("witness"), errors.New("test error")).Once()
+	mockRPC.EXPECT().GetWitness(mock.Anything, mock.Anything).Return([]byte("witness"), rpc.ErrBusy).Once()
+	mockRPC.EXPECT().GetWitness(mock.Anything, mock.Anything).Return([]byte("witness"), nil).Once()
+	data := sut.getWitness(1234)
+	require.NotNil(t, data)
 }
