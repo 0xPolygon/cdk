@@ -216,6 +216,9 @@ func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) (time.Time, er
 	numResults := len(results)
 	s.mutexEthTx.Lock()
 	for _, result := range results {
+		for txHash := range result.Txs {
+			log.Debugf("syncAllEthTxResults: id: %s tx:%s", result.ID.String(), txHash.String())
+		}
 		txSequence, exists := s.ethTransactions[result.ID]
 		if !exists {
 			log.Debugf("transaction %v missing in memory structure. Adding it", result.ID)
@@ -306,7 +309,7 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 
 	txResult, err := s.ethTxManager.Result(ctx, txHash)
 	switch {
-	case errors.Is(err, ethtxmanager.ErrNotFound):
+	case isEthTxManagerErrNotFound(err):
 		s.logger.Infof("transaction %v does not exist in ethtxmanager. Marking it", txHash)
 		txData.OnMonitor = false
 		// Resend tx
@@ -324,6 +327,25 @@ func (s *SequenceSender) getResultAndUpdateEthTx(ctx context.Context, txHash com
 	}
 
 	return nil
+}
+
+// this function is use instead of
+// errors.Is(err, ethtxmanager.ErrNotFound)
+func isEthTxManagerErrNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, ethtxmanager.ErrNotFound) {
+		return true
+	}
+	// Check all wrapped errors looking for the same message
+	for err != nil {
+		if err.Error() == ethtxmanager.ErrNotFound.Error() {
+			return true
+		}
+		err = errors.Unwrap(err)
+	}
+	return false
 }
 
 // loadSentSequencesTransactions loads the file into the memory structure
