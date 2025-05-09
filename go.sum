@@ -19,23 +19,10 @@ github.com/0xPolygon/cdk-data-availability v0.0.13 h1:CoZoSGOtg+wCF3s9XfLf+dc9H5
 github.com/0xPolygon/cdk-data-availability v0.0.13/go.mod h1:u/vHga1Wdx4qeglcvh3VCGxeU7h/EouZnuYeFBibOZU=
 github.com/0xPolygon/cdk-rpc v0.0.0-20241004114257-6c3cb6eebfb6 h1:FXL/rcO7/GtZ3kRFw+C7J6vmGnl8gcazg+Gh/NVmnas=
 github.com/0xPolygon/cdk-rpc v0.0.0-20241004114257-6c3cb6eebfb6/go.mod h1:2scWqMMufrQXu7TikDgQ3BsyaKoX8qP26D6E262vSOg=
-<<<<<<< HEAD
 github.com/0xPolygon/zkevm-ethtx-manager v0.2.11 h1:SogCgBHdbIJtUgpGzKtLp8TDgoTuHKRaaJyKn/q65ms=
 github.com/0xPolygon/zkevm-ethtx-manager v0.2.11/go.mod h1:mRdWtyuzQQOiQWvo1nNuj44H0UNqK/8FOF44bjOCKYs=
-github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.8-0.20250507054422-92bde64e8cba h1:pf/B3Qyr2Irc5n+7Mn5H2ZNEvUGaPNhGj9Igkho2XzE=
-github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.8-0.20250507054422-92bde64e8cba/go.mod h1:IYqOmGBjvpJKRjVVqH3pGQysHU8W8YSctbl4TQDjNMg=
-github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.8-0.20250507054844-a9e451133481 h1:Qf2QSsQcJT1O6j4PYAGYnVBf/9NTStgCXuh7U0nOcIg=
-github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.8-0.20250507054844-a9e451133481/go.mod h1:IYqOmGBjvpJKRjVVqH3pGQysHU8W8YSctbl4TQDjNMg=
-github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.8-0.20250507055106-0321b43a1ee2 h1:2nufAuWYDzNcNK/tIVkWF47hStm/xITpq+SYRTFGvhQ=
-github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.8-0.20250507055106-0321b43a1ee2/go.mod h1:IYqOmGBjvpJKRjVVqH3pGQysHU8W8YSctbl4TQDjNMg=
-github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.8-0.20250507070913-a33005d489e6 h1:+aOEdUWf9pxk3dZWJ/DfKMpAXNWCF9+abA5DBngOobw=
-github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.8-0.20250507070913-a33005d489e6/go.mod h1:IYqOmGBjvpJKRjVVqH3pGQysHU8W8YSctbl4TQDjNMg=
-=======
-github.com/0xPolygon/zkevm-ethtx-manager v0.2.7 h1:eS2ewz4z+S16ZWQRyci6Y3U9YSR+sx1opB0/NxhmKlQ=
-github.com/0xPolygon/zkevm-ethtx-manager v0.2.7/go.mod h1:xuLx/9KDv5wO8mnkiiX5pZHyTWQZXyHjmBRBGEzNGXo=
-github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.7 h1:KJM1QlNZdZjNRS+ajPauD4uG+uaYgItaL+96Om3f8aI=
-github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.7/go.mod h1:exl+KHnTN6Y8HG4nSUXni4qKbAug0HjJqpebMSgl72k=
->>>>>>> fed301ad3966b89f8809cc27400aded80f3899eb
+github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.8-0.20250508072210-7a7daa37d1f7 h1:Xc7g45Le9k80Gvpcc4XkHPv2fGGIR2iMEsziyy28ve0=
+github.com/0xPolygonHermez/zkevm-synchronizer-l1 v1.0.8-0.20250508072210-7a7daa37d1f7/go.mod h1:IYqOmGBjvpJKRjVVqH3pGQysHU8W8YSctbl4TQDjNMg=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/toml v1.4.0 h1:kuoIxZQy2WRRk1pttg9asf+WVv6tWQuBNVmK8+nqPr0=
 github.com/BurntSushi/toml v1.4.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
@@ -48,10 +35,8 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/VictoriaMetrics/fastcache v1.12.2 h1:N0y9ASrJ0F6h0QaC3o6uJb3NIZ9VKLjCM7NQbSmF7WI=
 github.com/VictoriaMetrics/fastcache v1.12.2/go.mod h1:AmC+Nzz1+3G2eCPapF6UcsnkThDcMsQicp4xDukwJYI=
-github.com/agglayer/aggkit v0.3.0-beta1.0.20250507050147-8e5cdee3acb0 h1:+iEHdNbI/m38ly1Qr8c9cY7UP57sPjqd6sDpsO4xnS0=
-github.com/agglayer/aggkit v0.3.0-beta1.0.20250507050147-8e5cdee3acb0/go.mod h1:sH5vdzBSWdxDLRGuhi5fpwJXVgccGSqX8KzimGrvE3U=
-github.com/agglayer/aggkit v0.3.0-beta1.0.20250507060341-dbab1bd391dd h1:7pxllxZPBGfLK2Y+zDoGtnbSWeuDGja/cePmu+cPyDU=
-github.com/agglayer/aggkit v0.3.0-beta1.0.20250507060341-dbab1bd391dd/go.mod h1:sH5vdzBSWdxDLRGuhi5fpwJXVgccGSqX8KzimGrvE3U=
+github.com/agglayer/aggkit v0.3.0-beta1.0.20250508073355-c91e456bdf6a h1:03FQgUdmXtzXaBJnCKbv7w79/QQVg43AjMMvWd48kfA=
+github.com/agglayer/aggkit v0.3.0-beta1.0.20250508073355-c91e456bdf6a/go.mod h1:sH5vdzBSWdxDLRGuhi5fpwJXVgccGSqX8KzimGrvE3U=
 github.com/agglayer/go_signer v0.0.6 h1:IKeh4JMvWAXZX/0lGEF0W/UatmUc7LEo5Nm0L+yCcqc=
 github.com/agglayer/go_signer v0.0.6/go.mod h1:YIoQNqvA10L/qV9vlAV8rXjejnyPpnYA0A/zU1uxXeY=
 github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156/go.mod h1:Cb/ax3seSYIx7SuZdm2G2xzfwmv3TPSk2ucNfQESPXM=
