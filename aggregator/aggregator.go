@@ -361,6 +361,7 @@ func (a *Aggregator) Start() error {
 		go a.cleanupLockedProofs()
 		go a.sendFinalProof()
 		go a.ethTxManager.Start()
+		go a.logLastVerifiedBatchNumber()
 
 		// A this point everything is ready, so start serving
 		go func() {
@@ -381,6 +382,24 @@ func (a *Aggregator) Start() error {
 func (a *Aggregator) Stop() {
 	a.exit()
 	a.srv.Stop()
+}
+
+func (a *Aggregator) logLastVerifiedBatchNumber() {
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		default:
+			time.Sleep(a.cfg.RetryTime.Duration * 20) //nolint:mnd
+			lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
+			if err != nil {
+				a.logger.Errorf("Error getting last verified batch number: %v", err)
+			} else {
+				tmpLogger := a.logger.WithFields("batch", lastVerifiedBatchNumber)
+				tmpLogger.Infof("Last Verified Batch Number:%v", lastVerifiedBatchNumber)
+			}
+		}
+	}
 }
 
 // Channel implements the bi-directional communication channel between the
