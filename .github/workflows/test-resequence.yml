@@ -34,7 +34,7 @@ jobs:
         with:
           repository: 0xPolygon/kurtosis-cdk
           path: kurtosis-cdk
-          ref: v0.2.31
+          ref: c3caebc409c7f69354ae012f15cac76f3edf8503
 
       - name: Install Kurtosis CDK tools
         uses: ./kurtosis-cdk/.github/actions/setup-kurtosis-cdk

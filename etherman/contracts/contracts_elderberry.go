@@ -1,9 +1,9 @@
 package contracts
 
 import (
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonrollupmanager"
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonvalidiumetrog"
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/elderberry/polygonzkevmglobalexitrootv2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/fep/elderberry/polygonrollupmanager"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/fep/elderberry/polygonvalidiumetrog"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/fep/elderberry/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk/etherman/config"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )

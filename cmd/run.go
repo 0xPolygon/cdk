@@ -386,6 +386,7 @@ func runL1InfoTreeSyncerIfNeeded(
 		cfg.L1InfoTreeSync.MaxRetryAttemptsAfterError,
 		l1infotreesync.FlagNone,
 		aggkitetherman.FinalizedBlock,
+		true,
 	)
 	if err != nil {
 		log.Fatal(err)

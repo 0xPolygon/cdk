@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygondatacommittee"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/fep/banana/polygondatacommittee"
 	"github.com/0xPolygon/cdk-data-availability/client"
 	daTypes "github.com/0xPolygon/cdk-data-availability/types"
 	"github.com/0xPolygon/cdk/etherman"

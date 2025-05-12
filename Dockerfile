@@ -1,5 +1,5 @@
 # CONTAINER FOR BUILDING BINARY
-FROM --platform=${BUILDPLATFORM} golang:1.23.7 AS build
+FROM --platform=${BUILDPLATFORM} golang:1.24.2 AS build
 
 WORKDIR $GOPATH/src/github.com/0xPolygon/cdk
 

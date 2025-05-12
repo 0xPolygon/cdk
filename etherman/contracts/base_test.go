@@ -3,7 +3,7 @@ package contracts_test
 import (
 	"testing"
 
-	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonzkevmglobalexitrootv2"
+	"github.com/0xPolygon/cdk-contracts-tooling/contracts/fep/banana/polygonzkevmglobalexitrootv2"
 	"github.com/0xPolygon/cdk/etherman/contracts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
