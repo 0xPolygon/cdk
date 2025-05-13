@@ -38,13 +38,13 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 log_info "Starting local E2E setup..."
 
 # Build cdk Docker Image if it doesn't exist
-if [ "$(docker images -q cdk:latest | wc -l)" -eq 0 ]; then
-    log_info "Building cdk:latest docker image..."
+if [ "$(docker images -q cdk:local | wc -l)" -eq 0 ]; then
+    log_info "Building cdk:local docker image..."
     pushd "$PROJECT_ROOT" > /dev/null
     make build-docker
     popd > /dev/null
 else
-    log_info "Docker image cdk:latest already exists."
+    log_info "Docker image cdk:local already exists."
 fi
 
 log_info "Using provided Kurtosis CDK repo at: $KURTOSIS_FOLDER"
