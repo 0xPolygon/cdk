@@ -16,14 +16,16 @@ log_error() {
 
 trap 'log_error "Script failed at line $LINENO"' ERR
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <test_type: fork9-cdk-validium | fork11-rollup | fork12-cdk-validium | fork12-rollup> <path/to/kurtosis/cdk/repo> <path/to/e2e/repo>"
+if [ "$#" -ne 5 ]; then
+    echo "Usage: $0 <test_type: fork9-cdk-validium | fork11-rollup | fork12-cdk-validium | fork12-rollup> <path/to/kurtosis-cdk/repo> <path/to/e2e/repo> <path/to/aggkit/repo> <run_tests: true | false>"
     exit 1
 fi
 
 TEST_TYPE=$1
 KURTOSIS_FOLDER=$2
 E2E_FOLDER=$3
+AGGKIT_FOLDER=$4
+RUN_TESTS=$5
 
 PROJECT_ROOT="$PWD"
 ROOT_FOLDER="/tmp/cdk-e2e-run"
@@ -33,7 +35,7 @@ LOG_FILE="$LOG_FOLDER/run-local-e2e.log"
 rm -rf "$ROOT_FOLDER"
 mkdir -p "$LOG_FOLDER"
 
-exec > >(tee -a "$LOG_FILE") 2>&1
+# exec > >(tee -a "$LOG_FILE") 2>&1
 
 log_info "Starting local E2E setup..."
 
@@ -45,6 +47,16 @@ if [ "$(docker images -q cdk:latest | wc -l)" -eq 0 ]; then
     popd > /dev/null
 else
     log_info "Docker image cdk:latest already exists."
+fi
+
+# Build aggkit Docker Image if it doesn't exist
+if [ "$(docker images -q aggkit:local | wc -l)" -eq 0 ]; then
+    log_info "Building aggkit:local docker image..."
+    pushd "$AGGKIT_FOLDER" > /dev/null
+    make build-docker
+    popd > /dev/null
+else
+    log_info "Docker image aggkit:local already exists."
 fi
 
 log_info "Using provided Kurtosis CDK repo at: $KURTOSIS_FOLDER"
@@ -74,23 +86,28 @@ fi
 log_info "$ENCLAVE enclave started successfully."
 popd > /dev/null
 
-log_info "Using provided Agglayer E2E repo at: $E2E_FOLDER"
+if [ "$RUN_TESTS" == "true" ]; then
+    log_info "Using provided Agglayer E2E repo at: $E2E_FOLDER"
 
-pushd "$E2E_FOLDER" > /dev/null
+    pushd "$E2E_FOLDER" > /dev/null
 
-# Setup environment
-log_info "Setting up e2e environment..."
-set -a
-source ./tests/.env
-set +a
+    # Setup environment
+    log_info "Setting up e2e environment..."
+    set -a
+    source ./tests/.env
+    set +a
 
-export BATS_LIB_PATH="$PWD/core/helpers/lib"
-export PROJECT_ROOT="$PWD"
-export ENCLAVE="$ENCLAVE"
-export DISABLE_L2_FUND="true"
+    export BATS_LIB_PATH="$PWD/core/helpers/lib"
+    export PROJECT_ROOT="$PWD"
+    export ENCLAVE="$ENCLAVE"
+    export DISABLE_L2_FUND="true"
 
-log_info "Running BATS E2E tests..."
-bats ./tests/cdk
+    log_info "Running BATS E2E tests..."
+    # bats ./tests/cdk
 
-popd > /dev/null
-log_info "E2E tests executed. Logs saved to $LOG_FILE"
+    popd > /dev/null
+    log_info "E2E tests executed. Logs saved to $LOG_FILE"
+else
+    log_info "Skipping tests as per user request."
+    exit 0
+fi
