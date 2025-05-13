@@ -73,9 +73,6 @@ jobs:
 
   check-fork9-cdk-validium-e2e-result:
     name: Check E2E results
-    permissions:
-      id-token: write
-      contents: write
     needs:
       - test-fork9-cdk-validium-e2e
     if: always()
@@ -99,9 +96,6 @@ jobs:
 
   check-fork11-rollup-e2e-result:
     name: Check E2E results
-    permissions:
-      id-token: write
-      contents: write
     needs:
       - test-fork11-rollup-e2e
     if: always()
@@ -125,9 +119,6 @@ jobs:
 
   check-fork12-cdk-validium-e2e-result:
     name: Check E2E results
-    permissions:
-      id-token: write
-      contents: write
     needs:
       - test-fork12-cdk-validium-e2e
     if: always()

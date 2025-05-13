@@ -11,7 +11,7 @@
     "gas_token_address": "",
     "consensus_contract_type": "cdk-validium",
     "sequencer_type": "erigon",
-    "aggkit_image": "aggkit:local",
+    "aggkit_image": "ghcr.io/agglayer/aggkit:0.3.0-beta3-tmp-bridge",
     "aggkit_components": "aggsender,bridge"
   }
 }
