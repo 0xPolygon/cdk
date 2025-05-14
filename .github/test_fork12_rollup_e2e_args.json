@@ -9,7 +9,7 @@
     "cdk_node_image": "cdk:local",
     "gas_token_enabled": true,
     "gas_token_address": "",
-    "data_availability_mode": "rollup",
+    "consensus_contract_type": "rollup",
     "sequencer_type": "erigon",
     "aggkit_image": "ghcr.io/agglayer/aggkit:0.3.0-beta3-tmp-bridge",
     "aggkit_components": "aggsender,bridge"

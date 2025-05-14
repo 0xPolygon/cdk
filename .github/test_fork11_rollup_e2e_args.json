@@ -6,7 +6,7 @@
     "cdk_node_image": "cdk:local",
     "gas_token_enabled": true,
     "gas_token_address": "",
-    "data_availability_mode": "rollup",
+    "consensus_contract_type": "rollup",
     "sequencer_type": "erigon",
     "agglayer_image": "ghcr.io/agglayer/agglayer:0.2.0-rc.19"
   }
