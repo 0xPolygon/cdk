@@ -103,7 +103,12 @@ if [ "$RUN_TESTS" == "true" ]; then
     export DISABLE_L2_FUND="true"
 
     log_info "Running BATS E2E tests..."
-    # bats ./tests/cdk
+    bats tests/cdk/access-list-e2e.bats tests/cdk/basic-e2e.bats tests/cdk/e2e.bats
+    if [[ "$TEST_TYPE" == "fork9-cdk-validium" || "$TEST_TYPE" == "fork11-rollup" ]]; then
+        bats tests/cdk/bridge-e2e.bats
+    elif [[ "$TEST_TYPE" == "fork12-cdk-validium" || "$TEST_TYPE" == "fork12-rollup" ]]; then
+        bats tests/aggkit/bridge-e2e.bats tests/aggkit/bridge-e2e-custom-gas.bats
+    fi
 
     popd > /dev/null
     log_info "E2E tests executed. Logs saved to $LOG_FILE"
