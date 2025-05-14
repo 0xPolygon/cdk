@@ -68,7 +68,7 @@ build-go:
 
 .PHONY: build-docker
 build-docker: ## Builds a docker image with the cdk binary
-	docker build -t cdk -f ./Dockerfile .
+	docker build -t cdk:local -f ./Dockerfile .
 
 .PHONY: build-docker-nc
 build-docker-nc: ## Builds a docker image with the cdk binary - but without build cache
