@@ -12,6 +12,6 @@
     "consensus_contract_type": "cdk-validium",
     "sequencer_type": "erigon",
     "aggkit_image": "ghcr.io/agglayer/aggkit:0.3.0-beta3-tmp-bridge",
-    "aggkit_components": "aggsender,bridge"
+    "aggkit_components": "bridge"
   }
 }
