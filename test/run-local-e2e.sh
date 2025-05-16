@@ -16,16 +16,15 @@ log_error() {
 
 trap 'log_error "Script failed at line $LINENO"' ERR
 
-if [ "$#" -ne 5 ]; then
-    echo "Usage: $0 <test_type: fork9-cdk-validium | fork11-rollup | fork12-cdk-validium | fork12-rollup> <path/to/kurtosis-cdk/repo> <path/to/e2e/repo> <path/to/aggkit/repo> <run_tests: true | false>"
+if [ "$#" -ne 4 ]; then
+    echo "Usage: $0 <test_type: fork9-cdk-validium | fork11-rollup | fork12-cdk-validium | fork12-rollup> <path/to/kurtosis-cdk/repo> <path/to/e2e/repo> <run_tests: true | false>"
     exit 1
 fi
 
 TEST_TYPE=$1
 KURTOSIS_FOLDER=$2
 E2E_FOLDER=$3
-AGGKIT_FOLDER=$4
-RUN_TESTS=$5
+RUN_TESTS=$4
 
 PROJECT_ROOT="$PWD"
 ROOT_FOLDER="/tmp/cdk-e2e-run"
@@ -47,16 +46,6 @@ if [ "$(docker images -q cdk:local | wc -l)" -eq 0 ]; then
     popd > /dev/null
 else
     log_info "Docker image cdk:local already exists."
-fi
-
-# Build aggkit Docker Image if it doesn't exist
-if [ "$(docker images -q aggkit:local | wc -l)" -eq 0 ]; then
-    log_info "Building aggkit:local docker image..."
-    pushd "$AGGKIT_FOLDER" > /dev/null
-    make build-docker
-    popd > /dev/null
-else
-    log_info "Docker image aggkit:local already exists."
 fi
 
 log_info "Using provided Kurtosis CDK repo at: $KURTOSIS_FOLDER"
