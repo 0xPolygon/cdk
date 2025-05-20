@@ -11,7 +11,7 @@
     "gas_token_address": "",
     "consensus_contract_type": "rollup",
     "sequencer_type": "erigon",
-    "aggkit_image": "ghcr.io/agglayer/aggkit:0.3.0-beta5-tmp-bridge",
+    "aggkit_image": "ghcr.io/agglayer/aggkit:0.3.0-beta6-tmp-bridge",
     "aggkit_components": "bridge"
   }
 }
