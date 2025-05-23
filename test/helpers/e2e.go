@@ -16,6 +16,7 @@ import (
 	aggkitetherman "github.com/agglayer/aggkit/etherman"
 	"github.com/agglayer/aggkit/l1infotreesync"
 	"github.com/agglayer/aggkit/reorgdetector"
+	aggkittesthelpers "github.com/agglayer/aggkit/test/helpers"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -55,6 +56,15 @@ type L2Environment struct {
 	GERContract      *globalexitrootmanagerl2sovereignchain.Globalexitrootmanagerl2sovereignchain
 	EthTxManagerMock *EthTxManagerMock
 	NetworkID        uint32
+}
+
+// SimulatedBackendWrapper wraps simulated.Backend to implement RPCClienter
+type SimulatedBackendWrapper struct {
+	*simulated.Backend
+}
+
+func (c *SimulatedBackendWrapper) Call(result any, method string, args ...any) error {
+	return nil // Simulated backend doesn't need actual RPC calls
 }
 
 // NewL1EnvWithL2EVM creates a new E2E environment with EVM L1 and L2 chains.
@@ -114,7 +124,7 @@ func L1Setup(t *testing.T) *L1Environment {
 	)
 
 	// Bridge sync
-	testClient := TestClient{ClientRenamed: l1Client.Client()}
+	testClient := aggkittesthelpers.NewTestClient(l1Client.Client(), aggkittesthelpers.WithRPCClienter(&SimulatedBackendWrapper{l1Client}))
 	dbPathBridgeSyncL1 := path.Join(t.TempDir(), "BridgeSyncL1.sqlite")
 	bridgeL1Sync, err := bridgesync.NewL1(
 		ctx, dbPathBridgeSyncL1, bridgeL1Addr,
@@ -163,7 +173,7 @@ func L2Setup(t *testing.T, networkID uint32) *L2Environment {
 
 	// Bridge sync
 	dbPathL2BridgeSync := path.Join(t.TempDir(), "BridgeSyncL2.sqlite")
-	testClient := TestClient{ClientRenamed: l2Client.Client()}
+	testClient := aggkittesthelpers.NewTestClient(l2Client.Client(), aggkittesthelpers.WithRPCClienter(&SimulatedBackendWrapper{l2Client}))
 
 	const (
 		syncBlockChunks        = 10
