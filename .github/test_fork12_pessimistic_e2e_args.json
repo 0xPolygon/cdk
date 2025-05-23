@@ -9,10 +9,10 @@
     "cdk_node_image": "cdk:local",
     "gas_token_enabled": true,
     "gas_token_address": "",
-    "consensus_contract_type": "cdk_validium",
+    "consensus_contract_type": "pessimistic",
     "sequencer_type": "erigon",
     "aggkit_image": "ghcr.io/agglayer/aggkit:0.3.0-beta7-tmp-bridge",
-    "aggkit_components": "bridge",
+    "aggkit_components": "aggsender,bridge",
     "enable_aggkit_claim_sponsor": true
   }
 }
