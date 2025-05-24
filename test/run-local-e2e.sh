@@ -17,7 +17,7 @@ log_error() {
 trap 'log_error "Script failed at line $LINENO"' ERR
 
 if [ "$#" -ne 4 ]; then
-    echo "Usage: $0 <test_type: fork9-cdk-validium | fork11-rollup | fork12-cdk-validium | fork12-rollup> <path/to/kurtosis-cdk/repo> <path/to/e2e/repo> <run_tests: true | false>"
+    echo "Usage: $0 <test_type: fork9-cdk-validium | fork11-rollup | fork12-cdk-validium | fork12-rollup | fork-12-pessimistic | fork12-rollup-zkevm-bridge | fork12-multi-l2-networks> <path/to/kurtosis-cdk/repo> <path/to/e2e/repo> <run_tests: true | false>"
     exit 1
 fi
 
@@ -67,6 +67,13 @@ elif [ "$TEST_TYPE" == "fork12-cdk-validium" ]; then
     kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_fork12_cdk_validium_e2e_args.json" .
 elif [ "$TEST_TYPE" == "fork12-rollup" ]; then
     kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_fork12_rollup_e2e_args.json" .
+elif [ "$TEST_TYPE" == "fork12-pessimistic" ]; then
+    kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_fork12_pessimistic_e2e_args.json" .
+elif [ "$TEST_TYPE" == "fork12-rollup-zkevm-bridge" ]; then
+    kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_fork12_rollup_e2e_args_zkevm_bridge.json" .
+elif [ "$TEST_TYPE" == "fork12-multi-l2-networks" ]; then
+    kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_e2e_multi_chains_args_1.json" .
+    kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_e2e_multi_chains_args_2.json" .
 else
     log_error "Unknown test type: $TEST_TYPE"
     exit 1
@@ -92,11 +99,15 @@ if [ "$RUN_TESTS" == "true" ]; then
     export DISABLE_L2_FUND="true"
 
     log_info "Running BATS E2E tests..."
-    bats tests/cdk/access-list-e2e.bats tests/cdk/basic-e2e.bats tests/cdk/e2e.bats
-    if [[ "$TEST_TYPE" == "fork9-cdk-validium" || "$TEST_TYPE" == "fork11-rollup" ]]; then
-        bats tests/cdk/bridge-e2e.bats
+    bats tests/cdk/access-list-e2e.bats tests/cdk/basic-e2e.bats
+    if [[ "$TEST_TYPE" == "fork9-cdk-validium" || "$TEST_TYPE" == "fork11-rollup" || "$TEST_TYPE" == "fork12-rollup-zkevm-bridge" ]]; then
+        bats tests/cdk/e2e.bats tests/cdk/bridge-e2e.bats
     elif [[ "$TEST_TYPE" == "fork12-cdk-validium" || "$TEST_TYPE" == "fork12-rollup" ]]; then
+        bats tests/cdk/e2e.bats tests/aggkit/bridge-e2e.bats tests/aggkit/bridge-e2e-custom-gas.bats
+    elif [[ "$TEST_TYPE" == "fork12-pessimistic" ]]; then
         bats tests/aggkit/bridge-e2e.bats tests/aggkit/bridge-e2e-custom-gas.bats
+    elif [[ "$TEST_TYPE" == "fork12-multi-l2-networks" ]]; then
+        bats ./tests/aggkit/bridge-l2_to_l2-e2e.bats
     fi
 
     popd > /dev/null
