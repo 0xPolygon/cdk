@@ -73,8 +73,8 @@ fork12-rollup-zkevm-bridge)
     kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_fork12_rollup_e2e_args_zkevm_bridge.json" .
     ;;
 fork12-multi-l2-networks)
-    kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_e2e_multi_chains_args_1.json" .
-    kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_e2e_multi_chains_args_2.json" .
+    kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_fork12_rollup_multi_e2e_args_1.json" .
+    kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_fork12_rollup_multi_e2e_args_2.json" .
     ;;
 fork12-rollup)
     kurtosis run --enclave "$ENCLAVE" --args-file "$PROJECT_ROOT/.github/test_fork12_rollup_e2e_args.json" .
@@ -105,15 +105,21 @@ if [ -n "$E2E_FOLDER" ]; then
 
     log_info "Running BATS E2E tests..."
     bats tests/cdk/access-list-e2e.bats tests/cdk/basic-e2e.bats
-    if [[ "$TEST_TYPE" == "fork9-cdk-validium" || "$TEST_TYPE" == "fork11-rollup" || "$TEST_TYPE" == "fork12-rollup-zkevm-bridge" ]]; then
-        bats tests/cdk/e2e.bats tests/cdk/bridge-e2e.bats
-    elif [[ "$TEST_TYPE" == "fork12-cdk-validium" || "$TEST_TYPE" == "fork12-rollup" ]]; then
-        bats tests/cdk/e2e.bats tests/aggkit/bridge-e2e.bats tests/aggkit/bridge-e2e-custom-gas.bats
-    elif [[ "$TEST_TYPE" == "fork12-pessimistic" ]]; then
-        bats tests/aggkit/bridge-e2e.bats tests/aggkit/bridge-e2e-custom-gas.bats
-    elif [[ "$TEST_TYPE" == "fork12-multi-l2-networks" ]]; then
-        bats ./tests/aggkit/bridge-l2_to_l2-e2e.bats
-    fi
+    
+    case "$TEST_TYPE" in
+        "fork9-cdk-validium"|"fork11-rollup"|"fork12-rollup-zkevm-bridge")
+            bats tests/cdk/e2e.bats tests/cdk/bridge-e2e.bats
+            ;;
+        "fork12-cdk-validium"|"fork12-rollup")
+            bats tests/cdk/e2e.bats tests/aggkit/bridge-e2e.bats tests/aggkit/bridge-e2e-custom-gas.bats
+            ;;
+        "fork12-pessimistic")
+            bats tests/aggkit/bridge-e2e.bats tests/aggkit/bridge-e2e-custom-gas.bats
+            ;;
+        "fork12-multi-l2-networks")
+            bats ./tests/aggkit/bridge-l2_to_l2-e2e.bats
+            ;;
+    esac
 
     popd >/dev/null
     log_info "E2E tests completed. Logs saved to $LOG_FILE"
