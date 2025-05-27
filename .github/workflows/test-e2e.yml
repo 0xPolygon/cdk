@@ -220,7 +220,7 @@ jobs:
     uses: agglayer/e2e/.github/workflows/cdk-e2e-multi-chains.yml@21e2be04650fc63317d67b3c8ad6ddbd11b5f882
     secrets: inherit
     with:
-      kurtosis-cdk-ref: 2cce0dac18ddf06e348f3bdfe279bebe867c02a3 
+      kurtosis-cdk-ref: 2cce0dac18ddf06e348f3bdfe279bebe867c02a3
       agglayer-e2e-ref: 21e2be04650fc63317d67b3c8ad6ddbd11b5f882
       kurtosis-cdk-args-1: ${{ needs.read-test-args.outputs.kurtosis-cdk-args-1 }}
       kurtosis-cdk-args-2: ${{ needs.read-test-args.outputs.kurtosis-cdk-args-2 }}
