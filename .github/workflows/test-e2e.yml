@@ -79,11 +79,11 @@ jobs:
     needs:
       - build-cdk-image
       - read-test-args
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@ff222e9d901f32d52e0bd879f55aa137fa51c21f
     secrets: inherit
     with:
       kurtosis-cdk-ref: 891e53fa18ce9c908eeac8e0ea9c90eb17614fef
-      agglayer-e2e-ref: 76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+      agglayer-e2e-ref: ff222e9d901f32d52e0bd879f55aa137fa51c21f
       test-name: test-fork9-cdk-validium-e2e
       kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork9-cdk-validium-e2e-args }}
 
@@ -102,11 +102,11 @@ jobs:
     needs:
       - build-cdk-image
       - read-test-args
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@ff222e9d901f32d52e0bd879f55aa137fa51c21f
     secrets: inherit
     with:
       kurtosis-cdk-ref: 891e53fa18ce9c908eeac8e0ea9c90eb17614fef
-      agglayer-e2e-ref: 76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+      agglayer-e2e-ref: ff222e9d901f32d52e0bd879f55aa137fa51c21f
       test-name: test-fork11-rollup-e2e
       kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork11-rollup-e2e-args }}
 
@@ -125,11 +125,11 @@ jobs:
     needs:
       - build-cdk-image
       - read-test-args
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@ff222e9d901f32d52e0bd879f55aa137fa51c21f
     secrets: inherit
     with:
       kurtosis-cdk-ref: 891e53fa18ce9c908eeac8e0ea9c90eb17614fef
-      agglayer-e2e-ref: 76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+      agglayer-e2e-ref: ff222e9d901f32d52e0bd879f55aa137fa51c21f
       test-name: test-fork12-cdk-validium-e2e
       kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork12-cdk-validium-e2e-args }}
 
@@ -148,11 +148,11 @@ jobs:
     needs:
       - build-cdk-image
       - read-test-args
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@ff222e9d901f32d52e0bd879f55aa137fa51c21f
     secrets: inherit
     with:
       kurtosis-cdk-ref: 891e53fa18ce9c908eeac8e0ea9c90eb17614fef
-      agglayer-e2e-ref: 76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+      agglayer-e2e-ref: ff222e9d901f32d52e0bd879f55aa137fa51c21f
       test-name: test-fork12-rollup-e2e
       kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork12-rollup-e2e-args }}
 
@@ -171,11 +171,11 @@ jobs:
     needs:
       - build-cdk-image
       - read-test-args
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@ff222e9d901f32d52e0bd879f55aa137fa51c21f
     secrets: inherit
     with:
       kurtosis-cdk-ref: 891e53fa18ce9c908eeac8e0ea9c90eb17614fef
-      agglayer-e2e-ref: 76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+      agglayer-e2e-ref: ff222e9d901f32d52e0bd879f55aa137fa51c21f
       test-name: test-fork12-pessimistic-e2e
       kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork12-pessimistic-e2e-args }}
 
@@ -194,11 +194,11 @@ jobs:
     needs:
       - build-cdk-image
       - read-test-args
-    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+    uses: agglayer/e2e/.github/workflows/cdk-e2e.yml@ff222e9d901f32d52e0bd879f55aa137fa51c21f
     secrets: inherit
     with:
       kurtosis-cdk-ref: 891e53fa18ce9c908eeac8e0ea9c90eb17614fef
-      agglayer-e2e-ref: 76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+      agglayer-e2e-ref: ff222e9d901f32d52e0bd879f55aa137fa51c21f
       test-name: test-fork12-rollup-e2e-zkevm-bridge
       kurtosis-cdk-args: ${{ needs.read-test-args.outputs.test-fork12-rollup-e2e-args-zkevm-bridge }}
 
@@ -217,11 +217,11 @@ jobs:
     needs:
       - build-cdk-image
       - read-test-args
-    uses: agglayer/e2e/.github/workflows/cdk-e2e-multi-chains.yml@76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+    uses: agglayer/e2e/.github/workflows/cdk-e2e-multi-chains.yml@ff222e9d901f32d52e0bd879f55aa137fa51c21f
     secrets: inherit
     with:
       kurtosis-cdk-ref: 891e53fa18ce9c908eeac8e0ea9c90eb17614fef
-      agglayer-e2e-ref: 76ddf629e400f2d0ffad04a9f5432240a8ea1f2d
+      agglayer-e2e-ref: ff222e9d901f32d52e0bd879f55aa137fa51c21f
       kurtosis-cdk-args-1: ${{ needs.read-test-args.outputs.kurtosis-cdk-args-1 }}
       kurtosis-cdk-args-2: ${{ needs.read-test-args.outputs.kurtosis-cdk-args-2 }}
 
