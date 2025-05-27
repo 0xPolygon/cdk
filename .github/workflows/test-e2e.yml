@@ -45,8 +45,8 @@ jobs:
       test-fork12-pessimistic-e2e-args: ${{ steps.read-args.outputs.test-fork12-pessimistic-e2e-args }}
       test-fork12-rollup-e2e-args-zkevm-bridge: ${{ steps.read-args.outputs.test-fork12-rollup-e2e-args-zkevm-bridge }}
       # multi l2 networks
-      kurtosis-cdk-args-1: ${{ steps.read-args.outputs.args-1 }}
-      kurtosis-cdk-args-2: ${{ steps.read-args.outputs.args-2 }}
+      kurtosis-cdk-args-1: ${{ steps.read-args.outputs.kurtosis-cdk-args-1 }}
+      kurtosis-cdk-args-2: ${{ steps.read-args.outputs.kurtosis-cdk-args-2 }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,10 +69,10 @@ jobs:
 
           # multi l2 networks (l2 network 1)
           CONTENT=$(cat ./.github/test_e2e_multi_chains_args_1.json | jq -c .)
-          echo "args-1=${CONTENT}" >> $GITHUB_OUTPUT
+          echo "kurtosis-cdk-args-1=${CONTENT}" >> $GITHUB_OUTPUT
           # multi l2 networks (l2 network 2)
           CONTENT=$(cat ./.github/test_e2e_multi_chains_args_2.json | jq -c .)
-          echo "args-2=${CONTENT}" >> $GITHUB_OUTPUT
+          echo "kurtosis-cdk-args-2=${CONTENT}" >> $GITHUB_OUTPUT
 
   test-fork9-cdk-validium-e2e:
     name: E2E test

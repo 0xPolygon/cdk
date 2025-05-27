@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"path"
 	"testing"
@@ -64,7 +65,7 @@ type SimulatedBackendWrapper struct {
 }
 
 func (c *SimulatedBackendWrapper) Call(result any, method string, args ...any) error {
-	return nil // Simulated backend doesn't need actual RPC calls
+	return errors.New("not implemented")
 }
 
 // NewL1EnvWithL2EVM creates a new E2E environment with EVM L1 and L2 chains.
