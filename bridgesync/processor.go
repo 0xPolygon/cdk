@@ -94,7 +94,6 @@ type Claim struct {
 
 // Event combination of bridge and claim events
 type Event struct {
-	Pos    uint64
 	Bridge *Bridge
 	Claim  *Claim
 }
@@ -294,7 +293,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			return errors.New("failed to convert sync.Block.Event to Event")
 		}
 		if event.Bridge != nil {
-			if err = p.exitTree.AddLeaf(tx, block.Num, event.Pos, types.Leaf{
+			if err = p.exitTree.AddLeaf(tx, block.Num, event.Bridge.BlockPos, types.Leaf{
 				Index: event.Bridge.DepositCount,
 				Hash:  event.Bridge.Hash(),
 			}); err != nil {
