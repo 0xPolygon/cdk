@@ -270,7 +270,7 @@ func (a *AggSender) sendCertificate(ctx context.Context) (*agglayer.SignedCertif
 		NewLocalExitRoot:      certificate.NewLocalExitRoot,
 		PreviousLocalExitRoot: &prevLER,
 		FromBlock:             fromBlock,
-		ToBlock:               toBlock,
+		ToBlock:               certificateParams.ToBlock,
 		CreatedAt:             certificateParams.CreatedAt,
 		UpdatedAt:             certificateParams.CreatedAt,
 		SignedCertificate:     string(raw),
