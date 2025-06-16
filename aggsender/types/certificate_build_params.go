@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/0xPolygon/cdk/bridgesync"
 )
@@ -39,6 +40,7 @@ func (c *CertificateBuildParams) Range(fromBlock, toBlock uint64) (*CertificateB
 		ToBlock:   toBlock,
 		Bridges:   make([]bridgesync.Bridge, 0),
 		Claims:    make([]bridgesync.Claim, 0),
+		CreatedAt: uint32(time.Now().UTC().Unix()),
 	}
 
 	for _, bridge := range c.Bridges {
