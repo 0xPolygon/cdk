@@ -157,6 +157,7 @@ func buildAppender(client EthClienter, globalExitRoot,
 			)
 		}
 		b.Events = append(b.Events, Event{VerifyBatches: &VerifyBatches{
+			BlockNumber:   l.BlockNumber,
 			BlockPosition: uint64(l.Index),
 			RollupID:      verifyBatches.RollupID,
 			NumBatch:      verifyBatches.NumBatch,
@@ -176,6 +177,7 @@ func buildAppender(client EthClienter, globalExitRoot,
 			)
 		}
 		b.Events = append(b.Events, Event{VerifyBatches: &VerifyBatches{
+			BlockNumber:   l.BlockNumber,
 			BlockPosition: uint64(l.Index),
 			RollupID:      verifyBatches.RollupID,
 			NumBatch:      verifyBatches.NumBatch,

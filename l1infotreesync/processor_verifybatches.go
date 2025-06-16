@@ -42,7 +42,6 @@ func (p *processor) processVerifyBatches(tx db.Txer, blockNumber uint64, event *
 		return fmt.Errorf("error rollupExitTree.UpsertLeaf. err: %w", err)
 	}
 	verifyBatches := event
-	verifyBatches.BlockNumber = blockNumber
 	verifyBatches.RollupExitRoot = newRoot
 	if err = meddler.Insert(tx, "verify_batches", verifyBatches); err != nil {
 		return fmt.Errorf("error inserting verify_batches. err: %w", err)
