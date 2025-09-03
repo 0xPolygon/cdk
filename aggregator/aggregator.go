@@ -119,7 +119,7 @@ func New(
 		logger.Fatalf("error creating ethtxmanager client: %v", err)
 	}
 
-	// Synchonizer logs
+	// Synchronizer logs
 	syncLogConfig := synclog.Config{
 		Environment: synclog.LogEnvironment(cfg.Log.Environment),
 		Level:       cfg.Log.Level,
