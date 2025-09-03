@@ -122,7 +122,7 @@ func TestMTAddLeaf(t *testing.T) {
 			require.NoError(t, err)
 			merkletree := tree.NewAppendOnlyTree(treeDB, "")
 
-			// Add exisiting leaves
+			// Add existing leaves
 			tx, err := db.NewTx(ctx, treeDB)
 			require.NoError(t, err)
 			for i, leaf := range testVector.ExistingLeaves {
