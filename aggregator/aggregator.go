@@ -119,7 +119,7 @@ func New(
 		logger.Fatalf("error creating ethtxmanager client: %v", err)
 	}
 
-	// Synchonizer logs
+	// Synchronizer logs
 	syncLogConfig := synclog.Config{
 		Environment: synclog.LogEnvironment(cfg.Log.Environment),
 		Level:       cfg.Log.Level,
@@ -773,7 +773,7 @@ func (a *Aggregator) validateEligibleFinalProof(
 
 			return false, nil
 		} else {
-			a.logger.Debugf("Proof batch number %d is not the following to last verfied batch number %d",
+			a.logger.Debugf("Proof batch number %d is not the following to last verified batch number %d",
 				proof.BatchNumber, lastVerifiedBatchNum)
 			return false, nil
 		}
