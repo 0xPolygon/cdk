@@ -10,7 +10,7 @@ For the first iteration of integrations, on-chain verification is not expected. 
 
 ## Smart Contracts
 
-The versions of the smart contracts that are being targeted for the DA integrations are found in [zkevm-contracts @ feature/banana](https://github.com/0xPolygonHermez/zkevm-contracts/tree/feature/banana). This new version of the contracts allow for multiple “consensus” implementations but there are two that are included by default:
+The versions of the smart contracts that are being targeted for the DA integrations are found in [zkevm-contracts @ feature/banana](]https://github.com/agglayer/agglayer-contracts/tree/feature/banana). This new version of the contracts allow for multiple “consensus” implementations but there are two that are included by default:
 
 - zkEVM to implement a rollup.
 - Validium to implement a validium.
@@ -18,7 +18,7 @@ The versions of the smart contracts that are being targeted for the DA integrati
 
 This document only considers the first approach, reusing the `PolygonValidium` consensus. That being said, the `PolygonValidium` implementation allows a custom smart contract to be used in the relevant interaction. This could be used by DAs to add custom on-chain verification logic. While verifying the DA integrity is optional, any new protocol will need to develop a custom smart contract in order to be successfully  integrated (more details bellow)
 
-This is by far the [most relevant part of the contract for DAs](https://github.com/0xPolygonHermez/zkevm-contracts/blob/533641301223a1e413b2e8f0323354671f310922/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol#L91C5-L98C36):
+This is by far the [most relevant part of the contract for DAs](https://github.com/agglayer/agglayer-contracts/blob/533641301223a1e413b2e8f0323354671f310922/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol#L91C5-L98C36):
 
 ```javascript
     function sequenceBatchesValidium(
@@ -31,7 +31,7 @@ This is by far the [most relevant part of the contract for DAs](https://github.c
     ) external onlyTrustedSequencer {
 ```
 
-And in particular this [piece of code](https://github.com/0xPolygonHermez/zkevm-contracts/blob/feature/banana/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol#L228C13-L230):
+And in particular this [piece of code](https://github.com/agglayer/agglayer-contracts/blob/feature/banana/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol#L228C13-L230):
 
 ```javascript
     // Validate that the data availability protocol accepts the dataAvailabilityMessage
@@ -42,7 +42,7 @@ And in particular this [piece of code](https://github.com/0xPolygonHermez/zkevm-
     );
 ```
 
-It's expected that any protocol build their own contract that follows [this interface](https://github.com/0xPolygonHermez/zkevm-contracts/blob/feature/banana/contracts/v2/interfaces/IDataAvailabilityProtocol.sol#L5), in the same way that the `PolygonDataCommittee` does. The implementation of `verifyMessage` is dependant on each protocol, and in a first iteration could be "dummy", since the AggLayer will ensure that the DA is actually available anyway. That being said we expect protocol integrations to evolve towards "trustless verification"
+It's expected that any protocol build their own contract that follows [this interface](https://github.com/agglayer/agglayer-contracts/blob/feature/banana/contracts/v2/interfaces/IDataAvailabilityProtocol.sol#L5), in the same way that the `PolygonDataCommittee` does. The implementation of `verifyMessage` is dependant on each protocol, and in a first iteration could be "dummy", since the AggLayer will ensure that the DA is actually available anyway. That being said we expect protocol integrations to evolve towards "trustless verification"
 
 ## Setup the Node
 
@@ -76,7 +76,7 @@ These items would need to be implemented to have a successful integration:
 4. The DA BAckend crafts the `dataAvailabilityMessage`, this is optional but could be used to:
     - Verify the existance of the data on the DA backend on L1 (this message will be passed down to the DA smart contract, and it could include merkle proofs, ...). Realisitcally speaking, we don't expect to be implemented on a first iteration
     - Help the data retrival process, for instance by including the block height or root of the blobs used to store the data. If many DA blobs are used to store a single sequence, one interesting trick would be to post some metadata in another blob, or the lates used blob, that points to the other used blobs. This way only the pointer to the metadata is needed to include into the `dataAvailabilityMessage` (since this message will be posted as part of the calldata, it's interesting to minimize it's size)
-5. The sequencer [posts the sequence on L1](https://github.com/0xPolygonHermez/zkevm-contracts/blob/develop/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol#L85), including the `dataAvailabilityMessage`. On that call, [the DA smart contract will be called](https://github.com/0xPolygonHermez/zkevm-contracts/blob/develop/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol#L217). This can be used to validate that the DA protocol has been used as expected (optional)
+5. The sequencer [posts the sequence on L1](https://github.com/agglayer/agglayer-contracts/blob/develop/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol#L85), including the `dataAvailabilityMessage`. On that call, [the DA smart contract will be called](https://github.com/agglayer/agglayer-contracts/blob/develop/contracts/v2/consensus/validium/PolygonValidiumEtrog.sol#L217). This can be used to validate that the DA protocol has been used as expected (optional)
 6. After that happens, any node synchronizing the network will realise of it through an event of the smart contract, and will be able to retrieve the hashes of each batch and the `dataAvailabilityMessage`
 7. And so it will be able to call `GetSequence(hashes common.Hash, dataAvailabilityMessage []byte)` to the DA Backend
 8. The DA BAckend will then retrieve the data, and return it
