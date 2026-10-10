@@ -1,4 +1,4 @@
-name: Test Unit and SonarCloud analysis
+name: Test Unit
 
 on:
   push:
@@ -32,9 +32,3 @@ jobs:
 
       - name: Test
         run: make test-unit
-          
-      - name: Analyze with SonarCloud
-        uses: sonarsource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
