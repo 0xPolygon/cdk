@@ -14,4 +14,4 @@ https://polygon.technology/careers
 security@polygon.technology
 
 ## The URL for accessing the security.txt file.
-Canonical: https://polygon.technology/security.txt
+Canonical: https://polygon.technology/.well-known/security.txt
